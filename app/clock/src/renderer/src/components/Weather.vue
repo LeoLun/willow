@@ -171,7 +171,11 @@ const init  = async (myChart) => {
 }
 
 const handleResize = () => {
-  if (myChart) init(myChart)
+  if (myChart) {
+    setTimeout(() => {
+      init(myChart)
+    }, 500);
+  }
 }
 
 onMounted(async () => {
