@@ -1,0 +1,10 @@
+packages:
+  - 'packages/**'
+  - 'app/**'
+
+catalog:
+  reflect-metadata: ^0.1.13
+  electron: ^33.2.1
+  tsyringe: ^4.6.0
+  typescript: ^4.5.4
+  inversify: ^6.2.1
