@@ -1,6 +1,7 @@
 import { On, WindowFactoryResolver, Module, IPC } from "poetry";
 import { SomeService } from "./service/some.service";
 import { MainWindow } from "./window/main.window";
+import { DialogWindow } from "./window/dialog.window";
 import { SettingWindow } from "./window/setting.window";
 import { app, BrowserWindow, dialog } from "electron";
 import { ChatServiceFactory } from "./service/chat-service/chat-service.factory";
@@ -35,18 +36,19 @@ if (require("electron-squirrel-startup")) {
 
 @Module({
   imports: [],
-  windows: [MainWindow, SettingWindow],
+  windows: [MainWindow, SettingWindow, DialogWindow],
   providers: [SomeService],
 })
 export class AppModule implements IOpenSettingWindow, IChatHookWindow {
   private windowFactoryResolver: WindowFactoryResolver;
+  private mainWindow: MainWindow;
 
   constructor(windowFactoryResolver: WindowFactoryResolver) {
     this.windowFactoryResolver = windowFactoryResolver;
   }
 
   createWindow() {
-    this.windowFactoryResolver.resolveWindowFactory(MainWindow);
+    this.mainWindow = this.windowFactoryResolver.resolveWindowFactory(MainWindow);
   }
 
   @On("ready")
@@ -74,7 +76,8 @@ export class AppModule implements IOpenSettingWindow, IChatHookWindow {
     request: IOpenSettingWindowRequest
   ): Promise<IOpenSettingWindowResponce> {
     console.log("openSettingWindow", request);
-    this.windowFactoryResolver.resolveWindowFactory(SettingWindow);
+    const settingWindow = this.windowFactoryResolver.resolveWindowFactory(SettingWindow);
+    settingWindow.showModal(this.mainWindow.getWindow());
     return { result: "success" };
   }
 
@@ -121,7 +124,10 @@ export class AppModule implements IOpenSettingWindow, IChatHookWindow {
       return { result: 'canceled' };
     }
     // 调用 deepseek 去重命名文件
-    await renameFileTool(filePaths[0]);
+    // await renameFileTool(filePaths[0]);
+    // 打开一个弹窗
+    const dialogWindow = this.windowFactoryResolver.resolveWindowFactory(DialogWindow);
+    dialogWindow.show(this.mainWindow.getWindow(), 'rename');
     return { result: 'success' };
   }
 }

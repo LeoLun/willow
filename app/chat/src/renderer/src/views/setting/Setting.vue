@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/card'
 import BaseSetting from './components/BaseSetting.vue';
 import AiSetting from './components/AiSetting.vue';
-import { c } from 'vite/dist/node/types.d-aGj9QkWt';
 
 const nav = [
   {

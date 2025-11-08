@@ -18,7 +18,8 @@ const routes: RouteRecordRaw[] = [
       },
     ]
   },
-  // { path: '/setting', component: () => import('../views/setting/Setting.vue') },
+  { path: '/setting', component: () => import('../views/setting/Setting.vue') },
+  { path: '/dialog', component: () => import('../views/dialog/Dialog.vue') },
 ]
 
 const router = createRouter({

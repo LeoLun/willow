@@ -1,11 +1,11 @@
-import { Container } from "inversify";
+import { Container, interfaces } from "inversify";
 
 export class WindowFactoryResolver {
   constructor(
     private container: Container
   ){}
 
-  resolveWindowFactory(window: any) {
-    return this.container.resolve(window);
+  resolveWindowFactory<T>(window: interfaces.Newable<T>): T {
+    return this.container.resolve<T>(window);
   }
 }

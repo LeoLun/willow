@@ -1,5 +1,5 @@
 import { Window, WindowInstance, OnInit, On, OnDestroy } from "poetry";
-import { BrowserView } from "electron";
+import { BrowserWindow } from "electron";
 import path from 'path';
 
 @Window({
@@ -16,7 +16,7 @@ import path from 'path';
 })
 export class MainWindow implements OnInit, OnDestroy {
   @WindowInstance()
-  private win: BrowserView;
+  private win: BrowserWindow;
 
   async onInit() {
     //
@@ -24,6 +24,10 @@ export class MainWindow implements OnInit, OnDestroy {
 
   onDestroy() {
     console.log('onDestroy')
+  }
+
+  getWindow() {
+    return this.win;
   }
 
   @On('show')

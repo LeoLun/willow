@@ -1,42 +1,54 @@
 import { Window, WindowInstance, OnInit, On, OnDestroy } from "poetry";
 import { SomeService } from "../service/some.service";
-import { BrowserView } from "electron";
-import path from 'path';
+import { BrowserWindow } from "electron";
+import path from "path";
+
+const DIALOG_WINDOW_VITE_DEV_SERVER_URL = `${MAIN_WINDOW_VITE_DEV_SERVER_URL}/dialog`;
+
+type DialogWindowType = 'rename' | 'confirm';
 
 @Window({
   options: {
     height: 400,
     width: 600,
-    titleBarStyle: 'hiddenInset',
+    show: false,
+    modal: true,
+    titleBarStyle: "hiddenInset",
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
     },
   },
-  loadURL: `${MAIN_WINDOW_VITE_DEV_SERVER_URL}/setting`,
+  loadURL: `${MAIN_WINDOW_VITE_DEV_SERVER_URL}/dialog`,
 })
-export class SettingWindow implements OnInit, OnDestroy {
+export class DialogWindow implements OnInit, OnDestroy {
   @WindowInstance()
-  private win: BrowserView;
+  private win: BrowserWindow;
 
   constructor(private someService: SomeService) {}
 
   onInit() {
-    console.log('OnInit')
-    console.log('OnInit', this.someService)
-    console.log('win', this.win) 
+    console.log("OnInit");
+    console.log("OnInit", this.someService);
+    console.log("win", this.win);
   }
 
   onDestroy() {
-    console.log('onDestroy')
+    console.log("onDestroy");
   }
 
-  @On('show')
+  show(parentWindow: BrowserWindow, type: DialogWindowType) {
+    this.win.loadURL(`${DIALOG_WINDOW_VITE_DEV_SERVER_URL}?type=${type}`);
+    this.win.setParentWindow(parentWindow);
+    this.win.show();
+  }
+
+  @On("show")
   onShow() {
-    console.log('OnShow')
+    console.log("OnShow");
   }
 
-  @On('hide')
+  @On("hide")
   onHide() {
-    console.log('OnHide')
+    console.log("OnHide");
   }
 }

@@ -1,5 +1,5 @@
 import { Window, WindowInstance, OnInit, On, OnDestroy, WindowMetadata } from "poetry";
-import { BrowserView } from "electron";
+import { BrowserWindow } from "electron";
 import { join } from 'path';
 
 const option: WindowMetadata = {
@@ -23,7 +23,7 @@ if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
 @Window(option)
 export class MainWindow implements OnInit, OnDestroy {
   @WindowInstance()
-  private win: BrowserView;
+  private win: BrowserWindow;
 
   onInit() {
     console.log('OnInit')

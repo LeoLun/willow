@@ -1,12 +1,13 @@
 import { Window, WindowInstance, OnInit, On, OnDestroy } from "poetry";
 import { SomeService } from "../service/some.service";
-import { BrowserView } from "electron";
+import { BrowserWindow } from "electron";
 import path from 'path';
 
 @Window({
   options: {
     height: 400,
     width: 600,
+    show: false,
     titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -16,7 +17,7 @@ import path from 'path';
 })
 export class SettingWindow implements OnInit, OnDestroy {
   @WindowInstance()
-  private win: BrowserView;
+  private win: BrowserWindow;
 
   constructor(private someService: SomeService) {}
 
@@ -28,6 +29,12 @@ export class SettingWindow implements OnInit, OnDestroy {
 
   onDestroy() {
     console.log('onDestroy')
+  }
+
+  showModal(parentWindow: BrowserWindow) {
+    this.win.setParentWindow(parentWindow);
+    this.win.show();
+    console.log('isModal', this.win.isModal())
   }
 
   @On('show')
