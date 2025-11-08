@@ -10,10 +10,14 @@ import { PropertysExplorer } from "./propertys-explorer";
 
 
 export class CoreFactoryStatic {
-  public async create(module: any) {
-    const container = new Container({ defaultScope: "Singleton" });
-    const instance = this.createModule(module, container);
+  private container: Container;
 
+  constructor() {
+    this.container = new Container({ defaultScope: "Singleton" });
+  }
+
+  public async create(module: any) {
+    const instance = await this.createModule(module, this.container);
     return instance
   }
 
@@ -132,7 +136,7 @@ export class CoreFactoryStatic {
 
     // 添加窗口事件监听
     const propertysExplorer = new PropertysExplorer();
-    const [propertys, events] = propertysExplorer.scanForPropertys(instance);
+    const [propertys, events, ipcMethods] = propertysExplorer.scanForPropertys(instance);
     // 注入窗口对象实例
     for (const property of propertys) {
       Reflect.set(instance, property.propertyName, browserWindow);
@@ -142,9 +146,16 @@ export class CoreFactoryStatic {
         event.targetCallback.apply(instance, args);
       });
     }
-
+    for (const event of ipcMethods) {
+      // @TODO 优化改用 rxjs 监听, 以便于取消监听
+      ipcMain.handle(event.eventName, (...args) => {
+        return event.targetCallback.apply(instance, args);
+      });
+    }
     return;
   }
+
+  
 }
 
 export const CoreFactory = new CoreFactoryStatic();
