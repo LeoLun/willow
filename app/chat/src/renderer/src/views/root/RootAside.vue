@@ -3,9 +3,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import {
-  House,
-  List,
-  CalendarDays,
+  FileUp,
   Settings2,
   Sun,
   Moon,
@@ -23,6 +21,11 @@ const nav = [
     title: '新对话',
     icon: ChartColumn,
     name: 'Home',
+  },
+  {
+    title: '上传账单',
+    icon: FileUp,
+    name: 'Upload',
   },
   // {
   //   title: '流水',
@@ -55,7 +58,7 @@ const handleChangeThemeClick = () => {
 </script>
 
 <template>
-  <div class="pt-8">
+  <div class="pt-8 shrink-0">
     <div class="px-3 py-2 flex flex-col h-full">
       <h2 class="mb-2 px-4 text-lg font-semibold tracking-tight">
         Willow Chat

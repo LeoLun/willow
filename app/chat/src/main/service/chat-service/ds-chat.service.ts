@@ -5,10 +5,10 @@ import { IChatService } from "../../interfaces/chat-service.interface";
 @Injectable()
 export class DSChatService implements IChatService {
 
-  createChatAI() {
+  createChatAI(modelName: "deepseek-chat" | "deepseek-reasoner" = "deepseek-chat") {
     const model = new ChatDeepSeek({
       apiKey: process.env.DEEPSEEK_API_KEY,
-      modelName: "deepseek-chat",
+      modelName,
       streaming: true,
     });
 

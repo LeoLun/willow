@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type {
   IRenderHook,
   IOpenSettingWindowRequest,
@@ -11,6 +11,8 @@ import type {
   IOnAiStreamRequest,
   IOnAiStreamResponse,
   IStartAiRenameResponce,
+  IStartImportToNotionResponce,
+  BillRecord,
 } from "../shared";
 
 import {
@@ -20,10 +22,13 @@ import {
   OPEN_SETTING_WINDOW,
   SET_THEME,
   START_AI_STREAM,
+  AI_IMPORT_TO_NOTION,
+  PARSE_BILL_RESULT,
+  UPADTA_BILL,
 } from "../shared";
 
 
-const  ipcObject: IRenderHook  = {
+const  renderHookImpl: IRenderHook  = {
   async createChatSession(): Promise<ICreateChatSessionResponce> {
     return await ipcRenderer.invoke(CREATE_CHAT_SESSION);
   },
@@ -46,6 +51,23 @@ const  ipcObject: IRenderHook  = {
   async aiRename(): Promise<IStartAiRenameResponce> {
     return await ipcRenderer.invoke(AI_RENAME);
   },
+  async importToNotion(filePath?: string): Promise<IStartImportToNotionResponce> {
+    return await ipcRenderer.invoke(AI_IMPORT_TO_NOTION, filePath);
+  },
+  getFilePath: (file: File) => {
+    // webUtils.getPathForFile 是获取真实路径的官方方法
+    return webUtils.getPathForFile(file);
+  },
+  onParseBillResult: (callback: (billList: BillRecord[]) => void) => {
+    ipcRenderer.on(PARSE_BILL_RESULT, (event, billList) => {
+      callback(billList);
+    });
+  },
+  onUpdateBill: (callback: (bill: BillRecord) => void) => {
+    ipcRenderer.on(UPADTA_BILL, (event, bill) => {
+      callback(bill);
+    });
+  },
 }
 
-contextBridge.exposeInMainWorld("electronAPI", ipcObject);
+contextBridge.exposeInMainWorld("electronAPI", renderHookImpl);

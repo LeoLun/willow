@@ -1,10 +1,10 @@
 import 'reflect-metadata';
 import { AppModule } from "./app.module";
 import { CoreFactory } from "poetry";
-import dotenv from 'dotenv';
+import { config } from 'dotenv';
 
 // 加载环境变量
-dotenv.config();
+config();
 
 async function bootstrap() {
   await CoreFactory.create(AppModule);

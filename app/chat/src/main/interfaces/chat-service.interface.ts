@@ -9,7 +9,7 @@ export interface IChatService {
    * 创建一个 ChatOpenAICompletions 实例
    * @returns ChatOpenAICompletions 实例
    */
-  createChatAI(): any;
+  createChatAI(modelName?: string): any;
 
   /**
    * 获取一个 ChatOpenAICompletions 实例

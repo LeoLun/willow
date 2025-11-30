@@ -1,5 +1,6 @@
 import { readFile } from "fs/promises";
 import { PDFParse } from "pdf-parse";
+import { read } from "xlsx";
 
 /**
  * 读取PDF文件内容
@@ -17,4 +18,21 @@ export async function readPDFText(filePath: string, maxLength = 1000) {
     await parser.destroy();
     return '';
   }
+}
+
+
+export async function readXlsxText(filePath: string): Promise<{ sheetName: string; data: string }[]> {
+  const buf = await readFile(filePath);
+  /* buf is a Buffer */
+  const workbook = read(buf);
+  const sheetNames = workbook.SheetNames;
+  // 读取全部sheet
+  const sheetData = sheetNames.map((sheetName: string) => {
+    const worksheet = workbook.Sheets[sheetName];
+    return {
+      sheetName,
+      data: JSON.stringify(worksheet),
+    };
+  });
+  return sheetData;
 }

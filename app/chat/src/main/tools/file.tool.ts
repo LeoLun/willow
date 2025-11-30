@@ -1,7 +1,7 @@
 import * as z from "zod";
 import { readdir, mkdir, rename, stat } from "fs/promises";
 import { DynamicStructuredTool } from "langchain";
-import { readPDFText } from "../utils/file.utils";
+import { readPDFText, readXlsxText } from "../utils/file.utils";
 
 export function registerFileTools() {
   const listDirectoryTool = new DynamicStructuredTool({
@@ -71,6 +71,21 @@ export function registerFileTools() {
     },
   });
 
+  // 读取 xlsx 文件内容
+  const readXlsxFileTool = new DynamicStructuredTool({
+    name: "read_xlsx_file",
+    description: "读取xlsx文件内容。",
+    schema: z.object({
+      filePath: z.string().describe("要读取的xlsx文件路径"),
+    }),
+    func: async ({ filePath }: { filePath: string }) => {
+      console.log("读取xlsx文件内容：", filePath);
+      const xlsxText = await readXlsxText(filePath);
+      console.log("xlsxText", xlsxText);
+      return xlsxText;
+    },
+  });
+
   // 读取文件基本信息
   const readFileInfoTool = new DynamicStructuredTool({
     name: "read_file_info",
@@ -91,5 +106,5 @@ export function registerFileTools() {
     },
   }); 
 
-  return [listDirectoryTool, createDirTool, moveFileTool, renameFileTool, readPdfFileTool, readFileInfoTool];
+  return [listDirectoryTool, createDirTool, moveFileTool, renameFileTool, readPdfFileTool, readXlsxFileTool, readFileInfoTool];
 }

@@ -7,3 +7,6 @@ export const START_AI_STREAM = 'START_AI_STREAM';
 export const CREATE_CHAT_SESSION = 'CREATE_CHAT_SESSION';
 export const AI_STREAM = 'AI_STREAM';
 export const AI_RENAME = 'AI_RENAME';
+export const AI_IMPORT_TO_NOTION = 'AI_IMPORT_TO_NOTION';
+export const PARSE_BILL_RESULT = 'PARSE_BILL_RESULT';
+export const UPADTA_BILL = 'UPADTA_BILL';

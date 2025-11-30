@@ -1,5 +1,7 @@
 import { On, WindowFactoryResolver, Module, IPC } from "poetry";
-import { SomeService } from "./service/some.service";
+import { NotionService } from "./service/notion.service";
+import { WeChatBillService } from "./service/wechat-bill.service";
+import { AlipayBillService } from "./service/alipay-bill.service";
 import { MainWindow } from "./window/main.window";
 import { DialogWindow } from "./window/dialog.window";
 import { SettingWindow } from "./window/setting.window";
@@ -16,6 +18,7 @@ import type {
   IStartAiStreamRequest,
   ICreateChatSessionResponce,
   IStartAiRenameResponce,
+  IStartImportToNotionResponce,
 } from "../shared";
 
 import {
@@ -24,11 +27,9 @@ import {
   CREATE_CHAT_SESSION,
   OPEN_SETTING_WINDOW,
   START_AI_STREAM,
+  AI_IMPORT_TO_NOTION,
 } from "../shared";
-
-import { renameFileTool } from "./agent/rename.agent";
-
-
+import { BillService } from "./service/bill.service";
 
 if (require("electron-squirrel-startup")) {
   app.quit();
@@ -37,14 +38,16 @@ if (require("electron-squirrel-startup")) {
 @Module({
   imports: [],
   windows: [MainWindow, SettingWindow, DialogWindow],
-  providers: [SomeService],
+  providers: [NotionService, BillService, WeChatBillService, AlipayBillService],
 })
 export class AppModule implements IOpenSettingWindow, IChatHookWindow {
   private windowFactoryResolver: WindowFactoryResolver;
   private mainWindow: MainWindow;
+  private billService: BillService;
 
-  constructor(windowFactoryResolver: WindowFactoryResolver) {
+  constructor(windowFactoryResolver: WindowFactoryResolver, billService: BillService) {
     this.windowFactoryResolver = windowFactoryResolver;
+    this.billService = billService;   
   }
 
   createWindow() {
@@ -128,6 +131,12 @@ export class AppModule implements IOpenSettingWindow, IChatHookWindow {
     // 打开一个弹窗
     const dialogWindow = this.windowFactoryResolver.resolveWindowFactory(DialogWindow);
     dialogWindow.show(this.mainWindow.getWindow(), 'rename');
+    return { result: 'success' };
+  }
+
+  @IPC(AI_IMPORT_TO_NOTION)
+  async importToNotion(event: Electron.IpcMainInvokeEvent, filePath?: string): Promise<IStartImportToNotionResponce> {
+    this.billService.importToNotion(event, filePath);
     return { result: 'success' };
   }
 }

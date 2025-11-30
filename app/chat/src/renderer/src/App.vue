@@ -19,7 +19,22 @@ watch(mode, (value) => {
   --scrollbar-color: #0000001a;
 }
 
-.overflow-auto, .overflow-scroll, .overflow-x-auto, .overflow-x-scroll, .overflow-y-auto, .overflow-y-scroll {
+*,
+::backdrop,
+:after,
+:before {
+  border: 0 solid;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.overflow-auto,
+.overflow-scroll,
+.overflow-x-auto,
+.overflow-x-scroll,
+.overflow-y-auto,
+.overflow-y-scroll {
   scrollbar-color: var(--scrollbar-color) transparent;
 }
 </style>

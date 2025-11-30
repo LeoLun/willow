@@ -1,4 +1,6 @@
 import { AIMessageChunk } from "@langchain/core/messages";
+import type { BillRecord } from "../index";
+
 export type IStartAiStreamResponce = {
   result: string;
 }
@@ -22,14 +24,19 @@ export interface IOnAiStreamResponse {
   data: AIMessageChunk;
 }
 
+export type IStartAiRenameResponce = {
+  result: string;
+}
+
+export type IStartImportToNotionResponce = {
+  result: string;
+}
+
 export interface IChatHookWindow {
   createChatSession(event:  Electron.IpcMainInvokeEvent): Promise<ICreateChatSessionResponce>;
   startAiStream(event:  Electron.IpcMainInvokeEvent, request: IStartAiStreamRequest): Promise<IStartAiStreamResponce>;
   aiRename(event:  Electron.IpcMainInvokeEvent): Promise<IStartAiRenameResponce>;
-}
-
-export type IStartAiRenameResponce = {
-  result: string;
+  importToNotion(event:  Electron.IpcMainInvokeEvent): Promise<IStartImportToNotionResponce>;
 }
 
 
@@ -37,10 +44,8 @@ export interface IChatHookRenderer {
   onAiStream(request: IOnAiStreamRequest): void;
   createChatSession(): Promise<ICreateChatSessionResponce>;
   startAiStream(request: IStartAiStreamRequest): Promise<IStartAiStreamResponce>;
-  // 获取对话列表
-  // 新增对话
-  // 删除对话
-  // 修改对话标题
-  // 获取对话详情
   aiRename(): Promise<IStartAiRenameResponce>;
+  importToNotion(filePath?: string): Promise<IStartImportToNotionResponce>;
+  onParseBillResult(callback: (billList: BillRecord[]) => void): void;
+  onUpdateBill(callback: (bill: BillRecord) => void): void;
 }

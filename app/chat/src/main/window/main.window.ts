@@ -12,7 +12,7 @@ import path from 'path';
     },
   },
   loadURL: MAIN_WINDOW_VITE_DEV_SERVER_URL,
-  openDevTools: true,
+  // openDevTools: true,
 })
 export class MainWindow implements OnInit, OnDestroy {
   @WindowInstance()
