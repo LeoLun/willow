@@ -1,62 +1,54 @@
 import { On, WindowFactoryResolver, Module, IPC } from "poetry";
-import { NotionService } from "./service/notion.service";
-import { WeChatBillService } from "./service/wechat-bill.service";
-import { AlipayBillService } from "./service/alipay-bill.service";
 import { MainWindow } from "./window/main.window";
-import { DialogWindow } from "./window/dialog.window";
-import { SettingWindow } from "./window/setting.window";
-import { app, BrowserWindow, dialog } from "electron";
-import { ChatServiceFactory } from "./service/chat-service/chat-service.factory";
-import { ChatServiceType } from "./interfaces/chat-service.interface";
+import { app, BrowserWindow, session } from "electron";
+import type { IEcho } from "../shared";
+import { ECHO } from "../shared";
+import started from 'electron-squirrel-startup';
+import { EchoService } from "./service/echo.service";
 
-import type {
-  IOpenSettingWindowRequest,
-  IOpenSettingWindowResponce,
-  IOpenSettingWindow,
-  IChatHookWindow,
-  IStartAiStreamResponce,
-  IStartAiStreamRequest,
-  ICreateChatSessionResponce,
-  IStartAiRenameResponce,
-  IStartImportToNotionResponce,
-} from "../shared";
-
-import {
-  AI_RENAME,
-  AI_STREAM,
-  CREATE_CHAT_SESSION,
-  OPEN_SETTING_WINDOW,
-  START_AI_STREAM,
-  AI_IMPORT_TO_NOTION,
-} from "../shared";
-import { BillService } from "./service/bill.service";
-
-if (require("electron-squirrel-startup")) {
+if (started) {
   app.quit();
 }
 
 @Module({
   imports: [],
-  windows: [MainWindow, SettingWindow, DialogWindow],
-  providers: [NotionService, BillService, WeChatBillService, AlipayBillService],
+  windows: [MainWindow],
+  providers: [EchoService],
 })
-export class AppModule implements IOpenSettingWindow, IChatHookWindow {
+export class AppModule implements IEcho { 
   private windowFactoryResolver: WindowFactoryResolver;
-  private mainWindow: MainWindow;
-  private billService: BillService;
+  private echoService: EchoService;
 
-  constructor(windowFactoryResolver: WindowFactoryResolver, billService: BillService) {
+  constructor(
+    windowFactoryResolver: WindowFactoryResolver,
+    echoService: EchoService
+  ) {
+    console.log("windowFactoryResolver", windowFactoryResolver);
     this.windowFactoryResolver = windowFactoryResolver;
-    this.billService = billService;   
+    this.echoService = echoService;
   }
 
   createWindow() {
-    this.mainWindow = this.windowFactoryResolver.resolveWindowFactory(MainWindow);
+    this.windowFactoryResolver.resolveWindowFactory(MainWindow);
   }
 
   @On("ready")
   onReady() {
     this.createWindow();
+
+    // 获取默认会话
+    const ses = session.defaultSession;
+
+    // 拦截请求并修改请求头
+    ses.webRequest.onBeforeSendHeaders((details, callback) => {
+      if (details.url.includes("mat1.gtimg.com")) {
+        if (details.requestHeaders['Referer']) {
+          delete details.requestHeaders['Referer'];
+        }
+      }
+      // 继续请求
+      callback({ cancel: false, requestHeaders: details.requestHeaders });
+    });
   }
 
   @On("window-all-closed")
@@ -73,70 +65,11 @@ export class AppModule implements IOpenSettingWindow, IChatHookWindow {
     }
   }
 
-  @IPC(OPEN_SETTING_WINDOW)
-  async openSettingWindow(
-    event: Electron.IpcMainEvent,
-    request: IOpenSettingWindowRequest
-  ): Promise<IOpenSettingWindowResponce> {
-    console.log("openSettingWindow", request);
-    const settingWindow = this.windowFactoryResolver.resolveWindowFactory(SettingWindow);
-    settingWindow.showModal(this.mainWindow.getWindow());
-    return { result: "success" };
-  }
-
-  @IPC(START_AI_STREAM)
-  async startAiStream(
-    event: Electron.IpcMainInvokeEvent,
-    request: IStartAiStreamRequest
-  ): Promise<IStartAiStreamResponce> {
-    console.log('startAiStream');
-    console.log('messages', request.messages);
-    const chatServiceImpl = ChatServiceFactory.createChatService(ChatServiceType.DEEPSEEK);
-    const chatAI = chatServiceImpl.createChatAI();
-    // 流式调用
-    const stream = await chatAI.stream(
-      { messages: [{ role: "user", content: request.messages }] },
-      { configurable: { thread_id: "1" } }
-    );
-    console.log('stream', stream);
-    for await (const part of stream) {
-      console.log('part', part);
-      event.sender.send(AI_STREAM, { id: request.id, data: part });
-    }
-    return { result: 'success' };
-  }
-
-  @IPC(CREATE_CHAT_SESSION)
-  async createChatSession(
-    event: Electron.IpcMainInvokeEvent,
-  ): Promise<ICreateChatSessionResponce> {
-    return { id: Date.now() + '' };
-  }
-
-
-  @IPC(AI_RENAME)
-  async aiRename(): Promise<IStartAiRenameResponce> {
-    console.log('aiRename');
-    // 打开文件选择器，选择文件
-    // 目前只支持 pdf 文件
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
-    });
-    if (canceled) {
-      return { result: 'canceled' };
-    }
-    // 调用 deepseek 去重命名文件
-    // await renameFileTool(filePaths[0]);
-    // 打开一个弹窗
-    const dialogWindow = this.windowFactoryResolver.resolveWindowFactory(DialogWindow);
-    dialogWindow.show(this.mainWindow.getWindow(), 'rename');
-    return { result: 'success' };
-  }
-
-  @IPC(AI_IMPORT_TO_NOTION)
-  async importToNotion(event: Electron.IpcMainInvokeEvent, filePath?: string): Promise<IStartImportToNotionResponce> {
-    this.billService.importToNotion(event, filePath);
-    return { result: 'success' };
+  @IPC(ECHO)
+  async echo() {
+    const message = await this.echoService.echo("hello world");
+    return {
+      message,
+    };
   }
 }

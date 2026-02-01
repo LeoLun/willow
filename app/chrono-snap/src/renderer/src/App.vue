@@ -1,40 +1,19 @@
-<script setup lang=ts>
-import { watch } from 'vue';
-import TopDragBar from './components/base/TopDragBar.vue';
-import { useColorMode } from '@vueuse/core'
+<template>
+  <div class="root">
 
-const mode = useColorMode()
-watch(mode, (value) => {
-  document.documentElement.classList.remove('dark', 'light')
-  document.documentElement.classList.add(value)
-}, { immediate: true })
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted } from "vue";
+import { electronAPI } from "./lib/ipc";
+
+onMounted(async () => {
+  const { message } = await electronAPI.echo("hello");
+  console.log(message);
+});
 </script>
 
-<template>
-  <TopDragBar />
-  <router-view />
-</template>
-<style lang="css">
-:root {
-  --scrollbar-color: #0000001a;
-}
+<style scoped>
 
-*,
-::backdrop,
-:after,
-:before {
-  border: 0 solid;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-.overflow-auto,
-.overflow-scroll,
-.overflow-x-auto,
-.overflow-x-scroll,
-.overflow-y-auto,
-.overflow-y-scroll {
-  scrollbar-color: var(--scrollbar-color) transparent;
-}
 </style>

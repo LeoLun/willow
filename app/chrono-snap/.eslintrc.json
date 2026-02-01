@@ -15,12 +15,5 @@
   "parser": "@typescript-eslint/parser",
   "rules": {
     "import/no-named-as-default": 0
-  },
-  "settings": {
-    "import/resolver": {
-      "typescript": {
-        "alwaysTryTypes": true // 可选，让 eslint 优先试图解析 .d.ts 类型文件
-      }
-    }
   }
 }

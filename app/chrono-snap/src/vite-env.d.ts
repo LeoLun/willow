@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
+import { IRenderHook } from "./shared";
 
-// Add properties to the Window interface or remove it if not needed
-interface Window {
-  electronAPI?: any;
+declare global {
+  interface Window {
+    electronAPI: IRenderHook;
+  }
 }

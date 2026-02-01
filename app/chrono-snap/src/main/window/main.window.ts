@@ -1,33 +1,37 @@
-import { Window, WindowInstance, OnInit, On, OnDestroy } from "poetry";
+import { Window, WindowInstance, OnInit, On, OnDestroy, WindowMetadata } from "poetry";
 import { BrowserWindow } from "electron";
-import path from 'path';
+import { join } from 'path';
 
-@Window({
+const option: WindowMetadata = {
   options: {
     height: 800,
     width: 1200,
     titleBarStyle: 'hiddenInset',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: join(__dirname, 'preload.js'),
     },
   },
-  loadURL: MAIN_WINDOW_VITE_DEV_SERVER_URL,
-  // openDevTools: true,
-})
+  openDevTools: true,
+}
+
+if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+  option.loadURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
+} else {
+  option.loadFile = join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`);
+}
+
+@Window(option)
 export class MainWindow implements OnInit, OnDestroy {
   @WindowInstance()
   private win: BrowserWindow;
 
-  async onInit() {
-    //
+  onInit() {
+    console.log('OnInit')
+    console.log('win', this.win) 
   }
 
   onDestroy() {
     console.log('onDestroy')
-  }
-
-  getWindow() {
-    return this.win;
   }
 
   @On('show')

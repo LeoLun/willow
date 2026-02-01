@@ -1,13 +1,7 @@
-import { IOpenSettingWindowRenderer } from './window.hook';
-import { ISetTemeRenderer } from './set-theme';
-import { IChatHookRenderer } from './chat.hook';
+import { IEchoRenderer } from './echo.hook';
 
-export interface IOtherApi {
-  getFilePath: (file: File) => string;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface IRenderHook extends IEchoRenderer {}
 
-export interface IRenderHook extends IOpenSettingWindowRenderer, ISetTemeRenderer, IChatHookRenderer, IOtherApi {}  
+export * from './echo.hook';
 
-export * from './window.hook';
-export * from './set-theme';
-export * from './chat.hook';
