@@ -56,7 +56,7 @@ const handleChangeThemeClick = () => {
   <div class="pt-8 shrink-0 max-w-[220px]">
     <div class="px-3 py-2 flex flex-col h-full">
       <h2 class="mb-2 px-4 text-lg font-semibold tracking-tight">
-        Willow Chat
+        Willow Tool
       </h2>
       <div class="space-y-1">
         <Button
