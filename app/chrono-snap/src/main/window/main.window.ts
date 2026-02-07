@@ -11,7 +11,7 @@ const option: WindowMetadata = {
       preload: join(__dirname, 'preload.js'),
     },
   },
-  openDevTools: true,
+  // openDevTools: true,
 }
 
 if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {

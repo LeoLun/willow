@@ -5,6 +5,8 @@ import type { IEcho } from "../shared";
 import { ECHO } from "../shared";
 import started from 'electron-squirrel-startup';
 import { EchoService } from "./service/echo.service";
+import { SystemService } from "./service/system.service";
+import { HistoryService } from "./service/history.service";
 
 if (started) {
   app.quit();
@@ -13,19 +15,25 @@ if (started) {
 @Module({
   imports: [],
   windows: [MainWindow],
-  providers: [EchoService],
+  providers: [EchoService, SystemService, HistoryService],
 })
 export class AppModule implements IEcho { 
   private windowFactoryResolver: WindowFactoryResolver;
   private echoService: EchoService;
+  private systemService: SystemService;
+  private historyService: HistoryService;
 
   constructor(
     windowFactoryResolver: WindowFactoryResolver,
-    echoService: EchoService
+    echoService: EchoService,
+    systemService: SystemService,
+    historyService: HistoryService
   ) {
     console.log("windowFactoryResolver", windowFactoryResolver);
     this.windowFactoryResolver = windowFactoryResolver;
     this.echoService = echoService;
+    this.systemService = systemService;
+    this.historyService = historyService;
   }
 
   createWindow() {
