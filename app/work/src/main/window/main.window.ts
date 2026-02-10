@@ -1,23 +1,33 @@
-import { Window, WindowInstance, OnInit, On, OnDestroy, WindowMetadata } from "poetry";
+import {
+  Window,
+  WindowInstance,
+  OnInit,
+  On,
+  OnDestroy,
+  WindowMetadata,
+} from "poetry";
 import { BrowserWindow } from "electron";
-import { join } from 'path';
+import { join } from "path";
 
 const option: WindowMetadata = {
   options: {
     height: 800,
     width: 1200,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: "hiddenInset",
     webPreferences: {
-      preload: join(__dirname, 'preload.js'),
+      preload: join(__dirname, "preload.js"),
     },
   },
-  // openDevTools: true,
-}
+  openDevTools: true,
+};
 
 if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-  option.loadURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
+  option.loadURL = MAIN_WINDOW_VITE_DEV_SERVER_URL;
 } else {
-  option.loadFile = join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`);
+  option.loadFile = join(
+    __dirname,
+    `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
+  );
 }
 
 @Window(option)
@@ -26,21 +36,21 @@ export class MainWindow implements OnInit, OnDestroy {
   private win: BrowserWindow;
 
   onInit() {
-    console.log('OnInit')
-    console.log('win', this.win) 
+    console.log("OnInit");
+    console.log("win", this.win);
   }
 
   onDestroy() {
-    console.log('onDestroy')
+    console.log("onDestroy");
   }
 
-  @On('show')
+  @On("show")
   onShow() {
-    console.log('OnShow')
+    console.log("OnShow");
   }
 
-  @On('hide')
+  @On("hide")
   onHide() {
-    console.log('OnHide')
+    console.log("OnHide");
   }
 }
