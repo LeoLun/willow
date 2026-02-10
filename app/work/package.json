@@ -2,7 +2,7 @@
   "name": "willow-work",
   "productName": "willow-work",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "opencode + on my opencode + openwork",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
@@ -29,6 +29,7 @@
     "electron": "catalog:",
     "esbuild-plugin-tsc": "^0.4.0",
     "eslint": "^8.0.1",
+    "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.25.0",
     "inversify": "catalog:",
     "poetry": "workspace:*",
@@ -36,13 +37,13 @@
     "shadcn-vue": "^2.4.3",
     "ts-node": "^10.0.0",
     "typescript": "catalog:",
-    "vite": "^5.0.12"
+    "vite": "^5.0.12",
+    "vue": "^3.5.13"
   },
   "keywords": [],
   "license": "MIT",
   "dependencies": {
-    "echarts": "^5.6.0",
-    "electron-squirrel-startup": "^1.0.1",
-    "vue": "^3.5.13"
+    "@opencode-ai/sdk": "^1.1.53",
+    "electron-squirrel-startup": "^1.0.1"
   }
 }

@@ -1,6 +1,6 @@
 // decorators/module.decorator.ts
-import 'reflect-metadata';
-import { MODULE_METADATA } from '../common/constants';
+import "reflect-metadata";
+import { MODULE_METADATA } from "../common/constants";
 import { injectable } from "inversify";
 
 interface ModuleMetadata {
@@ -8,6 +8,7 @@ interface ModuleMetadata {
   windows?: any[];
   providers?: any[];
   exports?: any[];
+  controllers?: any[];
 }
 
 export function Module(metadata: ModuleMetadata): ClassDecorator {
@@ -15,7 +16,16 @@ export function Module(metadata: ModuleMetadata): ClassDecorator {
     injectable()(target);
     Reflect.defineMetadata(MODULE_METADATA.IMPORTS, metadata.imports, target);
     Reflect.defineMetadata(MODULE_METADATA.WINDOWS, metadata.windows, target);
-    Reflect.defineMetadata(MODULE_METADATA.PROVIDERS, metadata.providers, target);
+    Reflect.defineMetadata(
+      MODULE_METADATA.PROVIDERS,
+      metadata.providers,
+      target,
+    );
     Reflect.defineMetadata(MODULE_METADATA.EXPORTS, metadata.exports, target);
+    Reflect.defineMetadata(
+      MODULE_METADATA.CONTROLLERS,
+      metadata.controllers,
+      target,
+    );
   };
 }

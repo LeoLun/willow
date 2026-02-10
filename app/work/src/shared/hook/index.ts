@@ -1,7 +1,7 @@
-import { IEchoRenderer } from './echo.hook';
+import { IEchoRenderer } from "./echo.hook";
+import { IStartOpencodeRenderer } from "./opencode.hook";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface IRenderHook extends IEchoRenderer {}
+export interface IRenderHook extends IEchoRenderer, IStartOpencodeRenderer {}
 
-export * from './echo.hook';
-
+export * from "./echo.hook";
+export * from "./opencode.hook";

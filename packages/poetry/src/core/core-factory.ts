@@ -1,13 +1,9 @@
 import "reflect-metadata";
 import { BrowserWindow, app, ipcMain } from "electron";
 import { Container, interfaces } from "inversify";
-import {
-  MODULE_METADATA,
-  WINDOW_METADATA,
-} from "../common/constants";
+import { MODULE_METADATA, WINDOW_METADATA } from "../common/constants";
 import { WindowFactoryResolver } from "./window-factory-resolver";
 import { PropertysExplorer } from "./propertys-explorer";
-
 
 export class CoreFactoryStatic {
   private container: Container;
@@ -18,7 +14,7 @@ export class CoreFactoryStatic {
 
   public async create(module: any) {
     const instance = await this.createModule(module, this.container);
-    return instance
+    return instance;
   }
 
   // 创建模块
@@ -36,6 +32,35 @@ export class CoreFactoryStatic {
         container.bind(provider).toSelf();
       });
 
+    // 获取所有的controllers
+    const controllers = Reflect.getMetadata(
+      MODULE_METADATA.CONTROLLERS,
+      module,
+    );
+    // 将controllers注册到容器
+    controllers &&
+      controllers.forEach((controller: any) => {
+        container.bind(controller).toSelf();
+
+        container.onActivation(
+          controller,
+          (context: interfaces.Context, result: any): any => {
+            // 实例化controller对象，添加 IPC 监听
+            this.initController(controller, result, container);
+            return result;
+          },
+        );
+
+        container.onDeactivation(
+          controller,
+          async (result: any): Promise<any> => {
+            // 移除 IPC 监听
+            this.removeController(controller, result, container);
+            return;
+          },
+        );
+      });
+
     // 获取所有的windows
     const windows = Reflect.getMetadata(MODULE_METADATA.WINDOWS, module);
     // 将 windows 注册到容器
@@ -49,11 +74,11 @@ export class CoreFactoryStatic {
             this.initWindow(window, result, container);
             result.onInit && result.onInit();
             return result;
-          }
+          },
         );
 
         container.onDeactivation(window, async (result: any): Promise<any> => {
-          return result.onDestroy && await result.onDestroy();
+          return result.onDestroy && (await result.onDestroy());
         });
       });
 
@@ -67,7 +92,7 @@ export class CoreFactoryStatic {
         // 获取子模块导出的providers
         const exports = Reflect.getMetadata(
           MODULE_METADATA.EXPORTS,
-          childModule
+          childModule,
         );
         // 实例化导出的providers
         exports.forEach((exportProvider: any) => {
@@ -85,11 +110,10 @@ export class CoreFactoryStatic {
     return instance;
   }
 
-
   private async initModule(module: any, instance: any) {
     // 添加app事件监听
     const propertysExplorer = new PropertysExplorer();
-    const [propertys, events, ipcMethods] = propertysExplorer.scanForPropertys(instance);
+    const { events, ipcMethods } = propertysExplorer.scanForPropertys(instance);
     for (const event of events) {
       app.on(event.eventName, (...args) => {
         event.targetCallback.apply(instance, args);
@@ -104,6 +128,33 @@ export class CoreFactoryStatic {
     }
   }
 
+  private initController(controller: any, instance: any, container: Container) {
+    const propertysExplorer = new PropertysExplorer();
+    const { ipcMethods } = propertysExplorer.scanForPropertys(instance);
+
+    for (const event of ipcMethods) {
+      // @TODO 优化改用 rxjs 监听, 以便于取消监听
+      const func = (...args: any[]) => {
+        return event.targetCallback.apply(instance, args);
+      };
+      ipcMain.handle(event.eventName, (...args) => {
+        return event.targetCallback.apply(instance, args);
+      });
+    }
+  }
+
+  private removeController(
+    controller: any,
+    instance: any,
+    container: Container,
+  ) {
+    const propertysExplorer = new PropertysExplorer();
+    const { ipcMethods } = propertysExplorer.scanForPropertys(instance);
+    for (const event of ipcMethods) {
+      ipcMain.removeHandler(event.eventName);
+    }
+  }
+
   private initWindow(window: any, instance: any, container: Container) {
     // 获取参数
     const options = Reflect.getMetadata(WINDOW_METADATA.OPTIONS, window);
@@ -111,7 +162,7 @@ export class CoreFactoryStatic {
     const loadURL = Reflect.getMetadata(WINDOW_METADATA.LOAD_URL, window);
     const openDevTools = Reflect.getMetadata(
       WINDOW_METADATA.OPEN_DEV_TOOLS,
-      window
+      window,
     );
     if (!options) {
       return;
@@ -136,7 +187,8 @@ export class CoreFactoryStatic {
 
     // 添加窗口事件监听
     const propertysExplorer = new PropertysExplorer();
-    const [propertys, events, ipcMethods] = propertysExplorer.scanForPropertys(instance);
+    const { propertys, events, ipcMethods } =
+      propertysExplorer.scanForPropertys(instance);
     // 注入窗口对象实例
     for (const property of propertys) {
       Reflect.set(instance, property.propertyName, browserWindow);
@@ -154,8 +206,6 @@ export class CoreFactoryStatic {
     }
     return;
   }
-
-  
 }
 
 export const CoreFactory = new CoreFactoryStatic();

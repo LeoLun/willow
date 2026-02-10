@@ -1,12 +1,12 @@
 import { On, WindowFactoryResolver, Module, IPC } from "poetry";
 import { MainWindow } from "./window/main.window";
-import { app, BrowserWindow, session } from "electron";
-import type { IEcho } from "../shared";
-import { ECHO } from "../shared";
-import started from 'electron-squirrel-startup';
-import { EchoService } from "./service/echo.service";
+import { app, BrowserWindow } from "electron";
+import type { IEcho } from "@shared/index";
+import { ECHO } from "@shared/index";
+import started from "electron-squirrel-startup";
 import { SystemService } from "./service/system.service";
-import { HistoryService } from "./service/history.service";
+import { OpencodeService } from "./service/opencode.service";
+import { OpencodeController } from "./controllers/opencode.controller";
 
 if (started) {
   app.quit();
@@ -15,25 +15,21 @@ if (started) {
 @Module({
   imports: [],
   windows: [MainWindow],
-  providers: [EchoService, SystemService, HistoryService],
+  providers: [SystemService, OpencodeService],
+  controllers: [OpencodeController],
 })
-export class AppModule implements IEcho { 
+export class AppModule implements IEcho {
   private windowFactoryResolver: WindowFactoryResolver;
-  private echoService: EchoService;
-  private systemService: SystemService;
-  private historyService: HistoryService;
+  private opencodeController: OpencodeController;
 
   constructor(
     windowFactoryResolver: WindowFactoryResolver,
-    echoService: EchoService,
     systemService: SystemService,
-    historyService: HistoryService
+    opencodeController: OpencodeController,
   ) {
     console.log("windowFactoryResolver", windowFactoryResolver);
     this.windowFactoryResolver = windowFactoryResolver;
-    this.echoService = echoService;
-    this.systemService = systemService;
-    this.historyService = historyService;
+    this.opencodeController = opencodeController;
   }
 
   createWindow() {
@@ -41,22 +37,14 @@ export class AppModule implements IEcho {
   }
 
   @On("ready")
-  onReady() {
+  async onReady() {
     this.createWindow();
+  }
 
-    // 获取默认会话
-    const ses = session.defaultSession;
-
-    // 拦截请求并修改请求头
-    ses.webRequest.onBeforeSendHeaders((details, callback) => {
-      if (details.url.includes("mat1.gtimg.com")) {
-        if (details.requestHeaders['Referer']) {
-          delete details.requestHeaders['Referer'];
-        }
-      }
-      // 继续请求
-      callback({ cancel: false, requestHeaders: details.requestHeaders });
-    });
+  @On("before-quit")
+  async onBeforeQuit() {
+    console.log("onBeforeQuit");
+    await this.opencodeController.stopOpencode();
   }
 
   @On("window-all-closed")
@@ -75,9 +63,9 @@ export class AppModule implements IEcho {
 
   @IPC(ECHO)
   async echo() {
-    const message = await this.echoService.echo("hello world");
+    // const message = await this.echoService.echo("hello world");
     return {
-      message,
+      message: "hello world",
     };
   }
 }
