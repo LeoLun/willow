@@ -1,51 +1,54 @@
 <template>
-  <div class="flex h-screen w-screen flex-col overflow-hidden">
-    <!-- 顶栏操作栏 -->
-    <TopBar
-      :is-left-collapsed="isLeftCollapsed"
-      @toggle-sidebar="toggleLeftSidebar"
-      @open-settings="showSettings = true"
-    />
+  <TopDragBar />
+  <div class="flex h-screen w-screen overflow-hidden bg-sidebar">
+    <!-- 左侧边栏 (可折叠) -->
+    <div
+      class="shrink-0 transition-[width] duration-200 ease-in-out"
+      :style="{ width: isLeftCollapsed ? '70px' : '220px' }"
+    >
+      <LeftSidebar
+        :is-collapsed="isLeftCollapsed"
+        @toggle-sidebar="toggleLeftSidebar"
+        @open-settings="showSettings = true"
+      />
+    </div>
 
-    <!-- 主区域: 左侧栏 + 中间区域 + 右侧栏 -->
-    <ResizablePanelGroup direction="horizontal" class="flex-1">
-      <!-- 左侧边栏 (可折叠) -->
-      <ResizablePanel
-        ref="leftPanelRef"
-        :default-size="18"
-        :min-size="12"
-        :max-size="30"
-        collapsible
-        :collapsed-size="4"
-        class="bg-sidebar"
-        @collapse="isLeftCollapsed = true"
-        @expand="isLeftCollapsed = false"
-      >
-        <LeftSidebar :is-collapsed="isLeftCollapsed" />
-      </ResizablePanel>
+    <!-- 主区域: Card 包裹中间区域 + 右侧栏 -->
+    <div class="flex min-w-0 flex-1 flex-col p-4 pl-0">
 
-      <ResizableHandle />
+      <Card class="relative !flex-row flex-1 gap-0 overflow-hidden !py-0">
+        <!-- 左上角折叠按钮 -->
+        <TooltipProvider :delay-duration="0">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                class="absolute left-2 top-2 z-10 text-muted-foreground hover:text-foreground"
+                :aria-label="isLeftCollapsed ? '展开侧边栏' : '收起侧边栏'"
+                @click="toggleLeftSidebar"
+              >
+                <PanelLeftOpen v-if="isLeftCollapsed" class="size-4" aria-hidden="true" />
+                <PanelLeftClose v-else class="size-4" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" :side-offset="4">
+              {{ isLeftCollapsed ? "展开侧边栏" : "收起侧边栏" }}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-      <!-- 中间区域 -->
-      <ResizablePanel :default-size="64" :min-size="30">
-        <MainContent />
-      </ResizablePanel>
+        <!-- 中间内容区域 -->
+        <div class="min-w-0 flex-1">
+          <MainContent />
+        </div>
 
-      <ResizableHandle />
-
-      <!-- 右侧边栏 -->
-      <ResizablePanel
-        :default-size="18"
-        :min-size="12"
-        :max-size="30"
-        class="bg-sidebar"
-      >
-        <RightSidebar />
-      </ResizablePanel>
-    </ResizablePanelGroup>
-
-    <!-- 底部信息栏 -->
-    <BottomBar />
+        <!-- 右侧边栏 -->
+        <div class="w-[260px] shrink-0">
+          <RightSidebar />
+        </div>
+      </Card>
+    </div>
   </div>
 
   <!-- 设置弹窗 -->
@@ -54,39 +57,30 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import TopBar from "@/components/layout/TopBar.vue";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-vue-next";
 import LeftSidebar from "@/components/layout/LeftSidebar.vue";
 import RightSidebar from "@/components/layout/RightSidebar.vue";
 import MainContent from "@/components/layout/MainContent.vue";
-import BottomBar from "@/components/layout/BottomBar.vue";
 import SettingsDialog from "@/components/settings/SettingsDialog.vue";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { electronAPI } from "./lib/ipc";
+import TopDragBar from "@/components/base/TopDragBar.vue";
 
 useDarkMode();
 
-const leftPanelRef = ref<InstanceType<typeof ResizablePanel>>();
 const isLeftCollapsed = ref(false);
 const showSettings = ref(false);
 
 function toggleLeftSidebar() {
-  const panel = leftPanelRef.value as
-    | (InstanceType<typeof ResizablePanel> & {
-        collapse: () => void;
-        expand: () => void;
-      })
-    | undefined;
-  if (!panel) return;
-  if (isLeftCollapsed.value) {
-    panel.expand();
-  } else {
-    panel.collapse();
-  }
+  isLeftCollapsed.value = !isLeftCollapsed.value;
 }
 
 onMounted(async () => {

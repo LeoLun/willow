@@ -27,7 +27,7 @@ function togglePanel(id: string) {
 </script>
 
 <template>
-  <aside class="flex h-full flex-col">
+  <aside class="flex h-full flex-col border-l border-border" role="complementary">
     <!-- 面板列表 -->
     <div class="flex-1 overflow-y-auto">
       <div
