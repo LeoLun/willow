@@ -18,9 +18,6 @@
 
       <Card class="relative !flex-row flex-1 gap-0 overflow-hidden !py-0">
         <!-- 左上角折叠按钮 -->
-        <TooltipProvider :delay-duration="0">
-          <Tooltip>
-            <TooltipTrigger as-child>
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -31,12 +28,6 @@
                 <PanelLeftOpen v-if="isLeftCollapsed" class="size-4" aria-hidden="true" />
                 <PanelLeftClose v-else class="size-4" aria-hidden="true" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" :side-offset="4">
-              {{ isLeftCollapsed ? "展开侧边栏" : "收起侧边栏" }}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
 
         <!-- 中间内容区域 -->
         <div class="min-w-0 flex-1">

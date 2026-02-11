@@ -25,28 +25,6 @@ const emit = defineEmits<{
     >
       <!-- Left: macOS traffic lights 预留空间 + 侧边栏折叠按钮 -->
       <div class="flex items-center pl-[70px]">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              class="no-drag-region text-muted-foreground hover:text-foreground"
-              :aria-label="isLeftCollapsed ? '展开侧边栏' : '收起侧边栏'"
-              @click="emit('toggle-sidebar')"
-            >
-              <PanelLeftOpen
-                v-if="isLeftCollapsed"
-                class="size-4"
-                aria-hidden="true"
-              />
-              <PanelLeftClose v-else class="size-4" aria-hidden="true" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" :side-offset="4">
-            {{ isLeftCollapsed ? "展开侧边栏" : "收起侧边栏" }}
-          </TooltipContent>
-        </Tooltip>
-      </div>
 
       <!-- 中间: 对话标题 (可拖拽区域) -->
       <div class="flex flex-1 items-center justify-center">
