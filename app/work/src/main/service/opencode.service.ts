@@ -8,6 +8,10 @@ export class OpencodeService {
     if (this.server) {
       return { success: true, url: this.server.url };
     }
+    // process.env.OPENCODE_CLIENT = "willow-cli";
+    // process.env.OPENWORK = "1";
+    // process.env.OPENCODE_SERVER_USERNAME = "willow-work";
+    // process.env.OPENCODE_SERVER_PASSWORD = "token123456";
     this.server = await createOpencodeServer();
     return { success: true, url: this.server.url };
   }

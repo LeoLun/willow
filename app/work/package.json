@@ -1,6 +1,6 @@
 {
   "name": "willow-work",
-  "productName": "willow-work",
+  "productName": "com.willow.work",
   "version": "1.0.0",
   "description": "opencode + on my opencode + openwork",
   "main": ".vite/build/main.js",

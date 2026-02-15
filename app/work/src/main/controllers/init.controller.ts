@@ -1,0 +1,55 @@
+import { Injectable, IPC } from "poetry";
+import { WorkspaceService } from "@main/service/workspace.service";
+import { OpencodeService } from "@main/service/opencode.service";
+import {
+  INIT,
+  INIT_PROGRESS,
+  INIT_WORKSPACE,
+  INIT_OPENCODE_SERVICE,
+} from "@shared/index";
+
+@Injectable()
+export class InitController {
+  constructor(
+    private readonly workspaceService: WorkspaceService,
+    private readonly opencodeService: OpencodeService,
+  ) {}
+
+  @IPC(INIT)
+  async init(event: Electron.IpcMainInvokeEvent) {
+    // 开始初始化
+    event.sender.send(INIT_PROGRESS, {
+      data: "初始化 workspace",
+    });
+
+    const { workspacePath, baseStartPath } =
+      await this.workspaceService.initWorkspace();
+
+    // 初始化工作空间成功，返回工作空间路径
+    event.sender.send(INIT_WORKSPACE, {
+      data: {
+        workspacePath,
+        baseStartPath,
+      },
+    });
+
+    // 开始初始化 opencode 服务
+    event.sender.send(INIT_PROGRESS, {
+      message: "初始化 opencode 服务",
+    });
+
+    // 启动 opencode 服务
+    await this.opencodeService.start();
+
+    // 初始化 opencode 服务成功，返回 opencode 服务地址
+    event.sender.send(INIT_OPENCODE_SERVICE, {
+      data: {
+        url: this.opencodeService.getServerUrl(),
+      },
+    });
+
+    event.sender.send(INIT_PROGRESS, {
+      data: "初始化 opencode 服务成功",
+    });
+  }
+}

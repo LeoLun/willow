@@ -16,6 +16,7 @@ const option: WindowMetadata = {
     titleBarStyle: "hiddenInset",
     webPreferences: {
       preload: join(__dirname, "preload.js"),
+      webSecurity: false,
     },
   },
   openDevTools: true,

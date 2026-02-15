@@ -7,6 +7,8 @@ import started from "electron-squirrel-startup";
 import { SystemService } from "./service/system.service";
 import { OpencodeService } from "./service/opencode.service";
 import { OpencodeController } from "./controllers/opencode.controller";
+import { InitController } from "./controllers/init.controller";
+import { WorkspaceService } from "./service/workspace.service";
 
 if (started) {
   app.quit();
@@ -15,21 +17,23 @@ if (started) {
 @Module({
   imports: [],
   windows: [MainWindow],
-  providers: [SystemService, OpencodeService],
-  controllers: [OpencodeController],
+  providers: [WorkspaceService, SystemService, OpencodeService],
+  controllers: [InitController, OpencodeController],
 })
 export class AppModule implements IEcho {
   private windowFactoryResolver: WindowFactoryResolver;
   private opencodeController: OpencodeController;
+  private initController: InitController;
 
   constructor(
     windowFactoryResolver: WindowFactoryResolver,
-    systemService: SystemService,
     opencodeController: OpencodeController,
+    initController: InitController,
   ) {
     console.log("windowFactoryResolver", windowFactoryResolver);
     this.windowFactoryResolver = windowFactoryResolver;
     this.opencodeController = opencodeController;
+    this.initController = initController;
   }
 
   createWindow() {
