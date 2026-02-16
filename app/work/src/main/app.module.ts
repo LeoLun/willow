@@ -8,6 +8,7 @@ import { SystemService } from "./service/system.service";
 import { OpencodeService } from "./service/opencode.service";
 import { OpencodeController } from "./controllers/opencode.controller";
 import { InitController } from "./controllers/init.controller";
+import { DialogController } from "./controllers/dialog.controller";
 import { WorkspaceService } from "./service/workspace.service";
 
 if (started) {
@@ -18,22 +19,25 @@ if (started) {
   imports: [],
   windows: [MainWindow],
   providers: [WorkspaceService, SystemService, OpencodeService],
-  controllers: [InitController, OpencodeController],
+  controllers: [InitController, OpencodeController, DialogController],
 })
 export class AppModule implements IEcho {
   private windowFactoryResolver: WindowFactoryResolver;
   private opencodeController: OpencodeController;
   private initController: InitController;
+  private dialogController: DialogController;
 
   constructor(
     windowFactoryResolver: WindowFactoryResolver,
     opencodeController: OpencodeController,
     initController: InitController,
+    dialogController: DialogController,
   ) {
     console.log("windowFactoryResolver", windowFactoryResolver);
     this.windowFactoryResolver = windowFactoryResolver;
     this.opencodeController = opencodeController;
     this.initController = initController;
+    this.dialogController = dialogController;
   }
 
   createWindow() {

@@ -10,6 +10,10 @@ import {
 
 @Injectable()
 export class InitController {
+  private isInitialized: boolean = false;
+  private workspacePath: string;
+  private baseStartPath: string;
+
   constructor(
     private readonly workspaceService: WorkspaceService,
     private readonly opencodeService: OpencodeService,
@@ -17,6 +21,23 @@ export class InitController {
 
   @IPC(INIT)
   async init(event: Electron.IpcMainInvokeEvent) {
+    if (this.isInitialized) {
+      event.sender.send(INIT_WORKSPACE, {
+        data: {
+          workspacePath: this.workspacePath,
+          baseStartPath: this.baseStartPath,
+        },
+      });
+      event.sender.send(INIT_OPENCODE_SERVICE, {
+        data: {
+          url: this.opencodeService.getServerUrl(),
+        },
+      });
+      event.sender.send(INIT_PROGRESS, {
+        data: "初始化 opencode 服务成功",
+      });
+      return;
+    }
     // 开始初始化
     event.sender.send(INIT_PROGRESS, {
       data: "初始化 workspace",
@@ -24,7 +45,8 @@ export class InitController {
 
     const { workspacePath, baseStartPath } =
       await this.workspaceService.initWorkspace();
-
+    this.workspacePath = workspacePath;
+    this.baseStartPath = baseStartPath;
     // 初始化工作空间成功，返回工作空间路径
     event.sender.send(INIT_WORKSPACE, {
       data: {
@@ -51,5 +73,6 @@ export class InitController {
     event.sender.send(INIT_PROGRESS, {
       data: "初始化 opencode 服务成功",
     });
+    this.isInitialized = true;
   }
 }

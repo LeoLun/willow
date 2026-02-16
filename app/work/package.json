@@ -51,6 +51,7 @@
     "clsx": "^2.1.1",
     "electron-squirrel-startup": "^1.0.1",
     "lucide-vue-next": "^0.473.0",
+    "pinia": "^3.0.4",
     "reka-ui": "^2.8.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.1.18",

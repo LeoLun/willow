@@ -1,5 +1,6 @@
 import { Injectable } from "poetry";
 import { createOpencodeServer } from "@opencode-ai/sdk/v2/server";
+
 @Injectable()
 export class OpencodeService {
   private server: Awaited<ReturnType<typeof createOpencodeServer>>;
@@ -8,11 +9,12 @@ export class OpencodeService {
     if (this.server) {
       return { success: true, url: this.server.url };
     }
-    // process.env.OPENCODE_CLIENT = "willow-cli";
-    // process.env.OPENWORK = "1";
-    // process.env.OPENCODE_SERVER_USERNAME = "willow-work";
-    // process.env.OPENCODE_SERVER_PASSWORD = "token123456";
-    this.server = await createOpencodeServer();
+
+    // 使用 port: 0 让 OS 分配可用端口，避免端口冲突
+    this.server = await createOpencodeServer({
+      port: 0,
+    });
+
     return { success: true, url: this.server.url };
   }
 

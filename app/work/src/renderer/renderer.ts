@@ -1,8 +1,8 @@
-import { createApp } from 'vue'
-import App from './src/App.vue'
-import './index.css';
+import { createApp } from "vue";
+import { createPinia } from "pinia";
+import App from "./src/App.vue";
+import "./index.css";
 
-createApp(App).mount('#root')
-
-
-console.log('👋 This message is being logged by "renderer.js", included via webpack');
+const app = createApp(App);
+app.use(createPinia());
+app.mount("#root");
