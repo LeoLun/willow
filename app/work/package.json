@@ -5,7 +5,7 @@
   "description": "opencode + on my opencode + openwork",
   "main": ".vite/build/main.js",
   "scripts": {
-    "start": "electron-forge start",
+    "dev": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
@@ -32,7 +32,7 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.25.0",
     "inversify": "catalog:",
-    "poetry": "workspace:*",
+    "@willow/poetry": "workspace:*",
     "reflect-metadata": "catalog:",
     "shadcn-vue": "^2.4.3",
     "ts-node": "^10.0.0",

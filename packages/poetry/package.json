@@ -1,5 +1,5 @@
 {
-  "name": "poetry",
+  "name": "@willow/poetry",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -8,9 +8,7 @@
     "build": "tsup",
     "dev": "tsup --watch"
   },
-  "dependencies": {
-
-  },
+  "dependencies": {},
   "devDependencies": {
     "electron": "catalog:",
     "jest": "^27.4.5",
