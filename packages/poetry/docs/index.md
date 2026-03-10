@@ -10,7 +10,6 @@ poetry 是一个基于 Electron 的应用框架，它的目标是简化 Electron
 
 [模块](module.md)是应用的核心组织单元，用于声明窗口、服务提供者和其他依赖。
 
-
 ### 2.2 窗口（Window）
 
 [窗口](window.md)是应用的界面单元，通过装饰器配置窗口属性和加载方式。
@@ -48,7 +47,7 @@ import { SomeService } from "./service/some.service";
   imports: [], // 导入其他模块
   windows: [MainWindow], // 注册窗口
   providers: [SomeService], // 注册服务提供者
-  exports: [] // 导出的服务
+  exports: [], // 导出的服务
 })
 export class AppModule {
   // 应用逻辑
@@ -64,9 +63,9 @@ import { Window, WindowInstance, OnInit, OnDestroy, On } from "poetry";
   options: {
     height: 800,
     width: 1200,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: "hiddenInset",
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
     },
   },
   loadURL: MAIN_WINDOW_VITE_DEV_SERVER_URL,
@@ -84,7 +83,7 @@ export class MainWindow implements OnInit, OnDestroy {
     // 窗口销毁时的清理逻辑
   }
 
-  @On('show')
+  @On("show")
   onShow() {
     // 监听窗口显示事件
   }
@@ -101,7 +100,7 @@ import { AppModule } from "./app.module";
 async function main() {
   // 创建应用实例
   const appInstance = await CoreFactory.create(AppModule);
-  
+
   // 启动应用
   appInstance.createWindow();
 }
@@ -116,6 +115,7 @@ app.whenReady().then(main);
 用于定义应用模块，配置导入、窗口、服务提供者等。
 
 **参数：**
+
 - `imports`: 导入的其他模块数组
 - `windows`: 注册的窗口类数组
 - `providers`: 注册的服务提供者数组
@@ -126,6 +126,7 @@ app.whenReady().then(main);
 用于定义窗口类，配置窗口属性和加载方式。
 
 **参数：**
+
 - `options`: BrowserWindow构造选项
 - `loadURL`: 加载的URL
 - `loadFile`: 加载的文件路径
@@ -140,9 +141,11 @@ app.whenReady().then(main);
 定义IPC事件处理方法。
 
 **参数：**
+
 - `event`: IPC事件名称
 
 **使用示例：**
+
 ```typescript
 @IPC('OPEN_SETTING_WINDOW')
 async openSettingWindow(
@@ -158,6 +161,7 @@ async openSettingWindow(
 监听窗口或应用事件。
 
 **参数：**
+
 - `event`: 事件名称
 
 ### 4.6 @WindowInstance
@@ -288,15 +292,15 @@ export class AppModule {
 
 ```typescript
 import { Window, WindowInstance, OnInit, On, OnDestroy } from "poetry";
-import path from 'path';
+import path from "path";
 
 @Window({
   options: {
     height: 800,
     width: 1200,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: "hiddenInset",
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
     },
   },
   loadURL: MAIN_WINDOW_VITE_DEV_SERVER_URL,
@@ -311,12 +315,12 @@ export class MainWindow implements OnInit, OnDestroy {
   }
 
   onDestroy() {
-    console.log('窗口销毁');
+    console.log("窗口销毁");
   }
 
-  @On('show')
+  @On("show")
   onShow() {
-    console.log('窗口显示');
+    console.log("窗口显示");
   }
 }
 ```
@@ -330,7 +334,7 @@ import { Injectable } from "poetry";
 export class SomeService {
   doSomething() {
     // 服务逻辑
-    return 'Hello from service';
+    return "Hello from service";
   }
 }
 ```
@@ -343,4 +347,3 @@ export class SomeService {
 4. IPC处理方法需要处理`Electron.IpcMainEvent`或`Electron.IpcMainInvokeEvent`类型的事件参数
 
 通过使用poetry框架，你可以更优雅地开发Electron应用，享受依赖注入和装饰器带来的便利性。
-        

@@ -2,177 +2,160 @@
 
 ## Project Overview
 
-Willow is a **pnpm workspace monorepo** containing:
+Willow 是基于 **pnpm 9 workspace** 的 monorepo，包含以下包：
 
-- `packages/poetry` — Electron framework library (decorators, DI, IPC wiring) built on Inversify + reflect-metadata
-- `app/work` — Electron desktop app (OpenCode chat UI) using Poetry, Vue 3, Pinia, Tailwind CSS 4
-
-Package manager: **pnpm 9** (see `packageManager` in root `package.json`).
+- `packages/poetry` — Electron 框架库（装饰器、DI、IPC 接线），基于 Inversify + reflect-metadata
+- `packages/ai-core` — AI 核心逻辑库，封装模型适配、流式响应、会话管理、Prompt 构建，基于 @mariozechner/pi-ai
+- `app/work` — Electron 桌面应用（OpenCode 聊天 UI），使用 Poetry、Vue 3、Pinia、Tailwind CSS 4
 
 ## Build / Lint / Test Commands
 
-### Workspace-level
-
 ```bash
-pnpm install              # Install all dependencies
-pnpm -r run build         # Build all packages (or: pnpm build)
-```
+# ─── Workspace ───
+pnpm install                  # 安装所有依赖
+pnpm -r run build             # 构建所有包
 
-### packages/poetry
-
-```bash
+# ─── packages/poetry ───
 cd packages/poetry
-pnpm build                # tsup → CJS + ESM + .d.ts into dist/
-pnpm dev                  # tsup --watch
-```
+pnpm build                    # tsup → CJS + ESM + .d.ts → dist/
+pnpm dev                      # tsup --watch
 
-No test runner is configured yet (Jest is in devDependencies but has no config or test script).
+# ─── packages/ai-core ───
+cd packages/ai-core
+pnpm build                    # tsup → CJS + ESM + .d.ts → dist/
+pnpm dev                      # tsup --watch
 
-### app/work
-
-```bash
+# ─── app/work ───
 cd app/work
-pnpm start                # electron-forge start (dev mode)
-pnpm run package          # electron-forge package
-pnpm run make             # electron-forge make (platform installers)
-pnpm run lint             # eslint --ext .ts,.tsx .
+pnpm start                    # electron-forge start (dev mode)
+pnpm run package              # electron-forge package
+pnpm run make                 # electron-forge make
+pnpm run lint                 # eslint --ext .ts,.tsx .
 ```
 
-No test runner is configured for app/work.
+### Running a Single Test
 
-### Running a Single Test (future reference)
-
-If Vitest is adopted (recommended for this stack):
+尚未配置测试框架。推荐采用 Vitest：
 
 ```bash
-pnpm vitest run src/path/to/file.test.ts          # single file
-pnpm vitest run -t "test name pattern"             # by name
-```
-
-If Jest is used (poetry currently lists jest):
-
-```bash
-pnpm jest -- --testPathPattern="file.test.ts"
+pnpm vitest run src/path/to/file.test.ts      # 单文件
+pnpm vitest run -t "test name pattern"         # 按名称
 ```
 
 ## Tech Stack
 
-| Layer        | Technology                                          |
-|-------------|-----------------------------------------------------|
-| Monorepo    | pnpm workspaces, catalog deps                       |
-| Framework   | Electron (Forge), Vue 3.5, Poetry (custom DI)       |
-| State       | Pinia 3 (setup-style stores)                         |
-| UI          | shadcn-vue, reka-ui, lucide-vue-next                 |
-| Styling     | Tailwind CSS 4, tw-animate-css                       |
-| Build       | Vite 5, tsup (poetry)                                |
-| AI/Chat     | @opencode-ai/sdk                                     |
-| TypeScript  | Strict mode, decorators enabled                      |
+| Layer       | Technology                                        |
+|-------------|---------------------------------------------------|
+| Monorepo    | pnpm workspaces, catalog deps                     |
+| Framework   | Electron (Forge), Vue 3.5, Poetry (custom DI)     |
+| AI Core     | @mariozechner/pi-ai, @mariozechner/pi-agent-core   |
+| State       | Pinia 3 (setup-style stores)                       |
+| UI          | shadcn-vue, reka-ui, lucide-vue-next               |
+| Styling     | Tailwind CSS 4, tw-animate-css                     |
+| Build       | Vite 5, tsup (poetry & ai-core)                    |
+| TypeScript  | Strict mode, decorators enabled                    |
 
 ## Repository Structure
 
 ```
 willow/
 ├── packages/
-│   └── poetry/           # DI framework (decorators, core, interfaces)
+│   ├── poetry/               # DI 框架
+│   │   └── src/
+│   │       ├── decorators/       @Injectable, @Module, @Window, @IPC, @On
+│   │       ├── core/             CoreFactory, WindowFactoryResolver
+│   │       ├── interfaces/       OnInit, OnDestroy hooks
+│   │       └── manager/          ModuleManager, WindowManager
+│   └── ai-core/              # AI 核心逻辑
 │       └── src/
-│           ├── decorators/    @Injectable, @Module, @Window, @IPC, @On
-│           ├── core/          CoreFactory, WindowFactoryResolver
-│           ├── interfaces/    OnInit, OnDestroy hooks
-│           └── manager/       ModuleManager, WindowManager
+│           ├── adapter/          ModelAdapter, StreamTransformer, TokenGuard
+│           ├── models/           模型注册表 (DeepSeek, Qwen), resolveModel
+│           ├── prompt/           PromptBuilder (模板变量 + 动态上下文)
+│           └── session/          SessionManager, ConversationTree, Serializer
 ├── app/
-│   └── work/             # Electron app
+│   └── work/                 # Electron 应用
 │       └── src/
-│           ├── main/          main process (Poetry module, controllers, services)
-│           ├── preload/       contextBridge IPC exposure
-│           ├── renderer/      Vue SPA (components, stores, composables)
-│           └── shared/        IPC constants & typed interfaces
+│           ├── main/             Poetry module, controllers, services
+│           ├── preload/          contextBridge IPC exposure
+│           ├── renderer/         Vue SPA (components, stores, composables)
+│           └── shared/           IPC constants & typed interfaces
 └── pnpm-workspace.yaml
 ```
 
 ## Code Style Guidelines
 
-### Language & Response
+### 语言
 
-- All user-facing comments, docs, and commit messages should be in **Simplified Chinese** unless the context requires English.
+- 注释、文档、commit message 统一使用**简体中文**，除非上下文需要英文。
 
 ### TypeScript
 
-- `strict: true` everywhere.
-- `experimentalDecorators` and `emitDecoratorMetadata` enabled (required by Poetry DI).
-- `noImplicitAny: true` in app/work.
-- Prefer explicit types for function parameters; return types may be inferred for simple functions.
-- Use `type` imports (`import type { ... }`) for type-only imports.
+- 全局 `strict: true`；`app/work` 额外启用 `noImplicitAny`。
+- `experimentalDecorators` + `emitDecoratorMetadata`（Poetry DI 必需）。
+- `ai-core` 使用 `moduleResolution: "bundler"`，target ES2020。
+- 函数参数必须显式标注类型；返回值简单时可推断。
+- 类型导入使用 `import type { ... }`。
 
 ### Imports
 
-- **Double quotes** for all import paths.
-- Order: (1) Node built-ins → (2) External packages → (3) Local aliases (`@/`, `@main/`, `@shared/`) → (4) Relative paths.
-- Path aliases in app/work: `@/` → renderer src, `@main/` → main, `@renderer/` → renderer, `@shared/` → shared.
-- Use `workspace:*` for local package references; use `catalog:` for shared dependency versions.
+- **双引号**，所有 import 路径统一。
+- 顺序：Node 内置 → 外部包 → 本地别名（`@/`, `@main/`, `@shared/`）→ 相对路径。
+- `ai-core` 内部相对引用带 `.js` 后缀（如 `"./model-adapter.js"`）。
+- 依赖引用：`workspace:*`（本地包），`catalog:`（共享版本）。
 
 ### Naming Conventions
 
-| Kind           | Convention   | Example                                |
-|---------------|-------------|----------------------------------------|
-| Files          | kebab-case   | `core-factory.ts`, `chat-input.vue`    |
-| Vue components | PascalCase   | `ChatInput.vue`, `LeftSidebar.vue`     |
-| Classes        | PascalCase   | `WorkspaceService`, `InitController`   |
-| Functions      | camelCase    | `createChatAI`, `selectDirectory`      |
-| Composables    | `use` prefix | `useDarkMode`, `useOpencodeEvents`     |
-| Pinia stores   | `use` prefix | `useChatStore`, `useInitStore`         |
-| Constants      | UPPER_SNAKE  | `MODULE_METADATA`, `OPEN_SETTING`      |
-| IPC channels   | UPPER_SNAKE  | `START_AI_STREAM`, `PARSE_BILL_FILE`   |
+| Kind           | Convention   | Example                                 |
+|---------------|-------------|------------------------------------------|
+| 文件           | kebab-case   | `model-adapter.ts`, `chat-input.vue`     |
+| Vue 组件       | PascalCase   | `ChatInput.vue`, `LeftSidebar.vue`       |
+| 类             | PascalCase   | `SessionManager`, `TokenGuard`           |
+| 函数           | camelCase    | `resolveModel`, `transformStream`        |
+| Composables   | `use` 前缀   | `useDarkMode`, `useOpencodeEvents`       |
+| Pinia stores  | `use` 前缀   | `useChatStore`, `useInitStore`           |
+| 常量           | UPPER_SNAKE  | `MODULE_METADATA`, `OPEN_SETTING`        |
+| IPC channels  | UPPER_SNAKE  | `START_AI_STREAM`, `PARSE_BILL_FILE`     |
+| 生成 ID 函数   | 前缀格式     | `sess_`, `msg_`, `node_` + timestamp     |
 
 ### Vue Components
 
-- **Always** use `<script setup lang="ts">` (Composition API only, no Options API).
-- Component order: `<script setup>` → `<template>` → `<style scoped>`.
-- Use `defineProps<Props>()` with `withDefaults` for typed props.
-- Use `defineEmits` for typed events.
-- UI primitives come from shadcn-vue (reka-ui based); use `cn()` utility for class merging.
+- 必须使用 `<script setup lang="ts">`（仅 Composition API）。
+- 文件顺序：`<script setup>` → `<template>` → `<style scoped>`。
+- Props 使用 `defineProps<Props>()` + `withDefaults`；事件使用 `defineEmits`。
+- UI 基于 shadcn-vue (reka-ui)；用 `cn()` 合并 class。
 
 ### Pinia Stores
 
-- Use **setup-style** stores: `defineStore("name", () => { ... })`.
-- Organize with section comments: `// ─── 状态 ───`, `// ─── Getters ───`, `// ─── Actions ───`.
-- Return explicit object with state, getters, and actions.
+- Setup-style：`defineStore("name", () => { ... })`。
+- 用 `// ─── 状态 ───` / `// ─── Getters ───` / `// ─── Actions ───` 分区。
 
-### Poetry (DI Framework)
+### ai-core Patterns
 
-- Decorate injectable services with `@Injectable()`.
-- Define app modules with `@Module({ windows, providers, controllers })`.
-- Register IPC handlers with `@IPC(CHANNEL_NAME)`.
-- Register Electron app events with `@On("ready")`, `@On("activate")`, etc.
-- Use `@Window()` for BrowserWindow subclasses; `@WindowInstance()` to inject the raw BrowserWindow.
-
-### CSS / Styling
-
-- Tailwind CSS 4 utility classes (via `@tailwindcss/postcss`).
-- Theme via CSS custom properties defined in `renderer/index.css`.
-- Use `cn()` (from `@/lib/utils`) to merge conditional classes.
+- 类中用 `private` 字段 + public 方法，方法加中文 JSDoc 注释。
+- 流式事件类型用 discriminated union：`{ type: "stream:text-delta"; ... }`。
+- 所有流式事件必须可 JSON 序列化（适配 Electron IPC）。
+- Builder 类方法返回 `this` 支持链式调用（如 `PromptBuilder`）。
+- 模型定义集中在 `models/` 目录，按厂商分文件，统一注册到 `ModelRegistry`。
+- Token 估算区分 CJK / Latin 字符（CJK ≈ 1.5 字符/token，Latin ≈ 4 字符/token）。
+- 用 `// ─── 分区标题 ───` 注释在类型文件和大类中划分逻辑区域。
 
 ### Error Handling
 
-- Wrap IPC handlers in try/catch; return `{ result: 'error', error: string }` on failure.
-- Use `e instanceof Error ? e.message : String(e)` for safe error extraction.
-- Do not throw raw strings; always throw `Error` objects.
+- IPC handler 必须 try/catch，失败返回 `{ result: 'error', error: string }`。
+- 使用 `e instanceof Error ? e.message : String(e)` 安全提取错误信息。
+- 禁止 throw 原始字符串，必须 throw `Error` 对象。
+- 错误消息使用中文（如 `throw new Error("会话不存在: ${id}")`）。
 
 ### Formatting
 
-- 2-space indentation.
-- Trailing commas in multi-line arrays/objects.
-- No semicolons is acceptable if consistent within a file; the codebase currently uses semicolons.
-- No Prettier config exists — maintain consistency with surrounding code.
+- 2 空格缩进，尾随逗号，使用分号。
+- 无 Prettier 配置——保持与周围代码一致。
 
 ### ESLint
 
-ESLint is configured in `app/work/.eslintrc.json`:
-- extends: `eslint:recommended`, `@typescript-eslint/recommended`, `import/recommended`, `import/electron`
-- Parser: `@typescript-eslint/parser`
-- Import resolver: TypeScript with `alwaysTryTypes: true`
+`app/work/.eslintrc.json`：extends `eslint:recommended`, `@typescript-eslint/recommended`, `import/recommended`, `import/electron`。
 
 ### Git & Environment
 
-- Never commit `.env` files (they are gitignored).
-- Sensitive tokens (Notion, API keys) go in `.env` at the app level.
-- Use `catalog:` in pnpm-workspace.yaml for shared dependency versions across packages.
+- `.env` 已 gitignore，敏感 token 放 `.env`。
+- `pnpm-workspace.yaml` 中用 `catalog:` 管理共享依赖版本。
