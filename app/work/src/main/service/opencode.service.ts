@@ -1,4 +1,4 @@
-import { Injectable } from "poetry";
+import { Injectable } from "@willow/poetry";
 import { createOpencodeServer } from "@opencode-ai/sdk/v2/server";
 
 @Injectable()

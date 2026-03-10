@@ -1,4 +1,4 @@
-import { Injectable, IPC } from "poetry";
+import { Injectable, IPC } from "@willow/poetry";
 import { dialog } from "electron";
 import { SELECT_DIRECTORY } from "@shared/constants";
 import type { ISelectDirectoryResult } from "@shared/index";

@@ -1,4 +1,4 @@
-import { Injectable, IPC } from "poetry";
+import { Injectable, IPC } from "@willow/poetry";
 import { WorkspaceService } from "@main/service/workspace.service";
 import { OpencodeService } from "@main/service/opencode.service";
 import {

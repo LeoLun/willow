@@ -1,6 +1,6 @@
-import 'reflect-metadata';
+import "reflect-metadata";
 import { AppModule } from "./app.module";
-import { CoreFactory } from "poetry";
+import { CoreFactory } from "@willow/poetry";
 
 async function bootstrap() {
   await CoreFactory.create(AppModule);

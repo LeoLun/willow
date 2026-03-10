@@ -8,3 +8,5 @@ catalog:
   tsyringe: ^4.10.0
   typescript: ^5.9.3
   inversify: ^6.2.1
+  "@mariozechner/pi-ai": ^0.55.3
+  "@mariozechner/pi-agent-core": ^0.55.3

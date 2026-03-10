@@ -1,4 +1,4 @@
-import { Injectable } from "poetry";
+import { Injectable } from "@willow/poetry";
 import { app } from "electron";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";

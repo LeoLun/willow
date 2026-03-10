@@ -5,7 +5,7 @@ import {
   On,
   OnDestroy,
   WindowMetadata,
-} from "poetry";
+} from "@willow/poetry";
 import { BrowserWindow } from "electron";
 import { join } from "path";
 

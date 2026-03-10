@@ -1,4 +1,4 @@
-import { On, WindowFactoryResolver, Module, IPC } from "poetry";
+import { On, WindowFactoryResolver, Module, IPC } from "@willow/poetry";
 import { MainWindow } from "./window/main.window";
 import { app, BrowserWindow } from "electron";
 import type { IEcho } from "@shared/index";

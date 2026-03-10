@@ -1,4 +1,4 @@
-import { Injectable, IPC } from "poetry";
+import { Injectable, IPC } from "@willow/poetry";
 import { OpencodeService } from "@main/service/opencode.service";
 import type { IStartOpencode, IStartOpencodeResponce } from "@shared/index";
 @Injectable()
