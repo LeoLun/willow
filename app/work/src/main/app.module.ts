@@ -5,8 +5,6 @@ import type { IEcho } from "@shared/index";
 import { ECHO } from "@shared/index";
 import started from "electron-squirrel-startup";
 import { SystemService } from "./service/system.service";
-import { OpencodeService } from "./service/opencode.service";
-import { OpencodeController } from "./controllers/opencode.controller";
 import { InitController } from "./controllers/init.controller";
 import { DialogController } from "./controllers/dialog.controller";
 import { WorkspaceService } from "./service/workspace.service";
@@ -18,24 +16,21 @@ if (started) {
 @Module({
   imports: [],
   windows: [MainWindow],
-  providers: [WorkspaceService, SystemService, OpencodeService],
-  controllers: [InitController, OpencodeController, DialogController],
+  providers: [WorkspaceService, SystemService],
+  controllers: [InitController, DialogController],
 })
 export class AppModule implements IEcho {
   private windowFactoryResolver: WindowFactoryResolver;
-  private opencodeController: OpencodeController;
   private initController: InitController;
   private dialogController: DialogController;
 
   constructor(
     windowFactoryResolver: WindowFactoryResolver,
-    opencodeController: OpencodeController,
     initController: InitController,
     dialogController: DialogController,
   ) {
     console.log("windowFactoryResolver", windowFactoryResolver);
     this.windowFactoryResolver = windowFactoryResolver;
-    this.opencodeController = opencodeController;
     this.initController = initController;
     this.dialogController = dialogController;
   }
@@ -52,7 +47,6 @@ export class AppModule implements IEcho {
   @On("before-quit")
   async onBeforeQuit() {
     console.log("onBeforeQuit");
-    await this.opencodeController.stopOpencode();
   }
 
   @On("window-all-closed")

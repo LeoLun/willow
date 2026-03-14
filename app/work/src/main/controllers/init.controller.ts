@@ -1,12 +1,6 @@
 import { Injectable, IPC } from "@willow/poetry";
 import { WorkspaceService } from "@main/service/workspace.service";
-import { OpencodeService } from "@main/service/opencode.service";
-import {
-  INIT,
-  INIT_PROGRESS,
-  INIT_WORKSPACE,
-  INIT_OPENCODE_SERVICE,
-} from "@shared/index";
+import { INIT, INIT_PROGRESS, INIT_WORKSPACE } from "@shared/index";
 
 @Injectable()
 export class InitController {
@@ -14,10 +8,7 @@ export class InitController {
   private workspacePath: string;
   private baseStartPath: string;
 
-  constructor(
-    private readonly workspaceService: WorkspaceService,
-    private readonly opencodeService: OpencodeService,
-  ) {}
+  constructor(private readonly workspaceService: WorkspaceService) {}
 
   @IPC(INIT)
   async init(event: Electron.IpcMainInvokeEvent) {
@@ -27,14 +18,6 @@ export class InitController {
           workspacePath: this.workspacePath,
           baseStartPath: this.baseStartPath,
         },
-      });
-      event.sender.send(INIT_OPENCODE_SERVICE, {
-        data: {
-          url: this.opencodeService.getServerUrl(),
-        },
-      });
-      event.sender.send(INIT_PROGRESS, {
-        data: "初始化 opencode 服务成功",
       });
       return;
     }
@@ -55,24 +38,6 @@ export class InitController {
       },
     });
 
-    // 开始初始化 opencode 服务
-    event.sender.send(INIT_PROGRESS, {
-      message: "初始化 opencode 服务",
-    });
-
-    // 启动 opencode 服务
-    await this.opencodeService.start();
-
-    // 初始化 opencode 服务成功，返回 opencode 服务地址
-    event.sender.send(INIT_OPENCODE_SERVICE, {
-      data: {
-        url: this.opencodeService.getServerUrl(),
-      },
-    });
-
-    event.sender.send(INIT_PROGRESS, {
-      data: "初始化 opencode 服务成功",
-    });
     this.isInitialized = true;
   }
 }

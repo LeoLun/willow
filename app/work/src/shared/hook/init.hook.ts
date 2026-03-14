@@ -38,8 +38,4 @@ export interface IInitRenderer {
   onInitWorkspace(
     callback: (payload: IInitWorkspacePayload) => void,
   ): () => void;
-  /** 监听 OpenCode 服务初始化完成 */
-  onInitOpencodeService(
-    callback: (payload: IInitOpencodeServicePayload) => void,
-  ): () => void;
 }
