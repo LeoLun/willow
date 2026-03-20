@@ -1,50 +1,61 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type {
-  IEchoResponce,
-  IRenderHook,
-  IInitProgressPayload,
-  IInitWorkspacePayload,
-  IInitOpencodeServicePayload,
-  ISelectDirectoryResult,
-} from "../shared";
-
+import type { IRenderHook } from "../shared";
 import {
-  ECHO,
-  INIT,
-  INIT_PROGRESS,
-  INIT_WORKSPACE,
-  SELECT_DIRECTORY,
-} from "../shared";
+  GET_WORKSPACE_LIST,
+  CREATE_WORKSPACE,
+  DELETE_WORKSPACE,
+  GET_WORKSPACE_INFO,
+} from "../shared/constants";
+import type {
+  ApiResponse,
+  GetWorkspaceListResponse,
+  CreateWorkspaceRequest,
+  CreateWorkspaceResponse,
+  DeleteWorkspaceRequest,
+  DeleteWorkspaceResponse,
+  GetWorkspaceInfoRequest,
+  GetWorkspaceInfoResponse,
+} from "../shared/api";
 
 const ipcObject: IRenderHook = {
-  async echo(message: string): Promise<IEchoResponce> {
-    return await ipcRenderer.invoke(ECHO, message);
+  getWorkspaceList: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_LIST,
+    )) as ApiResponse<GetWorkspaceListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
   },
-  async init(): Promise<void> {
-    return await ipcRenderer.invoke(INIT);
+  createWorkspace: async (request: CreateWorkspaceRequest) => {
+    const response = (await ipcRenderer.invoke(
+      CREATE_WORKSPACE,
+      request,
+    )) as ApiResponse<CreateWorkspaceResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
   },
-  onInitProgress(callback: (payload: IInitProgressPayload) => void) {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      payload: IInitProgressPayload,
-    ) => callback(payload);
-    ipcRenderer.on(INIT_PROGRESS, handler);
-    return () => {
-      ipcRenderer.removeListener(INIT_PROGRESS, handler);
-    };
+  deleteWorkspace: async (request: DeleteWorkspaceRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_WORKSPACE,
+      request,
+    )) as ApiResponse<DeleteWorkspaceResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
   },
-  onInitWorkspace(callback: (payload: IInitWorkspacePayload) => void) {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      payload: IInitWorkspacePayload,
-    ) => callback(payload);
-    ipcRenderer.on(INIT_WORKSPACE, handler);
-    return () => {
-      ipcRenderer.removeListener(INIT_WORKSPACE, handler);
-    };
-  },
-  async selectDirectory(defaultPath?: string): Promise<ISelectDirectoryResult> {
-    return await ipcRenderer.invoke(SELECT_DIRECTORY, defaultPath);
+  getWorkspaceInfo: async (request: GetWorkspaceInfoRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_INFO,
+      request,
+    )) as ApiResponse<GetWorkspaceInfoResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
   },
 };
 

@@ -1,36 +1,41 @@
 import { Injectable } from "@willow/poetry";
-import { app } from "electron";
+import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
-
+import { app } from "electron";
 @Injectable()
 export class WorkspaceService {
-  private workspacePath: string;
-  private baseStartPath: string;
+  constructor(private readonly workspaceDao: WorkspaceDao) {}
 
-  // 初始化workspace
-  async initWorkspace() {
-    // 创建一个workspace目录（recursive: true 在目录已存在时不会报错）
-    const workspacePath = join(app.getPath("userData"), "workspace");
+  generateWorkspaceId() {
+    return Date.now();
+  }
+
+  async createDefaultWorkspace(name: string) {
+    // 生成一个 ID
+    const id = this.generateWorkspaceId();
+    const workspacePath = join(
+      app.getPath("userData"),
+      "workspace",
+      id.toString(),
+    );
     await mkdir(workspacePath, { recursive: true });
-
-    // 初始化一个 start 目录
-    const baseStartPath = join(workspacePath, "start");
-    await mkdir(baseStartPath, { recursive: true });
-
-    this.workspacePath = workspacePath;
-    this.baseStartPath = baseStartPath;
-    return {
-      workspacePath,
-      baseStartPath,
-    };
+    return this.workspaceDao.insert({ name, path: workspacePath, id });
   }
 
-  getWorkspacePath() {
-    return this.workspacePath;
+  async getWorkspaceList() {
+    return this.workspaceDao.findAll();
   }
 
-  getBaseStartPath() {
-    return this.baseStartPath;
+  async createWorkspace(name: string, path: string) {
+    return this.workspaceDao.insert({ name, path });
+  }
+
+  async deleteWorkspace(id: number) {
+    return this.workspaceDao.deleteById(id);
+  }
+
+  async getWorkspaceInfo(id: number) {
+    return this.workspaceDao.findById(id);
   }
 }

@@ -1,6 +1,9 @@
 import { Injectable, IPC } from "@willow/poetry";
 import { WorkspaceService } from "@main/service/workspace.service";
-import { INIT, INIT_PROGRESS, INIT_WORKSPACE } from "@shared/index";
+import { join } from "node:path";
+import { mkdir } from "node:fs/promises";
+import { app } from "electron";
+import { DbService } from "@main/service/db.service";
 
 @Injectable()
 export class InitController {
@@ -8,36 +11,24 @@ export class InitController {
   private workspacePath: string;
   private baseStartPath: string;
 
-  constructor(private readonly workspaceService: WorkspaceService) {}
+  constructor(
+    private readonly dbService: DbService,
+    private readonly workspaceService: WorkspaceService,
+  ) {}
 
-  @IPC(INIT)
-  async init(event: Electron.IpcMainInvokeEvent) {
+  async init() {
     if (this.isInitialized) {
-      event.sender.send(INIT_WORKSPACE, {
-        data: {
-          workspacePath: this.workspacePath,
-          baseStartPath: this.baseStartPath,
-        },
-      });
       return;
     }
-    // 开始初始化
-    event.sender.send(INIT_PROGRESS, {
-      data: "初始化 workspace",
-    });
 
-    const { workspacePath, baseStartPath } =
-      await this.workspaceService.initWorkspace();
-    this.workspacePath = workspacePath;
-    this.baseStartPath = baseStartPath;
-    // 初始化工作空间成功，返回工作空间路径
-    event.sender.send(INIT_WORKSPACE, {
-      data: {
-        workspacePath,
-        baseStartPath,
-      },
-    });
+    this.dbService.init();
 
+    // 检查是否存在 workspace 数据，如果不存在则创建基础 workspace 数据
+    const workspaceList = await this.workspaceService.getWorkspaceList();
+    console.log("workspaceList", workspaceList);
+    if (workspaceList.length === 0) {
+      this.workspaceService.createDefaultWorkspace("默认工作空间");
+    }
     this.isInitialized = true;
   }
 }

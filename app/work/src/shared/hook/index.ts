@@ -1,9 +1,5 @@
-import { IEchoRenderer } from "./echo.hook";
-import { IInitRenderer } from "./init.hook";
-import { IDialogRenderer } from "./dialog.hook";
-
-export interface IRenderHook
-  extends IEchoRenderer, IInitRenderer, IDialogRenderer {}
+import type { IWorkspaceApi } from "./workspace.hook";
+export interface IRenderHook extends IWorkspaceApi {}
 
 export * from "./echo.hook";
 export * from "./init.hook";
