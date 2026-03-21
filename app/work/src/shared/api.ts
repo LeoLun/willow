@@ -50,7 +50,7 @@ export interface GetWorkspaceListResponse {
 
 export interface CreateWorkspaceRequest {
   name: string;
-  path: string;
+  path?: string;
 }
 
 export interface CreateWorkspaceResponse {
@@ -70,5 +70,14 @@ export interface GetWorkspaceInfoRequest {
 }
 
 export interface GetWorkspaceInfoResponse {
+  workspace: Workspace;
+}
+
+export interface RenameWorkspaceRequest {
+  id: number;
+  name: string;
+}
+
+export interface RenameWorkspaceResponse {
   workspace: Workspace;
 }

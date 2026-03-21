@@ -17,6 +17,7 @@ import { GetWorkspaceListController } from "./controllers/workspace/get.workspac
 import { CreateWorkspaceController } from "./controllers/workspace/create.workspace.controll";
 import { DeleteWorkspaceController } from "./controllers/workspace/delete.workspace.controll";
 import { GetWorkspaceInfoController } from "./controllers/workspace/get.workspace.info.controll";
+import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controll";
 
 if (started) {
   app.quit();
@@ -41,6 +42,7 @@ if (started) {
     CreateWorkspaceController,
     DeleteWorkspaceController,
     GetWorkspaceInfoController,
+    RenameWorkspaceController,
   ],
 })
 export class AppModule implements IEcho {
@@ -56,6 +58,7 @@ export class AppModule implements IEcho {
     private createWorkspaceController: CreateWorkspaceController,
     private deleteWorkspaceController: DeleteWorkspaceController,
     private getWorkspaceInfoController: GetWorkspaceInfoController,
+    private renameWorkspaceController: RenameWorkspaceController,
   ) {
     console.log("windowFactoryResolver", windowFactoryResolver);
     this.windowFactoryResolver = windowFactoryResolver;

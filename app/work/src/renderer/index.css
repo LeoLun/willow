@@ -7,6 +7,16 @@
   :root {
     --top-drag-bar-z-index: 1000;
   }
+
+  :focus-visible {
+    outline: none !important;
+  }
+
+  .focus-visible\:ring-ring\/50:focus-visible {
+    --tw-ring-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
 }
 
 :root {

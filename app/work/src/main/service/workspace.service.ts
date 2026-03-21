@@ -38,4 +38,8 @@ export class WorkspaceService {
   async getWorkspaceInfo(id: number) {
     return this.workspaceDao.findById(id);
   }
+
+  async renameWorkspace(id: number, name: string) {
+    return this.workspaceDao.update(id, { name });
+  }
 }

@@ -1,0 +1,57 @@
+<script setup lang="ts">
+import { ref } from "vue";
+import {
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { electronAPI } from "@/lib/ipc";
+import type { Workspace } from "@shared/api";
+
+const emit = defineEmits<{
+  close: [];
+  created: [workspace: Workspace];
+}>();
+
+const name = ref("");
+const loading = ref(false);
+
+async function handleSubmit() {
+  const trimmed = name.value.trim();
+  if (!trimmed || loading.value) return;
+  loading.value = true;
+  try {
+    const { workspace } = await electronAPI.createWorkspace({
+      name: trimmed,
+      path: "",
+    });
+    emit("created", workspace);
+    emit("close");
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : String(e));
+  } finally {
+    loading.value = false;
+  }
+}
+</script>
+
+<template>
+  <DialogHeader>
+    <DialogTitle>创建工作区</DialogTitle>
+    <DialogDescription>输入工作区名称以创建新的工作区</DialogDescription>
+  </DialogHeader>
+  <form class="grid gap-4 py-4" @submit.prevent="handleSubmit">
+    <Input v-model="name" placeholder="工作区名称" autofocus />
+    <DialogFooter>
+      <Button type="button" variant="outline" @click="emit('close')">
+        取消
+      </Button>
+      <Button type="submit" :disabled="!name.trim() || loading">
+        创建
+      </Button>
+    </DialogFooter>
+  </form>
+</template>

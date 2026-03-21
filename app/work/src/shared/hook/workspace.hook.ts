@@ -1,11 +1,13 @@
 import type {
+  GetWorkspaceListResponse,
   CreateWorkspaceRequest,
   CreateWorkspaceResponse,
   DeleteWorkspaceRequest,
   DeleteWorkspaceResponse,
   GetWorkspaceInfoRequest,
   GetWorkspaceInfoResponse,
-  GetWorkspaceListResponse,
+  RenameWorkspaceRequest,
+  RenameWorkspaceResponse,
 } from "../api";
 
 export interface IWorkspaceApi {
@@ -19,4 +21,7 @@ export interface IWorkspaceApi {
   getWorkspaceInfo(
     request: GetWorkspaceInfoRequest,
   ): Promise<GetWorkspaceInfoResponse>;
+  renameWorkspace(
+    request: RenameWorkspaceRequest,
+  ): Promise<RenameWorkspaceResponse>;
 }

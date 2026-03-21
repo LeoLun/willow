@@ -5,6 +5,7 @@ import {
   CREATE_WORKSPACE,
   DELETE_WORKSPACE,
   GET_WORKSPACE_INFO,
+  RENAME_WORKSPACE,
 } from "../shared/constants";
 import type {
   ApiResponse,
@@ -15,6 +16,8 @@ import type {
   DeleteWorkspaceResponse,
   GetWorkspaceInfoRequest,
   GetWorkspaceInfoResponse,
+  RenameWorkspaceRequest,
+  RenameWorkspaceResponse,
 } from "../shared/api";
 
 const ipcObject: IRenderHook = {
@@ -52,6 +55,16 @@ const ipcObject: IRenderHook = {
       GET_WORKSPACE_INFO,
       request,
     )) as ApiResponse<GetWorkspaceInfoResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
+  },
+  renameWorkspace: async (request: RenameWorkspaceRequest) => {
+    const response = (await ipcRenderer.invoke(
+      RENAME_WORKSPACE,
+      request,
+    )) as ApiResponse<RenameWorkspaceResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
     }

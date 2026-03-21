@@ -1,10 +1,11 @@
 
 <script setup lang="ts">
-import LeftSidebar from "./sidebar/LeftSidebar.vue";
+import LeftSidebar from "./layout/sidebar/LeftSidebar.vue";
 import { Card } from "@/components/ui/card";
 import { useDarkMode } from "@/composables/useDarkMode";
 import TopDragBar from "@/components/base/TopDragBar.vue";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { DialogProvider } from "@/layout/dialog";
 useDarkMode();
 
 </script>
@@ -24,4 +25,5 @@ useDarkMode();
       </Card>
     </div>
   </SidebarProvider>
+  <DialogProvider />
 </template>
