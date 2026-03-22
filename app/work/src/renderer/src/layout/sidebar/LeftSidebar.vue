@@ -2,8 +2,10 @@
 import { Settings } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import NavMain from "./NavMain.vue";
-import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
 </script>
 
 <template>
@@ -17,12 +19,11 @@ import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
     </SidebarContent>
 
     <!-- 底部区域 -->
-    <div class="shrink-0">
-      <div class="flex items-center px-2 py-2 justify-between">
-        <Button variant="ghost" size="icon-sm" class="text-muted-foreground hover:text-foreground" aria-label="设置">
-          <Settings class="size-4" aria-hidden="true" />
-        </Button>
-      </div>
-    </div>
+    <SidebarFooter>
+      <Button variant="ghost" size="sm" class="justify-start" @click="router.push('/setting')">
+        <Settings class="size-4" aria-hidden="true" />
+        设置
+      </Button>
+    </SidebarFooter>
   </Sidebar>
 </template>

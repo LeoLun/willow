@@ -20,7 +20,7 @@ useDarkMode();
       <Card class="relative !flex-row flex-1 gap-0 overflow-hidden !py-0">
         <!-- 中间内容区域 -->
         <div class="min-w-0 flex-1 h-full overflow-hidden">
-          内容区域，路由
+          <RouterView />
         </div>
       </Card>
     </div>
