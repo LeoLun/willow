@@ -1,5 +1,5 @@
 import { Injectable } from "@willow/poetry";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { DbService } from "@main/service/db.service";
 import { sessions } from "../../db/schema";
 
@@ -57,5 +57,14 @@ export class SessionDao {
       .where(eq(sessions.id, id))
       .returning()
       .get();
+  }
+
+  findByWorkspaceIds(workspaceIds: number[]) {
+    return this.dbService
+      .getDb()
+      .select()
+      .from(sessions)
+      .where(inArray(sessions.workspaceId, workspaceIds))
+      .all();
   }
 }

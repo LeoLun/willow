@@ -37,12 +37,10 @@ export interface SessionDetail {
   history: SessionHistory[];
 }
 
-export interface GetSessionListRequest {
-  workspaceId: string;
-}
-
-export interface GetSessionListResponse {
-  sessions: Session[];
+export interface IFile {
+  name: string;
+  size: number;
+  path: string;
 }
 export interface GetWorkspaceListResponse {
   workspaces: Workspace[];
@@ -80,4 +78,32 @@ export interface RenameWorkspaceRequest {
 
 export interface RenameWorkspaceResponse {
   workspace: Workspace;
+}
+
+export interface SendMessageRequest {
+  sessionId: number;
+  message: string;
+  files?: IFile[];
+}
+
+export interface SendMessageResponse {}
+
+export interface SendMessage extends Omit<SendMessageRequest, "sessionId"> {}
+
+export interface CreateSessionRequest {
+  workspaceId: number;
+}
+
+export interface CreateSessionResponse {
+  session: Session;
+}
+
+export interface GetSessionListResponse {
+  sessions: {
+    [workspaceId: number]: Session[];
+  };
+}
+
+export interface GetSessionListRequest {
+  workspaceIds: number[];
 }

@@ -1,25 +1,27 @@
 import { Injectable, IPC } from "@willow/poetry";
 import { SessionService } from "@main/service/session.service";
 import { IPCBaseController } from "../ipc.base.controller";
-
-interface CreateSessionRequest {
-  workspaceId: string;
-}
+import type {
+  ApiResponse,
+  CreateSessionRequest,
+  CreateSessionResponse,
+} from "@shared/api";
+import { CREATE_SESSION } from "@shared/constants";
 
 @Injectable()
 export class CreateSessionController extends IPCBaseController<
   CreateSessionRequest,
-  any
+  CreateSessionResponse
 > {
   constructor(private readonly sessionService: SessionService) {
     super();
   }
 
-  @IPC("CREATE_SESSION")
+  @IPC(CREATE_SESSION)
   async run(
     _event: Electron.IpcMainInvokeEvent,
     request: CreateSessionRequest,
-  ): Promise<any> {
+  ): Promise<ApiResponse<CreateSessionResponse>> {
     const error = this.checkParams(request);
     if (error) {
       return this.buildError(400, error.message);
@@ -28,7 +30,7 @@ export class CreateSessionController extends IPCBaseController<
     const { workspaceId } = request;
 
     const data = await this.sessionService.createSession(workspaceId);
-    return this.buildResponse(data);
+    return this.buildResponse({ session: data });
   }
 
   checkParams(request: CreateSessionRequest): Error | undefined {

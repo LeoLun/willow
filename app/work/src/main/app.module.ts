@@ -18,6 +18,9 @@ import { CreateWorkspaceController } from "./controllers/workspace/create.worksp
 import { DeleteWorkspaceController } from "./controllers/workspace/delete.workspace.controll";
 import { GetWorkspaceInfoController } from "./controllers/workspace/get.workspace.info.controll";
 import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controll";
+import { CreateSessionController } from "./controllers/session/create.session.controller";
+import { SendMessageController } from "./controllers/session/send.messgae.controller";
+import { GetSessionListController } from "./controllers/session/get.session.list.controller";
 
 if (started) {
   app.quit();
@@ -43,28 +46,25 @@ if (started) {
     DeleteWorkspaceController,
     GetWorkspaceInfoController,
     RenameWorkspaceController,
+    CreateSessionController,
+    SendMessageController,
+    GetSessionListController,
   ],
 })
 export class AppModule implements IEcho {
-  private windowFactoryResolver: WindowFactoryResolver;
-  private initController: InitController;
-  private dialogController: DialogController;
-
   constructor(
-    windowFactoryResolver: WindowFactoryResolver,
-    initController: InitController,
-    dialogController: DialogController,
+    private windowFactoryResolver: WindowFactoryResolver,
+    private initController: InitController,
+    private dialogController: DialogController,
     private getWorkspaceListController: GetWorkspaceListController,
     private createWorkspaceController: CreateWorkspaceController,
     private deleteWorkspaceController: DeleteWorkspaceController,
     private getWorkspaceInfoController: GetWorkspaceInfoController,
     private renameWorkspaceController: RenameWorkspaceController,
-  ) {
-    console.log("windowFactoryResolver", windowFactoryResolver);
-    this.windowFactoryResolver = windowFactoryResolver;
-    this.initController = initController;
-    this.dialogController = dialogController;
-  }
+    private createSessionController: CreateSessionController,
+    private sendMessageController: SendMessageController,
+    private getSessionListController: GetSessionListController,
+  ) {}
 
   createWindow() {
     this.windowFactoryResolver.resolveWindowFactory(MainWindow);

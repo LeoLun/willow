@@ -8,6 +8,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DialogProvider } from "@/layout/dialog";
 useDarkMode();
 
+// 建立监听链接
+
 </script>
 <template>
   <TopDragBar />

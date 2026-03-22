@@ -30,3 +30,17 @@ export const router = createRouter({
   history: createWebHistory(),
   routes,
 });
+
+router.beforeEach(async (to) => {
+  if (to.path === "/" && !to.query.workspaceId) {
+    const { useWorkspaceStore } = await import("./stores/workspace");
+    const workspaceStore = useWorkspaceStore();
+    const list =
+      workspaceStore.workspaceList.length > 0
+        ? workspaceStore.workspaceList
+        : await workspaceStore.fetchWorkspaceList();
+    if (list.length > 0) {
+      return { path: "/", query: { workspaceId: String(list[0].id) } };
+    }
+  }
+});

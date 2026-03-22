@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeMount } from "vue";
+import { onBeforeMount, ref } from "vue";
 import { FolderPlus, SquarePen, Clock, LayoutGrid, Ellipsis } from "lucide-vue-next";
 import {
   SidebarGroup,
@@ -7,51 +7,47 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarGroupLabel,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button";
-import { electronAPI } from "@/lib/ipc";
-import { ref } from "vue";
-import type { Workspace } from "@shared/api";
 import { useDialog } from "@/layout/dialog";
 import { CreateWorkspace } from "@/layout/dialog/create-workspace";
 import { DeleteWorkspace } from "@/layout/dialog/delete-workspace";
 import { RenameWorkspace } from "@/layout/dialog/rename-workspace";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useRouter } from "vue-router";
+import { storeToRefs } from "pinia";
+import { useWorkspaceStore } from "@/stores/workspace";
+import type { Workspace } from "@shared/api";
 
 const router = useRouter();
 const { openDialog } = useDialog();
-const workspaceList = ref<Workspace[]>([]);
+const workspaceStore = useWorkspaceStore();
+const { workspaceList } = storeToRefs(workspaceStore);
 const dropdownOpenId = ref<number | null>(null);
-
-function refreshWorkspaceList() {
-  electronAPI.getWorkspaceList().then((response) => {
-    workspaceList.value = response.workspaces || [];
-  });
-}
 
 function handleRenameWorkspace(workspace: Workspace) {
   openDialog(RenameWorkspace, {
     workspace,
-    onRenamed: () => refreshWorkspaceList(),
+    onRenamed: () => workspaceStore.fetchWorkspaceList(),
   });
 }
 
 function handleDeleteWorkspace(workspace: Workspace) {
   openDialog(DeleteWorkspace, {
     workspace,
-    onDeleted: () => refreshWorkspaceList(),
+    onDeleted: () => workspaceStore.fetchWorkspaceList(),
   });
 }
 
 function handleCreateWorkspace() {
   openDialog(CreateWorkspace, {
-    onCreated: () => refreshWorkspaceList(),
+    onCreated: () => workspaceStore.fetchWorkspaceList(),
   });
 }
 
 onBeforeMount(() => {
-  refreshWorkspaceList();
+  workspaceStore.fetchWorkspaceList();
 });
 </script>
 

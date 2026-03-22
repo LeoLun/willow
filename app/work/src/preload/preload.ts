@@ -6,6 +6,9 @@ import {
   DELETE_WORKSPACE,
   GET_WORKSPACE_INFO,
   RENAME_WORKSPACE,
+  CREATE_SESSION,
+  SEND_MESSAGE,
+  GET_SESSION_LIST,
 } from "../shared/constants";
 import type {
   ApiResponse,
@@ -18,6 +21,12 @@ import type {
   GetWorkspaceInfoResponse,
   RenameWorkspaceRequest,
   RenameWorkspaceResponse,
+  CreateSessionRequest,
+  CreateSessionResponse,
+  SendMessageRequest,
+  SendMessageResponse,
+  GetSessionListRequest,
+  GetSessionListResponse,
 } from "../shared/api";
 
 const ipcObject: IRenderHook = {
@@ -65,6 +74,36 @@ const ipcObject: IRenderHook = {
       RENAME_WORKSPACE,
       request,
     )) as ApiResponse<RenameWorkspaceResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
+  },
+  createSession: async (request: CreateSessionRequest) => {
+    const response = (await ipcRenderer.invoke(
+      CREATE_SESSION,
+      request,
+    )) as ApiResponse<CreateSessionResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
+  },
+  sendMessage: async (request: SendMessageRequest) => {
+    const response = (await ipcRenderer.invoke(
+      SEND_MESSAGE,
+      request,
+    )) as ApiResponse<SendMessageResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
+  },
+  getSessionList: async (request: GetSessionListRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_SESSION_LIST,
+      request,
+    )) as ApiResponse<GetSessionListResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
     }

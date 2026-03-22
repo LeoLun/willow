@@ -1,8 +1,13 @@
 import { Injectable, IPC } from "@willow/poetry";
 import { SessionService } from "@main/service/session.service";
 import { IPCBaseController } from "../ipc.base.controller";
-import { GetSessionListRequest, GetSessionListResponse } from "@shared/api";
-
+import type {
+  Session,
+  ApiResponse,
+  GetSessionListRequest,
+  GetSessionListResponse,
+} from "@shared/api";
+import { GET_SESSION_LIST } from "@shared/constants";
 @Injectable()
 export class GetSessionListController extends IPCBaseController<
   GetSessionListRequest,
@@ -12,25 +17,44 @@ export class GetSessionListController extends IPCBaseController<
     super();
   }
 
-  @IPC("GET_SESSION_LIST")
+  @IPC(GET_SESSION_LIST)
   async run(
     _event: Electron.IpcMainInvokeEvent,
     request: GetSessionListRequest,
-  ): Promise<any> {
+  ): Promise<ApiResponse<GetSessionListResponse>> {
     const error = this.checkParams(request);
     if (error) {
       return this.buildError(400, error.message);
     }
 
-    const { workspaceId } = request;
+    const { workspaceIds } = request;
 
-    const data = await this.sessionService.getSessionList(workspaceId);
-    return this.buildResponse({ sessions: data });
+    const data =
+      await this.sessionService.getSessionListByWorkspaceIds(workspaceIds);
+    const sessions = data.reduce(
+      (acc, session) => {
+        acc[session.workspaceId] = [
+          ...(acc[session.workspaceId] || []),
+          session,
+        ];
+        return acc;
+      },
+      {} as { [workspaceId: number]: Session[] },
+    );
+    return this.buildResponse({ sessions });
   }
 
   checkParams(request: GetSessionListRequest): Error | undefined {
-    if (!request || !request.workspaceId) {
-      return new Error("workspaceId is required");
+    if (!request || !request.workspaceIds) {
+      return new Error("workspaceIds is required");
+    }
+    if (request.workspaceIds.length === 0) {
+      return new Error("workspaceIds must be an array of numbers");
+    }
+    for (const workspaceId of request.workspaceIds) {
+      if (typeof workspaceId !== "number") {
+        return new Error("workspaceIds must be an array of numbers");
+      }
     }
     return undefined;
   }
