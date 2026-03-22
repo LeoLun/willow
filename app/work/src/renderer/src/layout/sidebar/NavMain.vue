@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onBeforeMount, ref } from "vue";
-import { FolderPlus, SquarePen, Clock, LayoutGrid, Ellipsis } from "lucide-vue-next";
+import { onBeforeMount, ref, computed } from "vue";
+import { FolderPlus, SquarePen, Clock, LayoutGrid, Ellipsis, ChevronRight } from "lucide-vue-next";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -8,23 +8,57 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarGroupLabel,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button";
 import { useDialog } from "@/layout/dialog";
 import { CreateWorkspace } from "@/layout/dialog/create-workspace";
 import { DeleteWorkspace } from "@/layout/dialog/delete-workspace";
 import { RenameWorkspace } from "@/layout/dialog/rename-workspace";
+import { RenameSession } from "@/layout/dialog/rename-session";
+import { DeleteSession } from "@/layout/dialog/delete-session";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useWorkspaceStore } from "@/stores/workspace";
-import type { Workspace } from "@shared/api";
+import { useSessionStore } from "@/stores/session";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import type { Workspace, Session } from "@shared/api";
 
 const router = useRouter();
+const route = useRoute();
 const { openDialog } = useDialog();
 const workspaceStore = useWorkspaceStore();
+const sessionStore = useSessionStore();
 const { workspaceList } = storeToRefs(workspaceStore);
-const dropdownOpenId = ref<number | null>(null);
+const { sessionMap } = storeToRefs(sessionStore);
+const dropdownOpenId = ref<string | null>(null);
+
+// 获取当前路由的 sessionId
+const sessionId = computed(() => {
+  return Number(route.params.sessionId);
+});
+
+
+function handleRenameSession(session: Session) {
+  openDialog(RenameSession, {
+    session,
+    onRenamed: () => sessionStore.fetchSessionList(workspaceList.value.map((w) => w.id)),
+  });
+}
+
+function handleDeleteSession(session: Session) {
+  openDialog(DeleteSession, {
+    session,
+    onDeleted: () => sessionStore.deleteSession(session.id, session.workspaceId),
+  });
+}
 
 function handleRenameWorkspace(workspace: Workspace) {
   openDialog(RenameWorkspace, {
@@ -46,8 +80,9 @@ function handleCreateWorkspace() {
   });
 }
 
-onBeforeMount(() => {
-  workspaceStore.fetchWorkspaceList();
+onBeforeMount(async () => {
+  const workspaces = await workspaceStore.fetchWorkspaceList();
+  await sessionStore.fetchSessionList(workspaces.map((w) => w.id));
 });
 </script>
 
@@ -79,39 +114,88 @@ onBeforeMount(() => {
         <div>工作空间</div>
         <div>
           <Button variant="ghost" class="size-6 text-neutral-500" @click="handleCreateWorkspace">
-            <FolderPlus />
+            <FolderPlus class="size-3.5"/>
           </Button>
         </div>
       </SidebarGroupLabel>
       <SidebarMenu>
-        <SidebarMenuItem v-for="workspace in workspaceList" :key="workspace.id" class="group/workspace">
-          <SidebarMenuButton class="flex items-center justify-between">
-            <div>{{ workspace.name }}</div>
-            <div
-              class="flex items-center gap-2 transition-opacity"
-              :class="dropdownOpenId === workspace.id ? 'opacity-100' : 'opacity-0 group-hover/workspace:opacity-100'"
-            >
-              <Button variant="ghost" class="size-6 text-neutral-500" @click="router.push(`/?workspaceId=${workspace.id}`)">
-                <SquarePen />
-              </Button>
-              <DropdownMenu @update:open="(open: boolean) => dropdownOpenId = open ? workspace.id : null">
-                <DropdownMenuTrigger as-child>
-                  <Button variant="ghost" class="size-6 text-neutral-500">
-                    <Ellipsis />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem @click="handleRenameWorkspace(workspace)">
-                    <span>重命名</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem @click="handleDeleteWorkspace(workspace)">
-                    <span>删除</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+        <Collapsible v-for="workspace in workspaceList" :key="workspace.id" as-child class="group/collapsible">
+          <SidebarMenuItem class="group/workspace">
+            <div class="flex items-center">
+              <CollapsibleTrigger as-child>
+                <SidebarMenuButton class="flex-1 cursor-pointer hover:!bg-transparent">
+                  <ChevronRight
+                    class="size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  <span>{{ workspace.name }}</span>
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+              <div class="flex items-center gap-2 pr-2 transition-opacity"
+                :class="dropdownOpenId === `ws-${workspace.id}` ? 'opacity-100' : 'opacity-0 group-hover/workspace:opacity-100'"
+                @click.stop @pointerdown.stop>
+                <Button variant="ghost" class="size-6 text-neutral-500"
+                  @click="router.push(`/?workspaceId=${workspace.id}`)">
+                  <SquarePen class="size-3.5" />
+                </Button>
+                <DropdownMenu @update:open="(open: boolean) => dropdownOpenId = open ? `ws-${workspace.id}` : null">
+                  <DropdownMenuTrigger as-child>
+                    <Button variant="ghost" class="size-6 text-neutral-500">
+                      <Ellipsis class="size-3.5"/>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem @click="handleRenameWorkspace(workspace)">
+                      <span>重命名</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="handleDeleteWorkspace(workspace)">
+                      <span>删除</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+            <CollapsibleContent class="CollapsibleContent">
+              <SidebarMenuSub class="pr-0 mr-1">
+                <template v-if="sessionMap[workspace.id] && sessionMap[workspace.id].length > 0">
+                  <SidebarMenuSubItem
+                    v-for="session in (sessionMap[workspace.id] || [])"
+                    :key="session.id"
+                    class="group/session"
+                  >
+                    <SidebarMenuSubButton as="div" class="cursor-pointer pr-1" @click="router.push(`/${session.id}`)">
+                      <span class="flex-1 truncate" :class="sessionId === session.id ? 'text-primary' : ''">{{ session.title || '未命名会话' }}</span>
+                      <DropdownMenu @update:open="(open: boolean) => dropdownOpenId = open ? `ss-${session.id}` : null">
+                        <DropdownMenuTrigger as-child @click.stop @pointerdown.stop>
+                          <Button
+                            variant="ghost"
+                            class="size-6 text-neutral-500 shrink-0 transition-opacity"
+                            :class="dropdownOpenId === `ss-${session.id}` ? 'opacity-100' : 'opacity-0 group-hover/session:opacity-100'"
+                          >
+                            <Ellipsis class="size-3.5"/>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem @click="handleRenameSession(session)">
+                            <span>重命名</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click="handleDeleteSession(session)">
+                            <span>删除</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </template>
+                <template v-else>
+                  <SidebarMenuSubItem>
+                    <div class="text-sm text-neutral-400 flex items-center justify-center h-full">
+                      暂无会话
+                    </div>
+                  </SidebarMenuSubItem>
+                </template>
+              </SidebarMenuSub>
+            </CollapsibleContent>
+          </SidebarMenuItem>
+        </Collapsible>
       </SidebarMenu>
     </SidebarGroupContent>
   </SidebarGroup>

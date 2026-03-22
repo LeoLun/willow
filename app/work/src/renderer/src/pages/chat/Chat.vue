@@ -3,12 +3,12 @@ import Sender from "@/components/base/sender/index.vue";
 import { electronAPI } from "@/lib/ipc";
 import type { SendMessage } from "@shared/api";
 import { useRoute, useRouter } from "vue-router";
+import { useSessionStore } from "@/stores/session";
 
+const sessionStore = useSessionStore();
 const route = useRoute();
 const router = useRouter();
 async function handleSend(request: SendMessage) {
-  console.log("handleSend", request);
-
   // 检查是否为 session 路由
   if (route.name === "session") {
     const sessionId = route.params.sessionId;
@@ -23,6 +23,8 @@ async function handleSend(request: SendMessage) {
       workspaceId: workspaceId,
     });
 
+    sessionStore.fetchSessionList([workspaceId]);
+
     router.push(`/${session.id}`);
     electronAPI.sendMessage({
       sessionId: session.id,
@@ -34,7 +36,7 @@ async function handleSend(request: SendMessage) {
 </script>
 
 <template>
-  <div class="flex flex-col h-full  p-4 items-center">
+  <div class="flex flex-col h-full p-3 items-center">
     <div class="flex-1 w-full overflow-y-auto">
       <RouterView />
     </div>

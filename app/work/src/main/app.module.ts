@@ -1,8 +1,6 @@
 import { On, WindowFactoryResolver, Module, IPC } from "@willow/poetry";
 import { MainWindow } from "./window/main.window";
 import { app, BrowserWindow } from "electron";
-import type { IEcho } from "@shared/index";
-import { ECHO } from "@shared/index";
 import started from "electron-squirrel-startup";
 import { SystemService } from "./service/system.service";
 import { DbService } from "./service/db.service";
@@ -21,6 +19,9 @@ import { RenameWorkspaceController } from "./controllers/workspace/rename.worksp
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { SendMessageController } from "./controllers/session/send.messgae.controller";
 import { GetSessionListController } from "./controllers/session/get.session.list.controller";
+import { RenameSessionController } from "./controllers/session/rename.session.controller";
+import { DeleteSessionController } from "./controllers/session/delete.session.controller";
+import { AgentService } from "./service/agent.service";
 
 if (started) {
   app.quit();
@@ -34,6 +35,7 @@ if (started) {
     WorkspaceService,
     SystemService,
     SessionService,
+    AgentService,
     WorkspaceDao,
     SessionDao,
     SessionMessageDao,
@@ -49,9 +51,11 @@ if (started) {
     CreateSessionController,
     SendMessageController,
     GetSessionListController,
+    RenameSessionController,
+    DeleteSessionController,
   ],
 })
-export class AppModule implements IEcho {
+export class AppModule {
   constructor(
     private windowFactoryResolver: WindowFactoryResolver,
     private initController: InitController,
@@ -64,6 +68,8 @@ export class AppModule implements IEcho {
     private createSessionController: CreateSessionController,
     private sendMessageController: SendMessageController,
     private getSessionListController: GetSessionListController,
+    private renameSessionController: RenameSessionController,
+    private deleteSessionController: DeleteSessionController,
   ) {}
 
   createWindow() {
@@ -93,13 +99,5 @@ export class AppModule implements IEcho {
     if (BrowserWindow.getAllWindows().length === 0) {
       this.createWindow();
     }
-  }
-
-  @IPC(ECHO)
-  async echo() {
-    // const message = await this.echoService.echo("hello world");
-    return {
-      message: "hello world",
-    };
   }
 }

@@ -98,6 +98,23 @@ export interface CreateSessionResponse {
   session: Session;
 }
 
+export interface RenameSessionRequest {
+  id: number;
+  title: string;
+}
+
+export interface RenameSessionResponse {
+  session: Session;
+}
+
+export interface DeleteSessionRequest {
+  id: number;
+}
+
+export interface DeleteSessionResponse {
+  session: Session;
+}
+
 export interface GetSessionListResponse {
   sessions: {
     [workspaceId: number]: Session[];

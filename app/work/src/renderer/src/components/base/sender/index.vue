@@ -13,8 +13,10 @@ const emit = defineEmits<{
 }>();
 
 function handleSend() {
+  const msg = message.value.trim();
+  message.value = "";
   emit("send", {
-    message: message.value,
+    message: msg,
   });
 }
 

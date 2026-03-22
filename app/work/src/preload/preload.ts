@@ -7,6 +7,8 @@ import {
   GET_WORKSPACE_INFO,
   RENAME_WORKSPACE,
   CREATE_SESSION,
+  RENAME_SESSION,
+  DELETE_SESSION,
   SEND_MESSAGE,
   GET_SESSION_LIST,
 } from "../shared/constants";
@@ -23,6 +25,10 @@ import type {
   RenameWorkspaceResponse,
   CreateSessionRequest,
   CreateSessionResponse,
+  RenameSessionRequest,
+  RenameSessionResponse,
+  DeleteSessionRequest,
+  DeleteSessionResponse,
   SendMessageRequest,
   SendMessageResponse,
   GetSessionListRequest,
@@ -84,6 +90,26 @@ const ipcObject: IRenderHook = {
       CREATE_SESSION,
       request,
     )) as ApiResponse<CreateSessionResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
+  },
+  renameSession: async (request: RenameSessionRequest) => {
+    const response = (await ipcRenderer.invoke(
+      RENAME_SESSION,
+      request,
+    )) as ApiResponse<RenameSessionResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
+  },
+  deleteSession: async (request: DeleteSessionRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_SESSION,
+      request,
+    )) as ApiResponse<DeleteSessionResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
     }

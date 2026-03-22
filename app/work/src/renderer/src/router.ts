@@ -17,13 +17,13 @@ const routes: RouteRecordRaw[] = [
     component: Chat,
     redirect: "/",
     children: [
-      { path: "/", component: Workspace },
-      { path: "/:sessionId", component: Session },
+      { path: "/", name: "workspace", component: Workspace },
+      { path: "/:sessionId", name: "session", component: Session },
     ],
   },
-  { path: "/skills", component: Skills },
-  { path: "/setting", component: Setting },
-  { path: "/auto", component: Auto },
+  { path: "/skills", name: "skills", component: Skills },
+  { path: "/setting", name: "setting", component: Setting },
+  { path: "/auto", name: "auto", component: Auto },
 ];
 
 export const router = createRouter({
