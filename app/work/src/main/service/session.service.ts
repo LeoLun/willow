@@ -3,12 +3,14 @@ import { SessionDao } from "@main/service/dao/session.dao.service";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import type { SendMessage } from "@shared/api";
 import { AgentService } from "@main/service/agent.service";
+import { EventService } from "@main/service/event.service";
 @Injectable()
 export class SessionService {
   constructor(
     private readonly sessionDao: SessionDao,
     private readonly sessionMessageDao: SessionMessageDao,
     private readonly agentService: AgentService,
+    private readonly eventService: EventService,
   ) {}
 
   async getSessionList(workspaceId: number) {
@@ -47,36 +49,22 @@ export class SessionService {
   }
 
   async sendMessage(sessionId: number, data: SendMessage): Promise<string> {
-    console.log("sendMessage", sessionId, data);
     const session = await this.sessionDao.findById(sessionId);
     // 发送 session（流式对话，暂不涉及 DAO）
     const agent = await this.agentService.getDefaultAgent(session);
-    console.log("agent 11111");
     let replyText = "";
 
-    const onChunk = (chunk: string) => {
-      console.log("onChunk", chunk);
-    };
-    console.log("onChunk 22222");
     const unsubscribe = agent.subscribe((event) => {
-      if (
-        event.type === "message_update" &&
-        event.assistantMessageEvent.type === "text_delta"
-      ) {
-        const delta = event.assistantMessageEvent.delta;
-        replyText += delta;
-        onChunk(delta);
-      }
+      this.eventService.sendEvent("UPDATE_MESSAGE", {
+        sessionId: sessionId,
+        groupId: "123",
+        event: event,
+      });
     });
-    console.log("unsubscribe 33333");
     try {
       await agent.prompt(data.message);
-      console.log("replyText", replyText);
       return replyText;
-    } catch (error) {
-      console.log("error", error);
     } finally {
-      console.log("finally 44444");
       unsubscribe();
     }
   }

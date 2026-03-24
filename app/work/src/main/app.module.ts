@@ -22,6 +22,8 @@ import { GetSessionListController } from "./controllers/session/get.session.list
 import { RenameSessionController } from "./controllers/session/rename.session.controller";
 import { DeleteSessionController } from "./controllers/session/delete.session.controller";
 import { AgentService } from "./service/agent.service";
+import { EventService } from "./service/event.service";
+import { EventController } from "./controllers/event.controller";
 
 if (started) {
   app.quit();
@@ -39,6 +41,7 @@ if (started) {
     WorkspaceDao,
     SessionDao,
     SessionMessageDao,
+    EventService,
   ],
   controllers: [
     InitController,
@@ -53,6 +56,7 @@ if (started) {
     GetSessionListController,
     RenameSessionController,
     DeleteSessionController,
+    EventController,
   ],
 })
 export class AppModule {
@@ -70,6 +74,7 @@ export class AppModule {
     private getSessionListController: GetSessionListController,
     private renameSessionController: RenameSessionController,
     private deleteSessionController: DeleteSessionController,
+    private eventController: EventController,
   ) {}
 
   createWindow() {

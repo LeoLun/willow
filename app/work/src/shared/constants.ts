@@ -9,3 +9,5 @@ export const RENAME_SESSION = "RENAME_SESSION";
 export const DELETE_SESSION = "DELETE_SESSION";
 export const SEND_MESSAGE = "SEND_MESSAGE";
 export const GET_SESSION_LIST = "GET_SESSION_LIST";
+export const REGISTER_EVENT = "REGISTER_EVENT";
+export const EVENT_BUS = "EVENT_BUS";

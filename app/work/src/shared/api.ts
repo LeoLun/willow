@@ -124,3 +124,9 @@ export interface GetSessionListResponse {
 export interface GetSessionListRequest {
   workspaceIds: number[];
 }
+
+export interface RegisterEventRequest {
+  event?: string;
+}
+
+export interface RegisterEventResponse {}

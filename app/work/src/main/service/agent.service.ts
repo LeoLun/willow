@@ -37,7 +37,7 @@ export class AgentService {
   async getDefaultAgent(session: Session) {
     const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
     // @TODO 后续模型需要从 configService 中获取
-    const resolvedModel = DEFAULT_MODELS["deepseek-chat"];
+    const resolvedModel = DEFAULT_MODELS["deepseek-reasoner"];
 
     const apiKey = DEEPSEEK_API_KEY;
     const agent = new Agent({

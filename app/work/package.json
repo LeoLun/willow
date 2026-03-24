@@ -48,8 +48,9 @@
   "keywords": [],
   "license": "MIT",
   "dependencies": {
-    "@mariozechner/pi-agent-core": "^0.58.0",
-    "@mariozechner/pi-ai": "^0.58.0",
+    "@mariozechner/pi-agent-core": "^0.62.0",
+    "@mariozechner/pi-ai": "^0.62.0",
+    "@mariozechner/pi-web-ui": "^0.62.0",
     "@opencode-ai/sdk": "^1.1.53",
     "@tailwindcss/postcss": "^4.1.18",
     "@vueuse/core": "^12.8.2",

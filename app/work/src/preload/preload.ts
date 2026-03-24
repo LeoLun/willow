@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { IRenderHook } from "../shared";
 import {
   GET_WORKSPACE_LIST,
@@ -11,6 +11,8 @@ import {
   DELETE_SESSION,
   SEND_MESSAGE,
   GET_SESSION_LIST,
+  REGISTER_EVENT,
+  EVENT_BUS,
 } from "../shared/constants";
 import type {
   ApiResponse,
@@ -33,6 +35,8 @@ import type {
   SendMessageResponse,
   GetSessionListRequest,
   GetSessionListResponse,
+  RegisterEventRequest,
+  RegisterEventResponse,
 } from "../shared/api";
 
 const ipcObject: IRenderHook = {
@@ -134,6 +138,33 @@ const ipcObject: IRenderHook = {
       throw new Error(response.msg);
     }
     return response.data;
+  },
+  registerEvent: async (
+    request: RegisterEventRequest,
+    callback?: (event: string, data: any) => void,
+  ) => {
+    const response = (await ipcRenderer.invoke(
+      REGISTER_EVENT,
+      request,
+    )) as ApiResponse<RegisterEventResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (callback) {
+      ipcObject.onEventBus(callback);
+    }
+    return response.data;
+  },
+  onEventBus: (callback: (event: string, data: any) => void) => {
+    ipcRenderer.on(
+      EVENT_BUS,
+      (
+        _event: IpcRendererEvent,
+        { event, data }: { event: string; data: any },
+      ) => {
+        callback(event, data);
+      },
+    );
   },
 };
 
