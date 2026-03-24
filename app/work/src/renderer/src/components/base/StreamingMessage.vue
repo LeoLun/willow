@@ -19,7 +19,15 @@ onMounted(() => {
   shadow = host.value!.attachShadow({ mode: "open" });
 
   const style = document.createElement("style");
-  style.textContent = piWebUiCss;
+  style.textContent = piWebUiCss + `
+    .animate-shimmer.text-transparent {
+      color: var(--muted-foreground) !important;
+      -webkit-background-clip: unset !important;
+      background-clip: unset !important;
+      background-image: none !important;
+      animation: pulse 2s ease-in-out infinite !important;
+    }
+  `;
   shadow.appendChild(style);
 
   el = document.createElement(
@@ -38,6 +46,7 @@ watch(
   () => props.message,
   (v) => {
     if (!el) return;
+    console.log("StreamingMessage", v);
     el.setMessage(v, !props.isStreaming);
   },
 );
