@@ -34,5 +34,22 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
-  return { sessionMap, fetchSessionList, renameSession, deleteSession };
+  /** 主进程自动生成标题后通过 EVENT_BUS 同步 */
+  function applySessionTitleFromMain(session: Session) {
+    const list = sessionMap.value[session.workspaceId];
+    if (list) {
+      const idx = list.findIndex((s) => s.id === session.id);
+      if (idx !== -1) {
+        list[idx] = session;
+      }
+    }
+  }
+
+  return {
+    sessionMap,
+    fetchSessionList,
+    renameSession,
+    deleteSession,
+    applySessionTitleFromMain,
+  };
 });

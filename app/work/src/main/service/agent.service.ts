@@ -34,9 +34,28 @@ const DEFAULT_MODELS = {
 
 const systemPrompt = "你是一个有用的 AI 助手。";
 
+const titleSystemPrompt = `你是会话标题生成器。根据用户给出的「首轮用户提问」和「助手回复」摘要，生成一条简短中文标题。
+要求：10～20 字为宜；只输出标题本身，不要引号、书名号、前缀（如「标题：」）、解释或换行。`;
+
 @Injectable()
 export class AgentService {
   constructor(private readonly sessionMessageDao: SessionMessageDao) {}
+
+  /** 无历史、用于首轮会话标题生成，使用较轻模型 */
+  async getTitleAgent() {
+    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+    const resolvedModel = DEFAULT_MODELS["deepseek-chat"];
+
+    const apiKey = DEEPSEEK_API_KEY;
+    const agent = new Agent({
+      streamFn: streamSimple,
+      getApiKey: () => apiKey,
+    });
+    agent.setModel(resolvedModel);
+    agent.setSystemPrompt(titleSystemPrompt);
+
+    return agent;
+  }
 
   async getDefaultAgent(session: Session) {
     const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;

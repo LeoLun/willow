@@ -1,15 +1,35 @@
 
 <script setup lang="ts">
+import { onMounted, onUnmounted } from "vue";
 import LeftSidebar from "./layout/sidebar/LeftSidebar.vue";
 import { Card } from "@/components/ui/card";
 import { useDarkMode } from "@/composables/useDarkMode";
 import TopDragBar from "@/components/base/TopDragBar.vue";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DialogProvider } from "@/layout/dialog";
+import { useSessionStore } from "@/stores/session";
+import { useEventBus } from "@/composables/useEventBus";
+import { SESSION_TITLE_UPDATED } from "@shared/constants";
+import type { Session } from "@shared/api";
 
 useDarkMode();
 
+const sessionStore = useSessionStore();
+const { addEventListener, removeEventListener } = useEventBus();
 
+function onSessionTitleUpdated(data: { session: Session }) {
+  if (data?.session) {
+    sessionStore.applySessionTitleFromMain(data.session);
+  }
+}
+
+onMounted(() => {
+  addEventListener(SESSION_TITLE_UPDATED, onSessionTitleUpdated);
+});
+
+onUnmounted(() => {
+  removeEventListener(SESSION_TITLE_UPDATED, onSessionTitleUpdated);
+});
 </script>
 <template>
   <TopDragBar />
