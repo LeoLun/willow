@@ -1,3 +1,5 @@
+import type { AgentMessage } from "@mariozechner/pi-agent-core";
+
 export interface ApiResponse<K> {
   code: number;
   msg: string;
@@ -123,6 +125,14 @@ export interface GetSessionListResponse {
 
 export interface GetSessionListRequest {
   workspaceIds: number[];
+}
+
+export interface GetSessionHistoryRequest {
+  sessionId: number;
+}
+
+export interface GetSessionHistoryResponse {
+  messages: AgentMessage[];
 }
 
 export interface RegisterEventRequest {

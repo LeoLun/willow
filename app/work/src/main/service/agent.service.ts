@@ -2,6 +2,8 @@ import { Injectable } from "@willow/poetry";
 import { Agent } from "@mariozechner/pi-agent-core";
 import { streamSimple } from "@mariozechner/pi-ai";
 import type { Session } from "@shared/api";
+import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
+import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 
 const DEFAULT_MODELS = {
   "deepseek-chat": {
@@ -34,6 +36,8 @@ const systemPrompt = "你是一个有用的 AI 助手。";
 
 @Injectable()
 export class AgentService {
+  constructor(private readonly sessionMessageDao: SessionMessageDao) {}
+
   async getDefaultAgent(session: Session) {
     const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
     // @TODO 后续模型需要从 configService 中获取
@@ -46,9 +50,12 @@ export class AgentService {
     });
     agent.setModel(resolvedModel);
     agent.setSystemPrompt(systemPrompt);
-    // 读取历史消息,
-    // @TODO 从数据库读取数据，写入 agent 中
-    // agent.replaceMessages(messages);
+
+    const rows = this.sessionMessageDao.findBySessionId(session.id);
+    const history = parseStoredSessionMessages(rows);
+    if (history.length > 0) {
+      agent.replaceMessages(history);
+    }
 
     return agent;
   }

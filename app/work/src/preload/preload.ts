@@ -11,6 +11,7 @@ import {
   DELETE_SESSION,
   SEND_MESSAGE,
   GET_SESSION_LIST,
+  GET_SESSION_HISTORY,
   REGISTER_EVENT,
   EVENT_BUS,
 } from "../shared/constants";
@@ -35,6 +36,8 @@ import type {
   SendMessageResponse,
   GetSessionListRequest,
   GetSessionListResponse,
+  GetSessionHistoryRequest,
+  GetSessionHistoryResponse,
   RegisterEventRequest,
   RegisterEventResponse,
 } from "../shared/api";
@@ -134,6 +137,16 @@ const ipcObject: IRenderHook = {
       GET_SESSION_LIST,
       request,
     )) as ApiResponse<GetSessionListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data;
+  },
+  getSessionHistory: async (request: GetSessionHistoryRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_SESSION_HISTORY,
+      request,
+    )) as ApiResponse<GetSessionHistoryResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
     }

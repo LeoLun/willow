@@ -1,5 +1,6 @@
 import { reactive, onMounted, onUnmounted, type Ref, watch } from "vue";
 import { useEventBus } from "./useEventBus";
+import { electronAPI } from "@/lib/ipc";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 
 interface AgentMessagesState {
@@ -70,6 +71,7 @@ export function useAgentMessages(sessionId: Ref<number>) {
       case "agent_end":
         state.isStreaming = false;
         state.streamMessage = null;
+        // 与主进程一致：须为完整会话（主进程已将 agent_end 的 messages 补全为 agent.state.messages）
         if (event.messages) {
           state.messages = event.messages;
         }
@@ -108,9 +110,26 @@ export function useAgentMessages(sessionId: Ref<number>) {
     removeEventListener("UPDATE_MESSAGE", handleUpdateMessage);
   });
 
-  watch(sessionId, () => {
-    resetState();
-  });
+  watch(
+    sessionId,
+    async (id) => {
+      resetState();
+      if (!id || Number.isNaN(id)) {
+        return;
+      }
+      try {
+        const data = await electronAPI.getSessionHistory({ sessionId: id });
+        console.log("data", data);
+        if (id !== sessionId.value) {
+          return;
+        }
+        state.messages = data?.messages ?? [];
+      } catch (e) {
+        console.error("getSessionHistory failed", e);
+      }
+    },
+    { immediate: true },
+  );
 
   return { state };
 }

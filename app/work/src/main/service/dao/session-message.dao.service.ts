@@ -1,5 +1,5 @@
 import { Injectable } from "@willow/poetry";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { DbService } from "@main/service/db.service";
 import { sessionMessages } from "../../db/schema";
 
@@ -28,6 +28,7 @@ export class SessionMessageDao {
       .select()
       .from(sessionMessages)
       .where(eq(sessionMessages.sessionId, sessionId))
+      .orderBy(asc(sessionMessages.id))
       .all();
   }
 

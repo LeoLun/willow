@@ -4,11 +4,17 @@ import { takeUntil } from "rxjs/operators";
 import { EVENT_BUS } from "@shared/constants";
 @Injectable()
 export class EventService {
+  private registeredWebContents = new Set<Electron.WebContents>();
+
   // 1. 创建一个 Subject 作为中央总线（多播）
   private eventBus$ = new Subject<{ event: string; data: any }>();
 
   registerEvent(webContents: Electron.WebContents, event?: string) {
-    // @TODO 后续支持针对单个事件监听
+    // 1. 判断是否已经注册
+    if (this.registeredWebContents.has(webContents)) {
+      return;
+    }
+    this.registeredWebContents.add(webContents);
 
     // 2. 将 webContents 的销毁事件转化为 Observable
     const destroyed$ = fromEvent(webContents, "destroyed");

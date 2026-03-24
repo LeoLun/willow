@@ -19,6 +19,7 @@ import { RenameWorkspaceController } from "./controllers/workspace/rename.worksp
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { SendMessageController } from "./controllers/session/send.messgae.controller";
 import { GetSessionListController } from "./controllers/session/get.session.list.controller";
+import { GetSessionHistoryController } from "./controllers/session/get.session.history.controller";
 import { RenameSessionController } from "./controllers/session/rename.session.controller";
 import { DeleteSessionController } from "./controllers/session/delete.session.controller";
 import { AgentService } from "./service/agent.service";
@@ -54,6 +55,7 @@ if (started) {
     CreateSessionController,
     SendMessageController,
     GetSessionListController,
+    GetSessionHistoryController,
     RenameSessionController,
     DeleteSessionController,
     EventController,
@@ -72,6 +74,7 @@ export class AppModule {
     private createSessionController: CreateSessionController,
     private sendMessageController: SendMessageController,
     private getSessionListController: GetSessionListController,
+    private getSessionHistoryController: GetSessionHistoryController,
     private renameSessionController: RenameSessionController,
     private deleteSessionController: DeleteSessionController,
     private eventController: EventController,
