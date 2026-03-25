@@ -1,6 +1,6 @@
-<script setup lang="ts">
-
-</script>
+<script setup lang="ts"></script>
 <template>
-  <div class="fixed top-0 h-[10px] w-screen drag-region bg-transparent z-[var(--top-drag-bar-z-index)]"></div>
+  <div
+    class="drag-region fixed top-0 z-[var(--top-drag-bar-z-index)] h-[10px] w-screen bg-transparent"
+  ></div>
 </template>

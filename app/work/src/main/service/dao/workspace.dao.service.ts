@@ -1,6 +1,6 @@
+import { DbService } from "@main/service/db.service";
 import { Injectable } from "@willow/poetry";
 import { eq } from "drizzle-orm";
-import { DbService } from "@main/service/db.service";
 import { workspaces } from "../../db/schema";
 
 type WorkspaceInsert = typeof workspaces.$inferInsert;
@@ -14,21 +14,11 @@ export class WorkspaceDao {
   }
 
   findById(id: number) {
-    return this.dbService
-      .getDb()
-      .select()
-      .from(workspaces)
-      .where(eq(workspaces.id, id))
-      .get();
+    return this.dbService.getDb().select().from(workspaces).where(eq(workspaces.id, id)).get();
   }
 
   insert(data: Omit<WorkspaceInsert, "createdAt" | "updatedAt">) {
-    return this.dbService
-      .getDb()
-      .insert(workspaces)
-      .values(data)
-      .returning()
-      .get();
+    return this.dbService.getDb().insert(workspaces).values(data).returning().get();
   }
 
   update(id: number, data: Partial<Omit<WorkspaceInsert, "id">>) {
@@ -42,11 +32,6 @@ export class WorkspaceDao {
   }
 
   deleteById(id: number) {
-    return this.dbService
-      .getDb()
-      .delete(workspaces)
-      .where(eq(workspaces.id, id))
-      .returning()
-      .get();
+    return this.dbService.getDb().delete(workspaces).where(eq(workspaces.id, id)).returning().get();
   }
 }

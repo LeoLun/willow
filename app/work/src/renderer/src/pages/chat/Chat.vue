@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import Sender from "@/components/base/sender/index.vue";
-import { electronAPI } from "@/lib/ipc";
 import type { SendMessage } from "@shared/api";
 import { useRoute, useRouter } from "vue-router";
+import Sender from "@/components/base/sender/index.vue";
+import { electronAPI } from "@/lib/ipc";
 import { useSessionStore } from "@/stores/session";
 
 const sessionStore = useSessionStore();
@@ -33,18 +33,15 @@ async function handleSend(request: SendMessage) {
     });
   }
 }
-
 </script>
 
 <template>
-  <div class="flex flex-col h-full p-3 items-center">
-    <div class="flex-1 w-full overflow-y-auto">
+  <div class="flex h-full flex-col items-center p-3">
+    <div class="w-full flex-1 overflow-y-auto">
       <RouterView />
     </div>
     <Sender class="w-[80%]" @send="handleSend" />
   </div>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

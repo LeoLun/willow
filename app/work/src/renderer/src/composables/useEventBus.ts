@@ -14,10 +14,7 @@ export function useEventBus() {
     listeners.get(event)!.add(callback);
   };
 
-  const removeEventListener = (
-    event: string,
-    callback: (data: any) => void,
-  ) => {
+  const removeEventListener = (event: string, callback: (data: any) => void) => {
     listeners.get(event)?.delete(callback);
   };
 

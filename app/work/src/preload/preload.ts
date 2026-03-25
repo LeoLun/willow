@@ -1,20 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { IRenderHook } from "../shared";
-import {
-  GET_WORKSPACE_LIST,
-  CREATE_WORKSPACE,
-  DELETE_WORKSPACE,
-  GET_WORKSPACE_INFO,
-  RENAME_WORKSPACE,
-  CREATE_SESSION,
-  RENAME_SESSION,
-  DELETE_SESSION,
-  SEND_MESSAGE,
-  GET_SESSION_LIST,
-  GET_SESSION_HISTORY,
-  REGISTER_EVENT,
-  EVENT_BUS,
-} from "../shared/constants";
 import type {
   ApiResponse,
   GetWorkspaceListResponse,
@@ -41,6 +26,21 @@ import type {
   RegisterEventRequest,
   RegisterEventResponse,
 } from "../shared/api";
+import {
+  GET_WORKSPACE_LIST,
+  CREATE_WORKSPACE,
+  DELETE_WORKSPACE,
+  GET_WORKSPACE_INFO,
+  RENAME_WORKSPACE,
+  CREATE_SESSION,
+  RENAME_SESSION,
+  DELETE_SESSION,
+  SEND_MESSAGE,
+  GET_SESSION_LIST,
+  GET_SESSION_HISTORY,
+  REGISTER_EVENT,
+  EVENT_BUS,
+} from "../shared/constants";
 
 const ipcObject: IRenderHook = {
   getWorkspaceList: async () => {
@@ -49,6 +49,9 @@ const ipcObject: IRenderHook = {
     )) as ApiResponse<GetWorkspaceListResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get workspace list failed");
     }
     return response.data;
   },
@@ -60,6 +63,9 @@ const ipcObject: IRenderHook = {
     if (response.code !== 0) {
       throw new Error(response.msg);
     }
+    if (!response.data) {
+      throw new Error("create workspace failed");
+    }
     return response.data;
   },
   deleteWorkspace: async (request: DeleteWorkspaceRequest) => {
@@ -69,6 +75,9 @@ const ipcObject: IRenderHook = {
     )) as ApiResponse<DeleteWorkspaceResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("delete workspace failed");
     }
     return response.data;
   },
@@ -80,6 +89,9 @@ const ipcObject: IRenderHook = {
     if (response.code !== 0) {
       throw new Error(response.msg);
     }
+    if (!response.data) {
+      throw new Error("get workspace info failed");
+    }
     return response.data;
   },
   renameWorkspace: async (request: RenameWorkspaceRequest) => {
@@ -89,6 +101,9 @@ const ipcObject: IRenderHook = {
     )) as ApiResponse<RenameWorkspaceResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("rename workspace failed");
     }
     return response.data;
   },
@@ -100,6 +115,9 @@ const ipcObject: IRenderHook = {
     if (response.code !== 0) {
       throw new Error(response.msg);
     }
+    if (!response.data) {
+      throw new Error("create session failed");
+    }
     return response.data;
   },
   renameSession: async (request: RenameSessionRequest) => {
@@ -109,6 +127,9 @@ const ipcObject: IRenderHook = {
     )) as ApiResponse<RenameSessionResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("rename session failed");
     }
     return response.data;
   },
@@ -120,6 +141,9 @@ const ipcObject: IRenderHook = {
     if (response.code !== 0) {
       throw new Error(response.msg);
     }
+    if (!response.data) {
+      throw new Error("delete session failed");
+    }
     return response.data;
   },
   sendMessage: async (request: SendMessageRequest) => {
@@ -129,6 +153,9 @@ const ipcObject: IRenderHook = {
     )) as ApiResponse<SendMessageResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("send message failed");
     }
     return response.data;
   },
@@ -140,6 +167,9 @@ const ipcObject: IRenderHook = {
     if (response.code !== 0) {
       throw new Error(response.msg);
     }
+    if (!response.data) {
+      throw new Error("get session list failed");
+    }
     return response.data;
   },
   getSessionHistory: async (request: GetSessionHistoryRequest) => {
@@ -149,6 +179,9 @@ const ipcObject: IRenderHook = {
     )) as ApiResponse<GetSessionHistoryResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get session history failed");
     }
     return response.data;
   },
@@ -166,15 +199,15 @@ const ipcObject: IRenderHook = {
     if (callback) {
       ipcObject.onEventBus(callback);
     }
+    if (!response.data) {
+      throw new Error("register event failed");
+    }
     return response.data;
   },
   onEventBus: (callback: (event: string, data: any) => void) => {
     ipcRenderer.on(
       EVENT_BUS,
-      (
-        _event: IpcRendererEvent,
-        { event, data }: { event: string; data: any },
-      ) => {
+      (_event: IpcRendererEvent, { event, data }: { event: string; data: any }) => {
         callback(event, data);
       },
     );

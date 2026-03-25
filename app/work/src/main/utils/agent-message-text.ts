@@ -24,9 +24,7 @@ export function isUserLikeMessage(message: AgentMessage): boolean {
 }
 
 /** 从 Agent 消息中抽取可读纯文本，供标题生成等场景使用 */
-export function extractPlainTextFromAgentMessage(
-  message: AgentMessage,
-): string {
+export function extractPlainTextFromAgentMessage(message: AgentMessage): string {
   const loose = asLooseMessage(message);
   if (!loose) {
     return "";
@@ -40,11 +38,7 @@ export function extractPlainTextFromAgentMessage(
     if (Array.isArray(content)) {
       return content
         .map((part) => {
-          if (
-            isRecord(part) &&
-            part.type === "text" &&
-            typeof part.text === "string"
-          ) {
+          if (isRecord(part) && part.type === "text" && typeof part.text === "string") {
             return part.text;
           }
           return "";
@@ -79,11 +73,7 @@ export function extractPlainTextFromAgentMessage(
   if (role === "toolResult" && Array.isArray(content)) {
     return content
       .map((part) => {
-        if (
-          isRecord(part) &&
-          part.type === "text" &&
-          typeof part.text === "string"
-        ) {
+        if (isRecord(part) && part.type === "text" && typeof part.text === "string") {
           return part.text;
         }
         return "";

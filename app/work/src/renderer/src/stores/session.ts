@@ -1,7 +1,7 @@
-import { ref } from "vue";
-import { defineStore } from "pinia";
-import { electronAPI } from "@/lib/ipc";
 import type { Session } from "@shared/api";
+import { defineStore } from "pinia";
+import { ref } from "vue";
+import { electronAPI } from "@/lib/ipc";
 
 export const useSessionStore = defineStore("session", () => {
   // ─── 状态 ───

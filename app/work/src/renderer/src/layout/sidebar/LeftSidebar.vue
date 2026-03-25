@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Settings } from "lucide-vue-next";
-import { Button } from "@/components/ui/button";
-import NavMain from "./NavMain.vue";
-import { Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
 import { useRouter } from "vue-router";
+import { Button } from "@/components/ui/button";
+import { Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
+import NavMain from "./NavMain.vue";
 
 const router = useRouter();
 </script>

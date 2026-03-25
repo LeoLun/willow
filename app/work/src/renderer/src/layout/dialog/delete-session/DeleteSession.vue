@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import {
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { electronAPI } from "@/lib/ipc";
 import type { Session } from "@shared/api";
+import { ref } from "vue";
+import { Button } from "@/components/ui/button";
+import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { electronAPI } from "@/lib/ipc";
 
 const { session } = defineProps<{
   session: Session;
@@ -38,14 +33,10 @@ async function handleSubmit() {
 <template>
   <DialogHeader>
     <DialogTitle>确认删除</DialogTitle>
-    <DialogDescription>
-      确认删除会话 「{{ session.title }}」 吗？
-    </DialogDescription>
+    <DialogDescription> 确认删除会话 「{{ session.title }}」 吗？ </DialogDescription>
   </DialogHeader>
   <DialogFooter>
-    <Button type="button" variant="outline" @click="emit('close')">
-      取消
-    </Button>
+    <Button type="button" variant="outline" @click="emit('close')"> 取消 </Button>
     <Button type="button" variant="destructive" @click="handleSubmit" :disabled="loading">
       确认删除
     </Button>

@@ -1,29 +1,37 @@
 <script setup lang="ts">
-import { computed, onBeforeMount } from "vue";
 import { ChevronDown } from "lucide-vue-next";
+import { computed, onBeforeMount } from "vue";
 import { useRoute } from "vue-router";
-import { useWorkspaceStore } from "@/stores/workspace";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "vue-router";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { useWorkspaceStore } from "@/stores/workspace";
 const route = useRoute();
 const router = useRouter();
 const workspaceId = computed(() => route.query.workspaceId);
 const workspaceStore = useWorkspaceStore();
 
 const workspace = computed(() => {
-  return workspaceStore.workspaceList.find((workspace) => workspace.id === Number(workspaceId.value));
+  return workspaceStore.workspaceList.find(
+    (workspace) => workspace.id === Number(workspaceId.value),
+  );
 });
 
 onBeforeMount(async () => {
   await workspaceStore.fetchWorkspaceList();
 });
-
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center h-full">
-    <div class="text-4xl font-bold mb-5">开始工作</div>
+  <div class="flex h-full flex-col items-center justify-center">
+    <div class="mb-5 text-4xl font-bold">开始工作</div>
     <DropdownMenu v-if="workspace">
       <DropdownMenuTrigger>
         <Button variant="ghost">

@@ -1,9 +1,6 @@
-import { Injectable } from "@willow/poetry";
-import type { AgentEvent, AgentMessage } from "@mariozechner/pi-agent-core";
-import { SessionDao } from "@main/service/dao/session.dao.service";
-import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
-import type { SendMessage } from "@shared/api";
 import { AgentService } from "@main/service/agent.service";
+import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
+import { SessionDao } from "@main/service/dao/session.dao.service";
 import { EventService } from "@main/service/event.service";
 import {
   clipForTitlePrompt,
@@ -13,7 +10,10 @@ import {
   sanitizeSessionTitle,
 } from "@main/utils/agent-message-text";
 import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
+import type { AgentEvent, AgentMessage } from "@mariozechner/pi-agent-core";
+import type { SendMessage } from "@shared/api";
 import { SESSION_TITLE_UPDATED } from "@shared/constants";
+import { Injectable } from "@willow/poetry";
 @Injectable()
 export class SessionService {
   constructor(
@@ -71,12 +71,8 @@ export class SessionService {
         return;
       }
 
-      const userText = clipForTitlePrompt(
-        extractPlainTextFromAgentMessage(userMsg),
-      );
-      const assistantText = clipForTitlePrompt(
-        extractPlainTextFromAgentMessage(assistantMsg),
-      );
+      const userText = clipForTitlePrompt(extractPlainTextFromAgentMessage(userMsg));
+      const assistantText = clipForTitlePrompt(extractPlainTextFromAgentMessage(assistantMsg));
       if (!userText && !assistantText) {
         return;
       }
@@ -98,14 +94,12 @@ export class SessionService {
 
       const updated = await this.sessionDao.update(sessionId, { title });
       if (updated) {
-        this.eventService.sendEvent(SESSION_TITLE_UPDATED, { session: updated });
+        this.eventService.sendEvent(SESSION_TITLE_UPDATED, {
+          session: updated,
+        });
       }
     } catch (e) {
-      console.error(
-        "createSessionTitle failed",
-        sessionId,
-        e instanceof Error ? e.message : e,
-      );
+      console.error("createSessionTitle failed", sessionId, e instanceof Error ? e.message : e);
     }
   }
 
@@ -117,8 +111,7 @@ export class SessionService {
 
     this.sessionDao.update(sessionId, { lastActiveAt: new Date() });
 
-    const priorMessageCount =
-      this.sessionMessageDao.findBySessionId(sessionId).length;
+    const priorMessageCount = this.sessionMessageDao.findBySessionId(sessionId).length;
 
     const agent = await this.agentService.getDefaultAgent(session);
     let replyText = "";
@@ -132,9 +125,7 @@ export class SessionService {
         }
       }
       const outgoing: AgentEvent =
-        event.type === "agent_end"
-          ? { ...event, messages: agent.state.messages }
-          : event;
+        event.type === "agent_end" ? { ...event, messages: agent.state.messages } : event;
       this.eventService.sendEvent("UPDATE_MESSAGE", {
         sessionId: sessionId,
         groupId: "0",
@@ -153,10 +144,7 @@ export class SessionService {
    * 尚无「会话分组」产品时 group_id 统一占位为 0。
    * 用 agent.state.messages 全量覆盖写入（勿用 agent_end.event.messages，其不含历史）。
    */
-  private persistAgentMessagesSnapshot(
-    sessionId: number,
-    messages: AgentMessage[],
-  ): void {
+  private persistAgentMessagesSnapshot(sessionId: number, messages: AgentMessage[]): void {
     const GROUP_PLACEHOLDER = 0;
     try {
       this.sessionMessageDao.deleteBySessionId(sessionId);
@@ -176,12 +164,12 @@ export class SessionService {
     }
   }
 
-  private createAgentSession(sessionId: number) {
-    // return new Agent({
-    //   sessionId: sessionId,
-    //   initialState: {
-    //     model: getModel("anthropic", "claude-sonnet-4-20250514"),
-    //   },
-    // });
-  }
+  // private createAgentSession(sessionId: number) {
+  // return new Agent({
+  //   sessionId: sessionId,
+  //   initialState: {
+  //     model: getModel("anthropic", "claude-sonnet-4-20250514"),
+  //   },
+  // });
+  // }
 }

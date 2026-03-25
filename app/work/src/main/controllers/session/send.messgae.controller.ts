@@ -1,12 +1,8 @@
-import { Injectable, IPC } from "@willow/poetry";
 import { SessionService } from "@main/service/session.service";
-import { IPCBaseController } from "../ipc.base.controller";
-import type {
-  ApiResponse,
-  SendMessageRequest,
-  SendMessageResponse,
-} from "@shared/api";
+import type { ApiResponse, SendMessageRequest, SendMessageResponse } from "@shared/api";
 import { SEND_MESSAGE } from "@shared/constants";
+import { Injectable, IPC } from "@willow/poetry";
+import { IPCBaseController } from "../ipc.base.controller";
 
 @Injectable()
 export class SendMessageController extends IPCBaseController<

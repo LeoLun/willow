@@ -1,24 +1,27 @@
 {
   "compilerOptions": {
-    "paths": {
-      "@/*": ["src/renderer/src/*"],
-      "@main/*": ["src/main/*"],
-      "@renderer/*": ["src/renderer/*"],
-      "@shared/*": ["src/shared/*"]
-    },
     "target": "ESNext",
     "module": "ESNext",
+    "moduleResolution": "bundler", // 如果 TS 版本低于 5.0，请改为 "node"
+    "strict": true, // 建议开启，Vue 3 开发标配
+    "jsx": "preserve", // 如果有用 JSX，这一行必加
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
     "sourceMap": true,
-    "baseUrl": ".",
-    "outDir": "dist",
-    "moduleResolution": "bundler",
     "resolvePackageJsonExports": true,
     "resolveJsonModule": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
-  }
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/renderer/src/*"],
+      "@main/*": ["src/main/*"],
+      "@renderer/*": ["src/renderer/*"],
+      "@shared/*": ["src/shared/*"]
+    }
+  },
+  "include": ["./**/*.ts", "./**/*.d.ts", "./**/*.tsx", "./**/*.vue"],
+  "exclude": ["node_modules", "dist"]
 }

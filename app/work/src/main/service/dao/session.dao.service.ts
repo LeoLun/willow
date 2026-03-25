@@ -1,6 +1,6 @@
+import { DbService } from "@main/service/db.service";
 import { Injectable } from "@willow/poetry";
 import { desc, eq, inArray } from "drizzle-orm";
-import { DbService } from "@main/service/db.service";
 import { sessions } from "../../db/schema";
 
 type SessionInsert = typeof sessions.$inferInsert;
@@ -14,12 +14,7 @@ export class SessionDao {
   }
 
   findById(id: number) {
-    return this.dbService
-      .getDb()
-      .select()
-      .from(sessions)
-      .where(eq(sessions.id, id))
-      .get();
+    return this.dbService.getDb().select().from(sessions).where(eq(sessions.id, id)).get();
   }
 
   findByWorkspaceId(workspaceId: number) {
@@ -33,12 +28,7 @@ export class SessionDao {
   }
 
   insert(data: Omit<SessionInsert, "id">) {
-    return this.dbService
-      .getDb()
-      .insert(sessions)
-      .values(data)
-      .returning()
-      .get();
+    return this.dbService.getDb().insert(sessions).values(data).returning().get();
   }
 
   update(id: number, data: Partial<Omit<SessionInsert, "id">>) {
@@ -52,12 +42,7 @@ export class SessionDao {
   }
 
   deleteById(id: number) {
-    return this.dbService
-      .getDb()
-      .delete(sessions)
-      .where(eq(sessions.id, id))
-      .returning()
-      .get();
+    return this.dbService.getDb().delete(sessions).where(eq(sessions.id, id)).returning().get();
   }
 
   findByWorkspaceIds(workspaceIds: number[]) {

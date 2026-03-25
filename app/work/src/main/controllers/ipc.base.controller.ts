@@ -1,10 +1,7 @@
 import { ApiResponse } from "@shared/api";
 // 抽象基类
 export abstract class IPCBaseController<T, K> {
-  public abstract run(
-    _event: Electron.IpcMainInvokeEvent,
-    request: T,
-  ): Promise<ApiResponse<K>>;
+  public abstract run(_event: Electron.IpcMainInvokeEvent, request: T): Promise<ApiResponse<K>>;
 
   abstract checkParams(request: T): Error | undefined;
 

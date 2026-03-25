@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import 'reflect-metadata';
-import { BrowserWindowConstructorOptions } from 'electron';
+/* oxlint-disable @typescript-eslint/no-explicit-any */
+import "reflect-metadata";
+import { BrowserWindowConstructorOptions } from "electron";
 import { injectable } from "inversify";
-import { WINDOW_METADATA } from '../common/constants';
+import { WINDOW_METADATA } from "../common/constants";
 
 export interface WindowMetadata {
   options?: BrowserWindowConstructorOptions;

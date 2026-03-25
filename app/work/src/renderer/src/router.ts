@@ -1,14 +1,10 @@
-import {
-  createWebHistory,
-  createRouter,
-  type RouteRecordRaw,
-} from "vue-router";
+import { createWebHistory, createRouter, type RouteRecordRaw } from "vue-router";
 
-import Chat from "./pages/chat/Chat.vue";
-import Setting from "./pages/setting/Setting.vue";
 import Auto from "./pages/auto/Auto.vue";
+import Chat from "./pages/chat/Chat.vue";
 import Session from "./pages/chat/session/Session.vue";
 import Workspace from "./pages/chat/workspace/Workspace.vue";
+import Setting from "./pages/setting/Setting.vue";
 import Skills from "./pages/skills/Skills.vue";
 
 const routes: RouteRecordRaw[] = [

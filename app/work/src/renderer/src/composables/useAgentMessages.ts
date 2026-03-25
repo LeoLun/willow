@@ -1,7 +1,7 @@
-import { reactive, onMounted, onUnmounted, type Ref, watch } from "vue";
-import { useEventBus } from "./useEventBus";
-import { electronAPI } from "@/lib/ipc";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
+import { reactive, onMounted, onUnmounted, type Ref, watch } from "vue";
+import { electronAPI } from "@/lib/ipc";
+import { useEventBus } from "./useEventBus";
 
 interface AgentMessagesState {
   messages: AgentMessage[];
@@ -79,10 +79,7 @@ export function useAgentMessages(sessionId: Ref<number>) {
 
       case "tool_execution_start":
         if (event.toolCallId) {
-          state.pendingToolCalls = new Set([
-            ...state.pendingToolCalls,
-            event.toolCallId,
-          ]);
+          state.pendingToolCalls = new Set([...state.pendingToolCalls, event.toolCallId]);
         }
         break;
 

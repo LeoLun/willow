@@ -1,12 +1,8 @@
-import { Injectable, IPC } from "@willow/poetry";
 import { SessionService } from "@main/service/session.service";
-import { IPCBaseController } from "../ipc.base.controller";
-import type {
-  ApiResponse,
-  RenameSessionRequest,
-  RenameSessionResponse,
-} from "@shared/api";
+import type { ApiResponse, RenameSessionRequest, RenameSessionResponse } from "@shared/api";
 import { RENAME_SESSION } from "@shared/constants";
+import { Injectable, IPC } from "@willow/poetry";
+import { IPCBaseController } from "../ipc.base.controller";
 
 @Injectable()
 export class RenameSessionController extends IPCBaseController<

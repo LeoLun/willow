@@ -1,12 +1,8 @@
-import { Injectable, IPC } from "@willow/poetry";
 import { SessionService } from "@main/service/session.service";
-import { IPCBaseController } from "../ipc.base.controller";
-import type {
-  ApiResponse,
-  DeleteSessionRequest,
-  DeleteSessionResponse,
-} from "@shared/api";
+import type { ApiResponse, DeleteSessionRequest, DeleteSessionResponse } from "@shared/api";
 import { DELETE_SESSION } from "@shared/constants";
+import { Injectable, IPC } from "@willow/poetry";
+import { IPCBaseController } from "../ipc.base.controller";
 
 @Injectable()
 export class DeleteSessionController extends IPCBaseController<
@@ -29,6 +25,9 @@ export class DeleteSessionController extends IPCBaseController<
 
     const { id } = request;
     const data = await this.sessionService.deleteSession(id);
+    if (!data) {
+      return this.buildError(400, "session not found");
+    }
     return this.buildResponse({ session: data });
   }
 

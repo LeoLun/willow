@@ -35,7 +35,7 @@ cd app/work
 pnpm start                # electron-forge start (dev mode)
 pnpm run package          # electron-forge package
 pnpm run make             # electron-forge make (platform installers)
-pnpm run lint             # eslint --ext .ts,.tsx .
+pnpm run lint             # oxlint src/
 ```
 
 No test runner is configured for app/work.
@@ -57,16 +57,16 @@ pnpm jest -- --testPathPattern="file.test.ts"
 
 ## Tech Stack
 
-| Layer        | Technology                                          |
-|-------------|-----------------------------------------------------|
-| Monorepo    | pnpm workspaces, catalog deps                       |
-| Framework   | Electron (Forge), Vue 3.5, Poetry (custom DI)       |
-| State       | Pinia 3 (setup-style stores)                         |
-| UI          | shadcn-vue, reka-ui, lucide-vue-next                 |
-| Styling     | Tailwind CSS 4, tw-animate-css                       |
-| Build       | Vite 5, tsup (poetry)                                |
-| AI/Chat     | @opencode-ai/sdk                                     |
-| TypeScript  | Strict mode, decorators enabled                      |
+| Layer      | Technology                                    |
+| ---------- | --------------------------------------------- |
+| Monorepo   | pnpm workspaces, catalog deps                 |
+| Framework  | Electron (Forge), Vue 3.5, Poetry (custom DI) |
+| State      | Pinia 3 (setup-style stores)                  |
+| UI         | shadcn-vue, reka-ui, lucide-vue-next          |
+| Styling    | Tailwind CSS 4, tw-animate-css                |
+| Build      | Vite 5, tsup (poetry)                         |
+| AI/Chat    | @opencode-ai/sdk                              |
+| TypeScript | Strict mode, decorators enabled               |
 
 ## Repository Structure
 
@@ -112,16 +112,16 @@ willow/
 
 ### Naming Conventions
 
-| Kind           | Convention   | Example                                |
-|---------------|-------------|----------------------------------------|
-| Files          | kebab-case   | `core-factory.ts`, `chat-input.vue`    |
-| Vue components | PascalCase   | `ChatInput.vue`, `LeftSidebar.vue`     |
-| Classes        | PascalCase   | `WorkspaceService`, `InitController`   |
-| Functions      | camelCase    | `createChatAI`, `selectDirectory`      |
-| Composables    | `use` prefix | `useDarkMode`, `useOpencodeEvents`     |
-| Pinia stores   | `use` prefix | `useChatStore`, `useInitStore`         |
-| Constants      | UPPER_SNAKE  | `MODULE_METADATA`, `OPEN_SETTING`      |
-| IPC channels   | UPPER_SNAKE  | `START_AI_STREAM`, `PARSE_BILL_FILE`   |
+| Kind           | Convention   | Example                              |
+| -------------- | ------------ | ------------------------------------ |
+| Files          | kebab-case   | `core-factory.ts`, `chat-input.vue`  |
+| Vue components | PascalCase   | `ChatInput.vue`, `LeftSidebar.vue`   |
+| Classes        | PascalCase   | `WorkspaceService`, `InitController` |
+| Functions      | camelCase    | `createChatAI`, `selectDirectory`    |
+| Composables    | `use` prefix | `useDarkMode`, `useOpencodeEvents`   |
+| Pinia stores   | `use` prefix | `useChatStore`, `useInitStore`       |
+| Constants      | UPPER_SNAKE  | `MODULE_METADATA`, `OPEN_SETTING`    |
+| IPC channels   | UPPER_SNAKE  | `START_AI_STREAM`, `PARSE_BILL_FILE` |
 
 ### Vue Components
 
@@ -164,12 +164,13 @@ willow/
 - No semicolons is acceptable if consistent within a file; the codebase currently uses semicolons.
 - No Prettier config exists — maintain consistency with surrounding code.
 
-### ESLint
+### Oxlint
 
-ESLint is configured in `app/work/.eslintrc.json`:
-- extends: `eslint:recommended`, `@typescript-eslint/recommended`, `import/recommended`, `import/electron`
-- Parser: `@typescript-eslint/parser`
-- Import resolver: TypeScript with `alwaysTryTypes: true`
+Oxlint 配置在根目录 `.oxlintrc.json`：
+
+- 启用插件: `typescript`, `import`
+- 分类: `correctness` 级别为 `error`
+- 运行: `pnpm lint` 或 `npx oxlint`
 
 ### Git & Environment
 

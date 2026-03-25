@@ -1,12 +1,8 @@
+import { WorkspaceService } from "@main/service/workspace.service";
+import type { ApiResponse, GetWorkspaceInfoRequest, GetWorkspaceInfoResponse } from "@shared/api";
+import { GET_WORKSPACE_INFO } from "@shared/constants";
 import { Injectable, IPC } from "@willow/poetry";
 import { IPCBaseController } from "../ipc.base.controller";
-import { WorkspaceService } from "@main/service/workspace.service";
-import type {
-  ApiResponse,
-  GetWorkspaceInfoRequest,
-  GetWorkspaceInfoResponse,
-} from "@shared/api";
-import { GET_WORKSPACE_INFO } from "@shared/constants";
 
 @Injectable()
 export class GetWorkspaceInfoController extends IPCBaseController<
@@ -28,6 +24,9 @@ export class GetWorkspaceInfoController extends IPCBaseController<
     }
 
     const workspace = await this.workspaceService.getWorkspaceInfo(request.id);
+    if (!workspace) {
+      return this.buildError(400, "workspace not found");
+    }
     return this.buildResponse({ workspace });
   }
 

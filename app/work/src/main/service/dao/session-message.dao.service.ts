@@ -1,6 +1,6 @@
+import { DbService } from "@main/service/db.service";
 import { Injectable } from "@willow/poetry";
 import { asc, eq } from "drizzle-orm";
-import { DbService } from "@main/service/db.service";
 import { sessionMessages } from "../../db/schema";
 
 type SessionMessageInsert = typeof sessionMessages.$inferInsert;
@@ -42,21 +42,11 @@ export class SessionMessageDao {
   }
 
   insert(data: Omit<SessionMessageInsert, "id">) {
-    return this.dbService
-      .getDb()
-      .insert(sessionMessages)
-      .values(data)
-      .returning()
-      .get();
+    return this.dbService.getDb().insert(sessionMessages).values(data).returning().get();
   }
 
   insertMany(data: Omit<SessionMessageInsert, "id">[]) {
-    return this.dbService
-      .getDb()
-      .insert(sessionMessages)
-      .values(data)
-      .returning()
-      .all();
+    return this.dbService.getDb().insert(sessionMessages).values(data).returning().all();
   }
 
   update(id: number, data: Partial<Omit<SessionMessageInsert, "id">>) {

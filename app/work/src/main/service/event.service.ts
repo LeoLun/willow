@@ -1,7 +1,7 @@
+import { EVENT_BUS } from "@shared/constants";
 import { Injectable } from "@willow/poetry";
 import { Subject, fromEvent } from "rxjs";
 import { takeUntil } from "rxjs/operators";
-import { EVENT_BUS } from "@shared/constants";
 @Injectable()
 export class EventService {
   private registeredWebContents = new Set<Electron.WebContents>();
@@ -9,7 +9,7 @@ export class EventService {
   // 1. 创建一个 Subject 作为中央总线（多播）
   private eventBus$ = new Subject<{ event: string; data: any }>();
 
-  registerEvent(webContents: Electron.WebContents, event?: string) {
+  registerEvent(webContents: Electron.WebContents) {
     // 1. 判断是否已经注册
     if (this.registeredWebContents.has(webContents)) {
       return;

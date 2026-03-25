@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from "vue";
-import type { MessageList } from "@mariozechner/pi-web-ui";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
+import type { MessageList } from "@mariozechner/pi-web-ui";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import piWebUiCss from "@mariozechner/pi-web-ui/app.css?inline";
 
 const props = defineProps<{
@@ -35,10 +35,31 @@ onMounted(() => {
   shadow.appendChild(el);
 });
 
-watch(() => props.messages, (v) => { if (el) el.messages = v; }, { deep: true });
-watch(() => props.tools, (v) => { if (el) el.tools = v; });
-watch(() => props.isStreaming, (v) => { if (el) el.isStreaming = v; });
-watch(() => props.pendingToolCalls, (v) => { if (el) el.pendingToolCalls = v; });
+watch(
+  () => props.messages,
+  (v) => {
+    if (el) el.messages = v;
+  },
+  { deep: true },
+);
+watch(
+  () => props.tools,
+  (v) => {
+    if (el) el.tools = v;
+  },
+);
+watch(
+  () => props.isStreaming,
+  (v) => {
+    if (el) el.isStreaming = v;
+  },
+);
+watch(
+  () => props.pendingToolCalls,
+  (v) => {
+    if (el) el.pendingToolCalls = v;
+  },
+);
 
 onUnmounted(() => {
   el?.remove();

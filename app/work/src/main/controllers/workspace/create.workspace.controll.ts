@@ -1,12 +1,8 @@
+import { WorkspaceService } from "@main/service/workspace.service";
+import type { ApiResponse, CreateWorkspaceRequest, CreateWorkspaceResponse } from "@shared/api";
+import { CREATE_WORKSPACE } from "@shared/constants";
 import { Injectable, IPC } from "@willow/poetry";
 import { IPCBaseController } from "../ipc.base.controller";
-import { WorkspaceService } from "@main/service/workspace.service";
-import type {
-  ApiResponse,
-  CreateWorkspaceRequest,
-  CreateWorkspaceResponse,
-} from "@shared/api";
-import { CREATE_WORKSPACE } from "@shared/constants";
 
 @Injectable()
 export class CreateWorkspaceController extends IPCBaseController<

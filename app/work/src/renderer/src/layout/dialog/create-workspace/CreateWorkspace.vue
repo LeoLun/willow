@@ -1,15 +1,10 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import {
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { electronAPI } from "@/lib/ipc";
 import type { Workspace } from "@shared/api";
+import { ref } from "vue";
+import { Button } from "@/components/ui/button";
+import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { electronAPI } from "@/lib/ipc";
 
 const emit = defineEmits<{
   close: [];
@@ -46,12 +41,8 @@ async function handleSubmit() {
   <form class="grid gap-4 py-4" @submit.prevent="handleSubmit">
     <Input v-model="name" placeholder="工作区名称" autofocus />
     <DialogFooter>
-      <Button type="button" variant="outline" @click="emit('close')">
-        取消
-      </Button>
-      <Button type="submit" :disabled="!name.trim() || loading">
-        创建
-      </Button>
+      <Button type="button" variant="outline" @click="emit('close')"> 取消 </Button>
+      <Button type="submit" :disabled="!name.trim() || loading"> 创建 </Button>
     </DialogFooter>
   </form>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from "vue";
-import type { StreamingMessageContainer } from "@mariozechner/pi-web-ui";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
+import type { StreamingMessageContainer } from "@mariozechner/pi-web-ui";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import piWebUiCss from "@mariozechner/pi-web-ui/app.css?inline";
 
 const props = defineProps<{
@@ -19,7 +19,9 @@ onMounted(() => {
   shadow = host.value!.attachShadow({ mode: "open" });
 
   const style = document.createElement("style");
-  style.textContent = piWebUiCss + `
+  style.textContent =
+    piWebUiCss +
+    `
     .animate-shimmer.text-transparent {
       color: var(--muted-foreground) !important;
       -webkit-background-clip: unset !important;
@@ -30,9 +32,7 @@ onMounted(() => {
   `;
   shadow.appendChild(style);
 
-  el = document.createElement(
-    "streaming-message-container",
-  ) as StreamingMessageContainer;
+  el = document.createElement("streaming-message-container") as StreamingMessageContainer;
   el.isStreaming = props.isStreaming;
   el.tools = props.tools;
   el.pendingToolCalls = props.pendingToolCalls;
@@ -50,9 +50,24 @@ watch(
   },
 );
 
-watch(() => props.isStreaming, (v) => { if (el) el.isStreaming = v; });
-watch(() => props.tools, (v) => { if (el) el.tools = v; });
-watch(() => props.pendingToolCalls, (v) => { if (el) el.pendingToolCalls = v; });
+watch(
+  () => props.isStreaming,
+  (v) => {
+    if (el) el.isStreaming = v;
+  },
+);
+watch(
+  () => props.tools,
+  (v) => {
+    if (el) el.tools = v;
+  },
+);
+watch(
+  () => props.pendingToolCalls,
+  (v) => {
+    if (el) el.pendingToolCalls = v;
+  },
+);
 
 onUnmounted(() => {
   el?.remove();

@@ -1,9 +1,9 @@
-import { Injectable } from "@willow/poetry";
+import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
+import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 import { Agent } from "@mariozechner/pi-agent-core";
 import { streamSimple } from "@mariozechner/pi-ai";
 import type { Session } from "@shared/api";
-import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
-import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
+import { Injectable } from "@willow/poetry";
 
 const DEFAULT_MODELS = {
   "deepseek-chat": {

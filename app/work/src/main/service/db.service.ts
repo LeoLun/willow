@@ -1,10 +1,10 @@
-import { Injectable } from "@willow/poetry";
-import { app } from "electron";
 import { join } from "node:path";
+import * as schema from "@main/db/schema";
+import { Injectable } from "@willow/poetry";
 import Database from "better-sqlite3";
 import { drizzle, BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import * as schema from "@main/db/schema";
+import { app } from "electron";
 
 @Injectable()
 export class DbService {

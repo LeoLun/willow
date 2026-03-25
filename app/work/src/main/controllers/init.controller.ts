@@ -1,6 +1,6 @@
-import { Injectable } from "@willow/poetry";
-import { WorkspaceService } from "@main/service/workspace.service";
 import { DbService } from "@main/service/db.service";
+import { WorkspaceService } from "@main/service/workspace.service";
+import { Injectable } from "@willow/poetry";
 
 @Injectable()
 export class InitController {

@@ -18,10 +18,6 @@ export interface ISessionApi {
   renameSession(request: RenameSessionRequest): Promise<RenameSessionResponse>;
   deleteSession(request: DeleteSessionRequest): Promise<DeleteSessionResponse>;
   sendMessage(request: SendMessageRequest): Promise<SendMessageResponse>;
-  getSessionList(
-    request: GetSessionListRequest,
-  ): Promise<GetSessionListResponse>;
-  getSessionHistory(
-    request: GetSessionHistoryRequest,
-  ): Promise<GetSessionHistoryResponse>;
+  getSessionList(request: GetSessionListRequest): Promise<GetSessionListResponse>;
+  getSessionHistory(request: GetSessionHistoryRequest): Promise<GetSessionHistoryResponse>;
 }

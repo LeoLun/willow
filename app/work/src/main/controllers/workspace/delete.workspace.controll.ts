@@ -1,12 +1,8 @@
+import { WorkspaceService } from "@main/service/workspace.service";
+import type { ApiResponse, DeleteWorkspaceRequest, DeleteWorkspaceResponse } from "@shared/api";
+import { DELETE_WORKSPACE } from "@shared/constants";
 import { Injectable, IPC } from "@willow/poetry";
 import { IPCBaseController } from "../ipc.base.controller";
-import { WorkspaceService } from "@main/service/workspace.service";
-import type {
-  ApiResponse,
-  DeleteWorkspaceRequest,
-  DeleteWorkspaceResponse,
-} from "@shared/api";
-import { DELETE_WORKSPACE } from "@shared/constants";
 
 @Injectable()
 export class DeleteWorkspaceController extends IPCBaseController<
@@ -28,6 +24,9 @@ export class DeleteWorkspaceController extends IPCBaseController<
     }
 
     const workspace = await this.workspaceService.deleteWorkspace(request.id);
+    if (!workspace) {
+      return this.buildError(400, "workspace not found");
+    }
     return this.buildResponse({ workspace });
   }
 

@@ -1,7 +1,7 @@
-import { Injectable } from "@willow/poetry";
-import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
-import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
+import { Injectable } from "@willow/poetry";
 import { app } from "electron";
 @Injectable()
 export class WorkspaceService {
@@ -14,11 +14,7 @@ export class WorkspaceService {
   async createDefaultWorkspace(name: string) {
     // 生成一个 ID
     const id = this.generateWorkspaceId();
-    const workspacePath = join(
-      app.getPath("userData"),
-      "workspace",
-      id.toString(),
-    );
+    const workspacePath = join(app.getPath("userData"), "workspace", id.toString());
     await mkdir(workspacePath, { recursive: true });
     return this.workspaceDao.insert({ name, path: workspacePath, id });
   }

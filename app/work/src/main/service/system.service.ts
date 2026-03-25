@@ -1,7 +1,7 @@
+import { writeFile } from "fs/promises";
+import { join } from "path";
 import { Injectable } from "@willow/poetry";
 import { desktopCapturer, app } from "electron";
-import { join } from "path";
-import { writeFile } from "fs/promises";
 
 @Injectable()
 export class SystemService {

@@ -1,12 +1,8 @@
-import { Injectable, IPC } from "@willow/poetry";
 import { SessionService } from "@main/service/session.service";
-import { IPCBaseController } from "../ipc.base.controller";
-import type {
-  ApiResponse,
-  GetSessionHistoryRequest,
-  GetSessionHistoryResponse,
-} from "@shared/api";
+import type { ApiResponse, GetSessionHistoryRequest, GetSessionHistoryResponse } from "@shared/api";
 import { GET_SESSION_HISTORY } from "@shared/constants";
+import { Injectable, IPC } from "@willow/poetry";
+import { IPCBaseController } from "../ipc.base.controller";
 
 @Injectable()
 export class GetSessionHistoryController extends IPCBaseController<
@@ -27,9 +23,7 @@ export class GetSessionHistoryController extends IPCBaseController<
       return this.buildError(400, error.message);
     }
 
-    const messages = this.sessionService.getSessionHistoryAgentMessages(
-      request.sessionId,
-    );
+    const messages = this.sessionService.getSessionHistoryAgentMessages(request.sessionId);
     return this.buildResponse({ messages });
   }
 

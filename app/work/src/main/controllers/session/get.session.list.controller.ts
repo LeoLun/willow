@@ -1,6 +1,4 @@
-import { Injectable, IPC } from "@willow/poetry";
 import { SessionService } from "@main/service/session.service";
-import { IPCBaseController } from "../ipc.base.controller";
 import type {
   Session,
   ApiResponse,
@@ -8,6 +6,8 @@ import type {
   GetSessionListResponse,
 } from "@shared/api";
 import { GET_SESSION_LIST } from "@shared/constants";
+import { Injectable, IPC } from "@willow/poetry";
+import { IPCBaseController } from "../ipc.base.controller";
 @Injectable()
 export class GetSessionListController extends IPCBaseController<
   GetSessionListRequest,
@@ -29,14 +29,10 @@ export class GetSessionListController extends IPCBaseController<
 
     const { workspaceIds } = request;
 
-    const data =
-      await this.sessionService.getSessionListByWorkspaceIds(workspaceIds);
+    const data = await this.sessionService.getSessionListByWorkspaceIds(workspaceIds);
     const sessions = data.reduce(
       (acc, session) => {
-        acc[session.workspaceId] = [
-          ...(acc[session.workspaceId] || []),
-          session,
-        ];
+        acc[session.workspaceId] = [...(acc[session.workspaceId] || []), session];
         return acc;
       },
       {} as { [workspaceId: number]: Session[] },

@@ -1,12 +1,8 @@
-import { Injectable, IPC } from "@willow/poetry";
 import { EventService } from "@main/service/event.service";
-import { IPCBaseController } from "./ipc.base.controller";
-import type {
-  ApiResponse,
-  RegisterEventRequest,
-  RegisterEventResponse,
-} from "@shared/api";
+import type { ApiResponse, RegisterEventRequest, RegisterEventResponse } from "@shared/api";
 import { REGISTER_EVENT } from "@shared/constants";
+import { Injectable, IPC } from "@willow/poetry";
+import { IPCBaseController } from "./ipc.base.controller";
 
 @Injectable()
 export class EventController extends IPCBaseController<
@@ -27,7 +23,7 @@ export class EventController extends IPCBaseController<
       return this.buildError(400, error.message);
     }
 
-    await this.eventService.registerEvent(_event.sender, request.event);
+    await this.eventService.registerEvent(_event.sender);
     return this.buildResponse({});
   }
 

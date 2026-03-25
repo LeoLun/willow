@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { ArrowUpIcon, PlusIcon } from 'lucide-vue-next'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupText, InputGroupTextarea } from '@/components/ui/input-group'
-import { Separator } from '@/components/ui/separator'
-import type { SendMessage } from '@shared/api';
+import type { SendMessage } from "@shared/api";
+import { ArrowUpIcon, PlusIcon } from "lucide-vue-next";
+import { ref } from "vue";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupText,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
+import { Separator } from "@/components/ui/separator";
 
 const message = ref("");
 
@@ -19,7 +30,6 @@ function handleSend() {
     message: msg,
   });
 }
-
 </script>
 <template>
   <InputGroup>
@@ -30,9 +40,7 @@ function handleSend() {
       </InputGroupButton>
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <InputGroupButton variant="ghost">
-            Auto
-          </InputGroupButton>
+          <InputGroupButton variant="ghost"> Auto </InputGroupButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" class="[--radius:0.95rem]">
           <DropdownMenuItem>Auto</DropdownMenuItem>
@@ -40,16 +48,15 @@ function handleSend() {
           <DropdownMenuItem>Manual</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <InputGroupText class="ml-auto">
-        52% used
-      </InputGroupText>
+      <InputGroupText class="ml-auto"> 52% used </InputGroupText>
       <Separator orientation="vertical" class="!h-4" />
       <InputGroupButton
         :disabled="!message.trim().length"
         variant="default"
         class="rounded-full"
         size="icon-xs"
-        @click="handleSend">
+        @click="handleSend"
+      >
         <ArrowUpIcon class="size-4" />
         <span class="sr-only">Send</span>
       </InputGroupButton>

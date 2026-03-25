@@ -1,8 +1,11 @@
 /// <reference types="vite/client" />
-import { IRenderHook } from "./shared";
 
-declare global {
-  interface Window {
-    electronAPI: IRenderHook;
-  }
+declare module "*.vue" {
+  import type { DefineComponent } from "vue";
+  const component: DefineComponent<{}, {}, any>;
+  export default component;
+}
+
+interface Window {
+  electronAPI: import("./shared").IRenderHook;
 }

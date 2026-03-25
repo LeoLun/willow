@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { useRoute } from "vue-router";
-import { computed, ref, watch, nextTick } from "vue";
-import { useSessionStore } from "@/stores/session";
+import type { Session } from "@shared/api";
 import { storeToRefs } from "pinia";
-import { useAgentMessages } from "@/composables/useAgentMessages";
+import { computed, ref, watch, nextTick } from "vue";
+import { useRoute } from "vue-router";
 import MessageListView from "@/components/base/MessageListView.vue";
 import StreamingMessage from "@/components/base/StreamingMessage.vue";
-import type { Session } from "@shared/api";
+import { useAgentMessages } from "@/composables/useAgentMessages";
+import { useSessionStore } from "@/stores/session";
 
 const sessionStore = useSessionStore();
 const { sessionMap } = storeToRefs(sessionStore);
@@ -44,12 +44,12 @@ watch(
 </script>
 
 <template>
-  <div class="flex flex-col h-full items-center">
+  <div class="flex h-full flex-col items-center">
     <div class="text-sm">
-      {{ session?.title || '未命名会话' }}
+      {{ session?.title || "未命名会话" }}
     </div>
-    <div ref="scrollArea" class="flex-1 w-full overflow-y-auto pt-2 pb-2">
-      <div class="max-w-3xl mx-auto px-4">
+    <div ref="scrollArea" class="w-full flex-1 overflow-y-auto pt-2 pb-2">
+      <div class="mx-auto max-w-3xl px-4">
         <MessageListView
           :messages="state.messages"
           :tools="state.tools"

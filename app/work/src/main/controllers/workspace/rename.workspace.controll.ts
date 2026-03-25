@@ -1,12 +1,8 @@
+import { WorkspaceService } from "@main/service/workspace.service";
+import type { ApiResponse, RenameWorkspaceRequest, RenameWorkspaceResponse } from "@shared/api";
+import { RENAME_WORKSPACE } from "@shared/constants";
 import { Injectable, IPC } from "@willow/poetry";
 import { IPCBaseController } from "../ipc.base.controller";
-import { WorkspaceService } from "@main/service/workspace.service";
-import type {
-  ApiResponse,
-  RenameWorkspaceRequest,
-  RenameWorkspaceResponse,
-} from "@shared/api";
-import { RENAME_WORKSPACE } from "@shared/constants";
 
 @Injectable()
 export class RenameWorkspaceController extends IPCBaseController<
@@ -27,10 +23,7 @@ export class RenameWorkspaceController extends IPCBaseController<
       return this.buildError(400, error.message);
     }
 
-    const workspace = await this.workspaceService.renameWorkspace(
-      request.id,
-      request.name,
-    );
+    const workspace = await this.workspaceService.renameWorkspace(request.id, request.name);
     return this.buildResponse({ workspace });
   }
 

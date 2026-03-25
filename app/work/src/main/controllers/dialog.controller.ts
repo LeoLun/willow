@@ -1,7 +1,7 @@
-import { Injectable, IPC } from "@willow/poetry";
-import { dialog } from "electron";
 import { SELECT_DIRECTORY } from "@shared/constants";
 import type { ISelectDirectoryResult } from "@shared/index";
+import { Injectable, IPC } from "@willow/poetry";
+import { dialog } from "electron";
 
 @Injectable()
 export class DialogController {
