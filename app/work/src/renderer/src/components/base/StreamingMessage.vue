@@ -46,7 +46,6 @@ watch(
   () => props.message,
   (v) => {
     if (!el) return;
-    console.log("StreamingMessage", v);
     el.setMessage(v, !props.isStreaming);
   },
 );

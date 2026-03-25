@@ -18,6 +18,7 @@ export interface Session {
   id: number;
   workspaceId: number;
   title: string;
+  lastActiveAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }

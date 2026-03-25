@@ -115,6 +115,8 @@ export class SessionService {
       throw new Error("session not found");
     }
 
+    this.sessionDao.update(sessionId, { lastActiveAt: new Date() });
+
     const priorMessageCount =
       this.sessionMessageDao.findBySessionId(sessionId).length;
 

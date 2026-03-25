@@ -1,5 +1,5 @@
 import { Injectable } from "@willow/poetry";
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { DbService } from "@main/service/db.service";
 import { sessions } from "../../db/schema";
 
@@ -28,6 +28,7 @@ export class SessionDao {
       .select()
       .from(sessions)
       .where(eq(sessions.workspaceId, workspaceId))
+      .orderBy(desc(sessions.lastActiveAt))
       .all();
   }
 
@@ -65,6 +66,7 @@ export class SessionDao {
       .select()
       .from(sessions)
       .where(inArray(sessions.workspaceId, workspaceIds))
+      .orderBy(desc(sessions.lastActiveAt))
       .all();
   }
 }

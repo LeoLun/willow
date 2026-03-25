@@ -119,7 +119,6 @@ export function useAgentMessages(sessionId: Ref<number>) {
       }
       try {
         const data = await electronAPI.getSessionHistory({ sessionId: id });
-        console.log("data", data);
         if (id !== sessionId.value) {
           return;
         }

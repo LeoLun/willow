@@ -12,7 +12,15 @@ export const useSessionStore = defineStore("session", () => {
     const response = await electronAPI.getSessionList({
       workspaceIds: workspaceIds,
     });
-    sessionMap.value = response.sessions || {};
+    const nextMap = { ...sessionMap.value };
+    const incoming = response.sessions || {};
+
+    workspaceIds.forEach((workspaceId) => {
+      // 控制器只返回有会话的工作区，这里显式回填空数组避免保留旧数据
+      nextMap[workspaceId] = incoming[workspaceId] || [];
+    });
+
+    sessionMap.value = nextMap;
     return sessionMap.value;
   }
 
@@ -45,11 +53,26 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  /** 将指定会话移到所属工作区列表顶部（发送消息时调用） */
+  function bumpSessionToTop(sessionId: number) {
+    for (const list of Object.values(sessionMap.value)) {
+      const idx = list.findIndex((s) => s.id === sessionId);
+      if (idx < 0) continue;
+      if (idx > 0) {
+        const [session] = list.splice(idx, 1);
+        session.lastActiveAt = new Date();
+        list.unshift(session);
+      }
+      return;
+    }
+  }
+
   return {
     sessionMap,
     fetchSessionList,
     renameSession,
     deleteSession,
     applySessionTitleFromMain,
+    bumpSessionToTop,
   };
 });

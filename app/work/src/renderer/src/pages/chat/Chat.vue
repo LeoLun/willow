@@ -11,11 +11,12 @@ const router = useRouter();
 async function handleSend(request: SendMessage) {
   // 检查是否为 session 路由
   if (route.name === "session") {
-    const sessionId = route.params.sessionId;
+    const sessionId = Number(route.params.sessionId);
     electronAPI.sendMessage({
-      sessionId: Number(sessionId),
+      sessionId,
       ...request,
     });
+    sessionStore.bumpSessionToTop(sessionId);
   } else {
     // 创建 session
     const workspaceId = Number(route.query.workspaceId);
