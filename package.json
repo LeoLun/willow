@@ -12,11 +12,11 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@typescript/native-preview": "catalog:",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "oxfmt": "^0.42.0",
-    "oxlint": "^1.57.0",
-    "typescript": "catalog:"
+    "oxlint": "^1.57.0"
   },
   "lint-staged": {
     "*.{ts,tsx,vue}": [

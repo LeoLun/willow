@@ -1,5 +1,5 @@
 npx lint-staged
 
-echo "🔍 Running tsc type check..."
-tsc --noEmit -p tsconfig.json
-tsc --noEmit -p app/work/tsconfig.json
+echo "🔍 Running tsgo type check..."
+npx tsgo --noEmit -p tsconfig.json
+npx tsgo --noEmit -p app/work/tsconfig.json

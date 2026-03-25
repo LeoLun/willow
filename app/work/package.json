@@ -51,6 +51,7 @@
     "@rollup/plugin-swc": "^0.4.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/electron-squirrel-startup": "^1.0.2",
+    "@typescript/native-preview": "catalog:",
     "@vitejs/plugin-vue": "^5.2.1",
     "@willow/poetry": "workspace:*",
     "drizzle-kit": "^0.31.9",
@@ -60,9 +61,8 @@
     "reflect-metadata": "catalog:",
     "shadcn-vue": "^2.4.3",
     "ts-node": "^10.0.0",
-    "typescript": "catalog:",
-    "vite": "^5.0.12",
-    "vue": "^3.5.13"
+    "vite": "^8.0.0",
+    "vue": "^3.5.31"
   },
   "productName": "com.willow.work"
 }
