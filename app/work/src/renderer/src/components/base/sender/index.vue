@@ -32,7 +32,7 @@ function handleSend() {
 }
 </script>
 <template>
-  <InputGroup>
+  <InputGroup class="!shadow-[none]">
     <InputGroupTextarea v-model="message" placeholder="Ask, Search or Chat..." />
     <InputGroupAddon align="block-end">
       <InputGroupButton variant="outline" class="rounded-full" size="icon-xs">
