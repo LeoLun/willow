@@ -1,6 +1,11 @@
 import { On, WindowFactoryResolver, Module } from "@willow/poetry";
 import { app, BrowserWindow } from "electron";
 import started from "electron-squirrel-startup";
+import { AddModelController } from "./controllers/config/add.model.controller";
+import { DeleteModelController } from "./controllers/config/delete.model.controller";
+import { GetModelListController } from "./controllers/config/get.model.list.controller";
+import { SetDefaultModelController } from "./controllers/config/set.default.model.controller";
+import { UpdateModelController } from "./controllers/config/update.model.controller";
 import { DialogController } from "./controllers/dialog.controller";
 import { EventController } from "./controllers/event.controller";
 import { InitController } from "./controllers/init.controller";
@@ -16,6 +21,8 @@ import { GetWorkspaceInfoController } from "./controllers/workspace/get.workspac
 import { GetWorkspaceListController } from "./controllers/workspace/get.workspace.list.controll";
 import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controll";
 import { AgentService } from "./service/agent.service";
+import { ConfigService } from "./service/config.service";
+import { ModelDao } from "./service/dao/model.dao.service";
 import { SessionMessageDao } from "./service/dao/session-message.dao.service";
 import { SessionDao } from "./service/dao/session.dao.service";
 import { WorkspaceDao } from "./service/dao/workspace.dao.service";
@@ -39,9 +46,11 @@ if (started) {
     SystemService,
     SessionService,
     AgentService,
+    ConfigService,
     WorkspaceDao,
     SessionDao,
     SessionMessageDao,
+    ModelDao,
     EventService,
   ],
   controllers: [
@@ -59,6 +68,11 @@ if (started) {
     RenameSessionController,
     DeleteSessionController,
     EventController,
+    GetModelListController,
+    AddModelController,
+    UpdateModelController,
+    DeleteModelController,
+    SetDefaultModelController,
   ],
 })
 export class AppModule {
@@ -78,6 +92,11 @@ export class AppModule {
     private renameSessionController: RenameSessionController,
     private deleteSessionController: DeleteSessionController,
     private eventController: EventController,
+    private getModelListController: GetModelListController,
+    private addModelController: AddModelController,
+    private updateModelController: UpdateModelController,
+    private deleteModelController: DeleteModelController,
+    private setDefaultModelController: SetDefaultModelController,
   ) {}
 
   createWindow() {

@@ -184,13 +184,10 @@ onBeforeMount(async () => {
                     <SidebarMenuSubButton
                       as="div"
                       class="cursor-pointer pr-1"
+                      :is-active="sessionId === session.id"
                       @click="router.push(`/${session.id}`)"
                     >
-                      <span
-                        class="flex-1 truncate"
-                        :class="sessionId === session.id ? 'text-primary' : ''"
-                        >{{ session.title || "未命名会话" }}</span
-                      >
+                      <span class="flex-1 truncate">{{ session.title || "未命名会话" }}</span>
                       <DropdownMenu
                         @update:open="
                           (open: boolean) => (dropdownOpenId = open ? `ss-${session.id}` : null)

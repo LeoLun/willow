@@ -57,6 +57,7 @@ export function useAgentMessages(sessionId: Ref<number>) {
         state.streamMessage = null;
         break;
 
+      case "message_start":
       case "message_update":
         state.streamMessage = event.message ?? null;
         break;
@@ -93,7 +94,6 @@ export function useAgentMessages(sessionId: Ref<number>) {
 
       case "turn_start":
       case "turn_end":
-      case "message_start":
       case "tool_execution_update":
         break;
     }

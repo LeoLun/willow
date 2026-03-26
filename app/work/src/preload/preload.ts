@@ -25,6 +25,15 @@ import type {
   GetSessionHistoryResponse,
   RegisterEventRequest,
   RegisterEventResponse,
+  GetModelListResponse,
+  AddModelRequest,
+  AddModelResponse,
+  UpdateModelRequest,
+  UpdateModelResponse,
+  DeleteModelRequest,
+  DeleteModelResponse,
+  SetDefaultModelRequest,
+  SetDefaultModelResponse,
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
@@ -40,6 +49,11 @@ import {
   GET_SESSION_HISTORY,
   REGISTER_EVENT,
   EVENT_BUS,
+  GET_MODEL_LIST,
+  ADD_MODEL,
+  UPDATE_MODEL,
+  DELETE_MODEL,
+  SET_DEFAULT_MODEL,
 } from "../shared/constants";
 
 const ipcObject: IRenderHook = {
@@ -211,6 +225,70 @@ const ipcObject: IRenderHook = {
         callback(event, data);
       },
     );
+  },
+  getModelList: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_MODEL_LIST,
+    )) as ApiResponse<GetModelListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get model list failed");
+    }
+    return response.data;
+  },
+  addModel: async (request: AddModelRequest) => {
+    const response = (await ipcRenderer.invoke(
+      ADD_MODEL,
+      request,
+    )) as ApiResponse<AddModelResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("add model failed");
+    }
+    return response.data;
+  },
+  updateModel: async (request: UpdateModelRequest) => {
+    const response = (await ipcRenderer.invoke(
+      UPDATE_MODEL,
+      request,
+    )) as ApiResponse<UpdateModelResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("update model failed");
+    }
+    return response.data;
+  },
+  deleteModel: async (request: DeleteModelRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_MODEL,
+      request,
+    )) as ApiResponse<DeleteModelResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("delete model failed");
+    }
+    return response.data;
+  },
+  setDefaultModel: async (request: SetDefaultModelRequest) => {
+    const response = (await ipcRenderer.invoke(
+      SET_DEFAULT_MODEL,
+      request,
+    )) as ApiResponse<SetDefaultModelResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("set default model failed");
+    }
+    return response.data;
   },
 };
 
