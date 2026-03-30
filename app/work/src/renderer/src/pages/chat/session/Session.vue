@@ -48,7 +48,7 @@ watch(
     <div class="text-sm">
       {{ session?.title || "未命名会话" }}
     </div>
-    <div ref="scrollArea" class="w-full flex-1 overflow-y-auto pt-2 pb-2">
+    <div ref="scrollArea" class="w-full flex-1 overflow-y-auto pt-4 pb-4">
       <div class="mx-auto max-w-3xl px-4">
         <MessageListView
           :messages="state.messages"

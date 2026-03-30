@@ -49,7 +49,6 @@ export function useAgentMessages(sessionId: Ref<number>) {
 
   function handleUpdateMessage(data: UpdateMessagePayload) {
     if (data.sessionId !== sessionId.value) return;
-
     const event = data.event;
     switch (event.type) {
       case "agent_start":
@@ -117,6 +116,10 @@ export function useAgentMessages(sessionId: Ref<number>) {
       try {
         const data = await electronAPI.getSessionHistory({ sessionId: id });
         if (id !== sessionId.value) {
+          return;
+        }
+        // 如果是空数组，则不进行初始化
+        if (data?.messages?.length === 0) {
           return;
         }
         state.messages = data?.messages ?? [];

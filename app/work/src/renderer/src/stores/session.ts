@@ -42,6 +42,13 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  async function cleanSession(id: number, workspaceId: number) {
+    const list = sessionMap.value[workspaceId];
+    if (list) {
+      sessionMap.value[workspaceId] = list.filter((s) => s.id !== id);
+    }
+  }
+
   /** 主进程自动生成标题后通过 EVENT_BUS 同步 */
   function applySessionTitleFromMain(session: Session) {
     const list = sessionMap.value[session.workspaceId];
@@ -72,6 +79,7 @@ export const useSessionStore = defineStore("session", () => {
     fetchSessionList,
     renameSession,
     deleteSession,
+    cleanSession,
     applySessionTitleFromMain,
     bumpSessionToTop,
   };

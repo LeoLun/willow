@@ -62,6 +62,9 @@ importers:
       '@vueuse/core':
         specifier: ^12.8.2
         version: 12.8.2(typescript@5.9.3)
+      '@willow/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.20(postcss@8.5.6)
@@ -180,6 +183,43 @@ importers:
       vue:
         specifier: ^3.5.31
         version: 3.5.31(typescript@5.9.3)
+
+  packages/core:
+    dependencies:
+      '@mariozechner/pi-agent-core':
+        specifier: ^0.62.0
+        version: 0.62.0(@modelcontextprotocol/sdk@1.26.0(@cfworker/json-schema@4.1.1)(zod@3.25.76))(ws@8.19.0)(zod@3.25.76)
+      '@mariozechner/pi-ai':
+        specifier: ^0.62.0
+        version: 0.62.0(@modelcontextprotocol/sdk@1.26.0(@cfworker/json-schema@4.1.1)(zod@3.25.76))(ws@8.19.0)(zod@3.25.76)
+      '@sinclair/typebox':
+        specifier: ^0.34.41
+        version: 0.34.48
+      glob:
+        specifier: ^7.2.3
+        version: 7.2.3
+      yaml:
+        specifier: ^2.7.1
+        version: 2.8.3
+    devDependencies:
+      electron:
+        specifier: 'catalog:'
+        version: 33.2.1
+      inversify:
+        specifier: 'catalog:'
+        version: 6.2.1(reflect-metadata@0.1.14)
+      jest:
+        specifier: ^27.4.5
+        version: 27.5.1(ts-node@10.9.2(@swc/core@1.10.7(@swc/helpers@0.5.15))(@types/node@22.10.5)(typescript@5.9.3))
+      reflect-metadata:
+        specifier: 'catalog:'
+        version: 0.1.14
+      tsup:
+        specifier: ^8.3.5
+        version: 8.3.5(@swc/core@1.10.7(@swc/helpers@0.5.15))(jiti@2.6.1)(postcss@8.5.8)(typescript@5.9.3)(yaml@2.8.3)
+      tsyringe:
+        specifier: 'catalog:'
+        version: 4.10.0
 
   packages/poetry:
     devDependencies:

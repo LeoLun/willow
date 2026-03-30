@@ -60,7 +60,6 @@ async function handleSubmit() {
     if (model) {
       await configStore.updateModel({ id: model.id, ...form.value });
     } else {
-      console.log("addModel", JSON.stringify(form.value));
       await configStore.addModel(form.value);
     }
     onSaved?.();

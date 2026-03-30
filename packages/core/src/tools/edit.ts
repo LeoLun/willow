@@ -1,0 +1,56 @@
+import { constants } from "fs";
+import { readFile, writeFile, access } from "fs/promises";
+import type { AgentTool } from "@mariozechner/pi-agent-core";
+import { Type } from "@sinclair/typebox";
+import { resolveToCwd } from "./path-utils";
+
+/** 参数名与 pi-mono 的 `edit` schema 一致：`oldText` / `newText`。 */
+const editSchema = Type.Object({
+  path: Type.String({
+    description: "要编辑的文件路径（相对或绝对）",
+  }),
+  oldText: Type.String({
+    description: "要查找并替换的原文（须与文件内容完全一致，含空白与换行）",
+  }),
+  newText: Type.String({ description: "替换后的文本" }),
+});
+
+export function createEditTool(cwd: string): AgentTool<typeof editSchema> {
+  return {
+    name: "edit",
+    label: "编辑文件",
+    description: "通过精确字符串替换编辑文件。oldText 必须与原文完全一致且仅出现一次。请先 read。",
+    parameters: editSchema,
+    async execute(_toolCallId, params) {
+      const { path, oldText, newText } = params;
+      const absolutePath = resolveToCwd(path, cwd);
+      await access(absolutePath, constants.R_OK | constants.W_OK);
+
+      const content = await readFile(absolutePath, "utf-8");
+
+      if (oldText === newText) {
+        throw new Error("oldText 与 newText 相同");
+      }
+
+      const occurrences = content.split(oldText).length - 1;
+
+      if (occurrences === 0) {
+        throw new Error(`在 ${path} 中未找到 oldText。请完全匹配原文，包括空白与换行。`);
+      }
+
+      if (occurrences > 1) {
+        throw new Error(
+          `oldText 在 ${path} 中出现 ${occurrences} 次，必须唯一匹配——请增加更多上下文。`,
+        );
+      }
+
+      const newContent = content.replace(oldText, newText);
+      await writeFile(absolutePath, newContent, "utf-8");
+
+      return {
+        content: [{ type: "text", text: `已编辑 ${path}：替换 1 处` }],
+        details: undefined,
+      };
+    },
+  };
+}

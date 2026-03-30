@@ -1,0 +1,26 @@
+{
+  "name": "@willow/core",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@mariozechner/pi-agent-core": "^0.62.0",
+    "@mariozechner/pi-ai": "^0.62.0",
+    "@sinclair/typebox": "^0.34.41",
+    "glob": "^7.2.3",
+    "yaml": "^2.7.1"
+  },
+  "devDependencies": {
+    "electron": "catalog:",
+    "inversify": "catalog:",
+    "jest": "^27.4.5",
+    "reflect-metadata": "catalog:",
+    "tsup": "^8.3.5",
+    "tsyringe": "catalog:"
+  }
+}

@@ -1,10 +1,13 @@
 import { ConfigService } from "@main/service/config.service";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
+import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 import { Agent } from "@mariozechner/pi-agent-core";
 import { streamSimple } from "@mariozechner/pi-ai";
 import type { ModelConfig, Session } from "@shared/api";
+import { CoreAgent } from "@willow/core";
 import { Injectable } from "@willow/poetry";
+import { app } from "electron";
 
 const FALLBACK_MODELS: Record<string, ReturnType<typeof toAgentModel>> = {
   "deepseek-chat": {
@@ -48,8 +51,6 @@ function toAgentModel(config: ModelConfig) {
   };
 }
 
-const systemPrompt = "你是一个有用的 AI 助手。";
-
 const titleSystemPrompt = `你是会话标题生成器。根据用户给出的「首轮用户提问」和「助手回复」摘要，生成一条简短中文标题。
 要求：10～20 字为宜；只输出标题本身，不要引号、书名号、前缀（如「标题：」）、解释或换行。`;
 
@@ -58,6 +59,7 @@ export class AgentService {
   constructor(
     private readonly sessionMessageDao: SessionMessageDao,
     private readonly configService: ConfigService,
+    private readonly workspaceDao: WorkspaceDao,
   ) {}
 
   private resolveApiKey(config?: ModelConfig | null): string | undefined {
@@ -92,12 +94,19 @@ export class AgentService {
     const resolvedModel = dbModel ? toAgentModel(dbModel) : FALLBACK_MODELS["deepseek-reasoner"];
     const apiKey = this.resolveApiKey(dbModel);
 
+    const workspace = this.workspaceDao.findById(session.workspaceId);
+    const cwd = workspace?.path ?? process.cwd();
+
     const agent = new Agent({
       streamFn: streamSimple,
       getApiKey: () => apiKey,
     });
     agent.setModel(resolvedModel);
-    agent.setSystemPrompt(systemPrompt);
+
+    const coreAgent = new CoreAgent(agent, {
+      cwd,
+      userData: app.getPath("userData"),
+    });
 
     const rows = this.sessionMessageDao.findBySessionId(session.id);
     const history = parseStoredSessionMessages(rows);
@@ -105,6 +114,6 @@ export class AgentService {
       agent.replaceMessages(history);
     }
 
-    return agent;
+    return coreAgent.agent;
   }
 }

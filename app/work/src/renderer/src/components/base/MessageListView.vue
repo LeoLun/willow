@@ -28,6 +28,12 @@ onMounted(() => {
 
   const style = document.createElement("style");
   style.textContent = piWebUiCss;
+
+  style.textContent += `
+    .user-message-container {
+      margin-left: auto;
+    }
+  `;
   shadow.appendChild(style);
 
   el = document.createElement("message-list") as MessageList;

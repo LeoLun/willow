@@ -22,6 +22,7 @@
     "@opencode-ai/sdk": "^1.1.53",
     "@tailwindcss/postcss": "^4.1.18",
     "@vueuse/core": "^12.8.2",
+    "@willow/core": "workspace:*",
     "autoprefixer": "^10.4.20",
     "better-sqlite3": "^12.8.0",
     "class-variance-authority": "^0.7.1",

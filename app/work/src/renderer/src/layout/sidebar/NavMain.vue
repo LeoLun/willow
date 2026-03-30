@@ -56,7 +56,9 @@ function handleRenameSession(session: Session) {
 function handleDeleteSession(session: Session) {
   openDialog(DeleteSession, {
     session,
-    onDeleted: () => sessionStore.deleteSession(session.id, session.workspaceId),
+    onDeleted: () => {
+      sessionStore.cleanSession(session.id, session.workspaceId);
+    },
   });
 }
 
