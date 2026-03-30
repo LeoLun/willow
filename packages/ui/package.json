@@ -1,0 +1,21 @@
+{
+  "name": "@willow/ui",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./style.css": "./src/style.css"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "katex": "^0.16.22",
+    "lucide-vue-next": "^0.473.0",
+    "marked": "^16.3.0"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-agent-core": "^0.62.0",
+    "@mariozechner/pi-ai": "^0.62.0",
+    "vue": "^3.5.0"
+  }
+}

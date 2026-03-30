@@ -1,0 +1,103 @@
+@import "highlight.js/styles/github-dark.min.css";
+@import "katex/dist/katex.min.css";
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.user-message-container {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(217, 79, 0, 0.12),
+    rgba(255, 107, 0, 0.12),
+    rgba(212, 165, 0, 0.12)
+  );
+  border: 1px solid rgba(255, 107, 0, 0.25);
+  backdrop-filter: blur(10px);
+  max-width: 100%;
+  margin-left: auto;
+}
+
+.markdown-content {
+  line-height: 1.7;
+}
+
+.markdown-content p {
+  margin-bottom: 0.75em;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-bottom: 0.75em;
+  padding-left: 1.5em;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25em;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.markdown-content h1 {
+  font-size: 1.5em;
+}
+.markdown-content h2 {
+  font-size: 1.25em;
+}
+.markdown-content h3 {
+  font-size: 1.1em;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 1em;
+  margin: 0.75em 0;
+  color: var(--color-muted-foreground);
+}
+
+.markdown-content code:not(.hljs) {
+  background: var(--color-muted);
+  padding: 0.15em 0.35em;
+  border-radius: 0.25em;
+  font-size: 0.875em;
+}
+
+.markdown-content a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid var(--color-border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.markdown-content th {
+  background: var(--color-muted);
+  font-weight: 600;
+}

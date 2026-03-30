@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import type { Session } from "@shared/api";
+import { MessageList, StreamingMessageContainer } from "@willow/ui";
 import { storeToRefs } from "pinia";
 import { computed, ref, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import MessageListView from "@/components/base/MessageListView.vue";
-import StreamingMessage from "@/components/base/StreamingMessage.vue";
 import { useAgentMessages } from "@/composables/useAgentMessages";
 import { useSessionStore } from "@/stores/session";
 
@@ -50,14 +49,14 @@ watch(
     </div>
     <div ref="scrollArea" class="w-full flex-1 overflow-y-auto pt-4 pb-4">
       <div class="mx-auto max-w-3xl px-4">
-        <MessageListView
+        <MessageList
           :messages="state.messages"
           :tools="state.tools"
           :is-streaming="state.isStreaming"
           :pending-tool-calls="state.pendingToolCalls"
         />
 
-        <StreamingMessage
+        <StreamingMessageContainer
           v-if="state.isStreaming"
           :message="state.streamMessage"
           :is-streaming="state.isStreaming"
