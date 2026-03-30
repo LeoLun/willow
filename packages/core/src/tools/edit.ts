@@ -4,6 +4,14 @@ import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
 import { resolveToCwd } from "./path-utils";
 
+export interface EditToolDetails {
+  absolutePath: string;
+  bytesBefore: number;
+  bytesAfter: number;
+  /** 极简 unified diff 预览；完整 diff 字符串见 pi `EditToolDetails.diff` + `computeEditDiff` */
+  diff: string;
+}
+
 /** 参数名与 pi-mono 的 `edit` schema 一致：`oldText` / `newText`。 */
 const editSchema = Type.Object({
   path: Type.String({
@@ -47,9 +55,24 @@ export function createEditTool(cwd: string): AgentTool<typeof editSchema> {
       const newContent = content.replace(oldText, newText);
       await writeFile(absolutePath, newContent, "utf-8");
 
+      const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n)}…`);
+      const diff = [
+        `--- ${path}`,
+        `+++ ${path}`,
+        `@@ replacement (1 occurrence) @@`,
+        `-${clip(oldText, 120)}`,
+        `+${clip(newText, 120)}`,
+      ].join("\n");
+      const details: EditToolDetails = {
+        absolutePath,
+        bytesBefore: Buffer.byteLength(content, "utf-8"),
+        bytesAfter: Buffer.byteLength(newContent, "utf-8"),
+        diff,
+      };
+
       return {
         content: [{ type: "text", text: `已编辑 ${path}：替换 1 处` }],
-        details: undefined,
+        details,
       };
     },
   };

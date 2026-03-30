@@ -4,6 +4,16 @@ import { resolve } from "path";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
 
+export interface ReadToolDetails {
+  absolutePath: string;
+  totalLines: number;
+  linesShown: number;
+  startLine1Indexed: number;
+  truncatedByLineCap: boolean;
+  truncatedByByteCap: boolean;
+  hasMoreLinesAfter: boolean;
+}
+
 const MAX_LINES = 2000;
 const MAX_BYTES = 256 * 1024;
 
@@ -35,10 +45,13 @@ export function createReadTool(cwd: string): AgentTool<typeof readSchema> {
 
       const endLine = limit ? Math.min(startLine + limit, allLines.length) : allLines.length;
       let selectedLines = allLines.slice(startLine, endLine);
+      let truncatedByLineCap = false;
+      let truncatedByByteCap = false;
 
       // 截断保护
       if (selectedLines.length > MAX_LINES) {
         selectedLines = selectedLines.slice(0, MAX_LINES);
+        truncatedByLineCap = true;
       }
 
       let output = selectedLines.join("\n");
@@ -54,7 +67,22 @@ export function createReadTool(cwd: string): AgentTool<typeof readSchema> {
         output += `\n\n[还有 ${remaining} 行。使用 offset=${startLine + selectedLines.length + 1} 继续读取。]`;
       }
 
-      return { content: [{ type: "text", text: output }], details: undefined };
+      const hasMoreLinesAfter = remaining > 0;
+      if (hasMoreLinesAfter) {
+        output += `\n\n[还有 ${remaining} 行。使用 offset=${startLine + selectedLines.length + 1} 继续读取。]`;
+      }
+
+      const details: ReadToolDetails = {
+        absolutePath,
+        totalLines: allLines.length,
+        linesShown: selectedLines.length,
+        startLine1Indexed: startLine + 1,
+        truncatedByLineCap,
+        truncatedByByteCap,
+        hasMoreLinesAfter,
+      };
+
+      return { content: [{ type: "text", text: output }], details };
     },
   };
 }

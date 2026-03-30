@@ -8,6 +8,15 @@ import { resolveToCwd } from "./path-utils";
 const DEFAULT_LIMIT = 1000;
 const MAX_OUTPUT_BYTES = 256 * 1024;
 
+export interface FindToolDetails {
+  searchRoot: string;
+  /** glob 命中总数（应用 limit 切片前） */
+  totalMatched: number;
+  returned: number;
+  resultLimitReached: boolean;
+  outputByteTruncated: boolean;
+}
+
 const findSchema = Type.Object({
   pattern: Type.String({
     description: "Glob 模式，例如 '*.ts'、'**/*.spec.ts'",
@@ -48,9 +57,16 @@ export function createFindTool(cwd: string): AgentTool<typeof findSchema> {
       const matches = raw.slice(0, effectiveLimit);
 
       if (matches.length === 0) {
+        const details: FindToolDetails = {
+          searchRoot: root,
+          totalMatched: 0,
+          returned: 0,
+          resultLimitReached: false,
+          outputByteTruncated: false,
+        };
         return {
           content: [{ type: "text", text: "没有匹配该模式的文件" }],
-          details: undefined,
+          details,
         };
       }
 
@@ -61,14 +77,27 @@ export function createFindTool(cwd: string): AgentTool<typeof findSchema> {
       });
 
       let body = lines.join("\n");
+
+      let outputByteTruncated = false;
       if (Buffer.byteLength(body, "utf-8") > MAX_OUTPUT_BYTES) {
-        body = body.slice(0, MAX_OUTPUT_BYTES) + `\n\n[约在 ${MAX_OUTPUT_BYTES / 1024}KB 处截断]`;
-      }
-      if (raw.length >= effectiveLimit) {
-        body += `\n\n[结果条数上限 ${effectiveLimit}]`;
+        body = body.slice(0, MAX_OUTPUT_BYTES) + `\n\n[Truncated at ~${MAX_OUTPUT_BYTES / 1024}KB]`;
+        outputByteTruncated = true;
       }
 
-      return { content: [{ type: "text", text: body }], details: undefined };
+      const resultLimitReached = raw.length >= effectiveLimit;
+      if (resultLimitReached) {
+        body += `\n\n[Result limit ${effectiveLimit}]`;
+      }
+
+      const details: FindToolDetails = {
+        searchRoot: root,
+        totalMatched: raw.length,
+        returned: matches.length,
+        resultLimitReached,
+        outputByteTruncated,
+      };
+
+      return { content: [{ type: "text", text: body }], details };
     },
   };
 }

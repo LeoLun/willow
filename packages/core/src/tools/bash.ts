@@ -3,6 +3,16 @@ import { existsSync } from "fs";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
 
+export interface BashToolDetails {
+  cwd: string;
+  command: string;
+  exitCode: number | null;
+  timedOut: boolean;
+  outputTruncated: boolean;
+  /** 截断前原始合并输出的大致字节数（若未截断可与输出一致） */
+  rawOutputBytes: number;
+}
+
 const MAX_OUTPUT = 256 * 1024;
 
 const bashSchema = Type.Object({
@@ -63,19 +73,36 @@ export function createBashTool(cwd: string): AgentTool<typeof bashSchema> {
           }
 
           if (timedOut) {
+            const textOut = truncateOutput(output);
+            const details: BashToolDetails = {
+              cwd,
+              command,
+              exitCode: code,
+              timedOut: true,
+              outputTruncated: Buffer.byteLength(output, "utf-8") > MAX_OUTPUT,
+              rawOutputBytes: Buffer.byteLength(output, "utf-8"),
+            };
             resolve({
               content: [
                 {
                   type: "text",
-                  text: `命令在 ${timeout} 秒后超时。\n部分输出：\n${truncateOutput(output)}`,
+                  text: `命令在 ${timeout} 秒后超时。\n部分输出：\n${textOut}`,
                 },
               ],
-              details: undefined,
+              details,
             });
             return;
           }
 
           const exitInfo = code !== 0 ? `\n[退出码：${code}]` : "";
+          const details: BashToolDetails = {
+            cwd,
+            command,
+            exitCode: code,
+            timedOut: false,
+            outputTruncated: Buffer.byteLength(output, "utf-8") > MAX_OUTPUT,
+            rawOutputBytes: Buffer.byteLength(output, "utf-8"),
+          };
           resolve({
             content: [
               {
@@ -83,7 +110,7 @@ export function createBashTool(cwd: string): AgentTool<typeof bashSchema> {
                 text: truncateOutput(output) + exitInfo,
               },
             ],
-            details: undefined,
+            details,
           });
         });
 

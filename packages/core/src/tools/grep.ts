@@ -8,6 +8,13 @@ const DEFAULT_LIMIT = 100;
 const MAX_OUTPUT_BYTES = 256 * 1024;
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", ".next", "target"]);
 
+export interface GrepToolDetails {
+  searchRoot: string;
+  matchCount: number;
+  matchLimitReached: boolean;
+  outputByteTruncated: boolean;
+}
+
 const grepSchema = Type.Object({
   pattern: Type.String({ description: "搜索模式（JavaScript 正则）" }),
   path: Type.Optional(Type.String({ description: "要搜索的文件或目录（默认：当前目录）" })),
@@ -98,7 +105,14 @@ export function createGrepTool(cwd: string): AgentTool<typeof grepSchema> {
       if (matches >= maxMatches) body += `\n\n[已达匹配条数上限 ${maxMatches}]`;
       if (truncated) body += `\n\n[输出约在 ${MAX_OUTPUT_BYTES / 1024}KB 处截断]`;
 
-      return { content: [{ type: "text", text: body }], details: undefined };
+      const details: GrepToolDetails = {
+        searchRoot: root,
+        matchCount: matches,
+        matchLimitReached: matches >= maxMatches,
+        outputByteTruncated: truncated,
+      };
+
+      return { content: [{ type: "text", text: body }], details };
     },
   };
 }

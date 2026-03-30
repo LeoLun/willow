@@ -3,6 +3,12 @@ import { resolve, dirname } from "path";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
 
+export interface WriteToolDetails {
+  absolutePath: string;
+  bytesWritten: number;
+  lineCount: number;
+}
+
 const writeSchema = Type.Object({
   path: Type.String({ description: "要写入的文件路径" }),
   content: Type.String({ description: "要写入的内容" }),
@@ -20,10 +26,18 @@ export function createWriteTool(cwd: string): AgentTool<typeof writeSchema> {
       await mkdir(dirname(absolutePath), { recursive: true });
       await writeFile(absolutePath, content, "utf-8");
 
-      const lines = content.split("\n").length;
+      const lineCount = content.split("\n").length;
+      const bytesWritten = Buffer.byteLength(content, "utf-8");
+
+      const details: WriteToolDetails = {
+        absolutePath,
+        bytesWritten,
+        lineCount,
+      };
+
       return {
-        content: [{ type: "text", text: `已写入 ${lines} 行到 ${path}` }],
-        details: undefined,
+        content: [{ type: "text", text: `已写入 ${lineCount} 行到 ${path}` }],
+        details,
       };
     },
   };
