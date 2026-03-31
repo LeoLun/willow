@@ -38,6 +38,10 @@ const translations: Record<string, Record<string, string>> = {
     Remove: "Remove",
     Free: "Free",
     PDF: "PDF",
+    Completed: "Completed",
+    Running: "Running",
+    Pending: "Pending",
+    Error: "Error",
   },
   zh: {
     "Error:": "错误：",
@@ -78,6 +82,10 @@ const translations: Record<string, Record<string, string>> = {
     Remove: "移除",
     Free: "免费",
     PDF: "PDF",
+    Completed: "已完成",
+    Running: "运行中",
+    Pending: "等待中",
+    Error: "错误",
   },
 };
 

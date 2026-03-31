@@ -31,13 +31,13 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <TopDragBar />
   <SidebarProvider class="relative flex h-screen w-screen overflow-hidden bg-sidebar">
     <LeftSidebar />
     <SidebarTrigger class="absolute top-[5px] left-[70px] z-100" />
 
     <!-- 主区域 -->
     <div class="flex min-w-0 flex-1 flex-col">
+      <TopDragBar />
       <Card class="relative flex-1 !flex-row gap-0 overflow-hidden !py-0">
         <!-- 中间内容区域 -->
         <div class="h-full min-w-0 flex-1 overflow-hidden">
