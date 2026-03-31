@@ -27,8 +27,32 @@ export class SessionService {
     return this.sessionDao.findByWorkspaceId(workspaceId);
   }
 
-  async getSessionListByWorkspaceIds(workspaceIds: number[]) {
+  async getSessionListByWorkspaceIds(workspaceIds: number[], limit?: number) {
+    if (limit) {
+      const results: ReturnType<SessionDao["findByWorkspaceIdWithLimit"]> = [];
+      for (const id of workspaceIds) {
+        results.push(...this.sessionDao.findByWorkspaceIdWithLimit(id, limit));
+      }
+      return results;
+    }
     return this.sessionDao.findByWorkspaceIds(workspaceIds);
+  }
+
+  async getSessionCountByWorkspaceIds(workspaceIds: number[]) {
+    const totals: { [workspaceId: number]: number } = {};
+    for (const id of workspaceIds) {
+      const result = this.sessionDao.countByWorkspaceId(id);
+      totals[id] = result?.count ?? 0;
+    }
+    return totals;
+  }
+
+  async getWorkspaceSessionsPaginated(workspaceId: number, page: number, pageSize: number) {
+    const offset = (page - 1) * pageSize;
+    const items = this.sessionDao.findByWorkspaceIdPaginated(workspaceId, pageSize, offset);
+    const result = this.sessionDao.countByWorkspaceId(workspaceId);
+    const total = result?.count ?? 0;
+    return { sessions: items, total, page, pageSize };
   }
 
   async createSession(workspaceId: number) {

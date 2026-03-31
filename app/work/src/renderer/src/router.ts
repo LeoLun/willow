@@ -6,6 +6,7 @@ import Session from "./pages/chat/session/Session.vue";
 import Workspace from "./pages/chat/workspace/Workspace.vue";
 import Setting from "./pages/setting/Setting.vue";
 import Skills from "./pages/skills/Skills.vue";
+import WorkspaceHistory from "./pages/workspace-history/WorkspaceHistory.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -16,6 +17,11 @@ const routes: RouteRecordRaw[] = [
       { path: "/", name: "workspace", component: Workspace },
       { path: "/:sessionId", name: "session", component: Session },
     ],
+  },
+  {
+    path: "/workspace/:workspaceId/history",
+    name: "workspaceHistory",
+    component: WorkspaceHistory,
   },
   { path: "/skills", name: "skills", component: Skills },
   { path: "/setting", name: "setting", component: Setting },

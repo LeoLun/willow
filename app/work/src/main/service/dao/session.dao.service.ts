@@ -1,6 +1,6 @@
 import { DbService } from "@main/service/db.service";
 import { Injectable } from "@willow/poetry";
-import { desc, eq, inArray } from "drizzle-orm";
+import { count, desc, eq, inArray } from "drizzle-orm";
 import { sessions } from "../../db/schema";
 
 type SessionInsert = typeof sessions.$inferInsert;
@@ -52,6 +52,38 @@ export class SessionDao {
       .from(sessions)
       .where(inArray(sessions.workspaceId, workspaceIds))
       .orderBy(desc(sessions.lastActiveAt))
+      .all();
+  }
+
+  findByWorkspaceIdWithLimit(workspaceId: number, limit: number) {
+    return this.dbService
+      .getDb()
+      .select()
+      .from(sessions)
+      .where(eq(sessions.workspaceId, workspaceId))
+      .orderBy(desc(sessions.lastActiveAt))
+      .limit(limit)
+      .all();
+  }
+
+  countByWorkspaceId(workspaceId: number) {
+    return this.dbService
+      .getDb()
+      .select({ count: count() })
+      .from(sessions)
+      .where(eq(sessions.workspaceId, workspaceId))
+      .get();
+  }
+
+  findByWorkspaceIdPaginated(workspaceId: number, limit: number, offset: number) {
+    return this.dbService
+      .getDb()
+      .select()
+      .from(sessions)
+      .where(eq(sessions.workspaceId, workspaceId))
+      .orderBy(desc(sessions.lastActiveAt))
+      .limit(limit)
+      .offset(offset)
       .all();
   }
 }

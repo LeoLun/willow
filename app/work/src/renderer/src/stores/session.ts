@@ -3,24 +3,37 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { electronAPI } from "@/lib/ipc";
 
+const SIDEBAR_SESSION_LIMIT = 5;
+
 export const useSessionStore = defineStore("session", () => {
   // ─── 状态 ───
   const sessionMap = ref<{ [workspaceId: number]: Session[] }>({});
+  const sessionTotals = ref<{ [workspaceId: number]: number }>({});
+
+  // ─── Getters ───
+  function hasMoreSessions(workspaceId: number): boolean {
+    return (sessionTotals.value[workspaceId] ?? 0) > SIDEBAR_SESSION_LIMIT;
+  }
 
   // ─── Actions ───
   async function fetchSessionList(workspaceIds: number[]) {
     const response = await electronAPI.getSessionList({
       workspaceIds: workspaceIds,
+      limit: SIDEBAR_SESSION_LIMIT,
     });
     const nextMap = { ...sessionMap.value };
     const incoming = response.sessions || {};
 
     workspaceIds.forEach((workspaceId) => {
-      // 控制器只返回有会话的工作区，这里显式回填空数组避免保留旧数据
       nextMap[workspaceId] = incoming[workspaceId] || [];
     });
 
     sessionMap.value = nextMap;
+
+    if (response.totals) {
+      sessionTotals.value = { ...sessionTotals.value, ...response.totals };
+    }
+
     return sessionMap.value;
   }
 
@@ -76,7 +89,9 @@ export const useSessionStore = defineStore("session", () => {
 
   return {
     sessionMap,
+    sessionTotals,
     fetchSessionList,
+    hasMoreSessions,
     renameSession,
     deleteSession,
     cleanSession,

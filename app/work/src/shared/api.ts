@@ -123,10 +123,27 @@ export interface GetSessionListResponse {
   sessions: {
     [workspaceId: number]: Session[];
   };
+  totals?: {
+    [workspaceId: number]: number;
+  };
 }
 
 export interface GetSessionListRequest {
   workspaceIds: number[];
+  limit?: number;
+}
+
+export interface GetWorkspaceSessionsRequest {
+  workspaceId: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface GetWorkspaceSessionsResponse {
+  sessions: Session[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface GetSessionHistoryRequest {

@@ -222,11 +222,22 @@ onBeforeMount(async () => {
                 </template>
                 <template v-else>
                   <SidebarMenuSubItem>
-                    <div class="flex h-full items-center justify-center text-sm text-neutral-400">
+                    <div
+                      class="flex h-full items-center justify-start pl-[6px] text-xs text-neutral-400"
+                    >
                       暂无会话
                     </div>
                   </SidebarMenuSubItem>
                 </template>
+                <SidebarMenuSubItem v-if="sessionStore.hasMoreSessions(workspace.id)">
+                  <SidebarMenuSubButton
+                    as="div"
+                    class="cursor-pointer text-neutral-400 hover:text-neutral-600"
+                    @click="router.push(`/workspace/${workspace.id}/history`)"
+                  >
+                    <span class="text-xs">查看更多...</span>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
               </SidebarMenuSub>
             </CollapsibleContent>
           </SidebarMenuItem>

@@ -13,6 +13,7 @@ import { CreateSessionController } from "./controllers/session/create.session.co
 import { DeleteSessionController } from "./controllers/session/delete.session.controller";
 import { GetSessionHistoryController } from "./controllers/session/get.session.history.controller";
 import { GetSessionListController } from "./controllers/session/get.session.list.controller";
+import { GetWorkspaceSessionsController } from "./controllers/session/get.workspace.sessions.controller";
 import { RenameSessionController } from "./controllers/session/rename.session.controller";
 import { SendMessageController } from "./controllers/session/send.messgae.controller";
 import { CreateWorkspaceController } from "./controllers/workspace/create.workspace.controll";
@@ -64,6 +65,7 @@ if (started) {
     CreateSessionController,
     SendMessageController,
     GetSessionListController,
+    GetWorkspaceSessionsController,
     GetSessionHistoryController,
     RenameSessionController,
     DeleteSessionController,
@@ -88,6 +90,7 @@ export class AppModule {
     private createSessionController: CreateSessionController,
     private sendMessageController: SendMessageController,
     private getSessionListController: GetSessionListController,
+    private getWorkspaceSessionsController: GetWorkspaceSessionsController,
     private getSessionHistoryController: GetSessionHistoryController,
     private renameSessionController: RenameSessionController,
     private deleteSessionController: DeleteSessionController,

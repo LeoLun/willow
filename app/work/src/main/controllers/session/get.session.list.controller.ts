@@ -27,9 +27,9 @@ export class GetSessionListController extends IPCBaseController<
       return this.buildError(400, error.message);
     }
 
-    const { workspaceIds } = request;
+    const { workspaceIds, limit } = request;
 
-    const data = await this.sessionService.getSessionListByWorkspaceIds(workspaceIds);
+    const data = await this.sessionService.getSessionListByWorkspaceIds(workspaceIds, limit);
     const sessions = data.reduce(
       (acc, session) => {
         acc[session.workspaceId] = [...(acc[session.workspaceId] || []), session];
@@ -37,7 +37,14 @@ export class GetSessionListController extends IPCBaseController<
       },
       {} as { [workspaceId: number]: Session[] },
     );
-    return this.buildResponse({ sessions });
+
+    const response: GetSessionListResponse = { sessions };
+
+    if (limit) {
+      response.totals = await this.sessionService.getSessionCountByWorkspaceIds(workspaceIds);
+    }
+
+    return this.buildResponse(response);
   }
 
   checkParams(request: GetSessionListRequest): Error | undefined {
