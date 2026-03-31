@@ -9,7 +9,8 @@ import sql from "highlight.js/lib/languages/sql";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
 import { Check, Copy } from "lucide-vue-next";
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { ensureHighlightTheme } from "../utils/highlight-theme";
 import { i18n } from "../utils/i18n";
 
 hljs.registerLanguage("javascript", javascript);
@@ -63,6 +64,10 @@ async function copyCode() {
     console.error("Copy failed", e);
   }
 }
+
+onMounted(() => {
+  ensureHighlightTheme();
+});
 </script>
 
 <template>

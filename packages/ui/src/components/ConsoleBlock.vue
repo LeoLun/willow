@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import hljs from "highlight.js/lib/core";
+import bash from "highlight.js/lib/languages/bash";
 import { Check, Copy } from "lucide-vue-next";
-import { ref, watch, nextTick } from "vue";
+import { ref, watch, nextTick, computed, onMounted } from "vue";
+import { ensureHighlightTheme } from "../utils/highlight-theme";
 import { i18n } from "../utils/i18n";
 
+hljs.registerLanguage("bash", bash);
 const props = withDefaults(
   defineProps<{
     content?: string;
@@ -26,6 +30,11 @@ async function copy() {
   }
 }
 
+const highlighted = computed(() => {
+  const code = props.content || "";
+  return hljs.highlight(code, { language: "bash" }).value;
+});
+
 watch(
   () => props.content,
   async () => {
@@ -35,6 +44,10 @@ watch(
     }
   },
 );
+
+onMounted(() => {
+  ensureHighlightTheme();
+});
 </script>
 
 <template>
@@ -53,10 +66,9 @@ watch(
     </div>
     <div ref="scrollContainer" class="console-scroll max-h-64 overflow-auto">
       <pre
-        class="m-0 !rounded-none !border-0 !bg-background p-3 font-mono text-xs whitespace-pre-wrap"
+        class="m-0 !rounded-none !border-0 !bg-background font-mono text-xs whitespace-pre-wrap"
         :class="variant === 'error' ? 'text-destructive' : 'text-foreground'"
-        >{{ content || "" }}</pre
-      >
+      ><code class="hljs" :class="`language-bash`" v-html="highlighted"></code></pre>
     </div>
   </div>
 </template>
