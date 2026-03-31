@@ -8,10 +8,11 @@ export class DefaultRendererFactory implements ToolRenderer {
     params: any | undefined,
     result: ToolResultMessage | undefined,
     isStreaming?: boolean,
+    toolName?: string,
   ): ToolRenderResult {
     return {
       component: markRaw(DefaultToolRenderer),
-      props: { params, result, isStreaming },
+      props: { params, result, isStreaming, toolName },
       isCustom: false,
     };
   }

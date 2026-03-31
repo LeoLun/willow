@@ -47,7 +47,7 @@ const renderResult = computed(() => {
   <template v-if="renderResult.isCustom">
     <component :is="renderResult.component" v-bind="renderResult.props" />
   </template>
-  <div v-else class="rounded-md border border-border bg-card p-2.5 text-card-foreground shadow-xs">
+  <div v-else>
     <component :is="renderResult.component" v-bind="renderResult.props" />
   </div>
 </template>

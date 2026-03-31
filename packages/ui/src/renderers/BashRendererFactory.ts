@@ -8,6 +8,7 @@ export class BashRendererFactory implements ToolRenderer<{ command: string }> {
     params: { command: string } | undefined,
     result: ToolResultMessage | undefined,
     isStreaming?: boolean,
+    _toolName?: string,
   ): ToolRenderResult {
     return {
       component: markRaw(BashToolRenderer),

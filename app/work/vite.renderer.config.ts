@@ -34,6 +34,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@willow/ui": resolve(__dirname, "../../packages/ui/src"),
       "@": resolve(__dirname, "src/renderer/src"),
       "@renderer": resolve(__dirname, "src/renderer"),
       "@shared": resolve(__dirname, "src/shared"),

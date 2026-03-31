@@ -67,7 +67,7 @@ async function copyCode() {
 
 <template>
   <div class="overflow-hidden rounded-lg border border-border">
-    <div class="flex items-center justify-between px-3 py-1">
+    <div class="flex items-center justify-between border-b border-border bg-muted px-3 py-1.5">
       <span class="font-mono text-xs text-muted-foreground">{{ displayLanguage }}</span>
       <button
         class="flex cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -81,7 +81,7 @@ async function copyCode() {
     </div>
     <div class="max-h-96 overflow-auto">
       <pre
-        class="m-0 !rounded-none !border-0 !bg-transparent px-4 pb-4 font-mono text-xs text-foreground"
+        class="m-0 !rounded-none !border-0 !bg-transparent font-mono text-xs text-foreground"
       ><code class="hljs" :class="`language-${displayLanguage}`" v-html="highlighted"></code></pre>
     </div>
   </div>

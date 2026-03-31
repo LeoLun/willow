@@ -17,6 +17,12 @@ const defaultRenderer = new DefaultRendererFactory();
 
 let showJsonMode = false;
 
+function normalizeToolName(name: string): string {
+  const lowered = name.toLowerCase();
+  const bySplit = lowered.split(/[/:.]/).filter(Boolean).pop() || lowered;
+  return bySplit.replace(/[-_](tool|file)$/g, "");
+}
+
 export function setShowJsonMode(enabled: boolean): void {
   showJsonMode = enabled;
 }
@@ -28,14 +34,14 @@ export function renderTool(
   isStreaming?: boolean,
 ): ToolRenderResult {
   if (showJsonMode) {
-    return defaultRenderer.render(params, result, isStreaming);
+    return defaultRenderer.render(params, result, isStreaming, toolName);
   }
 
-  const renderer = getToolRenderer(toolName);
+  const renderer = getToolRenderer(toolName) ?? getToolRenderer(normalizeToolName(toolName));
   if (renderer) {
-    return renderer.render(params, result, isStreaming);
+    return renderer.render(params, result, isStreaming, toolName);
   }
-  return defaultRenderer.render(params, result, isStreaming);
+  return defaultRenderer.render(params, result, isStreaming, toolName);
 }
 
 // Register built-in renderers
