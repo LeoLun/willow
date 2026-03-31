@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { SendMessage } from "@shared/api";
 import {
   ArrowUpIcon,
@@ -23,9 +24,30 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
-import InputGroupText from "@/components/ui/input-group/InputGroupText.vue";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useConfigStore } from "@/stores/config";
+import CircularProgress from "../CircularProgress.vue";
+
+interface UsageLike {
+  input?: number;
+  output?: number;
+}
+
+const props = withDefaults(
+  defineProps<{
+    messages?: AgentMessage[];
+    isStreaming?: boolean;
+    streamMessage?: AgentMessage | null;
+    showUsage?: boolean;
+  }>(),
+  {
+    messages: () => [],
+    isStreaming: false,
+    streamMessage: null,
+    showUsage: true,
+  },
+);
 
 const router = useRouter();
 const configStore = useConfigStore();
@@ -36,6 +58,11 @@ const selectedModelId = ref<string>("");
 const showNoModelTip = ref(false);
 
 const hasModels = computed(() => modelList.value.length > 0);
+const selectedModel = computed(
+  () =>
+    modelList.value.find((model) => model.modelId === selectedModelId.value) ?? defaultModel.value,
+);
+const contextWindow = computed(() => selectedModel.value?.contextWindow ?? 0);
 
 onBeforeMount(async () => {
   if (modelList.value.length === 0) {
@@ -57,6 +84,59 @@ const selectedModelName = computed(() => {
   const found = modelList.value.find((m) => m.modelId === selectedModelId.value);
   return found?.name || selectedModelId.value || "选择模型";
 });
+
+function getUsage(message: AgentMessage | null | undefined): UsageLike | null {
+  if (!message || typeof message !== "object" || !("usage" in message)) {
+    return null;
+  }
+  const usage = (message as AgentMessage & { usage?: UsageLike }).usage;
+  if (!usage) {
+    return null;
+  }
+  return usage;
+}
+
+function getUsedTokens(message: AgentMessage | null | undefined) {
+  const usage = getUsage(message);
+  return (usage?.input ?? 0) + (usage?.output ?? 0);
+}
+
+function formatTokenCount(count: number): string {
+  if (count < 1000) return count.toString();
+  if (count < 10000) return `${(count / 1000).toFixed(1)}K`;
+  return `${Math.round(count / 1000)}K`;
+}
+
+const historyUsedTokens = computed(() => {
+  return props.messages.reduce((total, message) => {
+    return total + getUsedTokens(message);
+  }, 0);
+});
+
+const streamUsedTokens = computed(() => {
+  if (!props.isStreaming || !props.streamMessage) {
+    return 0;
+  }
+  return getUsedTokens(props.streamMessage);
+});
+
+const usedTokens = computed(() => {
+  return historyUsedTokens.value + streamUsedTokens.value;
+});
+
+const usagePercent = computed(() => {
+  if (!contextWindow.value) {
+    return 0;
+  }
+  return (usedTokens.value / contextWindow.value) * 100;
+});
+
+const usagePercentText = computed(() => `${usagePercent.value.toFixed(1)}%`);
+const usedTokensText = computed(() => formatTokenCount(usedTokens.value));
+const contextWindowText = computed(() => formatTokenCount(contextWindow.value));
+const shouldShowUsage = computed(
+  () => hasModels.value && contextWindow.value > 0 && props.showUsage,
+);
 
 function goToSetting() {
   router.push("/setting");
@@ -131,8 +211,20 @@ function handleSend() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <InputGroupText class="ml-auto">52% used</InputGroupText>
-        <Separator orientation="vertical" class="!h-4" />
+        <div class="ml-auto"></div>
+        <TooltipProvider v-if="shouldShowUsage">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <div class="flex cursor-pointer items-center p-1">
+                <CircularProgress class="cursor-pointer" :size="16" :progress="usagePercent" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="center">
+              <div>{{ usagePercentText }} · {{ usedTokensText }} / {{ contextWindowText }}</div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <Separator v-if="shouldShowUsage" orientation="vertical" class="!h-4" />
         <InputGroupButton
           :disabled="!message.trim().length"
           variant="default"

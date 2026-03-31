@@ -1,11 +1,28 @@
 <script setup lang="ts">
+import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { Session } from "@shared/api";
 import { MessageList, StreamingMessageContainer } from "@willow/ui";
 import { storeToRefs } from "pinia";
-import { computed, ref, watch, nextTick } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { useAgentMessages } from "@/composables/useAgentMessages";
 import { useSessionStore } from "@/stores/session";
+
+const props = withDefaults(
+  defineProps<{
+    messages?: AgentMessage[];
+    streamMessage?: AgentMessage | null;
+    isStreaming?: boolean;
+    tools?: any[];
+    pendingToolCalls?: Set<string>;
+  }>(),
+  {
+    messages: () => [],
+    streamMessage: null,
+    isStreaming: false,
+    tools: () => [],
+    pendingToolCalls: () => new Set<string>(),
+  },
+);
 
 const sessionStore = useSessionStore();
 const { sessionMap } = storeToRefs(sessionStore);
@@ -27,41 +44,108 @@ const session = computed(() => {
   return _session;
 });
 
-const { state } = useAgentMessages(sessionId);
+const scrollArea = ref<HTMLElement | null>(null);
+const messageContainer = ref<HTMLElement | null>(null);
+const shouldStickToBottom = ref(true);
+let resizeObserver: ResizeObserver | null = null;
 
-const scrollArea = ref<HTMLElement>();
+function isNearBottom() {
+  const el = scrollArea.value;
+  if (!el) {
+    return true;
+  }
+  const threshold = 32;
+  return el.scrollHeight - el.clientHeight - el.scrollTop <= threshold;
+}
+
+function scrollToBottom() {
+  const el = scrollArea.value;
+  if (!el) {
+    return;
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+function scheduleScrollToBottom() {
+  void nextTick(() => {
+    scrollToBottom();
+    requestAnimationFrame(() => {
+      scrollToBottom();
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+    });
+  });
+}
+
+function handleScroll() {
+  shouldStickToBottom.value = isNearBottom();
+}
 
 watch(
-  () => [state.messages.length, state.streamMessage],
-  async () => {
-    await nextTick();
-    if (scrollArea.value) {
-      scrollArea.value.scrollTop = scrollArea.value.scrollHeight;
-    }
+  sessionId,
+  () => {
+    shouldStickToBottom.value = true;
+    scheduleScrollToBottom();
   },
+  { immediate: true },
 );
+
+watch(
+  () => [props.messages.length, props.streamMessage, props.isStreaming],
+  () => {
+    if (!shouldStickToBottom.value) {
+      return;
+    }
+    scheduleScrollToBottom();
+  },
+  { flush: "post" },
+);
+
+onMounted(() => {
+  const el = scrollArea.value;
+  if (el) {
+    el.addEventListener("scroll", handleScroll, { passive: true });
+  }
+
+  if (messageContainer.value && typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(() => {
+      if (!shouldStickToBottom.value) {
+        return;
+      }
+      scheduleScrollToBottom();
+    });
+    resizeObserver.observe(messageContainer.value);
+  }
+});
+
+onBeforeUnmount(() => {
+  scrollArea.value?.removeEventListener("scroll", handleScroll);
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+});
 </script>
 
 <template>
-  <div class="flex h-full flex-col items-center">
+  <div class="flex h-full min-h-0 flex-col items-center">
     <div class="text-sm">
       {{ session?.title || "未命名会话" }}
     </div>
-    <div ref="scrollArea" class="w-full flex-1 overflow-y-auto pt-4 pb-4">
-      <div class="mx-auto max-w-3xl px-4">
+    <div ref="scrollArea" class="min-h-0 w-full flex-1 overflow-y-auto pt-4 pb-4">
+      <div ref="messageContainer" class="mx-auto max-w-3xl px-4">
         <MessageList
-          :messages="state.messages"
-          :tools="state.tools"
-          :is-streaming="state.isStreaming"
-          :pending-tool-calls="state.pendingToolCalls"
+          :messages="props.messages"
+          :tools="props.tools"
+          :is-streaming="props.isStreaming"
+          :pending-tool-calls="props.pendingToolCalls"
         />
 
         <StreamingMessageContainer
-          v-if="state.isStreaming"
-          :message="state.streamMessage"
-          :is-streaming="state.isStreaming"
-          :tools="state.tools"
-          :pending-tool-calls="state.pendingToolCalls"
+          v-if="props.isStreaming"
+          :message="props.streamMessage"
+          :is-streaming="props.isStreaming"
+          :tools="props.tools"
+          :pending-tool-calls="props.pendingToolCalls"
         />
       </div>
     </div>
