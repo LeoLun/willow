@@ -19,7 +19,7 @@ const isSessionRoute = computed(() => route.name === "session");
 
 async function handleSend(request: SendMessage) {
   // 检查是否为 session 路由
-  if (isSessionRoute) {
+  if (isSessionRoute.value) {
     const sessionId = Number(route.params.sessionId);
     electronAPI.sendMessage({
       sessionId,

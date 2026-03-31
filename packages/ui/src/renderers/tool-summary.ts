@@ -1,6 +1,6 @@
 import { i18n } from "../utils/i18n";
 
-type ToolName = "read" | "write" | "edit" | "find" | "grep" | "ls";
+type ToolName = "read" | "write" | "edit" | "find" | "grep" | "ls" | "webfetch";
 
 function normalizeToolName(name: string | undefined): ToolName | null {
   if (!name) return null;
@@ -14,7 +14,8 @@ function normalizeToolName(name: string | undefined): ToolName | null {
     base === "edit" ||
     base === "find" ||
     base === "grep" ||
-    base === "ls"
+    base === "ls" ||
+    base === "webfetch"
   ) {
     return base;
   }
@@ -46,6 +47,16 @@ function basename(input: string | undefined): string {
   return parts[parts.length - 1] || i18n("unknown");
 }
 
+function summarizeUrl(input: string | undefined): string {
+  if (!input) return i18n("unknown");
+  try {
+    const url = new URL(input);
+    return `${url.host}${url.pathname === "/" ? "" : url.pathname}`;
+  } catch {
+    return input;
+  }
+}
+
 function formatTemplate(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_match, key: string) => {
     const value = vars[key];
@@ -65,21 +76,22 @@ export function getToolSummary(
 
   if (isInProgress) {
     const progressMap: Record<ToolName, string> = {
-      read: i18n("Reading file..."),
-      write: i18n("Writing file..."),
-      edit: i18n("Editing file..."),
-      find: i18n("Finding files..."),
-      grep: i18n("Searching content..."),
-      ls: i18n("Listing directory..."),
+      read: i18n("reading_file"),
+      write: i18n("writing_file"),
+      edit: i18n("editing_file"),
+      find: i18n("finding_files"),
+      grep: i18n("searching_content"),
+      ls: i18n("listing_directory"),
+      webfetch: i18n("fetch_web"),
     };
-    return tool ? progressMap[tool] : i18n("Tool running...");
+    return tool ? progressMap[tool] : i18n("tool_running");
   }
 
   if (!tool) return "";
 
   if (tool === "read") {
     const file = basename(safeDetails.absolutePath || parsedParams.path);
-    return formatTemplate(i18n("Read summary"), {
+    return formatTemplate(i18n("read_summary"), {
       file,
       start: safeDetails.startLine1Indexed ?? 1,
       shown: safeDetails.linesShown ?? 0,
@@ -89,7 +101,7 @@ export function getToolSummary(
 
   if (tool === "write") {
     const file = basename(safeDetails.absolutePath || parsedParams.path);
-    return formatTemplate(i18n("Write summary"), {
+    return formatTemplate(i18n("write_summary"), {
       file,
       lines: safeDetails.lineCount ?? 0,
       bytes: safeDetails.bytesWritten ?? 0,
@@ -98,7 +110,7 @@ export function getToolSummary(
 
   if (tool === "edit") {
     const file = basename(safeDetails.absolutePath || parsedParams.path);
-    return formatTemplate(i18n("Edit summary"), {
+    return formatTemplate(i18n("edit_summary"), {
       file,
       before: safeDetails.bytesBefore ?? 0,
       after: safeDetails.bytesAfter ?? 0,
@@ -107,7 +119,7 @@ export function getToolSummary(
 
   if (tool === "ls") {
     const dir = basename(safeDetails.absolutePath || parsedParams.path);
-    return formatTemplate(i18n("Ls summary"), {
+    return formatTemplate(i18n("ls_summary"), {
       dir,
       returned: safeDetails.returned ?? 0,
       total: safeDetails.totalEntries ?? 0,
@@ -116,15 +128,22 @@ export function getToolSummary(
 
   if (tool === "find") {
     const pattern = parsedParams.pattern ?? i18n("unknown");
-    return formatTemplate(i18n("Find summary"), {
+    return formatTemplate(i18n("find_summary"), {
       pattern,
       returned: safeDetails.returned ?? 0,
       total: safeDetails.totalMatched ?? 0,
     });
   }
 
+  if (tool === "webfetch") {
+    return formatTemplate(i18n("webfetch_summary"), {
+      target: safeDetails.title || summarizeUrl(safeDetails.url || parsedParams.url),
+      format: safeDetails.returnedFormat || parsedParams.format || "markdown",
+    });
+  }
+
   const pattern = parsedParams.pattern ?? i18n("unknown");
-  return formatTemplate(i18n("Grep summary"), {
+  return formatTemplate(i18n("grep_summary"), {
     pattern,
     count: safeDetails.matchCount ?? 0,
   });

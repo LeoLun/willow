@@ -4,6 +4,7 @@ import { createFindTool } from "./find";
 import { createGrepTool } from "./grep";
 import { createLsTool } from "./ls";
 import { createReadTool } from "./read";
+import { createWebFetchTool } from "./webfetch";
 import { createWriteTool } from "./write";
 
 export {
@@ -13,6 +14,7 @@ export {
   createGrepTool,
   createLsTool,
   createReadTool,
+  createWebFetchTool,
   createWriteTool,
 };
 
@@ -24,6 +26,7 @@ export function createAllTools(cwd: string) {
     createGrepTool(cwd),
     createLsTool(cwd),
     createReadTool(cwd),
+    createWebFetchTool(),
     createWriteTool(cwd),
   ];
 }

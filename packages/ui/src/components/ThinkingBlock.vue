@@ -32,7 +32,7 @@ function toggleExpanded() {
             : ''
         "
       >
-        {{ i18n("Thinking...") }}
+        {{ isStreaming ? i18n("thinking") : i18n("thinking_completed") }}
       </span>
     </div>
     <MarkdownBlock v-if="isExpanded" :content="content" :is-thinking="true" />

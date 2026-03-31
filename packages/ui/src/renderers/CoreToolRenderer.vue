@@ -40,7 +40,7 @@ const outputData = computed(() => {
     props.result.content
       ?.filter((c) => c.type === "text")
       .map((c: any) => c.text)
-      .join("\n") || i18n("(no output)");
+      .join("\n") || i18n("no_output");
   let outputLanguage = "text";
 
   try {
@@ -54,7 +54,7 @@ const outputData = computed(() => {
   return { text: outputJson, language: outputLanguage };
 });
 
-const headerText = computed(() => i18n("Tool Call"));
+const headerText = computed(() => i18n("tool_call"));
 
 const hasInputData = computed(
   () => !!(paramsJson.value && paramsJson.value !== "{}" && paramsJson.value !== "null"),
@@ -100,7 +100,7 @@ function toggleExpanded() {
       <span class="inline-block transition-transform" :class="{ 'rotate-90': shouldShowDetails }">
         <ChevronRight class="h-3.5 w-3.5" />
       </span>
-      {{ shouldShowDetails ? i18n("Hide details") : i18n("Show details") }}
+      {{ shouldShowDetails ? i18n("hide_details") : i18n("show_details") }}
     </button>
 
     <template v-if="shouldShowDetails">

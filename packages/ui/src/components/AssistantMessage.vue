@@ -114,7 +114,7 @@ const usageText = computed(() => {
     </div>
 
     <span v-if="message.stopReason === 'aborted'" class="text-sm text-destructive italic">
-      {{ i18n("Request aborted") }}
+      {{ i18n("request_aborted") }}
     </span>
   </div>
 </template>

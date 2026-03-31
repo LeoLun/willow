@@ -13,9 +13,11 @@
     "@mariozechner/pi-ai": "^0.62.0",
     "@sinclair/typebox": "^0.34.41",
     "glob": "^7.2.3",
+    "turndown": "^7.2.0",
     "yaml": "^2.7.1"
   },
   "devDependencies": {
+    "@types/turndown": "^5.0.6",
     "electron": "catalog:",
     "inversify": "catalog:",
     "jest": "^27.4.5",

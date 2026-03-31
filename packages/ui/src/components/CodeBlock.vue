@@ -76,7 +76,7 @@ onMounted(() => {
       <span class="font-mono text-xs text-muted-foreground">{{ displayLanguage }}</span>
       <button
         class="flex cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-        :title="i18n('Copy code')"
+        :title="i18n('copy_code')"
         @click="copyCode"
       >
         <Check v-if="copied" class="h-3.5 w-3.5" />

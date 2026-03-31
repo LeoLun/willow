@@ -5,6 +5,7 @@ export {
   createGrepTool,
   createLsTool,
   createReadTool,
+  createWebFetchTool,
   createWriteTool,
   createAllTools,
 } from "./tools/index";

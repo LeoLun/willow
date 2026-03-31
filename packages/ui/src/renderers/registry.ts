@@ -2,6 +2,7 @@ import type { ToolResultMessage } from "@mariozechner/pi-ai";
 import { BashRendererFactory } from "./BashRendererFactory";
 import { DefaultRendererFactory } from "./DefaultRendererFactory";
 import type { ToolRenderer, ToolRenderResult } from "./types";
+import { WebFetchRendererFactory } from "./WebFetchRendererFactory";
 
 const toolRenderers = new Map<string, ToolRenderer>();
 
@@ -46,3 +47,4 @@ export function renderTool(
 
 // Register built-in renderers
 registerToolRenderer("bash", new BashRendererFactory());
+registerToolRenderer("webfetch", new WebFetchRendererFactory());

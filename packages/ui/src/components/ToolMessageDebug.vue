@@ -62,7 +62,7 @@ const detailsFormatted = computed(() => pretty(props.result?.details));
         />
       </template>
       <div v-else class="text-xs text-muted-foreground">
-        {{ i18n("(no result)") }}
+        {{ i18n("no_result") }}
       </div>
     </div>
   </div>

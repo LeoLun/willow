@@ -18,8 +18,8 @@ const state = computed(() => {
 });
 
 const headerText = computed(() => {
-  if (!props.params?.command) return i18n("Waiting for command...");
-  return i18n("Running command...");
+  if (!props.params?.command) return i18n("waiting_for_command");
+  return i18n("running_command");
 });
 
 const consoleContent = computed(() => {
