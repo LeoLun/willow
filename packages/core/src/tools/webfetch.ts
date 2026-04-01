@@ -34,8 +34,19 @@ export function createWebFetchTool(): AgentTool<typeof webFetchSchema> {
   return {
     name: "webfetch",
     label: "抓取网页",
-    description:
-      "抓取指定 URL 的网页内容，支持以 text、markdown 或 html 格式返回。适合读取在线文档、博客、网页正文等内容。",
+    description: `- 从指定 URL 获取内容
+- 输入 URL 和可选格式
+- 获取 URL 内容，并将其转换为请求的格式(默认为 Markdown)
+- 返回指定格式的内容
+- 当您需要检索和分析网页内容时，请使用此工具
+
+使用说明：
+- 重要提示：如果存在其他网页抓取功能更强大、更适合特定任务或限制更少的工具，请优先使用该工具。
+- URL 必须是完整有效的 URL
+- HTTP URL 将自动升级为 HTTPS
+- 格式选项："markdown"(默认),"text" 或 "html"
+- 此工具为只读工具，不会修改任何文件
+- 如果内容过大，结果可能会被汇总`,
     parameters: webFetchSchema,
     async execute(_toolCallId, params, signal) {
       const format = params.format ?? "markdown";

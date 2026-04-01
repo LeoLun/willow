@@ -88,6 +88,7 @@ export interface SendMessageRequest {
   message: string;
   modelId?: string;
   files?: IFile[];
+  webSearchEnabled?: boolean;
 }
 
 export interface SendMessageResponse {}
@@ -231,4 +232,47 @@ export interface SetDefaultModelRequest {
 
 export interface SetDefaultModelResponse {
   model: ModelConfig;
+}
+
+// ─── Tavily API Key 配置 ───
+
+export interface TavilyKeyConfig {
+  id: number;
+  apiKey: string;
+  monthlyLimit: number;
+  currentMonthUsage: number;
+  usageResetMonth: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface GetTavilyKeyListResponse {
+  keys: TavilyKeyConfig[];
+}
+
+export interface AddTavilyKeyRequest {
+  apiKey: string;
+  monthlyLimit?: number;
+}
+
+export interface AddTavilyKeyResponse {
+  key: TavilyKeyConfig;
+}
+
+export interface UpdateTavilyKeyRequest {
+  id: number;
+  apiKey?: string;
+  monthlyLimit?: number;
+}
+
+export interface UpdateTavilyKeyResponse {
+  key: TavilyKeyConfig;
+}
+
+export interface DeleteTavilyKeyRequest {
+  id: number;
+}
+
+export interface DeleteTavilyKeyResponse {
+  key: TavilyKeyConfig;
 }

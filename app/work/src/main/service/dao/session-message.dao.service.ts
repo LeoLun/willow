@@ -1,6 +1,6 @@
 import { DbService } from "@main/service/db.service";
 import { Injectable } from "@willow/poetry";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { sessionMessages } from "../../db/schema";
 
 type SessionMessageInsert = typeof sessionMessages.$inferInsert;
@@ -73,6 +73,16 @@ export class SessionMessageDao {
       .getDb()
       .delete(sessionMessages)
       .where(eq(sessionMessages.sessionId, sessionId))
+      .returning()
+      .all();
+  }
+
+  deleteBySessionIds(sessionIds: number[]) {
+    if (sessionIds.length === 0) return [];
+    return this.dbService
+      .getDb()
+      .delete(sessionMessages)
+      .where(inArray(sessionMessages.sessionId, sessionIds))
       .returning()
       .all();
   }

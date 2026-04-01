@@ -91,7 +91,7 @@ const renderItems = computed(() => {
         :pending-tool-calls="pendingToolCalls"
         :tool-results-by-id="item.data.toolResultsById"
         :hide-tool-calls="false"
-        :hide-pending-tool-calls="isStreaming"
+        :hide-pending-tool-calls="false"
         :on-cost-click="onCostClick"
       />
     </template>

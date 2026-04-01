@@ -1,4 +1,11 @@
-import type { ModelConfig, AddModelRequest, UpdateModelRequest } from "@shared/api";
+import type {
+  ModelConfig,
+  AddModelRequest,
+  UpdateModelRequest,
+  TavilyKeyConfig,
+  AddTavilyKeyRequest,
+  UpdateTavilyKeyRequest,
+} from "@shared/api";
 import { defineStore } from "pinia";
 import { computed, ref, toRaw } from "vue";
 import { electronAPI } from "@/lib/ipc";
@@ -6,11 +13,13 @@ import { electronAPI } from "@/lib/ipc";
 export const useConfigStore = defineStore("config", () => {
   // ─── 状态 ───
   const modelList = ref<ModelConfig[]>([]);
+  const tavilyKeyList = ref<TavilyKeyConfig[]>([]);
 
   // ─── Getters ───
   const defaultModel = computed(() => modelList.value.find((m) => m.isDefault));
+  const hasTavilyKeys = computed(() => tavilyKeyList.value.length > 0);
 
-  // ─── Actions ───
+  // ─── Actions: 模型 ───
   async function fetchModelList() {
     const response = await electronAPI.getModelList();
     modelList.value = response.models || [];
@@ -40,6 +49,30 @@ export const useConfigStore = defineStore("config", () => {
     return model;
   }
 
+  // ─── Actions: Tavily ───
+  async function fetchTavilyKeyList() {
+    const response = await electronAPI.getTavilyKeyList();
+    tavilyKeyList.value = response.keys || [];
+    return tavilyKeyList.value;
+  }
+
+  async function addTavilyKey(data: AddTavilyKeyRequest) {
+    const { key } = await electronAPI.addTavilyKey(toRaw(data));
+    await fetchTavilyKeyList();
+    return key;
+  }
+
+  async function updateTavilyKey(data: UpdateTavilyKeyRequest) {
+    const { key } = await electronAPI.updateTavilyKey(toRaw(data));
+    await fetchTavilyKeyList();
+    return key;
+  }
+
+  async function deleteTavilyKey(id: number) {
+    await electronAPI.deleteTavilyKey({ id });
+    await fetchTavilyKeyList();
+  }
+
   return {
     modelList,
     defaultModel,
@@ -48,5 +81,11 @@ export const useConfigStore = defineStore("config", () => {
     updateModel,
     deleteModel,
     setDefaultModel,
+    tavilyKeyList,
+    hasTavilyKeys,
+    fetchTavilyKeyList,
+    addTavilyKey,
+    updateTavilyKey,
+    deleteTavilyKey,
   };
 });

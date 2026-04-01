@@ -6,8 +6,10 @@ export {
   createLsTool,
   createReadTool,
   createWebFetchTool,
+  createWebSearchTool,
   createWriteTool,
   createAllTools,
+  type WebSearchOptions,
 } from "./tools/index";
 
 export { buildSystemPrompt, type SystemPromptOptions } from "./system-prompt";

@@ -36,6 +36,13 @@ import type {
   DeleteModelResponse,
   SetDefaultModelRequest,
   SetDefaultModelResponse,
+  GetTavilyKeyListResponse,
+  AddTavilyKeyRequest,
+  AddTavilyKeyResponse,
+  UpdateTavilyKeyRequest,
+  UpdateTavilyKeyResponse,
+  DeleteTavilyKeyRequest,
+  DeleteTavilyKeyResponse,
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
@@ -57,6 +64,10 @@ import {
   UPDATE_MODEL,
   DELETE_MODEL,
   SET_DEFAULT_MODEL,
+  GET_TAVILY_KEY_LIST,
+  ADD_TAVILY_KEY,
+  UPDATE_TAVILY_KEY,
+  DELETE_TAVILY_KEY,
 } from "../shared/constants";
 
 const ipcObject: IRenderHook = {
@@ -303,6 +314,57 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("set default model failed");
+    }
+    return response.data;
+  },
+  getTavilyKeyList: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_TAVILY_KEY_LIST,
+    )) as ApiResponse<GetTavilyKeyListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get tavily key list failed");
+    }
+    return response.data;
+  },
+  addTavilyKey: async (request: AddTavilyKeyRequest) => {
+    const response = (await ipcRenderer.invoke(
+      ADD_TAVILY_KEY,
+      request,
+    )) as ApiResponse<AddTavilyKeyResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("add tavily key failed");
+    }
+    return response.data;
+  },
+  updateTavilyKey: async (request: UpdateTavilyKeyRequest) => {
+    const response = (await ipcRenderer.invoke(
+      UPDATE_TAVILY_KEY,
+      request,
+    )) as ApiResponse<UpdateTavilyKeyResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("update tavily key failed");
+    }
+    return response.data;
+  },
+  deleteTavilyKey: async (request: DeleteTavilyKeyRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_TAVILY_KEY,
+      request,
+    )) as ApiResponse<DeleteTavilyKeyResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("delete tavily key failed");
     }
     return response.data;
   },

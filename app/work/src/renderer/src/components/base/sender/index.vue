@@ -5,6 +5,7 @@ import {
   ArrowUpIcon,
   CheckIcon,
   ChevronsUpDownIcon,
+  GlobeIcon,
   PlusIcon,
   SettingsIcon,
 } from "lucide-vue-next";
@@ -56,6 +57,7 @@ const { modelList, defaultModel } = storeToRefs(configStore);
 const message = ref("");
 const selectedModelId = ref<string>("");
 const showNoModelTip = ref(false);
+const webSearchEnabled = ref(true);
 
 const hasModels = computed(() => modelList.value.length > 0);
 const selectedModel = computed(
@@ -159,6 +161,7 @@ function handleSend() {
   emit("send", {
     message: msg,
     modelId: selectedModelId.value,
+    webSearchEnabled: webSearchEnabled.value,
   });
 }
 </script>
@@ -178,6 +181,23 @@ function handleSend() {
         <InputGroupButton variant="outline" class="rounded-full" size="icon-xs">
           <PlusIcon class="size-4" />
         </InputGroupButton>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <InputGroupButton
+                :variant="webSearchEnabled ? 'default' : 'outline'"
+                class="rounded-full"
+                size="icon-xs"
+                @click="webSearchEnabled = !webSearchEnabled"
+              >
+                <GlobeIcon class="size-4" />
+              </InputGroupButton>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              {{ webSearchEnabled ? "关闭网络搜索" : "开启网络搜索" }}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
             <InputGroupButton variant="ghost" class="gap-1">

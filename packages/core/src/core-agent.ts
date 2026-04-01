@@ -1,7 +1,7 @@
 import type { Agent } from "@mariozechner/pi-agent-core";
 import { loadSkills } from "./skills";
 import { buildSystemPrompt, type SystemPromptOptions } from "./system-prompt";
-import { createAllTools } from "./tools/index";
+import { createAllTools, type WebSearchOptions } from "./tools/index";
 
 export interface CoreAgentOptions {
   cwd: string;
@@ -9,6 +9,7 @@ export interface CoreAgentOptions {
   userData?: string;
   customInstructions?: string;
   projectContext?: string;
+  websearch?: WebSearchOptions;
 }
 
 export class CoreAgent {
@@ -19,7 +20,7 @@ export class CoreAgent {
     this.agent = agent;
     this.cwd = options.cwd;
 
-    const tools = createAllTools(this.cwd);
+    const tools = createAllTools(this.cwd, options.websearch);
     const { skills, userDir, projectDir } = loadSkills({
       cwd: this.cwd,
       agentDir: options.agentDir,

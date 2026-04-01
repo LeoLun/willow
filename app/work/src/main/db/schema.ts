@@ -49,6 +49,21 @@ export const sessionMessages = sqliteTable("session_messages", {
     .notNull(),
 });
 
+export const tavilyApiKeys = sqliteTable("tavily_api_keys", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  apiKey: text("api_key").notNull(),
+  monthlyLimit: integer("monthly_limit").notNull().default(1000),
+  currentMonthUsage: integer("current_month_usage").notNull().default(0),
+  usageResetMonth: text("usage_reset_month").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdateFn(() => new Date())
+    .notNull(),
+});
+
 export const models = sqliteTable("models", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   modelId: text("model_id").notNull(),

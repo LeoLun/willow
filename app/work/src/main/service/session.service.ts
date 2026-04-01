@@ -137,7 +137,11 @@ export class SessionService {
 
     const priorMessageCount = this.sessionMessageDao.findBySessionId(sessionId).length;
 
-    const agent = await this.agentService.getDefaultAgent(session, data.modelId);
+    const agent = await this.agentService.getDefaultAgent(
+      session,
+      data.modelId,
+      data.webSearchEnabled,
+    );
     let replyText = "";
 
     const unsubscribe = agent.subscribe((event: AgentEvent) => {

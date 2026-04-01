@@ -78,6 +78,7 @@ export function useAgentMessages(sessionId: Ref<number>) {
         break;
 
       case "tool_execution_start":
+      case "tool_execution_update":
         if (event.toolCallId) {
           state.pendingToolCalls = new Set([...state.pendingToolCalls, event.toolCallId]);
         }
@@ -93,7 +94,6 @@ export function useAgentMessages(sessionId: Ref<number>) {
 
       case "turn_start":
       case "turn_end":
-      case "tool_execution_update":
         break;
     }
   }

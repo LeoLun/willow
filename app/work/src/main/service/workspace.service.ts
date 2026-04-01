@@ -1,11 +1,17 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
+import { SessionDao } from "@main/service/dao/session.dao.service";
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import { Injectable } from "@willow/poetry";
 import { app } from "electron";
 @Injectable()
 export class WorkspaceService {
-  constructor(private readonly workspaceDao: WorkspaceDao) {}
+  constructor(
+    private readonly workspaceDao: WorkspaceDao,
+    private readonly sessionDao: SessionDao,
+    private readonly sessionMessageDao: SessionMessageDao,
+  ) {}
 
   generateWorkspaceId() {
     return Date.now();
@@ -28,6 +34,10 @@ export class WorkspaceService {
   }
 
   async deleteWorkspace(id: number) {
+    const sessions = this.sessionDao.findByWorkspaceId(id);
+    const sessionIds = sessions.map((s) => s.id);
+    this.sessionMessageDao.deleteBySessionIds(sessionIds);
+    this.sessionDao.deleteByWorkspaceId(id);
     return this.workspaceDao.deleteById(id);
   }
 

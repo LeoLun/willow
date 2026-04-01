@@ -2,10 +2,14 @@ import { On, WindowFactoryResolver, Module } from "@willow/poetry";
 import { app, BrowserWindow } from "electron";
 import started from "electron-squirrel-startup";
 import { AddModelController } from "./controllers/config/add.model.controller";
+import { AddTavilyKeyController } from "./controllers/config/add.tavily.key.controller";
 import { DeleteModelController } from "./controllers/config/delete.model.controller";
+import { DeleteTavilyKeyController } from "./controllers/config/delete.tavily.key.controller";
 import { GetModelListController } from "./controllers/config/get.model.list.controller";
+import { GetTavilyKeyListController } from "./controllers/config/get.tavily.key.list.controller";
 import { SetDefaultModelController } from "./controllers/config/set.default.model.controller";
 import { UpdateModelController } from "./controllers/config/update.model.controller";
+import { UpdateTavilyKeyController } from "./controllers/config/update.tavily.key.controller";
 import { DialogController } from "./controllers/dialog.controller";
 import { EventController } from "./controllers/event.controller";
 import { InitController } from "./controllers/init.controller";
@@ -26,11 +30,13 @@ import { ConfigService } from "./service/config.service";
 import { ModelDao } from "./service/dao/model.dao.service";
 import { SessionMessageDao } from "./service/dao/session-message.dao.service";
 import { SessionDao } from "./service/dao/session.dao.service";
+import { TavilyDao } from "./service/dao/tavily.dao.service";
 import { WorkspaceDao } from "./service/dao/workspace.dao.service";
 import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
 import { SessionService } from "./service/session.service";
 import { SystemService } from "./service/system.service";
+import { TavilyService } from "./service/tavily.service";
 import { WorkspaceService } from "./service/workspace.service";
 import { MainWindow } from "./window/main.window";
 
@@ -52,6 +58,8 @@ if (started) {
     SessionDao,
     SessionMessageDao,
     ModelDao,
+    TavilyDao,
+    TavilyService,
     EventService,
   ],
   controllers: [
@@ -75,6 +83,10 @@ if (started) {
     UpdateModelController,
     DeleteModelController,
     SetDefaultModelController,
+    GetTavilyKeyListController,
+    AddTavilyKeyController,
+    UpdateTavilyKeyController,
+    DeleteTavilyKeyController,
   ],
 })
 export class AppModule {
@@ -100,6 +112,10 @@ export class AppModule {
     private updateModelController: UpdateModelController,
     private deleteModelController: DeleteModelController,
     private setDefaultModelController: SetDefaultModelController,
+    private getTavilyKeyListController: GetTavilyKeyListController,
+    private addTavilyKeyController: AddTavilyKeyController,
+    private updateTavilyKeyController: UpdateTavilyKeyController,
+    private deleteTavilyKeyController: DeleteTavilyKeyController,
   ) {}
 
   createWindow() {

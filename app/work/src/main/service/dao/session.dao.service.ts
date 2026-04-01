@@ -86,4 +86,13 @@ export class SessionDao {
       .offset(offset)
       .all();
   }
+
+  deleteByWorkspaceId(workspaceId: number) {
+    return this.dbService
+      .getDb()
+      .delete(sessions)
+      .where(eq(sessions.workspaceId, workspaceId))
+      .returning()
+      .all();
+  }
 }

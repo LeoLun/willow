@@ -1,6 +1,6 @@
 import { i18n } from "../utils/i18n";
 
-type ToolName = "read" | "write" | "edit" | "find" | "grep" | "ls" | "webfetch";
+type ToolName = "read" | "write" | "edit" | "find" | "grep" | "ls" | "webfetch" | "websearch";
 
 function normalizeToolName(name: string | undefined): ToolName | null {
   if (!name) return null;
@@ -15,7 +15,8 @@ function normalizeToolName(name: string | undefined): ToolName | null {
     base === "find" ||
     base === "grep" ||
     base === "ls" ||
-    base === "webfetch"
+    base === "webfetch" ||
+    base === "websearch"
   ) {
     return base;
   }
@@ -83,6 +84,7 @@ export function getToolSummary(
       grep: i18n("searching_content"),
       ls: i18n("listing_directory"),
       webfetch: i18n("fetch_web"),
+      websearch: i18n("web_searching"),
     };
     return tool ? progressMap[tool] : i18n("tool_running");
   }
@@ -139,6 +141,14 @@ export function getToolSummary(
     return formatTemplate(i18n("webfetch_summary"), {
       target: safeDetails.title || summarizeUrl(safeDetails.url || parsedParams.url),
       format: safeDetails.returnedFormat || parsedParams.format || "markdown",
+    });
+  }
+
+  if (tool === "websearch") {
+    const query = safeDetails.query || parsedParams.query || i18n("unknown");
+    return formatTemplate(i18n("websearch_summary_done"), {
+      query,
+      count: safeDetails.resultCount ?? 0,
     });
   }
 

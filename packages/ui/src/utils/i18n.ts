@@ -59,6 +59,9 @@ const translations: Record<string, Record<string, string>> = {
     Yes: "Yes",
     No: "No",
     read_web: "Reading webpage",
+    web_search: "Web search",
+    web_searching: "Searching...",
+    websearch_summary_done: 'Searched "{query}" ({count} results)',
   },
   zh: {
     "Error:": "错误：",
@@ -120,6 +123,9 @@ const translations: Record<string, Record<string, string>> = {
     Yes: "是",
     No: "否",
     read_web: "读取网页",
+    web_search: "搜索",
+    web_searching: "正在搜索...",
+    websearch_summary_done: '搜索 "{query}" ({count} 条结果)',
   },
 };
 
