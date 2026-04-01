@@ -1,4 +1,5 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
+import type { ActiveSessionStream } from "@shared/api";
 import { reactive, onMounted, onUnmounted, type Ref, watch } from "vue";
 import { electronAPI } from "@/lib/ipc";
 import { useEventBus } from "./useEventBus";
@@ -44,7 +45,18 @@ export function useAgentMessages(sessionId: Ref<number>) {
     state.messages = [];
     state.streamMessage = null;
     state.isStreaming = false;
+    state.tools = [];
     state.pendingToolCalls = new Set();
+  }
+
+  function applyActiveStream(activeStream?: ActiveSessionStream) {
+    if (!activeStream) {
+      return;
+    }
+    state.messages = activeStream.messages ?? [];
+    state.streamMessage = activeStream.streamMessage ?? null;
+    state.isStreaming = activeStream.isStreaming ?? false;
+    state.pendingToolCalls = new Set(activeStream.pendingToolCallIds ?? []);
   }
 
   function handleUpdateMessage(data: UpdateMessagePayload) {
@@ -116,6 +128,10 @@ export function useAgentMessages(sessionId: Ref<number>) {
       try {
         const data = await electronAPI.getSessionHistory({ sessionId: id });
         if (id !== sessionId.value) {
+          return;
+        }
+        if (data?.activeStream) {
+          applyActiveStream(data.activeStream);
           return;
         }
         // 如果是空数组，则不进行初始化

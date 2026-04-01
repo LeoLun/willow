@@ -42,6 +42,15 @@ async function handleSend(request: SendMessage) {
     });
   }
 }
+
+async function handleStop() {
+  if (!isSessionRoute.value) {
+    return;
+  }
+  await electronAPI.stopSessionStream({
+    sessionId: sessionId.value,
+  });
+}
 </script>
 
 <template>
@@ -65,6 +74,7 @@ async function handleSend(request: SendMessage) {
       :is-streaming="state.isStreaming"
       :show-usage="isSessionRoute"
       @send="handleSend"
+      @stop="handleStop"
     />
   </div>
 </template>

@@ -8,6 +8,7 @@ import {
   GlobeIcon,
   PlusIcon,
   SettingsIcon,
+  SquareIcon,
 } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref, watch } from "vue";
@@ -146,6 +147,7 @@ function goToSetting() {
 
 const emit = defineEmits<{
   send: [request: SendMessage];
+  stop: [];
 }>();
 
 function handleSend() {
@@ -163,6 +165,14 @@ function handleSend() {
     modelId: selectedModelId.value,
     webSearchEnabled: webSearchEnabled.value,
   });
+}
+
+function handleAction() {
+  if (props.isStreaming) {
+    emit("stop");
+    return;
+  }
+  handleSend();
 }
 </script>
 <template>
@@ -246,14 +256,15 @@ function handleSend() {
         </TooltipProvider>
         <Separator v-if="shouldShowUsage" orientation="vertical" class="!h-4" />
         <InputGroupButton
-          :disabled="!message.trim().length"
+          :disabled="!props.isStreaming && !message.trim().length"
           variant="default"
           class="rounded-full"
           size="icon-xs"
-          @click="handleSend"
+          @click="handleAction"
         >
-          <ArrowUpIcon class="size-4" />
-          <span class="sr-only">Send</span>
+          <SquareIcon v-if="props.isStreaming" class="size-3.5 fill-current" />
+          <ArrowUpIcon v-else class="size-4" />
+          <span class="sr-only">{{ props.isStreaming ? "Stop" : "Send" }}</span>
         </InputGroupButton>
       </InputGroupAddon>
     </InputGroup>

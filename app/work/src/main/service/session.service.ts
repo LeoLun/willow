@@ -11,11 +11,29 @@ import {
 } from "@main/utils/agent-message-text";
 import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 import type { AgentEvent, AgentMessage } from "@mariozechner/pi-agent-core";
-import type { SendMessage } from "@shared/api";
+import type { ActiveSessionStream, SendMessage } from "@shared/api";
 import { SESSION_TITLE_UPDATED } from "@shared/constants";
 import { Injectable } from "@willow/poetry";
+
+interface ActiveSessionStreamState {
+  messages: AgentMessage[];
+  streamMessage: AgentMessage | null;
+  isStreaming: boolean;
+  pendingToolCallIds: Set<string>;
+}
+
+interface RunningSession {
+  agent: {
+    abort(): void;
+  };
+  stopRequested: boolean;
+}
+
 @Injectable()
 export class SessionService {
+  private activeSessionStreams = new Map<number, ActiveSessionStreamState>();
+  private runningSessions = new Map<number, RunningSession>();
+
   constructor(
     private readonly sessionDao: SessionDao,
     private readonly sessionMessageDao: SessionMessageDao,
@@ -67,6 +85,8 @@ export class SessionService {
   }
 
   async deleteSession(sessionId: number) {
+    this.stopSessionStream(sessionId);
+    this.activeSessionStreams.delete(sessionId);
     this.sessionMessageDao.deleteBySessionId(sessionId);
     return this.sessionDao.deleteById(sessionId);
   }
@@ -77,8 +97,36 @@ export class SessionService {
 
   /** 供渲染进程与会话恢复：有序 Agent 消息列表 */
   getSessionHistoryAgentMessages(sessionId: number): AgentMessage[] {
+    const activeStream = this.activeSessionStreams.get(sessionId);
+    if (activeStream) {
+      return activeStream.messages;
+    }
     const rows = this.sessionMessageDao.findBySessionId(sessionId);
     return parseStoredSessionMessages(rows);
+  }
+
+  getActiveSessionStream(sessionId: number): ActiveSessionStream | undefined {
+    const stream = this.activeSessionStreams.get(sessionId);
+    if (!stream) {
+      return undefined;
+    }
+
+    return {
+      messages: stream.messages,
+      streamMessage: stream.streamMessage,
+      isStreaming: stream.isStreaming,
+      pendingToolCallIds: Array.from(stream.pendingToolCallIds),
+    };
+  }
+
+  stopSessionStream(sessionId: number): void {
+    const runningSession = this.runningSessions.get(sessionId);
+    if (!runningSession || runningSession.stopRequested) {
+      return;
+    }
+
+    runningSession.stopRequested = true;
+    runningSession.agent.abort();
   }
 
   async createSessionTitle(sessionId: number): Promise<void> {
@@ -142,9 +190,14 @@ export class SessionService {
       data.modelId,
       data.webSearchEnabled,
     );
+    this.runningSessions.set(sessionId, {
+      agent,
+      stopRequested: false,
+    });
     let replyText = "";
 
     const unsubscribe = agent.subscribe((event: AgentEvent) => {
+      this.updateActiveSessionStream(sessionId, event, agent.state.messages);
       // agent_end 自带的 event.messages 仅为本轮新增（pi-agent-core newMessages），不含历史
       if (event.type === "agent_end") {
         this.persistAgentMessagesSnapshot(sessionId, agent.state.messages);
@@ -163,7 +216,14 @@ export class SessionService {
     try {
       await agent.prompt(data.message);
       return replyText;
+    } catch (error) {
+      if (this.runningSessions.get(sessionId)?.stopRequested) {
+        return "";
+      }
+      throw error;
     } finally {
+      this.activeSessionStreams.delete(sessionId);
+      this.runningSessions.delete(sessionId);
       unsubscribe();
     }
   }
@@ -190,6 +250,64 @@ export class SessionService {
     } catch (e) {
       console.error("persist session messages failed", sessionId, e);
     }
+  }
+
+  private updateActiveSessionStream(
+    sessionId: number,
+    event: AgentEvent,
+    messages: AgentMessage[],
+  ): void {
+    const current = this.activeSessionStreams.get(sessionId) ?? {
+      messages: [],
+      streamMessage: null,
+      isStreaming: false,
+      pendingToolCallIds: new Set<string>(),
+    };
+
+    current.messages = [...messages];
+
+    switch (event.type) {
+      case "agent_start":
+        current.isStreaming = true;
+        current.streamMessage = null;
+        current.pendingToolCallIds.clear();
+        break;
+
+      case "message_start":
+      case "message_update":
+        current.isStreaming = true;
+        current.streamMessage = event.message ?? null;
+        break;
+
+      case "message_end":
+        current.streamMessage = null;
+        break;
+
+      case "tool_execution_start":
+      case "tool_execution_update":
+        if (event.toolCallId) {
+          current.pendingToolCallIds.add(event.toolCallId);
+        }
+        break;
+
+      case "tool_execution_end":
+        if (event.toolCallId) {
+          current.pendingToolCallIds.delete(event.toolCallId);
+        }
+        break;
+
+      case "agent_end":
+        current.isStreaming = false;
+        current.streamMessage = null;
+        current.pendingToolCallIds.clear();
+        break;
+
+      case "turn_start":
+      case "turn_end":
+        break;
+    }
+
+    this.activeSessionStreams.set(sessionId, current);
   }
 
   // private createAgentSession(sessionId: number) {

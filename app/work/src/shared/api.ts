@@ -93,6 +93,12 @@ export interface SendMessageRequest {
 
 export interface SendMessageResponse {}
 
+export interface StopSessionStreamRequest {
+  sessionId: number;
+}
+
+export interface StopSessionStreamResponse {}
+
 export interface SendMessage extends Omit<SendMessageRequest, "sessionId"> {}
 
 export interface CreateSessionRequest {
@@ -151,8 +157,16 @@ export interface GetSessionHistoryRequest {
   sessionId: number;
 }
 
+export interface ActiveSessionStream {
+  messages: AgentMessage[];
+  streamMessage: AgentMessage | null;
+  isStreaming: boolean;
+  pendingToolCallIds: string[];
+}
+
 export interface GetSessionHistoryResponse {
   messages: AgentMessage[];
+  activeStream?: ActiveSessionStream;
 }
 
 export interface RegisterEventRequest {

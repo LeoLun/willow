@@ -19,6 +19,8 @@ import type {
   DeleteSessionResponse,
   SendMessageRequest,
   SendMessageResponse,
+  StopSessionStreamRequest,
+  StopSessionStreamResponse,
   GetSessionListRequest,
   GetSessionListResponse,
   GetSessionHistoryRequest,
@@ -54,6 +56,7 @@ import {
   RENAME_SESSION,
   DELETE_SESSION,
   SEND_MESSAGE,
+  STOP_SESSION_STREAM,
   GET_SESSION_LIST,
   GET_SESSION_HISTORY,
   GET_WORKSPACE_SESSIONS,
@@ -184,6 +187,19 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("send message failed");
+    }
+    return response.data;
+  },
+  stopSessionStream: async (request: StopSessionStreamRequest) => {
+    const response = (await ipcRenderer.invoke(
+      STOP_SESSION_STREAM,
+      request,
+    )) as ApiResponse<StopSessionStreamResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("stop session stream failed");
     }
     return response.data;
   },

@@ -24,7 +24,8 @@ export class GetSessionHistoryController extends IPCBaseController<
     }
 
     const messages = this.sessionService.getSessionHistoryAgentMessages(request.sessionId);
-    return this.buildResponse({ messages });
+    const activeStream = this.sessionService.getActiveSessionStream(request.sessionId);
+    return this.buildResponse({ messages, activeStream });
   }
 
   checkParams(request: GetSessionHistoryRequest): Error | undefined {

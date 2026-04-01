@@ -7,6 +7,8 @@ import type {
   DeleteSessionResponse,
   SendMessageRequest,
   SendMessageResponse,
+  StopSessionStreamRequest,
+  StopSessionStreamResponse,
   GetSessionListRequest,
   GetSessionListResponse,
   GetSessionHistoryRequest,
@@ -20,6 +22,7 @@ export interface ISessionApi {
   renameSession(request: RenameSessionRequest): Promise<RenameSessionResponse>;
   deleteSession(request: DeleteSessionRequest): Promise<DeleteSessionResponse>;
   sendMessage(request: SendMessageRequest): Promise<SendMessageResponse>;
+  stopSessionStream(request: StopSessionStreamRequest): Promise<StopSessionStreamResponse>;
   getSessionList(request: GetSessionListRequest): Promise<GetSessionListResponse>;
   getSessionHistory(request: GetSessionHistoryRequest): Promise<GetSessionHistoryResponse>;
   getWorkspaceSessions(request: GetWorkspaceSessionsRequest): Promise<GetWorkspaceSessionsResponse>;
