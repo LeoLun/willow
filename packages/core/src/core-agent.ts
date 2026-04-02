@@ -2,6 +2,7 @@ import type { Agent } from "@mariozechner/pi-agent-core";
 import { loadSkills } from "./skills";
 import { buildSystemPrompt, type SystemPromptOptions } from "./system-prompt";
 import { createAllTools, type WebSearchOptions } from "./tools/index";
+import type { TodoStore } from "./tools/todo-store";
 
 export interface CoreAgentOptions {
   cwd: string;
@@ -10,6 +11,7 @@ export interface CoreAgentOptions {
   customInstructions?: string;
   projectContext?: string;
   websearch?: WebSearchOptions;
+  todoStore?: TodoStore;
 }
 
 export class CoreAgent {
@@ -20,7 +22,7 @@ export class CoreAgent {
     this.agent = agent;
     this.cwd = options.cwd;
 
-    const tools = createAllTools(this.cwd, options.websearch);
+    const tools = createAllTools(this.cwd, options.websearch, options.todoStore);
     const { skills, userDir, projectDir } = loadSkills({
       cwd: this.cwd,
       agentDir: options.agentDir,

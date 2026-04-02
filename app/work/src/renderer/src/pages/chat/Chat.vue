@@ -3,7 +3,9 @@ import type { SendMessage } from "@shared/api";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Sender from "@/components/base/sender/index.vue";
+import TodoProgress from "@/components/base/TodoProgress.vue";
 import { useAgentMessages } from "@/composables/useAgentMessages";
+import { useTodoProgress } from "@/composables/useTodoProgress";
 import { electronAPI } from "@/lib/ipc";
 import { useSessionStore } from "@/stores/session";
 
@@ -14,7 +16,13 @@ const sessionId = computed(() => {
   const value = Number(route.params.sessionId);
   return Number.isNaN(value) ? 0 : value;
 });
-const { state } = useAgentMessages(sessionId);
+
+const { todos, hasActiveTodos, restoreFromActiveStream } = useTodoProgress(sessionId);
+const { state } = useAgentMessages(sessionId, {
+  onActiveStreamLoaded: (activeStream) => {
+    restoreFromActiveStream(activeStream.todos);
+  },
+});
 const isSessionRoute = computed(() => route.name === "session");
 
 async function handleSend(request: SendMessage) {
@@ -67,15 +75,22 @@ async function handleStop() {
         />
       </RouterView>
     </div>
-    <Sender
-      class="w-[80%]"
-      :messages="state.messages"
-      :stream-message="state.streamMessage"
-      :is-streaming="state.isStreaming"
-      :show-usage="isSessionRoute"
-      @send="handleSend"
-      @stop="handleStop"
-    />
+    <div class="relative w-[80%]">
+      <div v-if="hasActiveTodos" class="h-[40px]"></div>
+      <TodoProgress
+        v-if="hasActiveTodos"
+        class="absolute bottom-[calc(100%-32px)] w-full"
+        :todos="todos"
+      />
+      <Sender
+        :messages="state.messages"
+        :stream-message="state.streamMessage"
+        :is-streaming="state.isStreaming"
+        :show-usage="isSessionRoute"
+        @send="handleSend"
+        @stop="handleStop"
+      />
+    </div>
   </div>
 </template>
 

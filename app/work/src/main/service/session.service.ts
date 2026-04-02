@@ -2,6 +2,7 @@ import { AgentService } from "@main/service/agent.service";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import { SessionDao } from "@main/service/dao/session.dao.service";
 import { EventService } from "@main/service/event.service";
+import { TodoService } from "@main/service/todo.service";
 import {
   clipForTitlePrompt,
   extractPlainTextFromAgentMessage,
@@ -39,6 +40,7 @@ export class SessionService {
     private readonly sessionMessageDao: SessionMessageDao,
     private readonly agentService: AgentService,
     private readonly eventService: EventService,
+    private readonly todoService: TodoService,
   ) {}
 
   async getSessionList(workspaceId: number) {
@@ -87,6 +89,7 @@ export class SessionService {
   async deleteSession(sessionId: number) {
     this.stopSessionStream(sessionId);
     this.activeSessionStreams.delete(sessionId);
+    this.todoService.clearSession(sessionId);
     this.sessionMessageDao.deleteBySessionId(sessionId);
     return this.sessionDao.deleteById(sessionId);
   }
@@ -111,11 +114,14 @@ export class SessionService {
       return undefined;
     }
 
+    const todos = this.todoService.getTodos(sessionId);
+
     return {
       messages: stream.messages,
       streamMessage: stream.streamMessage,
       isStreaming: stream.isStreaming,
       pendingToolCallIds: Array.from(stream.pendingToolCallIds),
+      todos: todos.length > 0 ? todos : undefined,
     };
   }
 

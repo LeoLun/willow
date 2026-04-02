@@ -74,6 +74,17 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
     prompt += `\n# 项目上下文\n\n${projectContext}\n`;
   }
 
+  const hasTodo = toolNames.includes("todowrite");
+  if (hasTodo) {
+    prompt += `
+### 4. 任务管理 (todowrite & todoread)
+- 面对**多步骤复杂任务**（3 步以上），应主动使用 todowrite 创建待办列表，帮助用户了解整体进度。
+- 同一时间仅保持**一个**任务为 in_progress 状态；完成后立即标记为 completed 再开始下一个。
+- 开始新对话或不确定上下文时，先用 todoread 检查是否有未完成的待办。
+- 单一简单任务无需使用 todo 工具。
+`;
+  }
+
   const hasRead = toolNames.includes("read");
   if (hasRead && skills.length > 0) {
     prompt += formatSkillsForPrompt(skills);

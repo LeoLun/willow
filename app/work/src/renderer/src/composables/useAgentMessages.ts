@@ -30,7 +30,11 @@ interface UpdateMessagePayload {
   };
 }
 
-export function useAgentMessages(sessionId: Ref<number>) {
+export interface UseAgentMessagesOptions {
+  onActiveStreamLoaded?: (activeStream: ActiveSessionStream) => void;
+}
+
+export function useAgentMessages(sessionId: Ref<number>, options?: UseAgentMessagesOptions) {
   const state = reactive<AgentMessagesState>({
     messages: [],
     streamMessage: null,
@@ -132,6 +136,7 @@ export function useAgentMessages(sessionId: Ref<number>) {
         }
         if (data?.activeStream) {
           applyActiveStream(data.activeStream);
+          options?.onActiveStreamLoaded?.(data.activeStream);
           return;
         }
         // 如果是空数组，则不进行初始化

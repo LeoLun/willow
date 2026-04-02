@@ -38,6 +38,7 @@ import { EventService } from "./service/event.service";
 import { SessionService } from "./service/session.service";
 import { SystemService } from "./service/system.service";
 import { TavilyService } from "./service/tavily.service";
+import { TodoService } from "./service/todo.service";
 import { WorkspaceService } from "./service/workspace.service";
 import { MainWindow } from "./window/main.window";
 
@@ -61,6 +62,7 @@ if (started) {
     ModelDao,
     TavilyDao,
     TavilyService,
+    TodoService,
     EventService,
   ],
   controllers: [

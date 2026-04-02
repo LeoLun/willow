@@ -157,11 +157,18 @@ export interface GetSessionHistoryRequest {
   sessionId: number;
 }
 
+export interface TodoItem {
+  id: string;
+  content: string;
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+}
+
 export interface ActiveSessionStream {
   messages: AgentMessage[];
   streamMessage: AgentMessage | null;
   isStreaming: boolean;
   pendingToolCallIds: string[];
+  todos?: TodoItem[];
 }
 
 export interface GetSessionHistoryResponse {

@@ -2,6 +2,7 @@ import { ConfigService } from "@main/service/config.service";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import { TavilyService } from "@main/service/tavily.service";
+import { TodoService } from "@main/service/todo.service";
 import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 import { Agent } from "@mariozechner/pi-agent-core";
 import { streamSimple } from "@mariozechner/pi-ai";
@@ -62,6 +63,7 @@ export class AgentService {
     private readonly configService: ConfigService,
     private readonly workspaceDao: WorkspaceDao,
     private readonly tavilyService: TavilyService,
+    private readonly todoService: TodoService,
   ) {}
 
   private resolveApiKey(config?: ModelConfig | null): string | undefined {
@@ -106,10 +108,12 @@ export class AgentService {
     agent.setModel(resolvedModel);
 
     const tavilyService = this.tavilyService;
+    const todoStore = this.todoService.createStore(session.id);
     const coreAgent = new CoreAgent(agent, {
       cwd,
       userData: app.getPath("userData"),
       websearch: webSearchEnabled ? { getApiKey: () => tavilyService.getApiKey() } : undefined,
+      todoStore,
     });
 
     const rows = this.sessionMessageDao.findBySessionId(session.id);
