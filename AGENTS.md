@@ -1,179 +1,34 @@
-# AGENTS.md — Willow Monorepo
+# Repository Guidelines
 
-## Project Overview
+## 项目结构与模块组织
+该仓库是一个 pnpm workspace，主要包含两部分。`packages/poetry/src/` 是可复用的 Electron 框架层，负责装饰器、依赖注入、IPC 绑定以及窗口和模块管理。`app/work/src/` 是桌面应用本体，按进程拆分：`main/` 放 Electron 服务与控制器，`preload/` 放 `contextBridge` 暴露逻辑，`renderer/` 放 Vue 3 界面，`shared/` 放 IPC 常量与共享类型。数据库 Schema 与迁移文件位于 `app/work/src/main/db/`。
 
-Willow is a **pnpm workspace monorepo** containing:
+## 构建、测试与开发命令
+先执行 `pnpm install` 安装依赖。
 
-- `packages/poetry` — Electron framework library (decorators, DI, IPC wiring) built on Inversify + reflect-metadata
-- `app/work` — Electron desktop app (OpenCode chat UI) using Poetry, Vue 3, Pinia, Tailwind CSS 4
+- `pnpm build`：构建整个 workspace。
+- `pnpm dev`：以开发模式启动 `app/work` Electron 应用。
+- `pnpm dev:p`：以 `tsup --watch` 监听 `packages/poetry`。
+- `pnpm lint`：对 `app/` 和 `packages/` 运行 `oxlint`。
+- `pnpm format` / `pnpm format:check`：使用 `oxfmt` 格式化或检查格式。
+- `cd app/work && pnpm package`：打包桌面应用。
+- `cd app/work && pnpm make`：生成平台安装包。
 
-Package manager: **pnpm 9** (see `packageManager` in root `package.json`).
+## 编码风格与命名规范
+使用开启 `strict` 的 TypeScript，并为函数参数提供明确类型。Vue 文件必须使用 `<script setup lang="ts">`。导入语句优先使用双引号，顺序为：Node 内置模块、第三方依赖、别名导入、相对路径。统一使用 2 空格缩进，分号风格保持与周边代码一致。
 
-## Build / Lint / Test Commands
+命名约定：
+- Vue 组件：`PascalCase`，例如 `ChatInput.vue`
+- 文件名：`kebab-case`，例如 `workspace.service.ts`
+- 函数与组合式函数：`camelCase`，组合式函数以 `use` 开头
+- Pinia Store：使用 setup 风格 `defineStore("name", () => {})`
+- IPC 通道与常量：`UPPER_SNAKE_CASE`
 
-### Workspace-level
+## 测试指南
+当前仓库尚未正式配置测试运行器。`packages/poetry` 的开发依赖中包含 Jest，但没有测试脚本；`app/work` 也尚未接入测试框架。在新增测试体系前，请至少运行 `pnpm lint`、相关包构建命令，并通过 `pnpm dev` 进行针对性手动验证。后续若补充测试，建议将测试文件与源码相邻放置，命名为 `*.test.ts`。
 
-```bash
-pnpm install              # Install all dependencies
-pnpm -r run build         # Build all packages (or: pnpm build)
-```
+## 提交与 Pull Request 规范
+最近的提交历史采用简短的 Conventional Commit 前缀，例如 `feat: 添加todo 功能`、`feat: 修改样式`。请沿用这一格式，提交信息保持简洁，并优先使用简体中文描述用户可感知的改动。Pull Request 应说明变更范围，列出受影响的包；若涉及 renderer 界面改动，应附上截图；若包含迁移、环境变量或构建变化，也应明确说明。
 
-### packages/poetry
-
-```bash
-cd packages/poetry
-pnpm build                # tsup → CJS + ESM + .d.ts into dist/
-pnpm dev                  # tsup --watch
-```
-
-No test runner is configured yet (Jest is in devDependencies but has no config or test script).
-
-### app/work
-
-```bash
-cd app/work
-pnpm start                # electron-forge start (dev mode)
-pnpm run package          # electron-forge package
-pnpm run make             # electron-forge make (platform installers)
-pnpm run lint             # oxlint src/
-```
-
-No test runner is configured for app/work.
-
-### Running a Single Test (future reference)
-
-If Vitest is adopted (recommended for this stack):
-
-```bash
-pnpm vitest run src/path/to/file.test.ts          # single file
-pnpm vitest run -t "test name pattern"             # by name
-```
-
-If Jest is used (poetry currently lists jest):
-
-```bash
-pnpm jest -- --testPathPattern="file.test.ts"
-```
-
-## Tech Stack
-
-| Layer      | Technology                                    |
-| ---------- | --------------------------------------------- |
-| Monorepo   | pnpm workspaces, catalog deps                 |
-| Framework  | Electron (Forge), Vue 3.5, Poetry (custom DI) |
-| State      | Pinia 3 (setup-style stores)                  |
-| UI         | shadcn-vue, reka-ui, lucide-vue-next          |
-| Styling    | Tailwind CSS 4, tw-animate-css                |
-| Build      | Vite 5, tsup (poetry)                         |
-| AI/Chat    | @opencode-ai/sdk                              |
-| TypeScript | Strict mode, decorators enabled               |
-
-## Repository Structure
-
-```
-willow/
-├── packages/
-│   └── poetry/           # DI framework (decorators, core, interfaces)
-│       └── src/
-│           ├── decorators/    @Injectable, @Module, @Window, @IPC, @On
-│           ├── core/          CoreFactory, WindowFactoryResolver
-│           ├── interfaces/    OnInit, OnDestroy hooks
-│           └── manager/       ModuleManager, WindowManager
-├── app/
-│   └── work/             # Electron app
-│       └── src/
-│           ├── main/          main process (Poetry module, controllers, services)
-│           ├── preload/       contextBridge IPC exposure
-│           ├── renderer/      Vue SPA (components, stores, composables)
-│           └── shared/        IPC constants & typed interfaces
-└── pnpm-workspace.yaml
-```
-
-## Code Style Guidelines
-
-### Language & Response
-
-- All user-facing comments, docs, and commit messages should be in **Simplified Chinese** unless the context requires English.
-
-### TypeScript
-
-- `strict: true` everywhere.
-- `experimentalDecorators` and `emitDecoratorMetadata` enabled (required by Poetry DI).
-- `noImplicitAny: true` in app/work.
-- Prefer explicit types for function parameters; return types may be inferred for simple functions.
-- Use `type` imports (`import type { ... }`) for type-only imports.
-
-### Imports
-
-- **Double quotes** for all import paths.
-- Order: (1) Node built-ins → (2) External packages → (3) Local aliases (`@/`, `@main/`, `@shared/`) → (4) Relative paths.
-- Path aliases in app/work: `@/` → renderer src, `@main/` → main, `@renderer/` → renderer, `@shared/` → shared.
-- Use `workspace:*` for local package references; use `catalog:` for shared dependency versions.
-
-### Naming Conventions
-
-| Kind           | Convention   | Example                              |
-| -------------- | ------------ | ------------------------------------ |
-| Files          | kebab-case   | `core-factory.ts`, `chat-input.vue`  |
-| Vue components | PascalCase   | `ChatInput.vue`, `LeftSidebar.vue`   |
-| Classes        | PascalCase   | `WorkspaceService`, `InitController` |
-| Functions      | camelCase    | `createChatAI`, `selectDirectory`    |
-| Composables    | `use` prefix | `useDarkMode`, `useOpencodeEvents`   |
-| Pinia stores   | `use` prefix | `useChatStore`, `useInitStore`       |
-| Constants      | UPPER_SNAKE  | `MODULE_METADATA`, `OPEN_SETTING`    |
-| IPC channels   | UPPER_SNAKE  | `START_AI_STREAM`, `PARSE_BILL_FILE` |
-
-### Vue Components
-
-- **Always** use `<script setup lang="ts">` (Composition API only, no Options API).
-- Component order: `<script setup>` → `<template>` → `<style scoped>`.
-- Use `defineProps<Props>()` with `withDefaults` for typed props.
-- Use `defineEmits` for typed events.
-- UI primitives come from shadcn-vue (reka-ui based); use `cn()` utility for class merging.
-
-### Pinia Stores
-
-- Use **setup-style** stores: `defineStore("name", () => { ... })`.
-- Organize with section comments: `// ─── 状态 ───`, `// ─── Getters ───`, `// ─── Actions ───`.
-- Return explicit object with state, getters, and actions.
-
-### Poetry (DI Framework)
-
-- Decorate injectable services with `@Injectable()`.
-- Define app modules with `@Module({ windows, providers, controllers })`.
-- Register IPC handlers with `@IPC(CHANNEL_NAME)`.
-- Register Electron app events with `@On("ready")`, `@On("activate")`, etc.
-- Use `@Window()` for BrowserWindow subclasses; `@WindowInstance()` to inject the raw BrowserWindow.
-
-### CSS / Styling
-
-- Tailwind CSS 4 utility classes (via `@tailwindcss/postcss`).
-- Theme via CSS custom properties defined in `renderer/index.css`.
-- Use `cn()` (from `@/lib/utils`) to merge conditional classes.
-
-### Error Handling
-
-- Wrap IPC handlers in try/catch; return `{ result: 'error', error: string }` on failure.
-- Use `e instanceof Error ? e.message : String(e)` for safe error extraction.
-- Do not throw raw strings; always throw `Error` objects.
-
-### Formatting
-
-- 2-space indentation.
-- Trailing commas in multi-line arrays/objects.
-- No semicolons is acceptable if consistent within a file; the codebase currently uses semicolons.
-- No Prettier config exists — maintain consistency with surrounding code.
-
-### Oxlint
-
-Oxlint 配置在根目录 `.oxlintrc.json`：
-
-- 启用插件: `typescript`, `import`
-- 分类: `correctness` 级别为 `error`
-- 运行: `pnpm lint` 或 `npx oxlint`
-
-### Git & Environment
-
-- Never commit `.env` files (they are gitignored).
-- Sensitive tokens (Notion, API keys) go in `.env` at the app level.
-- Use `catalog:` in pnpm-workspace.yaml for shared dependency versions across packages.
+## 安全与配置提示
+不要提交 `.env` 文件或任何密钥。应用级令牌仅应保存在本地 `.env` 中。引用本地包时使用 `workspace:*`，共享依赖版本使用 `catalog:`。

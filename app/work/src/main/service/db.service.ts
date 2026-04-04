@@ -1,10 +1,17 @@
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import * as schema from "@main/db/schema";
 import { Injectable } from "@willow/poetry";
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
 import { drizzle, BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { app } from "electron";
+
+const runtimeRequire = createRequire(__filename);
+
+function loadBetterSqlite3() {
+  return runtimeRequire("better-sqlite3");
+}
 
 @Injectable()
 export class DbService {
@@ -20,7 +27,20 @@ export class DbService {
 
   init() {
     const dbPath = join(app.getPath("userData"), "willow.db");
-    this.sqlite = new Database(dbPath);
+    const BetterSqlite3 = loadBetterSqlite3() as typeof import("better-sqlite3");
+    const nativeBinding = app.isPackaged
+      ? join(
+          process.resourcesPath,
+          "app.asar.unpacked",
+          "node_modules",
+          "better-sqlite3",
+          "build",
+          "Release",
+          "better_sqlite3.node",
+        )
+      : undefined;
+
+    this.sqlite = new BetterSqlite3(dbPath, nativeBinding ? { nativeBinding } : undefined);
     this.sqlite.pragma("journal_mode = WAL");
     this.sqlite.pragma("foreign_keys = ON");
 

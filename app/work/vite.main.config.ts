@@ -4,6 +4,12 @@ import { defineConfig } from "vite";
 
 // https://vitejs.dev/config
 export default defineConfig({
+  server: {
+    host: "127.0.0.1",
+  },
+  preview: {
+    host: "127.0.0.1",
+  },
   plugins: [
     swc({
       swc: {
@@ -23,4 +29,5 @@ export default defineConfig({
     },
   },
   esbuild: false,
+  oxc: false,
 });
