@@ -15,6 +15,9 @@ const props = withDefaults(
     tools?: AgentTool[];
     isStreaming?: boolean;
     pendingToolCalls?: Set<string>;
+    toolApprovals?: Map<string, any>;
+    onApproveToolCall?: (toolCallId: string) => void;
+    onRejectToolCall?: (toolCallId: string) => void;
     onCostClick?: () => void;
   }>(),
   {
@@ -89,9 +92,12 @@ const renderItems = computed(() => {
         :tools="tools"
         :is-streaming="false"
         :pending-tool-calls="pendingToolCalls"
+        :tool-approvals="toolApprovals"
         :tool-results-by-id="item.data.toolResultsById"
         :hide-tool-calls="false"
         :hide-pending-tool-calls="false"
+        :on-approve-tool-call="onApproveToolCall"
+        :on-reject-tool-call="onRejectToolCall"
         :on-cost-click="onCostClick"
       />
     </template>

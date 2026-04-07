@@ -1,7 +1,7 @@
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
+import { createTool } from "./create-tool";
 import { resolveToCwd } from "./path-utils";
 
 const DEFAULT_LIMIT = 500;
@@ -20,12 +20,16 @@ const lsSchema = Type.Object({
   limit: Type.Optional(Type.Number({ description: `最多条目数（默认 ${DEFAULT_LIMIT}）` })),
 });
 
-export function createLsTool(cwd: string): AgentTool<typeof lsSchema> {
-  return {
+export function createLsTool(cwd: string) {
+  return createTool({
     name: "ls",
     label: "列出目录",
     description: "列出单个目录下的文件与子目录（非递归）。",
     parameters: lsSchema,
+    meta: {
+      label: "列出目录",
+      permission: () => ({ mode: "allow" }),
+    },
     async execute(_toolCallId, params) {
       const { path: dirPath, limit } = params;
       const root = resolveToCwd(dirPath ?? ".", cwd);
@@ -69,5 +73,5 @@ export function createLsTool(cwd: string): AgentTool<typeof lsSchema> {
         details,
       };
     },
-  };
+  });
 }

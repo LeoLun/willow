@@ -1,5 +1,5 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
+import { createTool } from "./create-tool";
 import type { TodoItem, TodoStore } from "./todo-store";
 
 export interface TodoReadToolDetails {
@@ -23,12 +23,16 @@ Usage:
 - Use this information to track progress and plan next steps
 - If no todos exist yet, an empty list will be returned`;
 
-export function createTodoReadTool(store: TodoStore): AgentTool<typeof todoReadSchema> {
-  return {
+export function createTodoReadTool(store: TodoStore) {
+  return createTool({
     name: "todoread",
     label: "读取待办列表",
     description: DESCRIPTION,
     parameters: todoReadSchema,
+    meta: {
+      label: "读取待办列表",
+      permission: () => ({ mode: "allow" }),
+    },
     async execute() {
       const todos = store.get();
       const remaining = todos.filter(
@@ -50,5 +54,5 @@ export function createTodoReadTool(store: TodoStore): AgentTool<typeof todoReadS
         details,
       };
     },
-  };
+  });
 }

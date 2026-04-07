@@ -1,8 +1,8 @@
 import { access } from "fs/promises";
 import { relative } from "node:path";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
 import glob from "glob";
+import { createTool } from "./create-tool";
 import { resolveToCwd } from "./path-utils";
 
 const DEFAULT_LIMIT = 1000;
@@ -31,13 +31,17 @@ function displayPrefix(cwd: string, root: string): string {
   return p;
 }
 
-export function createFindTool(cwd: string): AgentTool<typeof findSchema> {
-  return {
+export function createFindTool(cwd: string) {
+  return createTool({
     name: "find",
     label: "查找",
     description:
       "在目录下按 glob 列出匹配的文件路径。忽略 node_modules 与 .git。路径在可能时相对于代理工作目录显示。",
     parameters: findSchema,
+    meta: {
+      label: "查找",
+      permission: () => ({ mode: "allow" }),
+    },
     async execute(_toolCallId, params) {
       const { pattern, path: searchDir, limit } = params;
       const root = resolveToCwd(searchDir ?? ".", cwd);
@@ -99,5 +103,5 @@ export function createFindTool(cwd: string): AgentTool<typeof findSchema> {
 
       return { content: [{ type: "text", text: body }], details };
     },
-  };
+  });
 }

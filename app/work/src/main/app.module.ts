@@ -19,6 +19,7 @@ import { GetSessionHistoryController } from "./controllers/session/get.session.h
 import { GetSessionListController } from "./controllers/session/get.session.list.controller";
 import { GetWorkspaceSessionsController } from "./controllers/session/get.workspace.sessions.controller";
 import { RenameSessionController } from "./controllers/session/rename.session.controller";
+import { ResolveToolApprovalController } from "./controllers/session/resolve.tool.approval.controller";
 import { SendMessageController } from "./controllers/session/send.messgae.controller";
 import { StopSessionStreamController } from "./controllers/session/stop.session.stream.controller";
 import { CreateWorkspaceController } from "./controllers/workspace/create.workspace.controll";
@@ -79,6 +80,7 @@ if (started) {
     GetWorkspaceSessionsController,
     GetSessionHistoryController,
     RenameSessionController,
+    ResolveToolApprovalController,
     DeleteSessionController,
     StopSessionStreamController,
     EventController,
@@ -109,6 +111,7 @@ export class AppModule {
     private getWorkspaceSessionsController: GetWorkspaceSessionsController,
     private getSessionHistoryController: GetSessionHistoryController,
     private renameSessionController: RenameSessionController,
+    private resolveToolApprovalController: ResolveToolApprovalController,
     private deleteSessionController: DeleteSessionController,
     private stopSessionStreamController: StopSessionStreamController,
     private eventController: EventController,

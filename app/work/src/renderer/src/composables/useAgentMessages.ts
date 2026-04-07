@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
-import type { ActiveSessionStream } from "@shared/api";
+import type { ActiveSessionStream, ToolApproval } from "@shared/api";
 import { reactive, onMounted, onUnmounted, type Ref, watch } from "vue";
 import { electronAPI } from "@/lib/ipc";
 import { useEventBus } from "./useEventBus";
@@ -10,6 +10,7 @@ interface AgentMessagesState {
   isStreaming: boolean;
   tools: any[];
   pendingToolCalls: Set<string>;
+  toolApprovals: Map<string, ToolApproval>;
 }
 
 interface UpdateMessagePayload {
@@ -27,6 +28,7 @@ interface UpdateMessagePayload {
     result?: any;
     isError?: boolean;
     toolResults?: any[];
+    approval?: ToolApproval;
   };
 }
 
@@ -41,6 +43,7 @@ export function useAgentMessages(sessionId: Ref<number>, options?: UseAgentMessa
     isStreaming: false,
     tools: [],
     pendingToolCalls: new Set(),
+    toolApprovals: new Map(),
   });
 
   const { addEventListener, removeEventListener } = useEventBus();
@@ -51,6 +54,7 @@ export function useAgentMessages(sessionId: Ref<number>, options?: UseAgentMessa
     state.isStreaming = false;
     state.tools = [];
     state.pendingToolCalls = new Set();
+    state.toolApprovals = new Map();
   }
 
   function applyActiveStream(activeStream?: ActiveSessionStream) {
@@ -61,6 +65,9 @@ export function useAgentMessages(sessionId: Ref<number>, options?: UseAgentMessa
     state.streamMessage = activeStream.streamMessage ?? null;
     state.isStreaming = activeStream.isStreaming ?? false;
     state.pendingToolCalls = new Set(activeStream.pendingToolCallIds ?? []);
+    state.toolApprovals = new Map(
+      (activeStream.toolApprovals ?? []).map((approval) => [approval.toolCallId, approval]),
+    );
   }
 
   function handleUpdateMessage(data: UpdateMessagePayload) {
@@ -105,6 +112,14 @@ export function useAgentMessages(sessionId: Ref<number>, options?: UseAgentMessa
           const next = new Set(state.pendingToolCalls);
           next.delete(event.toolCallId);
           state.pendingToolCalls = next;
+        }
+        break;
+
+      case "tool_approval_update":
+        if (event.approval) {
+          const next = new Map(state.toolApprovals);
+          next.set(event.approval.toolCallId, event.approval);
+          state.toolApprovals = next;
         }
         break;
 

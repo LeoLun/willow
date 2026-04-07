@@ -1,5 +1,5 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
+import { createTool } from "./create-tool";
 import type { TodoItem, TodoStore } from "./todo-store";
 
 export interface TodoWriteToolDetails {
@@ -68,12 +68,16 @@ Skip using this tool when:
 
 When in doubt, use this tool. Being proactive with task management demonstrates attentiveness and ensures you complete all requirements successfully.`;
 
-export function createTodoWriteTool(store: TodoStore): AgentTool<typeof todoWriteSchema> {
-  return {
+export function createTodoWriteTool(store: TodoStore) {
+  return createTool({
     name: "todowrite",
     label: "更新待办列表",
     description: DESCRIPTION,
     parameters: todoWriteSchema,
+    meta: {
+      label: "更新待办列表",
+      permission: () => ({ mode: "allow" }),
+    },
     async execute(_toolCallId, params) {
       const { todos } = params;
       store.update(todos);
@@ -97,5 +101,5 @@ export function createTodoWriteTool(store: TodoStore): AgentTool<typeof todoWrit
         details,
       };
     },
-  };
+  });
 }

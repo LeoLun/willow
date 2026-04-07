@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
-import type { Session } from "@shared/api";
+import type { Session, ToolApproval } from "@shared/api";
 import { MessageList, StreamingMessageContainer } from "@willow/ui";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
@@ -14,6 +14,9 @@ const props = withDefaults(
     isStreaming?: boolean;
     tools?: any[];
     pendingToolCalls?: Set<string>;
+    toolApprovals?: Map<string, ToolApproval>;
+    onApproveToolCall?: (toolCallId: string) => void;
+    onRejectToolCall?: (toolCallId: string) => void;
   }>(),
   {
     messages: () => [],
@@ -21,6 +24,7 @@ const props = withDefaults(
     isStreaming: false,
     tools: () => [],
     pendingToolCalls: () => new Set<string>(),
+    toolApprovals: () => new Map<string, ToolApproval>(),
   },
 );
 
@@ -138,6 +142,9 @@ onBeforeUnmount(() => {
           :tools="props.tools"
           :is-streaming="props.isStreaming"
           :pending-tool-calls="props.pendingToolCalls"
+          :tool-approvals="props.toolApprovals"
+          :on-approve-tool-call="props.onApproveToolCall"
+          :on-reject-tool-call="props.onRejectToolCall"
         />
 
         <StreamingMessageContainer
@@ -146,6 +153,9 @@ onBeforeUnmount(() => {
           :is-streaming="props.isStreaming"
           :tools="props.tools"
           :pending-tool-calls="props.pendingToolCalls"
+          :tool-approvals="props.toolApprovals"
+          :on-approve-tool-call="props.onApproveToolCall"
+          :on-reject-tool-call="props.onRejectToolCall"
         />
       </div>
     </div>

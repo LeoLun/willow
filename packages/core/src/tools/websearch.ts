@@ -1,5 +1,5 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
+import { createTool } from "./create-tool";
 
 export interface WebSearchResultItem {
   title: string;
@@ -45,8 +45,8 @@ const webSearchSchema = Type.Object({
   ),
 });
 
-export function createWebSearchTool(getApiKey: () => string): AgentTool<typeof webSearchSchema> {
-  return {
+export function createWebSearchTool(getApiKey: () => string) {
+  return createTool({
     name: "websearch",
     label: "网络搜索",
     description: `- 使用 Tavily 进行实时网络搜索
@@ -59,6 +59,10 @@ export function createWebSearchTool(getApiKey: () => string): AgentTool<typeof w
 - 搜索类型：basic（快速结果）、advanced（深度搜索）
 - 可配置返回结果数量（默认 5 条）`,
     parameters: webSearchSchema,
+    meta: {
+      label: "网络搜索",
+      permission: () => ({ mode: "allow" }),
+    },
     async execute(_toolCallId, params, signal) {
       const apiKey = getApiKey();
       if (!apiKey) {
@@ -140,5 +144,5 @@ export function createWebSearchTool(getApiKey: () => string): AgentTool<typeof w
         signal?.removeEventListener("abort", abortListener);
       }
     },
-  };
+  });
 }

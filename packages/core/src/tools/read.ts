@@ -1,8 +1,8 @@
 import { constants } from "fs";
 import { readFile, access } from "fs/promises";
 import { resolve } from "path";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
+import { createTool } from "./create-tool";
 
 export interface ReadToolDetails {
   absolutePath: string;
@@ -23,12 +23,16 @@ const readSchema = Type.Object({
   limit: Type.Optional(Type.Number({ description: "最多读取行数" })),
 });
 
-export function createReadTool(cwd: string): AgentTool<typeof readSchema> {
-  return {
+export function createReadTool(cwd: string) {
+  return createTool({
     name: "read",
     label: "读取文件",
     description: `读取文件内容。输出最多 ${MAX_LINES} 行或 ${MAX_BYTES / 1024}KB。大文件请使用 offset/limit。`,
     parameters: readSchema,
+    meta: {
+      label: "读取文件",
+      permission: () => ({ mode: "allow" }),
+    },
     async execute(toolCallId, params, _signal, _onUpdate) {
       const { path, offset, limit } = params;
       const absolutePath = resolve(cwd, path);
@@ -84,5 +88,5 @@ export function createReadTool(cwd: string): AgentTool<typeof readSchema> {
 
       return { content: [{ type: "text", text: output }], details };
     },
-  };
+  });
 }

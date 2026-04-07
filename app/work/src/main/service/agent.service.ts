@@ -122,6 +122,6 @@ export class AgentService {
       agent.replaceMessages(history);
     }
 
-    return coreAgent.agent;
+    return coreAgent;
   }
 }

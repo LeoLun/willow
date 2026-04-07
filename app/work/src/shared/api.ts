@@ -99,6 +99,23 @@ export interface StopSessionStreamRequest {
 
 export interface StopSessionStreamResponse {}
 
+export interface ToolApproval {
+  toolCallId: string;
+  toolName: string;
+  arguments: unknown;
+  reason: string;
+  risk: "medium" | "high";
+  status: "pending" | "approved" | "rejected";
+}
+
+export interface ResolveToolApprovalRequest {
+  sessionId: number;
+  toolCallId: string;
+  decision: "approved" | "rejected";
+}
+
+export interface ResolveToolApprovalResponse {}
+
 export interface SendMessage extends Omit<SendMessageRequest, "sessionId"> {}
 
 export interface CreateSessionRequest {
@@ -168,6 +185,7 @@ export interface ActiveSessionStream {
   streamMessage: AgentMessage | null;
   isStreaming: boolean;
   pendingToolCallIds: string[];
+  toolApprovals?: ToolApproval[];
   todos?: TodoItem[];
 }
 

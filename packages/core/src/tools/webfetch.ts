@@ -1,6 +1,6 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
 import TurndownService from "turndown";
+import { createTool } from "./create-tool";
 
 export interface WebFetchToolDetails {
   url: string;
@@ -30,8 +30,8 @@ const webFetchSchema = Type.Object({
   timeout: Type.Optional(Type.Number({ description: "超时时间（秒），最大 120 秒" })),
 });
 
-export function createWebFetchTool(): AgentTool<typeof webFetchSchema> {
-  return {
+export function createWebFetchTool() {
+  return createTool({
     name: "webfetch",
     label: "抓取网页",
     description: `- 从指定 URL 获取内容
@@ -48,6 +48,10 @@ export function createWebFetchTool(): AgentTool<typeof webFetchSchema> {
 - 此工具为只读工具，不会修改任何文件
 - 如果内容过大，结果可能会被汇总`,
     parameters: webFetchSchema,
+    meta: {
+      label: "抓取网页",
+      permission: () => ({ mode: "allow" }),
+    },
     async execute(_toolCallId, params, signal) {
       const format = params.format ?? "markdown";
       const timeoutMs = Math.min(
@@ -140,7 +144,7 @@ export function createWebFetchTool(): AgentTool<typeof webFetchSchema> {
         signal?.removeEventListener("abort", abortListener);
       }
     },
-  };
+  });
 }
 
 function getAcceptHeader(format: "text" | "markdown" | "html") {

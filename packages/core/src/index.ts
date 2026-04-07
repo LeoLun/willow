@@ -1,5 +1,6 @@
 export {
   createBashTool,
+  createTool,
   createEditTool,
   createFindTool,
   createGrepTool,
@@ -11,9 +12,15 @@ export {
   createWebSearchTool,
   createWriteTool,
   createAllTools,
+  ToolApprovalCoordinator,
   type TodoItem,
   type TodoStore,
+  type WillowTool,
   type WebSearchOptions,
+  type ToolPermissionDecision,
+  type ToolApprovalRequest,
+  type ToolApprovalDecision,
+  type ToolApprovalStatus,
 } from "./tools/index";
 
 export { buildSystemPrompt, type SystemPromptOptions } from "./system-prompt";

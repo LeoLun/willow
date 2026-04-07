@@ -1,7 +1,7 @@
 import { constants } from "fs";
 import { readFile, writeFile, access } from "fs/promises";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
+import { createTool } from "./create-tool";
 import { resolveToCwd } from "./path-utils";
 
 export interface EditToolDetails {
@@ -23,12 +23,16 @@ const editSchema = Type.Object({
   newText: Type.String({ description: "替换后的文本" }),
 });
 
-export function createEditTool(cwd: string): AgentTool<typeof editSchema> {
-  return {
+export function createEditTool(cwd: string) {
+  return createTool({
     name: "edit",
     label: "编辑文件",
     description: "通过精确字符串替换编辑文件。oldText 必须与原文完全一致且仅出现一次。请先 read。",
     parameters: editSchema,
+    meta: {
+      label: "编辑文件",
+      permission: () => ({ mode: "ask", reason: "编辑文件会修改工作区内容", risk: "high" }),
+    },
     async execute(_toolCallId, params) {
       const { path, oldText, newText } = params;
       const absolutePath = resolveToCwd(path, cwd);
@@ -75,5 +79,5 @@ export function createEditTool(cwd: string): AgentTool<typeof editSchema> {
         details,
       };
     },
-  };
+  });
 }

@@ -4,6 +4,15 @@ import type { ToolCall, ToolResultMessage } from "@mariozechner/pi-ai";
 import { computed } from "vue";
 import { renderTool } from "../renderers/registry";
 
+interface ToolApproval {
+  toolCallId: string;
+  toolName: string;
+  arguments: unknown;
+  reason: string;
+  risk: "medium" | "high";
+  status: "pending" | "approved" | "rejected";
+}
+
 const props = withDefaults(
   defineProps<{
     toolCall: ToolCall;
@@ -12,6 +21,9 @@ const props = withDefaults(
     pending?: boolean;
     aborted?: boolean;
     isStreaming?: boolean;
+    approval?: ToolApproval;
+    onApprove?: (toolCallId: string) => void;
+    onReject?: (toolCallId: string) => void;
   }>(),
   {
     pending: false,
@@ -41,13 +53,81 @@ const renderResult = computed(() => {
     !props.aborted && (props.isStreaming || props.pending),
   );
 });
+
+const argsSummary = computed(() => {
+  const value = props.approval?.arguments ?? props.toolCall.arguments;
+  if (!value) return "";
+
+  try {
+    if (typeof value === "string") {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed.command === "string") {
+        return parsed.command;
+      }
+      return JSON.stringify(parsed, null, 2);
+    }
+
+    if (typeof value === "object" && value !== null && "command" in value) {
+      const command = (value as { command?: unknown }).command;
+      if (typeof command === "string") {
+        return command;
+      }
+    }
+
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+});
 </script>
 
 <template>
-  <template v-if="renderResult.isCustom">
-    <component :is="renderResult.component" v-bind="renderResult.props" />
-  </template>
-  <div v-else>
-    <component :is="renderResult.component" v-bind="renderResult.props" />
+  <div class="space-y-3">
+    <div
+      v-if="approval"
+      class="rounded-lg border border-amber-500/30 bg-amber-500/8 p-3 text-sm text-foreground"
+    >
+      <div class="font-medium">
+        {{ approval.status === "pending" ? "工具调用等待审批" : "工具审批结果" }}
+      </div>
+      <div class="mt-1 text-muted-foreground">
+        {{ approval.reason }}
+      </div>
+      <div v-if="argsSummary" class="mt-2 rounded bg-background/60 p-2 font-mono text-xs">
+        {{ argsSummary }}
+      </div>
+      <div
+        v-if="approval.toolName === 'bash' && approval.status === 'pending'"
+        class="mt-2 text-amber-600"
+      >
+        这是高危操作，需要人工确认。
+      </div>
+      <div v-if="approval.status === 'pending'" class="mt-3 flex gap-2">
+        <button
+          type="button"
+          class="rounded-md bg-primary px-3 py-1.5 text-primary-foreground transition-opacity hover:opacity-90"
+          @click="onApprove?.(toolCall.id)"
+        >
+          批准本次执行
+        </button>
+        <button
+          type="button"
+          class="rounded-md border border-border px-3 py-1.5 transition-colors hover:bg-muted"
+          @click="onReject?.(toolCall.id)"
+        >
+          拒绝本次执行
+        </button>
+      </div>
+      <div v-else class="mt-3 text-xs text-muted-foreground">
+        {{ approval.status === "approved" ? "本次调用已批准" : "本次调用已拒绝" }}
+      </div>
+    </div>
+
+    <template v-if="renderResult.isCustom">
+      <component :is="renderResult.component" v-bind="renderResult.props" />
+    </template>
+    <div v-else>
+      <component :is="renderResult.component" v-bind="renderResult.props" />
+    </div>
   </div>
 </template>

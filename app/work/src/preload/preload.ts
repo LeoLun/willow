@@ -19,6 +19,8 @@ import type {
   DeleteSessionResponse,
   SendMessageRequest,
   SendMessageResponse,
+  ResolveToolApprovalRequest,
+  ResolveToolApprovalResponse,
   StopSessionStreamRequest,
   StopSessionStreamResponse,
   GetSessionListRequest,
@@ -56,6 +58,7 @@ import {
   RENAME_SESSION,
   DELETE_SESSION,
   SEND_MESSAGE,
+  RESOLVE_TOOL_APPROVAL,
   STOP_SESSION_STREAM,
   GET_SESSION_LIST,
   GET_SESSION_HISTORY,
@@ -187,6 +190,19 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("send message failed");
+    }
+    return response.data;
+  },
+  resolveToolApproval: async (request: ResolveToolApprovalRequest) => {
+    const response = (await ipcRenderer.invoke(
+      RESOLVE_TOOL_APPROVAL,
+      request,
+    )) as ApiResponse<ResolveToolApprovalResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("resolve tool approval failed");
     }
     return response.data;
   },

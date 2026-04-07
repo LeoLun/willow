@@ -12,8 +12,9 @@ import {
 } from "@main/utils/agent-message-text";
 import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 import type { AgentEvent, AgentMessage } from "@mariozechner/pi-agent-core";
-import type { ActiveSessionStream, SendMessage } from "@shared/api";
+import type { ActiveSessionStream, SendMessage, ToolApproval } from "@shared/api";
 import { SESSION_TITLE_UPDATED } from "@shared/constants";
+import type { ToolApprovalDecision } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 
 interface ActiveSessionStreamState {
@@ -21,9 +22,25 @@ interface ActiveSessionStreamState {
   streamMessage: AgentMessage | null;
   isStreaming: boolean;
   pendingToolCallIds: Set<string>;
+  toolApprovals: Map<string, ToolApproval>;
 }
 
 interface RunningSession {
+  coreAgent: {
+    agent: {
+      abort(): void;
+      subscribe(fn: (event: AgentEvent) => void): () => void;
+      prompt(input: string): Promise<void>;
+      state: {
+        messages: AgentMessage[];
+      };
+    };
+    approvalCoordinator: {
+      onPending(listener: (approval: ToolApproval) => void): () => void;
+      onResolved(listener: (approval: ToolApproval) => void): () => void;
+    };
+    resolveToolApproval(toolCallId: string, decision: ToolApprovalDecision): boolean;
+  };
   agent: {
     abort(): void;
   };
@@ -121,6 +138,8 @@ export class SessionService {
       streamMessage: stream.streamMessage,
       isStreaming: stream.isStreaming,
       pendingToolCallIds: Array.from(stream.pendingToolCallIds),
+      toolApprovals:
+        stream.toolApprovals.size > 0 ? Array.from(stream.toolApprovals.values()) : undefined,
       todos: todos.length > 0 ? todos : undefined,
     };
   }
@@ -191,12 +210,20 @@ export class SessionService {
 
     const priorMessageCount = this.sessionMessageDao.findBySessionId(sessionId).length;
 
-    const agent = await this.agentService.getDefaultAgent(
+    const coreAgent = await this.agentService.getDefaultAgent(
       session,
       data.modelId,
       data.webSearchEnabled,
     );
+    const agent = coreAgent.agent;
+    const offPendingApproval = coreAgent.approvalCoordinator.onPending((approval) => {
+      this.upsertToolApproval(sessionId, approval);
+    });
+    const offResolvedApproval = coreAgent.approvalCoordinator.onResolved((approval) => {
+      this.upsertToolApproval(sessionId, approval);
+    });
     this.runningSessions.set(sessionId, {
+      coreAgent,
       agent,
       stopRequested: false,
     });
@@ -230,7 +257,25 @@ export class SessionService {
     } finally {
       this.activeSessionStreams.delete(sessionId);
       this.runningSessions.delete(sessionId);
+      offPendingApproval();
+      offResolvedApproval();
       unsubscribe();
+    }
+  }
+
+  async resolveToolApproval(
+    sessionId: number,
+    toolCallId: string,
+    decision: ToolApprovalDecision,
+  ): Promise<void> {
+    const runningSession = this.runningSessions.get(sessionId);
+    if (!runningSession) {
+      throw new Error("session is not running");
+    }
+
+    const resolved = runningSession.coreAgent.resolveToolApproval(toolCallId, decision);
+    if (!resolved) {
+      throw new Error("tool approval not found");
     }
   }
 
@@ -268,6 +313,7 @@ export class SessionService {
       streamMessage: null,
       isStreaming: false,
       pendingToolCallIds: new Set<string>(),
+      toolApprovals: new Map<string, ToolApproval>(),
     };
 
     current.messages = [...messages];
@@ -277,6 +323,7 @@ export class SessionService {
         current.isStreaming = true;
         current.streamMessage = null;
         current.pendingToolCallIds.clear();
+        current.toolApprovals.clear();
         break;
 
       case "message_start":
@@ -314,6 +361,27 @@ export class SessionService {
     }
 
     this.activeSessionStreams.set(sessionId, current);
+  }
+
+  private upsertToolApproval(sessionId: number, approval: ToolApproval): void {
+    const current = this.activeSessionStreams.get(sessionId) ?? {
+      messages: [],
+      streamMessage: null,
+      isStreaming: false,
+      pendingToolCallIds: new Set<string>(),
+      toolApprovals: new Map<string, ToolApproval>(),
+    };
+
+    current.toolApprovals.set(approval.toolCallId, approval);
+    this.activeSessionStreams.set(sessionId, current);
+    this.eventService.sendEvent("UPDATE_MESSAGE", {
+      sessionId,
+      groupId: "0",
+      event: {
+        type: "tool_approval_update",
+        approval,
+      },
+    });
   }
 
   // private createAgentSession(sessionId: number) {

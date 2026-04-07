@@ -11,7 +11,10 @@ const props = withDefaults(
     tools?: AgentTool[];
     isStreaming?: boolean;
     pendingToolCalls?: Set<string>;
+    toolApprovals?: Map<string, any>;
     toolResultsById?: Map<string, ToolResultMessage>;
+    onApproveToolCall?: (toolCallId: string) => void;
+    onRejectToolCall?: (toolCallId: string) => void;
     onCostClick?: () => void;
   }>(),
   {
@@ -63,8 +66,11 @@ watch(
         :tools="tools"
         :is-streaming="isStreaming"
         :pending-tool-calls="pendingToolCalls"
+        :tool-approvals="toolApprovals"
         :tool-results-by-id="toolResultsById"
         :hide-tool-calls="false"
+        :on-approve-tool-call="onApproveToolCall"
+        :on-reject-tool-call="onRejectToolCall"
         :on-cost-click="onCostClick"
       />
       <span

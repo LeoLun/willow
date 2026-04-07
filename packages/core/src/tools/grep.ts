@@ -1,7 +1,7 @@
 import { readdir, readFile, stat } from "fs/promises";
 import { join, relative } from "path";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
+import { createTool } from "./create-tool";
 import { resolveToCwd } from "./path-utils";
 
 const DEFAULT_LIMIT = 100;
@@ -47,12 +47,16 @@ async function* walkFiles(root: string): AsyncGenerator<string> {
   }
 }
 
-export function createGrepTool(cwd: string): AgentTool<typeof grepSchema> {
-  return {
+export function createGrepTool(cwd: string) {
+  return createTool({
     name: "grep",
     label: "内容搜索",
     description: "在路径下用正则搜索文件内容。跳过 node_modules、.git 等。输出大小有上限。",
     parameters: grepSchema,
+    meta: {
+      label: "内容搜索",
+      permission: () => ({ mode: "allow" }),
+    },
     async execute(_toolCallId, params, signal) {
       const { pattern, path: searchPath, ignoreCase, limit } = params;
       const root = resolveToCwd(searchPath ?? ".", cwd);
@@ -114,5 +118,5 @@ export function createGrepTool(cwd: string): AgentTool<typeof grepSchema> {
 
       return { content: [{ type: "text", text: body }], details };
     },
-  };
+  });
 }

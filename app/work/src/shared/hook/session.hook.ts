@@ -7,6 +7,8 @@ import type {
   DeleteSessionResponse,
   SendMessageRequest,
   SendMessageResponse,
+  ResolveToolApprovalRequest,
+  ResolveToolApprovalResponse,
   StopSessionStreamRequest,
   StopSessionStreamResponse,
   GetSessionListRequest,
@@ -22,6 +24,7 @@ export interface ISessionApi {
   renameSession(request: RenameSessionRequest): Promise<RenameSessionResponse>;
   deleteSession(request: DeleteSessionRequest): Promise<DeleteSessionResponse>;
   sendMessage(request: SendMessageRequest): Promise<SendMessageResponse>;
+  resolveToolApproval(request: ResolveToolApprovalRequest): Promise<ResolveToolApprovalResponse>;
   stopSessionStream(request: StopSessionStreamRequest): Promise<StopSessionStreamResponse>;
   getSessionList(request: GetSessionListRequest): Promise<GetSessionListResponse>;
   getSessionHistory(request: GetSessionHistoryRequest): Promise<GetSessionHistoryResponse>;

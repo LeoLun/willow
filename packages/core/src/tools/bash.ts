@@ -1,7 +1,8 @@
 import { spawn } from "child_process";
 import { existsSync } from "fs";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@sinclair/typebox";
+import { classifyBashCommand } from "./bash-risk";
+import { createTool } from "./create-tool";
 
 export interface BashToolDetails {
   cwd: string;
@@ -20,12 +21,16 @@ const bashSchema = Type.Object({
   timeout: Type.Optional(Type.Number({ description: "超时时间（秒）" })),
 });
 
-export function createBashTool(cwd: string): AgentTool<typeof bashSchema> {
-  return {
+export function createBashTool(cwd: string) {
+  return createTool({
     name: "bash",
     label: "执行命令",
     description: "在工作目录中执行 bash 命令。返回合并后的 stdout 与 stderr。",
     parameters: bashSchema,
+    meta: {
+      label: "执行命令",
+      permission: (params) => classifyBashCommand(params.command),
+    },
     async execute(_toolCallId, params, signal) {
       const { command, timeout } = params;
       if (!existsSync(cwd)) {
@@ -121,7 +126,7 @@ export function createBashTool(cwd: string): AgentTool<typeof bashSchema> {
         });
       });
     },
-  };
+  });
 }
 
 function truncateOutput(output: string): string {

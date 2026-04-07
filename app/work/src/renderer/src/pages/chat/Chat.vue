@@ -59,6 +59,18 @@ async function handleStop() {
     sessionId: sessionId.value,
   });
 }
+
+async function handleToolApproval(toolCallId: string, decision: "approved" | "rejected") {
+  if (!isSessionRoute.value) {
+    return;
+  }
+
+  await electronAPI.resolveToolApproval({
+    sessionId: sessionId.value,
+    toolCallId,
+    decision,
+  });
+}
 </script>
 
 <template>
@@ -72,6 +84,9 @@ async function handleStop() {
           :is-streaming="state.isStreaming"
           :tools="state.tools"
           :pending-tool-calls="state.pendingToolCalls"
+          :tool-approvals="state.toolApprovals"
+          :on-approve-tool-call="(toolCallId: string) => handleToolApproval(toolCallId, 'approved')"
+          :on-reject-tool-call="(toolCallId: string) => handleToolApproval(toolCallId, 'rejected')"
         />
       </RouterView>
     </div>
