@@ -22,11 +22,11 @@ import { RenameSessionController } from "./controllers/session/rename.session.co
 import { ResolveToolApprovalController } from "./controllers/session/resolve.tool.approval.controller";
 import { SendMessageController } from "./controllers/session/send.messgae.controller";
 import { StopSessionStreamController } from "./controllers/session/stop.session.stream.controller";
-import { CreateWorkspaceController } from "./controllers/workspace/create.workspace.controll";
-import { DeleteWorkspaceController } from "./controllers/workspace/delete.workspace.controll";
-import { GetWorkspaceInfoController } from "./controllers/workspace/get.workspace.info.controll";
-import { GetWorkspaceListController } from "./controllers/workspace/get.workspace.list.controll";
-import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controll";
+import { CreateWorkspaceController } from "./controllers/workspace/create.workspace.controller";
+import { DeleteWorkspaceController } from "./controllers/workspace/delete.workspace.controller";
+import { GetWorkspaceInfoController } from "./controllers/workspace/get.workspace.info.controller";
+import { GetWorkspaceListController } from "./controllers/workspace/get.workspace.list.controller";
+import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controller";
 import { AgentService } from "./service/agent.service";
 import { ConfigService } from "./service/config.service";
 import { ModelDao } from "./service/dao/model.dao.service";
