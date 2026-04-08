@@ -12,6 +12,7 @@ yarn-error.log*
 # Build output
 dist/
 build/
+.worktrees/
 
 # Dependency directories
 jspm_packages/
