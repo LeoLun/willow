@@ -1,5 +1,6 @@
 Always use `docs/ai-workflows/openspec/*.md` as the project source of truth.
 Always use the project `workflow-*` workflow for AI collaboration.
+For renderer, `shadcn-vue`, and page design work, always consult the repository root `DESIGN.md` after reading the relevant OpenSpec artifacts.
 
 ## Workflow Contract
 
@@ -7,6 +8,7 @@ Always use the project `workflow-*` workflow for AI collaboration.
 - Do not use legacy `openspec-*` or `superpowers` workflow skill names in this repository.
 - All new workflow-side documents must be written under `docs/ai-workflows/`.
 - The canonical OpenSpec storage location is `docs/ai-workflows/openspec/`.
+- The repository root `DESIGN.md` is the long-lived renderer design standard. It does not replace feature-level OpenSpec behavior or requirements.
 - The repository root `openspec/` path is a compatibility symlink for tools that still expect the default OpenSpec directory.
 - Standard sequence:
   1. `workflow-spec`: define or update the OpenSpec change.

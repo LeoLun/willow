@@ -3,6 +3,7 @@
 ## Source of Truth
 
 - 产品范围、行为、设计、任务：以 `docs/ai-workflows/openspec/*.md` 和 `docs/ai-workflows/openspec/changes/*/*.md` 为准。
+- 已归档的历史 change 以 `docs/ai-workflows/openspec/archive/*/*.md` 为准，不再视为活跃变更。
 - `docs/ai-workflows/` 用于保存流程文档、计划文档、阶段记录和辅助说明。
 - 仓库根目录 `openspec/` 是兼容符号链接；默认阅读和更新真实文件时，应以 `docs/ai-workflows/openspec/` 为准。
 

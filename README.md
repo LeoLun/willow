@@ -5,6 +5,7 @@
 ## 核心原则
 
 - `docs/ai-workflows/openspec/*.md` 与 `docs/ai-workflows/openspec/changes/*/*.md` 是唯一需求真相源。
+- 已完成的历史变更归档在 `docs/ai-workflows/openspec/archive/`，用于追溯，不作为活跃 change 继续推进。
 - `workflow-*` 负责推进流程，不替代 OpenSpec 产物。
 - 新增流程文档统一写入 `docs/ai-workflows/`。
 - 仓库根目录的 `openspec/` 只是兼容 OpenSpec CLI 的符号链接，真实文件位于 `docs/ai-workflows/openspec/`。
