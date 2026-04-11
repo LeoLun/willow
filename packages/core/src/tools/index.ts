@@ -41,7 +41,13 @@ export interface WebSearchOptions {
   getApiKey: () => string;
 }
 
-export function createAllTools(cwd: string, websearch?: WebSearchOptions, todoStore?: TodoStore) {
+export interface CreateAllToolsOptions {
+  websearch?: WebSearchOptions;
+  todoStore?: TodoStore;
+  extraTools?: WillowTool<any>[];
+}
+
+export function createAllTools(cwd: string, options?: CreateAllToolsOptions) {
   const tools: WillowTool<any>[] = [
     createBashTool(cwd),
     createEditTool(cwd),
@@ -53,13 +59,17 @@ export function createAllTools(cwd: string, websearch?: WebSearchOptions, todoSt
     createWriteTool(cwd),
   ];
 
-  if (websearch) {
-    tools.push(createWebSearchTool(websearch.getApiKey));
+  if (options?.websearch) {
+    tools.push(createWebSearchTool(options.websearch.getApiKey));
   }
 
-  if (todoStore) {
-    tools.push(createTodoWriteTool(todoStore));
-    tools.push(createTodoReadTool(todoStore));
+  if (options?.todoStore) {
+    tools.push(createTodoWriteTool(options.todoStore));
+    tools.push(createTodoReadTool(options.todoStore));
+  }
+
+  if (options?.extraTools?.length) {
+    tools.push(...options.extraTools);
   }
 
   return tools;

@@ -16,6 +16,8 @@ export { default as AttachmentTile } from "./components/AttachmentTile.vue";
 // Tool renderer system
 export { registerToolRenderer, getToolRenderer, renderTool } from "./renderers/registry";
 export type { ToolRenderer, ToolRenderResult } from "./renderers/types";
+export { AutomationCreateRendererFactory } from "./renderers/AutomationCreateRendererFactory";
+export { TodoRendererFactory } from "./renderers/TodoRendererFactory";
 
 // Message renderer registry
 export {

@@ -47,6 +47,15 @@ import type {
   UpdateTavilyKeyResponse,
   DeleteTavilyKeyRequest,
   DeleteTavilyKeyResponse,
+  GetAutomationListResponse,
+  GetAutomationRequest,
+  GetAutomationResponse,
+  CreateAutomationRequest,
+  CreateAutomationResponse,
+  UpdateAutomationRequest,
+  UpdateAutomationResponse,
+  DeleteAutomationRequest,
+  DeleteAutomationResponse,
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
@@ -74,6 +83,11 @@ import {
   ADD_TAVILY_KEY,
   UPDATE_TAVILY_KEY,
   DELETE_TAVILY_KEY,
+  GET_AUTOMATION_LIST,
+  GET_AUTOMATION,
+  CREATE_AUTOMATION,
+  UPDATE_AUTOMATION,
+  DELETE_AUTOMATION,
 } from "../shared/constants";
 
 const ipcObject: IRenderHook = {
@@ -397,6 +411,70 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("delete tavily key failed");
+    }
+    return response.data;
+  },
+  getAutomationList: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_AUTOMATION_LIST,
+    )) as ApiResponse<GetAutomationListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get automation list failed");
+    }
+    return response.data;
+  },
+  getAutomation: async (request: GetAutomationRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_AUTOMATION,
+      request,
+    )) as ApiResponse<GetAutomationResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get automation failed");
+    }
+    return response.data;
+  },
+  createAutomation: async (request: CreateAutomationRequest) => {
+    const response = (await ipcRenderer.invoke(
+      CREATE_AUTOMATION,
+      request,
+    )) as ApiResponse<CreateAutomationResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("create automation failed");
+    }
+    return response.data;
+  },
+  updateAutomation: async (request: UpdateAutomationRequest) => {
+    const response = (await ipcRenderer.invoke(
+      UPDATE_AUTOMATION,
+      request,
+    )) as ApiResponse<UpdateAutomationResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("update automation failed");
+    }
+    return response.data;
+  },
+  deleteAutomation: async (request: DeleteAutomationRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_AUTOMATION,
+      request,
+    )) as ApiResponse<DeleteAutomationResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("delete automation failed");
     }
     return response.data;
   },

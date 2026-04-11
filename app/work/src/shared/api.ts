@@ -315,3 +315,106 @@ export interface DeleteTavilyKeyRequest {
 export interface DeleteTavilyKeyResponse {
   key: TavilyKeyConfig;
 }
+
+export type AutomationStatus = "enabled" | "disabled";
+export type AutomationTriggerType = "schedule";
+export type AutomationScheduleMode = "daily_at" | "hourly" | "weekly_at" | "custom";
+export type AutomationRunKind = "scheduled" | "catch_up";
+export type AutomationRunStatus = "running" | "completed" | "failed";
+
+export interface AutomationTrigger {
+  id: number;
+  automationId: number;
+  type: AutomationTriggerType;
+  cronExpression: string;
+  timezone: string;
+  isActive: boolean;
+  summary: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AutomationRunSummary {
+  id: number;
+  automationId: number;
+  scheduledFor: Date;
+  triggeredAt: Date;
+  runKind: AutomationRunKind;
+  status: AutomationRunStatus;
+  sessionId?: number | null;
+  errorMessage?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Automation {
+  id: number;
+  workspaceId: number;
+  title: string;
+  prompt: string;
+  status: AutomationStatus;
+  triggerType: AutomationTriggerType;
+  lastScheduledAt?: Date | null;
+  lastRunAt?: Date | null;
+  lastCompletedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  trigger?: AutomationTrigger;
+  latestRun?: AutomationRunSummary;
+}
+
+export interface AutomationScheduleInput {
+  mode: AutomationScheduleMode;
+  cronExpression: string;
+  timezone?: string;
+  dailyTime?: string;
+  weeklyDays?: number[];
+}
+
+export interface GetAutomationListResponse {
+  automations: Automation[];
+}
+
+export interface GetAutomationRequest {
+  id: number;
+}
+
+export interface GetAutomationResponse {
+  automation: Automation;
+}
+
+export interface CreateAutomationRequest {
+  workspaceId: number;
+  prompt: string;
+  trigger: {
+    type: AutomationTriggerType;
+    schedule: AutomationScheduleInput;
+  };
+  status?: AutomationStatus;
+}
+
+export interface CreateAutomationResponse {
+  automation: Automation;
+}
+
+export interface UpdateAutomationRequest {
+  id: number;
+  prompt?: string;
+  status?: AutomationStatus;
+  trigger?: {
+    type: AutomationTriggerType;
+    schedule: AutomationScheduleInput;
+  };
+}
+
+export interface UpdateAutomationResponse {
+  automation: Automation;
+}
+
+export interface DeleteAutomationRequest {
+  id: number;
+}
+
+export interface DeleteAutomationResponse {
+  automation: Automation;
+}

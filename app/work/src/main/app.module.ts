@@ -1,6 +1,11 @@
 import { On, WindowFactoryResolver, Module } from "@willow/poetry";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, dialog as electronDialog } from "electron";
 import started from "electron-squirrel-startup";
+import { CreateAutomationController } from "./controllers/automation/create.automation.controller";
+import { DeleteAutomationController } from "./controllers/automation/delete.automation.controller";
+import { GetAutomationController } from "./controllers/automation/get.automation.controller";
+import { GetAutomationListController } from "./controllers/automation/get.automation.list.controller";
+import { UpdateAutomationController } from "./controllers/automation/update.automation.controller";
 import { AddModelController } from "./controllers/config/add.model.controller";
 import { AddTavilyKeyController } from "./controllers/config/add.tavily.key.controller";
 import { DeleteModelController } from "./controllers/config/delete.model.controller";
@@ -28,7 +33,13 @@ import { GetWorkspaceInfoController } from "./controllers/workspace/get.workspac
 import { GetWorkspaceListController } from "./controllers/workspace/get.workspace.list.controller";
 import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controller";
 import { AgentService } from "./service/agent.service";
+import { AutomationSchedulerService } from "./service/automation-scheduler.service";
+import { registerAutomationToolService } from "./service/automation-tool.service";
+import { AutomationService } from "./service/automation.service";
 import { ConfigService } from "./service/config.service";
+import { AutomationRunDao } from "./service/dao/automation-run.dao.service";
+import { AutomationTriggerDao } from "./service/dao/automation-trigger.dao.service";
+import { AutomationDao } from "./service/dao/automation.dao.service";
 import { ModelDao } from "./service/dao/model.dao.service";
 import { SessionMessageDao } from "./service/dao/session-message.dao.service";
 import { SessionDao } from "./service/dao/session.dao.service";
@@ -65,10 +76,20 @@ if (started) {
     TavilyService,
     TodoService,
     EventService,
+    AutomationDao,
+    AutomationTriggerDao,
+    AutomationRunDao,
+    AutomationSchedulerService,
+    AutomationService,
   ],
   controllers: [
     InitController,
     DialogController,
+    GetAutomationListController,
+    GetAutomationController,
+    CreateAutomationController,
+    UpdateAutomationController,
+    DeleteAutomationController,
     GetWorkspaceListController,
     CreateWorkspaceController,
     DeleteWorkspaceController,
@@ -96,10 +117,18 @@ if (started) {
   ],
 })
 export class AppModule {
+  private initSucceeded = false;
+
   constructor(
     private windowFactoryResolver: WindowFactoryResolver,
+    private automationService: AutomationService,
     private initController: InitController,
     private dialogController: DialogController,
+    private getAutomationListController: GetAutomationListController,
+    private getAutomationController: GetAutomationController,
+    private createAutomationController: CreateAutomationController,
+    private updateAutomationController: UpdateAutomationController,
+    private deleteAutomationController: DeleteAutomationController,
     private getWorkspaceListController: GetWorkspaceListController,
     private createWorkspaceController: CreateWorkspaceController,
     private deleteWorkspaceController: DeleteWorkspaceController,
@@ -124,7 +153,9 @@ export class AppModule {
     private addTavilyKeyController: AddTavilyKeyController,
     private updateTavilyKeyController: UpdateTavilyKeyController,
     private deleteTavilyKeyController: DeleteTavilyKeyController,
-  ) {}
+  ) {
+    registerAutomationToolService(this.automationService);
+  }
 
   createWindow() {
     this.windowFactoryResolver.resolveWindowFactory(MainWindow);
@@ -132,8 +163,7 @@ export class AppModule {
 
   @On("ready")
   async onReady() {
-    this.initController.init();
-    this.createWindow();
+    await this.bootstrapApplication();
   }
 
   @On("before-quit")
@@ -149,9 +179,33 @@ export class AppModule {
   }
 
   @On("activate")
-  onActivate() {
+  async onActivate() {
     if (BrowserWindow.getAllWindows().length === 0) {
+      if (!this.initSucceeded) {
+        await this.bootstrapApplication();
+        return;
+      }
       this.createWindow();
+    }
+  }
+
+  private async bootstrapApplication() {
+    if (this.initSucceeded) {
+      return true;
+    }
+
+    try {
+      await this.initController.init();
+      this.initSucceeded = true;
+      this.createWindow();
+      return true;
+    } catch (error) {
+      console.error("数据库迁移失败，应用启动已中止。", error);
+      electronDialog.showErrorBox(
+        "数据库升级失败",
+        "本地数据库升级失败，应用未继续启动。请查看控制台日志后重试。",
+      );
+      return false;
     }
   }
 }

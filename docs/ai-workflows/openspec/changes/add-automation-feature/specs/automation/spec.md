@@ -45,7 +45,7 @@ The system SHALL let the user configure common schedule patterns from the automa
 #### Scenario: Configure weekly schedule
 
 - **GIVEN** the user is creating or editing an automation
-- **WHEN** the user selects the weekly schedule mode, chooses a weekday, and chooses a time
+- **WHEN** the user selects the weekly schedule mode, chooses one or more weekdays, and chooses a time
 - **THEN** the form shows a weekly schedule summary
 - **AND** the system derives the matching standard cron expression for persistence and scheduling
 
@@ -74,6 +74,26 @@ The system SHALL provide an automation management page at the existing automatio
 - **THEN** the page shows the automation list
 - **AND** the top-right area shows an add-automation button
 - **AND** each list item shows workspace, trigger summary, prompt summary, status, and latest run summary
+
+### Requirement: Follow Project Design Standard For Automation UI
+
+The system SHALL implement automation renderer UI in accordance with the repository root `DESIGN.md`.
+
+#### Scenario: Render automation page with project-standard layout hierarchy
+
+- **GIVEN** the user opens the automation management page
+- **WHEN** the automation UI is rendered
+- **THEN** the page uses the project-standard workbench layout hierarchy defined in `DESIGN.md`
+- **AND** the page header keeps a title, a concise description, and one stable primary action area
+- **AND** the page does not use marketing-style hero sections, oversized decorative empty space, or competing primary actions
+
+#### Scenario: Render creation dialog with project-standard component usage
+
+- **GIVEN** the user opens the automation creation dialog
+- **WHEN** the dialog content is rendered
+- **THEN** the dialog uses `DESIGN.md`-aligned shadcn-vue component patterns for fields, preview, and footer actions
+- **AND** the visual structure remains compact, readable, and desktop-tool oriented
+- **AND** destructive or secondary actions remain visually subordinate to the primary confirm action
 
 ### Requirement: Create Automation With Preview
 

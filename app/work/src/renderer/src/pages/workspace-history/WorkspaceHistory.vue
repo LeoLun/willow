@@ -129,11 +129,11 @@ onUnmounted(() => {
 
 <template>
   <div class="flex h-full flex-col overflow-hidden">
-    <div class="flex items-center gap-3 border-b px-6 py-4">
+    <div class="flex items-center gap-1 border-b pl-3">
       <Button variant="ghost" size="icon" class="size-8" @click="router.back()">
         <ArrowLeft class="size-4" />
       </Button>
-      <h1 class="text-lg font-semibold">{{ workspace?.name ?? "工作空间" }} — 历史会话</h1>
+      <div class="text-base font-semibold">{{ workspace?.name ?? "工作空间" }} — 历史会话</div>
       <span v-if="initialized" class="text-sm text-muted-foreground">共 {{ total }} 条</span>
     </div>
 

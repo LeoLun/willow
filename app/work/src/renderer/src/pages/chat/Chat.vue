@@ -74,7 +74,7 @@ async function handleToolApproval(toolCallId: string, decision: "approved" | "re
 </script>
 
 <template>
-  <div class="flex h-full flex-col items-center p-3">
+  <div class="flex h-full flex-col items-center px-3 pb-3">
     <div class="min-h-0 w-full flex-1">
       <RouterView v-slot="{ Component }">
         <component

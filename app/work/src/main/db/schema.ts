@@ -84,3 +84,62 @@ export const models = sqliteTable("models", {
     .$onUpdateFn(() => new Date())
     .notNull(),
 });
+
+export const automations = sqliteTable("automations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id")
+    .references(() => workspaces.id, { onDelete: "cascade" })
+    .notNull(),
+  title: text("title").notNull(),
+  prompt: text("prompt").notNull(),
+  status: text("status").notNull().default("enabled"),
+  triggerType: text("trigger_type").notNull().default("schedule"),
+  lastScheduledAt: integer("last_scheduled_at", { mode: "timestamp" }),
+  lastRunAt: integer("last_run_at", { mode: "timestamp" }),
+  lastCompletedAt: integer("last_completed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdateFn(() => new Date())
+    .notNull(),
+});
+
+export const automationTriggers = sqliteTable("automation_triggers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  automationId: integer("automation_id")
+    .references(() => automations.id, { onDelete: "cascade" })
+    .notNull(),
+  type: text("type").notNull().default("schedule"),
+  cronExpression: text("cron_expression").notNull(),
+  timezone: text("timezone").notNull().default("Asia/Shanghai"),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdateFn(() => new Date())
+    .notNull(),
+});
+
+export const automationRuns = sqliteTable("automation_runs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  automationId: integer("automation_id")
+    .references(() => automations.id, { onDelete: "cascade" })
+    .notNull(),
+  scheduledFor: integer("scheduled_for", { mode: "timestamp" }).notNull(),
+  triggeredAt: integer("triggered_at", { mode: "timestamp" }).notNull(),
+  runKind: text("run_kind").notNull(),
+  status: text("status").notNull(),
+  sessionId: integer("session_id").references(() => sessions.id, { onDelete: "set null" }),
+  errorMessage: text("error_message"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdateFn(() => new Date())
+    .notNull(),
+});

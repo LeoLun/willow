@@ -10,6 +10,7 @@
 - `docs/ai-workflows/openspec/changes/add-automation-feature/design.md`
 - `docs/ai-workflows/openspec/changes/add-automation-feature/tasks.md`
 - `docs/ai-workflows/openspec/changes/add-automation-feature/specs/automation/spec.md`
+- `DESIGN.md`
 
 ## Current Code Anchors
 
@@ -19,6 +20,7 @@
 - preload 入口位于 `app/work/src/preload/preload.ts`
 - shared 请求/响应类型与 IPC 常量位于 `app/work/src/shared/api.ts`、`app/work/src/shared/constants.ts`
 - `/auto` 页面目前仅为占位页：`app/work/src/renderer/src/pages/auto/Auto.vue`
+- 当前 renderer 已有 `Dialog`、`Card`、`Badge`、`Textarea`、`Switch` 等基础组件，但未看到现成 `Select` 组件文件，需要在实施时确认是补齐组件还是改用现有安全替代方案
 - Core tool 挂载点位于 `packages/core/src/tools/index.ts`，由 `packages/core/src/core-agent.ts` 注入 agent
 - 应用初始化入口在 `app/work/src/main/controllers/init.controller.ts`
 
@@ -27,12 +29,14 @@
 - 自动化执行会话策略采用设计稿中的推荐值：每次触发创建新会话，而不是复用固定会话。
 - 首期只交付 OpenSpec 已要求的列表、创建、删除、启停、最近运行信息；如果实现中加入编辑 UI，必须不超出既有规范。
 - cron 校验、调度注册和漏跑时间点计算必须共用同一套 cron 语义来源。
+- renderer 设计和组件组合必须同时满足 `docs/ai-workflows/openspec/changes/add-automation-feature/` 与仓库根 `DESIGN.md`，后者只负责视觉与组件表达，不扩展功能范围。
 
 ## Dependencies
 
 - `app/work` 需要引入 `node-cron`
 - 如补偿执行需要稳定计算上一次/下一次计划点，可能还需要补充一个 cron 解析库；若仅靠 `node-cron` 无法安全完成，则先确认依赖方案再实现
 - Drizzle schema、SQL migration、`meta/*_snapshot.json`、`_journal.json` 需要同步维护
+- 如果自动化创建流必须使用下拉选择，而 renderer 当前缺少现成 `Select` 实现，需要补齐与 `shadcn-vue` 基线一致的选择组件，且样式必须遵守 `DESIGN.md`
 
 ## Blockers And Escalation Rules
 
@@ -41,6 +45,7 @@
 - 自动化标题生成规则需要用户可配置
 - 最近运行摘要需要超出 `automation_runs` 当前设计的新字段
 - 除 `schedule` 外的 trigger 类型被实现需求隐式引入
+- 如果 renderer 需要新增超出当前仓库组件基线的大型交互模式，而不仅是补齐 `shadcn-vue` 基础表单组件，也先回到 `workflow-spec`
 
 ## Execution Slices
 
@@ -165,7 +170,7 @@
 ### Slice 5: Renderer State And `/auto` Page Skeleton
 
 目标：
-- 将当前占位页替换为真正的自动化管理页，先完成数据加载、空状态和列表展示。
+- 将当前占位页替换为真正的自动化管理页，先完成数据加载、空状态和列表展示，并确保页面骨架遵守 `DESIGN.md`。
 
 涉及文件 / 子系统：
 - `app/work/src/renderer/src/pages/auto/Auto.vue`
@@ -176,15 +181,17 @@
 实施步骤：
 1. 新增 setup-style Pinia automation store，封装列表加载、创建、删除、启停、刷新。
 2. 页面进入时加载 automation 列表，并在需要时复用 workspace store 获取 workspace 名称。
-3. 重写 `/auto` 页面头部，加入标题说明和右上角“添加自动化”按钮。
-4. 空列表时展示引导文案和主按钮。
-5. 非空列表时展示每条自动化的标题、工作空间、cron 摘要、prompt 摘要、启用状态、最近运行信息。
-6. 为 loading / empty / populated 三种状态提供稳定 UI。
+3. 重写 `/auto` 页面头部，加入标题说明和右上角“添加自动化”按钮，并保持单一主操作层级。
+4. 空列表时以 `Card` 为主承载空状态，引导文案保持简短直接，避免 marketing 式装饰。
+5. 非空列表时优先使用卡片列表或轻量列表容器展示每条自动化的标题、工作空间、cron 摘要、prompt 摘要、启用状态、最近运行信息。
+6. 为 loading / empty / populated 三种状态提供稳定 UI；loading 优先骨架或局部占位，不做整页跳闪。
+7. 页面样式只使用现有 token 和 `DESIGN.md` 允许的层次手段，不新增第二套视觉命名。
 
 验证：
 - 初次进入页面可以拿到列表数据
 - 空状态与非空状态切换正确
 - 删除或启停后列表能及时刷新
+- 页面头部、空状态和列表层级符合 `DESIGN.md`，没有多个竞争性主按钮或 landing-page 风格结构
 
 停手条件：
 - `/auto` 不再是占位页，且列表信息已满足 OpenSpec 成功标准
@@ -192,7 +199,7 @@
 ### Slice 6: Create Dialog, Schedule Modes, And Preview Card
 
 目标：
-- 完成自动化创建主流程，支持四种计划输入方式和实时预览。
+- 完成自动化创建主流程，支持四种计划输入方式和实时预览，并确保弹窗结构遵守 `DESIGN.md`。
 
 涉及文件 / 子系统：
 - `app/work/src/renderer/src/layout/dialog/automation-form/*.vue`
@@ -203,18 +210,21 @@
 
 实施步骤：
 1. 参考现有 dialog 组织方式新增 automation form dialog。
-2. 用现有 shadcn-vue 组件组合实现 workspace 选择、schedule mode 切换、时间输入、cron 输入、prompt 文本域。
-3. 在前端实现四种 schedule mode：`daily_at`、`hourly`、`weekly_at`、`custom`。
-4. 每种 mode 都即时生成标准 cron 表达式与用户可读摘要。
-5. `custom` 模式下提供 cron 校验与可理解错误信息。
-6. 预览卡片实时显示 workspace、trigger 摘要、最终 cron、prompt 摘要、自动生成标题。
-7. 提交成功后关闭弹窗并刷新列表。
+2. 先确认 workspace 选择器和 schedule mode 选择器所需基础组件是否已存在；若 `Select` 缺失，则先补齐与现有 `shadcn-vue` 基线一致的基础选择组件，再接业务表单。
+3. 用现有或补齐后的 shadcn-vue 组件组合实现 workspace 选择、schedule mode 切换、时间输入、cron 输入、prompt 文本域。
+4. 在前端实现四种 schedule mode：`daily_at`、`hourly`、`weekly_at`、`custom`。
+5. 每种 mode 都即时生成标准 cron 表达式与用户可读摘要。
+6. `custom` 模式下提供 cron 校验与可理解错误信息。
+7. 预览卡片实时显示 workspace、trigger 摘要、最终 cron、prompt 摘要、自动生成标题。
+8. 弹窗内容按 `DESIGN.md` 保持标题、简短说明、表单主体、预览区域、底部操作区的稳定顺序，且只保留一个主确认按钮。
+9. 提交成功后关闭弹窗并刷新列表。
 
 验证：
 - 点击“添加自动化”能打开弹窗
 - 四种计划方式都能得到正确 cron 与摘要
 - 非法输入无法提交
 - 创建成功后列表即时出现新自动化
+- 弹窗信息密度、按钮层级、预览卡片与字段分组符合 `DESIGN.md`
 
 停手条件：
 - 用户可以完整创建第一条自动化，且预览与最终持久化内容一致
@@ -235,12 +245,14 @@
 8. 退出应用后的单次漏跑补偿
 9. 退出应用后的多次漏跑仅补最后一次
 10. AI tools 的 list/get/create/update/delete
-11. 记录未覆盖风险，作为 `workflow-close` 的输入
+11. 对照 `DESIGN.md` 复核页面头部、空状态、卡片层级、弹窗结构、主次按钮与错误提示表达
+12. 记录未覆盖风险，作为 `workflow-close` 的输入
 
 验证：
 - lint 通过
 - 相关构建通过
 - 手工场景与 OpenSpec 成功标准一致
+- renderer 视觉与组件表达符合仓库根 `DESIGN.md`
 
 停手条件：
 - 已具备进入 `workflow-close` 所需的验证证据，或已经定位到需要继续修复的明确缺陷
@@ -258,6 +270,8 @@
 ## Notes For `workflow-implement`
 
 - 先做主进程底座，再接 IPC，再做 UI；不要从 `/auto` 页面开始倒推后端。
+- renderer 实施时始终先对照本 change 的 OpenSpec，再对照仓库根 `DESIGN.md`，不要把 `DESIGN.md` 当作功能需求来源。
+- 如果只是缺少 `Select` 这类基础 shadcn-vue 组件，可作为实现使能工作一并完成；如果需要新增更大范围的交互模式，先回到 `workflow-spec`。
 - 自动化启动恢复应接在 `InitController.init()` 成功完成数据库初始化之后，而不是散落在 renderer 首次访问时触发。
 - 若 `node-cron` 本身不足以安全支持补偿时间点计算，需要先补一个专用 cron 解析依赖，再继续实现；不要手写 `setTimeout` / `setInterval` 逻辑替代。
 - 如果“每次触发创建新会话”的假设需要改变，应先回到 `workflow-spec` 更新约束。

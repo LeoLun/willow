@@ -3,6 +3,7 @@ import { loadSkills } from "./skills";
 import { buildSystemPrompt, type SystemPromptOptions } from "./system-prompt";
 import {
   createAllTools,
+  type CreateAllToolsOptions,
   ToolApprovalCoordinator,
   type WebSearchOptions,
   type WillowTool,
@@ -17,6 +18,7 @@ export interface CoreAgentOptions {
   projectContext?: string;
   websearch?: WebSearchOptions;
   todoStore?: TodoStore;
+  extraTools?: WillowTool<any>[];
 }
 
 export class CoreAgent {
@@ -30,7 +32,12 @@ export class CoreAgent {
     this.cwd = options.cwd;
     this.approvalCoordinator = new ToolApprovalCoordinator();
 
-    const tools = createAllTools(this.cwd, options.websearch, options.todoStore);
+    const toolOptions: CreateAllToolsOptions = {
+      websearch: options.websearch,
+      todoStore: options.todoStore,
+      extraTools: options.extraTools,
+    };
+    const tools = createAllTools(this.cwd, toolOptions);
     this.tools = tools;
     const { skills, userDir, projectDir } = loadSkills({
       cwd: this.cwd,

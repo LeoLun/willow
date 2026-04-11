@@ -132,8 +132,9 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex h-full min-h-0 flex-col items-center">
-    <div class="text-sm">
-      {{ session?.title || "未命名会话" }}
+    <div class="flex w-full px-2 pb-2 text-sm">
+      <div class="font-semibold">{{ session?.title || "未命名会话" }}</div>
+      <div class="drag-region flex-1"></div>
     </div>
     <div ref="scrollArea" class="min-h-0 w-full flex-1 overflow-y-auto pt-4 pb-4">
       <div ref="messageContainer" class="mx-auto max-w-3xl px-4">

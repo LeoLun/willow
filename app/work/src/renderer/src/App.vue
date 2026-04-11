@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { Session } from "@shared/api";
 import { SESSION_TITLE_UPDATED } from "@shared/constants";
+import {
+  AutomationCreateRendererFactory,
+  registerToolRenderer,
+  TodoRendererFactory,
+} from "@willow/ui";
 import { onMounted, onUnmounted } from "vue";
 import TopDragBar from "@/components/base/TopDragBar.vue";
 import { Card } from "@/components/ui/card";
@@ -8,10 +13,19 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { useEventBus } from "@/composables/useEventBus";
 import { DialogProvider } from "@/layout/dialog";
+import { router } from "@/router";
 import { useSessionStore } from "@/stores/session";
 import LeftSidebar from "./layout/sidebar/LeftSidebar.vue";
 
 useDarkMode();
+registerToolRenderer(
+  "automation_create",
+  new AutomationCreateRendererFactory({
+    onOpen: () => router.push("/auto"),
+  }),
+);
+registerToolRenderer("todoread", new TodoRendererFactory());
+registerToolRenderer("todowrite", new TodoRendererFactory());
 
 const sessionStore = useSessionStore();
 const { addEventListener, removeEventListener } = useEventBus();

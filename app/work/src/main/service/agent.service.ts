@@ -1,3 +1,4 @@
+import { createAutomationTools } from "@main/service/automation-tool.service";
 import { ConfigService } from "@main/service/config.service";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
@@ -114,6 +115,7 @@ export class AgentService {
       userData: app.getPath("userData"),
       websearch: webSearchEnabled ? { getApiKey: () => tavilyService.getApiKey() } : undefined,
       todoStore,
+      extraTools: createAutomationTools(),
     });
 
     const rows = this.sessionMessageDao.findBySessionId(session.id);
