@@ -1,5 +1,3 @@
-Always use `docs/ai-workflows/openspec/*.md` as the project source of truth.
-Always use the project `workflow-*` workflow for AI collaboration.
 For renderer, `shadcn-vue`, and page design work, always consult the repository root `DESIGN.md` after reading the relevant OpenSpec artifacts.
 
 ## Workflow Contract

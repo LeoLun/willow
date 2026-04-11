@@ -114,11 +114,9 @@ onBeforeMount(async () => {
 
       <SidebarGroupLabel class="mt-[20px] flex items-center justify-between">
         <div>工作空间</div>
-        <div>
-          <Button variant="ghost" class="size-6 text-neutral-500" @click="handleCreateWorkspace">
-            <FolderPlus class="size-3.5" />
-          </Button>
-        </div>
+        <Button variant="ghost" class="size-6 text-neutral-500" @click="handleCreateWorkspace">
+          <FolderPlus class="size-3.5" />
+        </Button>
       </SidebarGroupLabel>
       <SidebarMenu>
         <Collapsible

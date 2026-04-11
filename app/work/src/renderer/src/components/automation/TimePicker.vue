@@ -87,11 +87,9 @@ function scrollSelectedIntoView(
       <Button
         type="button"
         variant="outline"
+        size="sm"
         :class="
-          cn(
-            'h-11 w-full justify-between px-3 text-left text-base font-normal md:text-sm',
-            props.class,
-          )
+          cn('w-full justify-between px-3 text-left text-base font-normal md:text-sm', props.class)
         "
       >
         <span class="flex items-center gap-2">
@@ -102,11 +100,11 @@ function scrollSelectedIntoView(
       </Button>
     </DropdownMenuTrigger>
 
-    <DropdownMenuContent align="start" class="w-[20rem] rounded-lg p-0">
+    <DropdownMenuContent align="start" class="w-[15rem] rounded-lg p-0">
       <div class="grid grid-cols-[1fr_1fr] gap-0">
         <div ref="hourColumnRef" class="border-r">
           <div class="px-4 py-2 text-xs font-medium text-muted-foreground">小时</div>
-          <ScrollArea class="h-64">
+          <ScrollArea class="h-48">
             <div class="grid gap-1 p-2">
               <Button
                 v-for="hour in hours"
@@ -114,6 +112,7 @@ function scrollSelectedIntoView(
                 :data-time-part="'hour'"
                 :data-time-value="hour"
                 type="button"
+                size="sm"
                 :variant="hour === selectedHour ? 'secondary' : 'ghost'"
                 class="justify-between"
                 @click="updateHour(hour)"
@@ -127,7 +126,7 @@ function scrollSelectedIntoView(
 
         <div ref="minuteColumnRef">
           <div class="px-4 py-2 text-xs font-medium text-muted-foreground">分钟</div>
-          <ScrollArea class="h-64">
+          <ScrollArea class="h-48">
             <div class="grid gap-1 p-2">
               <Button
                 v-for="minute in minutes"
@@ -135,6 +134,7 @@ function scrollSelectedIntoView(
                 :data-time-part="'minute'"
                 :data-time-value="minute"
                 type="button"
+                size="sm"
                 :variant="minute === selectedMinute ? 'secondary' : 'ghost'"
                 class="justify-between"
                 @click="updateMinute(minute)"

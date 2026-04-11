@@ -9,11 +9,13 @@ The system SHALL persist automation definitions in the local database.
 #### Scenario: Create automation with workspace, prompt, and schedule trigger
 
 - **GIVEN** the user selects an existing workspace
+- **AND** may optionally provide a custom automation name
 - **AND** provides a custom AI prompt
 - **AND** chooses a supported schedule input mode
 - **AND** provides a valid standard cron expression directly or through UI-generated conversion
 - **WHEN** the user creates an automation
 - **THEN** the system stores the automation definition
+- **AND** uses the provided automation name when present, otherwise derives a default title
 - **AND** stores a schedule trigger linked to that automation
 - **AND** marks the automation as enabled by default unless the user explicitly disables it
 
@@ -67,6 +69,14 @@ The system SHALL provide an automation management page at the existing automatio
 - **THEN** the page shows an empty-state explanation
 - **AND** the page offers a primary action to create the first automation
 
+#### Scenario: Show localized template examples in empty state
+
+- **GIVEN** no automation definitions exist
+- **WHEN** the user opens the automation page
+- **THEN** the page shows localized (Chinese) example template cards under the empty-state guidance
+- **AND** each template card includes a short use-case description
+- **AND** the template area is hidden once the automation list is no longer empty
+
 #### Scenario: Show list with create entry point
 
 - **GIVEN** one or more automations exist
@@ -104,13 +114,21 @@ The system SHALL let the user create an automation from a shadcn-vue dialog work
 - **GIVEN** the user is on the automation page
 - **WHEN** the user clicks the add-automation button
 - **THEN** the system opens a creation dialog implemented with shadcn-vue components
-- **AND** the dialog contains inputs for workspace selection, schedule mode, schedule details, and AI prompt
+- **AND** the dialog contains inputs for automation name, workspace selection, schedule mode, schedule details, and AI prompt
+
+#### Scenario: Open creation dialog from empty-state template
+
+- **GIVEN** the user is on the automation page empty state
+- **WHEN** the user clicks an example template card
+- **THEN** the system opens the creation dialog
+- **AND** the dialog pre-fills the template prompt, schedule mode, schedule details, and cron expression
+- **AND** the user can edit any pre-filled fields before confirming creation
 
 #### Scenario: Show preview before creation
 
 - **GIVEN** the user has filled enough fields to define an automation
 - **WHEN** the creation dialog updates
-- **THEN** the system shows a preview summarizing the workspace, trigger, prompt summary, and generated title
+- **THEN** the system shows a preview summarizing the workspace, trigger, prompt summary, and final title
 - **AND** the preview includes the final cron expression that will be persisted
 - **AND** the preview matches what will be stored if the user confirms creation
 
@@ -170,7 +188,7 @@ The system SHALL expose automation management tools to the AI runtime.
 #### Scenario: Create automation from tool
 
 - **GIVEN** the AI invokes the automation create tool
-- **WHEN** the tool request includes a workspace, supported trigger type, valid cron expression, and prompt
+- **WHEN** the tool request includes a workspace, supported trigger type, valid cron expression, prompt, and optionally a title
 - **THEN** the system creates the automation
 - **AND** returns a structured result describing the created automation and trigger summary
 

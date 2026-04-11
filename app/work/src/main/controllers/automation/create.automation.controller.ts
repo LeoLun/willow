@@ -25,6 +25,7 @@ export class CreateAutomationController extends IPCBaseController<
 
     const automation = this.automationService.createAutomation({
       workspaceId: request.workspaceId,
+      title: request.title,
       prompt: request.prompt,
       status: request.status,
       trigger: {

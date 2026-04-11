@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {
   Automation,
+  AutomationScheduleInput,
   AutomationScheduleMode,
   CreateAutomationRequest,
   UpdateAutomationRequest,
@@ -8,6 +9,7 @@ import type {
 } from "@shared/api";
 import { Check, ChevronsUpDown } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
+import type { AutomationTemplatePresetInput } from "@/components/automation/template-preset";
 import TimePicker from "@/components/automation/TimePicker.vue";
 import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,6 +28,7 @@ import { useAutomationStore } from "@/stores/automation";
 const props = defineProps<{
   workspaces: Workspace[];
   automation?: Automation;
+  preset?: AutomationTemplatePresetInput;
   onCreated?: () => void;
   onSaved?: (automation: Automation) => void;
 }>();
@@ -42,34 +45,54 @@ const dailyTime = ref("09:00");
 const weeklyTime = ref("09:00");
 const weeklyDays = ref<string[]>(["1"]);
 const customCronExpression = ref("");
+const title = ref("");
 const prompt = ref("");
 const loading = ref(false);
 const submitError = ref("");
 
 watch(
-  () => [props.workspaces, props.automation] as const,
-  ([nextWorkspaces, currentAutomation]) => {
+  () => [props.workspaces, props.automation, props.preset] as const,
+  ([nextWorkspaces, currentAutomation, currentPreset]) => {
     const initialWorkspaceId = currentAutomation?.workspaceId ?? nextWorkspaces[0]?.id ?? null;
     workspaceId.value = initialWorkspaceId;
 
-    if (!currentAutomation) {
+    if (currentAutomation) {
+      title.value = currentAutomation.title;
+      prompt.value = currentAutomation.prompt;
+
+      const parsedSchedule = inferScheduleFromAutomation(currentAutomation);
+      scheduleMode.value = parsedSchedule.mode;
+      dailyTime.value = parsedSchedule.dailyTime;
+      weeklyTime.value = parsedSchedule.weeklyTime;
+      weeklyDays.value = parsedSchedule.weeklyDays;
+      customCronExpression.value = parsedSchedule.customCronExpression;
+      return;
+    }
+
+    if (currentPreset) {
+      title.value = currentPreset.title;
+      prompt.value = currentPreset.prompt;
+      scheduleMode.value = currentPreset.scheduleMode;
+      dailyTime.value = currentPreset.dailyTime ?? "09:00";
+      weeklyTime.value = currentPreset.weeklyTime ?? "09:00";
+      weeklyDays.value =
+        currentPreset.weeklyDays && currentPreset.weeklyDays.length > 0
+          ? currentPreset.weeklyDays
+          : ["1"];
+      customCronExpression.value =
+        currentPreset.customCronExpression ?? currentPreset.cronExpression;
+      return;
+    }
+
+    if (!currentAutomation && !currentPreset) {
+      title.value = "";
       scheduleMode.value = "daily_at";
       dailyTime.value = "09:00";
       weeklyTime.value = "09:00";
       weeklyDays.value = ["1"];
       customCronExpression.value = "";
       prompt.value = "";
-      return;
     }
-
-    prompt.value = currentAutomation.prompt;
-
-    const parsedSchedule = inferScheduleFromAutomation(currentAutomation);
-    scheduleMode.value = parsedSchedule.mode;
-    dailyTime.value = parsedSchedule.dailyTime;
-    weeklyTime.value = parsedSchedule.weeklyTime;
-    weeklyDays.value = parsedSchedule.weeklyDays;
-    customCronExpression.value = parsedSchedule.customCronExpression;
   },
   { immediate: true },
 );
@@ -79,16 +102,16 @@ const selectedWorkspace = computed(
 );
 
 const weekdayOptions = [
-  { value: "0", label: "周日" },
-  { value: "1", label: "周一" },
-  { value: "2", label: "周二" },
-  { value: "3", label: "周三" },
-  { value: "4", label: "周四" },
-  { value: "5", label: "周五" },
-  { value: "6", label: "周六" },
+  { value: "1", label: "一" },
+  { value: "2", label: "二" },
+  { value: "3", label: "三" },
+  { value: "4", label: "四" },
+  { value: "5", label: "五" },
+  { value: "6", label: "六" },
+  { value: "0", label: "日" },
 ];
 
-const schedule = computed(() => {
+const schedule = computed<AutomationScheduleInput>(() => {
   switch (scheduleMode.value) {
     case "hourly":
       return {
@@ -163,17 +186,14 @@ const isValid = computed(() => {
   );
 });
 
-function getWeekdayButtonClass(index: number, value: string) {
-  const isSelected = weeklyDays.value.includes(value);
-  const isLastColumn = index === weekdayOptions.length - 1;
+const normalizedTitle = computed(() => title.value.trim());
 
+function getWeekdayButtonClass(value: string) {
+  const isSelected = weeklyDays.value.includes(value);
   return [
-    "h-11 px-0 text-sm font-semibold transition-colors",
-    "border-r bg-background",
     isSelected
-      ? "bg-primary/10 text-primary hover:bg-primary/12"
+      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
       : "text-foreground hover:bg-muted/50",
-    isLastColumn ? "border-r-0" : "",
   ];
 }
 
@@ -196,6 +216,7 @@ async function handleSubmit() {
   loading.value = true;
   try {
     const baseRequest = {
+      title: normalizedTitle.value || undefined,
       prompt: prompt.value.trim(),
       trigger: {
         type: "schedule" as const,
@@ -307,6 +328,11 @@ function inferScheduleFromAutomation(automation: Automation) {
   <form class="grid gap-5" @submit.prevent="handleSubmit">
     <div class="grid gap-4">
       <div class="grid gap-2">
+        <Label for="automation-name">名称</Label>
+        <Input id="automation-name" v-model="title" placeholder="名称" class="h-8 py-0" />
+      </div>
+
+      <div class="grid gap-2">
         <Label for="automation-workspace">工作空间</Label>
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
@@ -314,7 +340,8 @@ function inferScheduleFromAutomation(automation: Automation) {
               id="automation-workspace"
               type="button"
               variant="outline"
-              class="h-11 w-full justify-between px-3 text-sm font-normal"
+              size="sm"
+              class="w-full justify-between px-3 text-sm font-normal"
             >
               <span class="truncate">
                 {{ selectedWorkspace?.name || "请选择工作空间" }}
@@ -340,12 +367,22 @@ function inferScheduleFromAutomation(automation: Automation) {
       </div>
 
       <div class="grid gap-2">
+        <Label for="automation-prompt">自动化提示词</Label>
+        <Textarea
+          id="automation-prompt"
+          v-model="prompt"
+          class="min-h-28"
+          placeholder="输入自动化执行时要发送给 AI 的提示词"
+        />
+      </div>
+
+      <div class="flex items-center">
         <Label>计划方式</Label>
         <ToggleGroup
-          type="single"
           :model-value="scheduleMode"
+          type="single"
           variant="outline"
-          class="grid w-full grid-cols-2 md:grid-cols-4"
+          class="ml-auto grid w-[50%] grid-cols-4"
           @update:model-value="
             (value) => {
               if (value) scheduleMode = value as AutomationScheduleMode;
@@ -354,25 +391,25 @@ function inferScheduleFromAutomation(automation: Automation) {
         >
           <ToggleGroupItem
             value="daily_at"
-            class="justify-center data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+            class="h-6 justify-center data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
           >
             每天
           </ToggleGroupItem>
           <ToggleGroupItem
             value="hourly"
-            class="justify-center data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+            class="h-6 justify-center data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
           >
             每小时
           </ToggleGroupItem>
           <ToggleGroupItem
             value="weekly_at"
-            class="justify-center data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+            class="h-6 justify-center data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
           >
             每周
           </ToggleGroupItem>
           <ToggleGroupItem
             value="custom"
-            class="justify-center data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+            class="h-6 justify-center data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
           >
             自定义
           </ToggleGroupItem>
@@ -380,58 +417,41 @@ function inferScheduleFromAutomation(automation: Automation) {
       </div>
 
       <div v-if="scheduleMode === 'daily_at'" class="grid gap-2">
-        <Label for="automation-daily-time">每日执行时间</Label>
         <TimePicker id="automation-daily-time" v-model="dailyTime" />
       </div>
 
-      <div v-else-if="scheduleMode === 'hourly'" class="rounded-lg border bg-muted/40 p-3 text-sm">
+      <div
+        v-else-if="scheduleMode === 'hourly'"
+        class="flex h-8 items-center rounded-md border bg-muted/40 pl-2.5 text-sm"
+      >
         每小时整点执行一次。
       </div>
 
       <div v-else-if="scheduleMode === 'weekly_at'" class="grid gap-3">
-        <div class="grid gap-2">
-          <Label>星期</Label>
-          <div class="overflow-hidden rounded-md border">
-            <div class="grid grid-cols-7">
-              <button
-                v-for="(option, index) in weekdayOptions"
-                :key="option.value"
-                type="button"
-                :class="getWeekdayButtonClass(index, option.value)"
-                @click="toggleWeeklyDay(option.value)"
-              >
-                {{ option.label }}
-              </button>
-            </div>
+        <div class="flex w-full items-center gap-5">
+          <TimePicker class="w-30" id="automation-weekly-time" v-model="weeklyTime" />
+          <div class="flex gap-2">
+            <Button
+              v-for="day in weekdayOptions"
+              :key="day.value"
+              :class="getWeekdayButtonClass(day.value)"
+              size="icon-sm"
+              variant="outline"
+              class="rounded-full"
+              @click="toggleWeeklyDay(day.value)"
+            >
+              {{ day.label }}
+            </Button>
           </div>
-          <p v-if="weeklyDaysError" class="text-xs text-destructive">{{ weeklyDaysError }}</p>
-        </div>
-        <div class="grid gap-2 md:max-w-[28rem]">
-          <Label for="automation-weekly-time">执行时间</Label>
-          <TimePicker id="automation-weekly-time" v-model="weeklyTime" />
         </div>
       </div>
 
       <div v-else class="grid gap-2">
-        <Label for="automation-cron-expression">cron 表达式</Label>
         <Input
           id="automation-cron-expression"
           v-model="customCronExpression"
-          placeholder="0 9 * * *"
-        />
-        <p class="text-xs text-muted-foreground">
-          使用标准 cron 语法。当前支持 5 段或 6 段表达式。
-        </p>
-        <p v-if="customCronError" class="text-xs text-destructive">{{ customCronError }}</p>
-      </div>
-
-      <div class="grid gap-2">
-        <Label for="automation-prompt">自动化提示词</Label>
-        <Textarea
-          id="automation-prompt"
-          v-model="prompt"
-          class="min-h-28"
-          placeholder="输入自动化执行时要发送给 AI 的提示词"
+          placeholder="标准 cron 表达式，如: 0 9 * * *"
+          class="h-8 py-0 text-sm"
         />
       </div>
     </div>

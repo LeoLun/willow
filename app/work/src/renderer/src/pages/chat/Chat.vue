@@ -108,5 +108,3 @@ async function handleToolApproval(toolCallId: string, decision: "approved" | "re
     </div>
   </div>
 </template>
-
-<style scoped></style>

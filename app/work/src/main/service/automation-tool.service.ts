@@ -11,6 +11,7 @@ const automationTriggerSchema = Type.Object({
 
 const automationCreateSchema = Type.Object({
   workspaceId: Type.Number({ description: "工作空间 ID" }),
+  title: Type.Optional(Type.String({ description: "自动化名称，不传则自动生成" })),
   prompt: Type.String({ description: "自动化执行时发送给 AI 的提示词" }),
   trigger: automationTriggerSchema,
   status: Type.Optional(Type.Union([Type.Literal("enabled"), Type.Literal("disabled")])),
@@ -18,6 +19,7 @@ const automationCreateSchema = Type.Object({
 
 const automationUpdateSchema = Type.Object({
   id: Type.Number({ description: "自动化 ID" }),
+  title: Type.Optional(Type.String({ description: "新的自动化名称，空白时回退为自动生成标题" })),
   prompt: Type.Optional(Type.String({ description: "新的自动化提示词" })),
   trigger: Type.Optional(automationTriggerSchema),
   status: Type.Optional(Type.Union([Type.Literal("enabled"), Type.Literal("disabled")])),
@@ -107,6 +109,7 @@ export function createAutomationTools(): WillowTool<any>[] {
       },
       execute: async (_toolCallId, params: Static<typeof automationUpdateSchema>) => {
         const automation = getAutomationService().updateAutomation(params.id, {
+          title: params.title,
           prompt: params.prompt,
           trigger: params.trigger,
           status: params.status,

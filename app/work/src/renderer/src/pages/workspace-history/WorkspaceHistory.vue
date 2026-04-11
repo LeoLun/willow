@@ -3,6 +3,7 @@ import type { Session } from "@shared/api";
 import { ArrowLeft } from "lucide-vue-next";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import MainTitle from "@/components/base/MainTitle.vue";
 import { Button } from "@/components/ui/button";
 import { electronAPI } from "@/lib/ipc";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -129,13 +130,9 @@ onUnmounted(() => {
 
 <template>
   <div class="flex h-full flex-col overflow-hidden">
-    <div class="flex items-center gap-1 border-b pl-3">
-      <Button variant="ghost" size="icon" class="size-8" @click="router.back()">
-        <ArrowLeft class="size-4" />
-      </Button>
-      <div class="text-base font-semibold">{{ workspace?.name ?? "工作空间" }} — 历史会话</div>
-      <span v-if="initialized" class="text-sm text-muted-foreground">共 {{ total }} 条</span>
-    </div>
+    <MainTitle class="pl-3">
+      <div class="text-sm font-semibold">历史会话 - {{ workspace?.name ?? "工作空间" }}</div>
+    </MainTitle>
 
     <div class="flex-1 overflow-y-auto px-6 py-4">
       <div class="mx-auto max-w-2xl">

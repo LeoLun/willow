@@ -1,17 +1,34 @@
 <script setup lang="ts">
 import type { Automation } from "@shared/api";
-import { Bot, Circle, Copy, Ellipsis, Pencil, Plus, Trash2 } from "lucide-vue-next";
+import {
+  BookOpenText,
+  Brain,
+  Calendar,
+  Copy,
+  Ellipsis,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  SquareTerminal,
+  TrendingUp,
+  Trophy,
+  Trash2,
+} from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref } from "vue";
+import type { AutomationTemplatePresetInput } from "@/components/automation/template-preset";
+import type { AutomationTemplatePreset } from "@/components/automation/template-preset";
+import MainTitle from "@/components/base/MainTitle.vue";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { useDialog } from "@/layout/dialog";
 import { AutomationForm } from "@/layout/dialog/automation-form";
 import { DeleteAutomation } from "@/layout/dialog/delete-automation";
@@ -21,9 +38,101 @@ import { useWorkspaceStore } from "@/stores/workspace";
 const automationStore = useAutomationStore();
 const workspaceStore = useWorkspaceStore();
 const { openDialog } = useDialog();
-const { automationList, loading } = storeToRefs(automationStore);
+const { automationList } = storeToRefs(automationStore);
 const { workspaceList } = storeToRefs(workspaceStore);
 const activeMenuAutomationId = ref<number | null>(null);
+const exampleTemplates: AutomationTemplatePreset[] = [
+  {
+    id: "daily-focus-plan",
+    title: "整理今日重点计划",
+    description: "根据你的任务和日历，制定一份专注执行计划。",
+    icon: Calendar,
+    iconClass: "text-sky-500",
+    preset: {
+      title: "整理今日重点计划",
+      prompt:
+        "请根据我当前工作空间中的任务清单和日历安排，生成一份今天的重点执行计划。输出优先级排序、每项预计时长，以及建议的开始时间。",
+      scheduleMode: "daily_at",
+      dailyTime: "09:00",
+      cronExpression: "0 9 * * *",
+    },
+  },
+  {
+    id: "unread-reply-draft",
+    title: "总结未读并起草回复",
+    description: "总结未读消息并起草简短回复。",
+    icon: BookOpenText,
+    iconClass: "text-emerald-500",
+    preset: {
+      title: "总结未读并起草回复",
+      prompt: "请汇总最近未读消息，按主题分类，并为每个主题起草 1-2 条可直接发送的简短回复。",
+      scheduleMode: "hourly",
+      cronExpression: "0 * * * *",
+    },
+  },
+  {
+    id: "meeting-prep",
+    title: "生成明日会议准备要点",
+    description: "生成明天会议的准备要点。",
+    icon: MessageSquareText,
+    iconClass: "text-blue-500",
+    preset: {
+      title: "生成明日会议准备要点",
+      prompt:
+        "请根据当前项目上下文，整理我明天会议前的准备要点。输出：会议目标、关键问题、需要确认的事项、建议发言提纲。",
+      scheduleMode: "daily_at",
+      dailyTime: "18:00",
+      cronExpression: "0 18 * * *",
+    },
+  },
+  {
+    id: "friday-recap",
+    title: "生成周五复盘",
+    description: "生成周五总结：成果、阻碍与下一步。",
+    icon: TrendingUp,
+    iconClass: "text-slate-700",
+    preset: {
+      title: "生成周五复盘",
+      prompt:
+        "请帮我生成本周复盘，结构包含：本周成果（wins）、当前阻碍（blockers）、下周下一步（next steps）。要求简洁、可执行。",
+      scheduleMode: "weekly_at",
+      weeklyTime: "17:30",
+      weeklyDays: ["5"],
+      cronExpression: "30 17 * * 5",
+    },
+  },
+  {
+    id: "weekly-digest",
+    title: "整理每周知识摘要",
+    description: "将收藏链接和笔记整理成每周摘要。",
+    icon: Trophy,
+    iconClass: "text-amber-500",
+    preset: {
+      title: "整理每周知识摘要",
+      prompt:
+        "请把我本周保存的链接和笔记整理成一份周报摘要，按主题分组，并给出每个主题的关键结论与后续行动建议。",
+      scheduleMode: "weekly_at",
+      weeklyTime: "20:00",
+      weeklyDays: ["0"],
+      cronExpression: "0 20 * * 0",
+    },
+  },
+  {
+    id: "accountability-check",
+    title: "日内执行检查",
+    description: "在一天中进行快速执行检查。",
+    icon: Brain,
+    iconClass: "text-fuchsia-500",
+    preset: {
+      title: "日内执行检查",
+      prompt:
+        "请做一次简短执行检查：我当前正在做什么、是否偏离今日重点、接下来 2 小时最关键的一步是什么。",
+      scheduleMode: "daily_at",
+      dailyTime: "12:00",
+      cronExpression: "0 12 * * *",
+    },
+  },
+];
 
 onBeforeMount(async () => {
   await Promise.all([automationStore.fetchAutomationList(), workspaceStore.fetchWorkspaceList()]);
@@ -33,10 +142,11 @@ const workspaceMap = computed(
   () => new Map(workspaceList.value.map((workspace) => [workspace.id, workspace.name])),
 );
 
-function openCreateDialog() {
+function openCreateDialog(preset?: AutomationTemplatePresetInput) {
   activeMenuAutomationId.value = null;
   openDialog(AutomationForm, {
     workspaces: workspaceList.value,
+    preset,
     onCreated: () => automationStore.fetchAutomationList(),
   });
 }
@@ -73,14 +183,6 @@ async function duplicateAutomation(automation: Automation) {
     },
     status: automation.status,
   });
-}
-
-function rowMeta(automation: Automation) {
-  const workspace = workspaceName(automation.workspaceId);
-  const summary = automation.trigger
-    ? formatCompactTime(automation.trigger.cronExpression)
-    : "未配置计划";
-  return `${workspace} · ${automation.prompt}`;
 }
 
 function rightTimeLabel(automation: Automation) {
@@ -141,6 +243,11 @@ function weekdayLabel(value: string) {
     "7": "日",
   };
   return mapping[value] ?? "";
+}
+
+function rowMeta(automation: Automation) {
+  const workspace = workspaceName(automation.workspaceId);
+  return `${workspace}`;
 }
 
 function inferScheduleFromAutomation(automation: Automation) {
@@ -205,114 +312,109 @@ function isRowActive(automationId: number) {
 </script>
 
 <template>
-  <div class="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 p-6 md:p-8">
-    <header class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-      <div class="space-y-1">
-        <h1 class="text-2xl font-semibold tracking-tight">自动化</h1>
-        <p class="max-w-2xl text-sm text-muted-foreground">
-          把常用提示词绑定到工作空间，按固定节奏自动执行。
-        </p>
-      </div>
-      <Button size="icon" class="rounded-full" @click="openCreateDialog">
-        <Plus class="size-4" />
-      </Button>
-    </header>
+  <div class="flex h-full flex-col items-center px-3 pb-3">
+    <MainTitle>
+      <div></div>
+      <template #extra>
+        <Button class="h-6" size="sm" @click="openCreateDialog()">
+          <Plus class="size-4" />
+          添加自动化
+        </Button>
+      </template>
+    </MainTitle>
 
-    <section v-if="loading" class="grid gap-4">
-      <Card v-for="index in 3" :key="index">
-        <CardHeader class="space-y-3">
-          <Skeleton class="h-5 w-48" />
-          <Skeleton class="h-4 w-72" />
-        </CardHeader>
-        <CardContent class="grid gap-3">
-          <Skeleton class="h-4 w-full" />
-          <Skeleton class="h-4 w-2/3" />
-        </CardContent>
-      </Card>
-    </section>
-
-    <section v-else-if="automationList.length === 0">
-      <Card class="border-dashed bg-muted/20">
-        <CardHeader class="items-start gap-3">
-          <div class="flex size-10 items-center justify-center rounded-full border bg-background">
-            <Bot class="size-5 text-muted-foreground" />
-          </div>
-          <div class="space-y-1">
-            <CardTitle>还没有自动化</CardTitle>
-            <CardDescription>
-              创建第一条自动化后，Willow 会按你设定的计划把提示词发送到对应工作空间。
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Button class="gap-2" @click="openCreateDialog">
-            <Plus class="size-4" />
-            创建第一条自动化
-          </Button>
-        </CardContent>
-      </Card>
-    </section>
-
-    <section v-else class="grid gap-2">
-      <div
-        v-for="automation in automationList"
-        :key="automation.id"
-        class="group flex items-center gap-4 rounded-xl border border-transparent px-2 py-1 transition-all hover:border-border/80 hover:bg-muted/35"
-        :class="{
-          'border-border/80 bg-muted/35': isRowActive(automation.id),
-          'opacity-60': automation.status !== 'enabled',
-        }"
-      >
-        <div class="min-w-0 flex-1 overflow-hidden">
-          <div class="flex items-baseline gap-3 overflow-hidden">
-            <span class="truncate text-lg font-semibold tracking-tight">
-              {{ automation.title }}
-            </span>
-            <span class="truncate text-base text-muted-foreground">
-              {{ rowMeta(automation) }}
-            </span>
-          </div>
-        </div>
-
-        <div
-          class="shrink-0 items-center gap-1 text-muted-foreground"
-          :class="isRowActive(automation.id) ? 'flex' : 'hidden group-hover:flex'"
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            class="size-6 rounded-full"
-            @click="openEditDialog(automation)"
-          >
-            <Pencil class="size-4" />
-          </Button>
-
-          <DropdownMenu @update:open="setMenuOpen(automation.id, $event)">
-            <DropdownMenuTrigger as-child>
-              <Button variant="ghost" size="icon" class="size-6 rounded-full">
-                <Ellipsis class="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" class="w-36">
-              <DropdownMenuItem @click="duplicateAutomation(automation)">
-                <Copy class="size-4" />
-                复制
-              </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" @click="deleteAutomation(automation)">
-                <Trash2 class="size-4" />
-                删除
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div
-          class="shrink-0 text-base text-muted-foreground"
-          :class="isRowActive(automation.id) ? 'hidden' : 'group-hover:hidden'"
-        >
-          {{ rightTimeLabel(automation) }}
+    <section
+      v-if="automationList.length === 0"
+      class="flex w-full flex-col items-center gap-5 py-4"
+    >
+      <div class="mt-[6%] flex flex-col items-center space-y-2">
+        <SquareTerminal class="size-12 text-muted-foreground" />
+        <div class="text-center text-2xl font-semibold">自动化</div>
+        <div class="text-center text-sm text-muted-foreground">
+          你可以先选择一个示例模板，或点击右上角创建自己的自动化。
         </div>
       </div>
+
+      <div class="grid w-[80%] gap-3 md:grid-cols-2">
+        <Card
+          v-for="example in exampleTemplates"
+          :key="example.id"
+          class="cursor-pointer py-4 hover:bg-muted/40"
+          @click="openCreateDialog(example.preset)"
+        >
+          <CardContent class="flex flex-col gap-4 px-4">
+            <div
+              class="inline-flex size-10 items-center justify-center rounded-lg border bg-background"
+            >
+              <component :is="example.icon" class="size-5" :class="example.iconClass" />
+            </div>
+            <div class="space-y-1.5">
+              <p class="text-base leading-none font-medium">{{ example.title }}</p>
+              <p class="text-sm text-muted-foreground">{{ example.description }}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </section>
+
+    <div v-else class="mt-10 flex w-full flex-col items-center overflow-hidden">
+      <div class="w-[80%] text-2xl font-semibold">自动化</div>
+      <Separator class="my-2 !w-[80%]" />
+      <section class="flex w-full flex-col items-center gap-2 overflow-y-auto">
+        <div
+          v-for="automation in automationList"
+          :key="automation.id"
+          class="group flex w-[80%] items-center gap-4 rounded-md px-2 py-1 transition-all hover:bg-muted"
+          :class="{
+            'border-border/80 bg-muted/35': isRowActive(automation.id),
+            'opacity-60': automation.status !== 'enabled',
+          }"
+        >
+          <div class="min-w-0 flex-1 overflow-hidden">
+            <div class="flex items-baseline gap-3 overflow-hidden">
+              <span class="truncate text-lg font-semibold tracking-tight">
+                {{ automation.title }}
+              </span>
+              <span class="truncate text-base text-muted-foreground">
+                {{ rowMeta(automation) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="shrink-0 text-base text-muted-foreground">
+            {{ rightTimeLabel(automation) }}
+          </div>
+
+          <div class="shrink-0 items-center gap-1 text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="icon"
+              class="size-6 rounded-full"
+              @click="openEditDialog(automation)"
+            >
+              <Pencil class="size-4" />
+            </Button>
+
+            <DropdownMenu @update:open="setMenuOpen(automation.id, $event)">
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon" class="size-6 rounded-full">
+                  <Ellipsis class="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="w-36">
+                <DropdownMenuItem @click="duplicateAutomation(automation)">
+                  <Copy class="size-4" />
+                  复制
+                </DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" @click="deleteAutomation(automation)">
+                  <Trash2 class="size-4" />
+                  删除
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 </template>

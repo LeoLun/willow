@@ -385,6 +385,7 @@ export interface GetAutomationResponse {
 
 export interface CreateAutomationRequest {
   workspaceId: number;
+  title?: string;
   prompt: string;
   trigger: {
     type: AutomationTriggerType;
@@ -399,6 +400,7 @@ export interface CreateAutomationResponse {
 
 export interface UpdateAutomationRequest {
   id: number;
+  title?: string;
   prompt?: string;
   status?: AutomationStatus;
   trigger?: {

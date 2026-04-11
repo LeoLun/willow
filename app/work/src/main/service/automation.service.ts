@@ -46,12 +46,14 @@ export interface AutomationTriggerInput {
 
 export interface CreateAutomationInput {
   workspaceId: number;
+  title?: string;
   prompt: string;
   trigger: AutomationTriggerInput;
   status?: AutomationStatus;
 }
 
 export interface UpdateAutomationInput {
+  title?: string;
   prompt?: string;
   status?: AutomationStatus;
   trigger?: AutomationTriggerInput;
@@ -109,7 +111,7 @@ export class AutomationService {
 
     this.validateTrigger(input.trigger);
     const now = new Date();
-    const title = this.generateTitle(input.prompt);
+    const title = this.resolveTitle(input.title, input.prompt);
     const status = input.status ?? "enabled";
     const timezone = input.trigger.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -148,8 +150,10 @@ export class AutomationService {
       this.validateTrigger(input.trigger);
     }
 
-    const nextStatus = input.status ?? automation.status;
     const nextPrompt = input.prompt ?? automation.prompt;
+    const nextStatus = input.status ?? automation.status;
+    const nextTitle =
+      input.title === undefined ? automation.title : this.resolveTitle(input.title, nextPrompt);
     const nextTrigger = input.trigger ?? {
       type: currentTrigger.type as AutomationTriggerType,
       cronExpression: currentTrigger.cronExpression,
@@ -159,7 +163,7 @@ export class AutomationService {
     const updatedAutomation = this.automationDao.update(id, {
       prompt: nextPrompt,
       status: nextStatus,
-      title: input.prompt ? this.generateTitle(nextPrompt) : automation.title,
+      title: nextTitle,
       triggerType: nextTrigger.type,
     });
 
@@ -351,7 +355,12 @@ export class AutomationService {
     }
   }
 
-  private generateTitle(prompt: string) {
+  private resolveTitle(title: string | undefined, prompt: string) {
+    const normalizedTitle = title?.trim();
+    if (normalizedTitle) {
+      return normalizedTitle;
+    }
+
     const normalized = prompt.replace(/\s+/g, " ").trim();
     if (!normalized) {
       return "未命名自动化";

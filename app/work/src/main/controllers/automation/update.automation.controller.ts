@@ -24,6 +24,7 @@ export class UpdateAutomationController extends IPCBaseController<
     }
 
     const automation = this.automationService.updateAutomation(request.id, {
+      title: request.title,
       prompt: request.prompt,
       status: request.status,
       trigger: request.trigger
@@ -43,6 +44,7 @@ export class UpdateAutomationController extends IPCBaseController<
       return new Error("id is required");
     }
     if (
+      request.title === undefined &&
       request.prompt === undefined &&
       request.status === undefined &&
       request.trigger === undefined
