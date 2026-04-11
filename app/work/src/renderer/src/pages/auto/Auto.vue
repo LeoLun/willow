@@ -316,8 +316,8 @@ function isRowActive(automationId: number) {
     <MainTitle>
       <div></div>
       <template #extra>
-        <Button class="h-6" size="sm" @click="openCreateDialog()">
-          <Plus class="size-4" />
+        <Button class="h-7" size="sm" @click="openCreateDialog()">
+          <Plus class="size-5" />
           添加自动化
         </Button>
       </template>
