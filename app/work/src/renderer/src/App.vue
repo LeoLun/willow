@@ -10,20 +10,22 @@ import { onMounted, onUnmounted } from "vue";
 import TopDragBar from "@/components/base/TopDragBar.vue";
 import { Card } from "@/components/ui/card";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { useEventBus } from "@/composables/useEventBus";
 import { DialogProvider } from "@/layout/dialog";
 import { router } from "@/router";
 import { useSessionStore } from "@/stores/session";
+import "vue-sonner/style.css";
 import LeftSidebar from "./layout/sidebar/LeftSidebar.vue";
 
 useDarkMode();
-registerToolRenderer(
-  "automation_create",
-  new AutomationCreateRendererFactory({
-    onOpen: () => router.push("/auto"),
-  }),
-);
+// registerToolRenderer(
+//   "automation_create",
+//   new AutomationCreateRendererFactory({
+//     onOpen: () => router.push("/auto"),
+//   }),
+// );
 registerToolRenderer("todoread", new TodoRendererFactory());
 registerToolRenderer("todowrite", new TodoRendererFactory());
 
@@ -47,11 +49,10 @@ onUnmounted(() => {
 <template>
   <SidebarProvider class="relative flex h-screen w-screen overflow-hidden bg-sidebar">
     <LeftSidebar />
-    <SidebarTrigger class="absolute top-[5px] left-[70px] z-100" />
+    <SidebarTrigger class="absolute top-[9px] left-[70px] z-100" />
 
     <!-- 主区域 -->
     <div class="flex min-w-0 flex-1 flex-col">
-      <TopDragBar />
       <Card class="relative flex-1 !flex-row gap-0 overflow-hidden !py-0">
         <!-- 中间内容区域 -->
         <div class="h-full min-w-0 flex-1 overflow-hidden">
@@ -61,4 +62,5 @@ onUnmounted(() => {
     </div>
   </SidebarProvider>
   <DialogProvider />
+  <Toaster position="top-center" />
 </template>

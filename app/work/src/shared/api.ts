@@ -350,6 +350,7 @@ export interface AutomationRunSummary {
 export interface Automation {
   id: number;
   workspaceId: number;
+  modelId?: string | null;
   title: string;
   prompt: string;
   status: AutomationStatus;
@@ -385,6 +386,7 @@ export interface GetAutomationResponse {
 
 export interface CreateAutomationRequest {
   workspaceId: number;
+  modelId?: string | null;
   title?: string;
   prompt: string;
   trigger: {
@@ -400,6 +402,8 @@ export interface CreateAutomationResponse {
 
 export interface UpdateAutomationRequest {
   id: number;
+  workspaceId?: number;
+  modelId?: string | null;
   title?: string;
   prompt?: string;
   status?: AutomationStatus;

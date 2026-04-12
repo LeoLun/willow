@@ -16,6 +16,8 @@ import {
 } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref } from "vue";
+import { useRouter } from "vue-router";
+import { formatAutomationSchedule, getAutomationRowMeta } from "@/components/automation/display";
 import type { AutomationTemplatePresetInput } from "@/components/automation/template-preset";
 import type { AutomationTemplatePreset } from "@/components/automation/template-preset";
 import MainTitle from "@/components/base/MainTitle.vue";
@@ -37,6 +39,7 @@ import { useWorkspaceStore } from "@/stores/workspace";
 
 const automationStore = useAutomationStore();
 const workspaceStore = useWorkspaceStore();
+const router = useRouter();
 const { openDialog } = useDialog();
 const { automationList } = storeToRefs(automationStore);
 const { workspaceList } = storeToRefs(workspaceStore);
@@ -185,69 +188,19 @@ async function duplicateAutomation(automation: Automation) {
   });
 }
 
+function openDetail(automation: Automation) {
+  router.push(`/auto/${automation.id}`);
+}
+
 function rightTimeLabel(automation: Automation) {
   if (!automation.trigger) {
     return "未配置";
   }
-  return formatCompactTime(automation.trigger.cronExpression);
-}
-
-function formatCompactTime(cronExpression: string) {
-  const parts = cronExpression.trim().split(/\s+/);
-  if (parts.length !== 5) {
-    return cronExpression;
-  }
-
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
-  if (minute === "0" && hour === "*" && dayOfMonth === "*" && month === "*" && dayOfWeek === "*") {
-    return "每小时";
-  }
-
-  if (
-    /^\d+$/.test(minute) &&
-    /^\d+$/.test(hour) &&
-    dayOfMonth === "*" &&
-    month === "*" &&
-    dayOfWeek === "*"
-  ) {
-    return `每天 ${Number(hour)}:${minute.padStart(2, "0")}`;
-  }
-
-  if (
-    /^\d+$/.test(minute) &&
-    /^\d+$/.test(hour) &&
-    dayOfMonth === "*" &&
-    month === "*" &&
-    dayOfWeek !== "*"
-  ) {
-    const weekdays = dayOfWeek
-      .split(",")
-      .map((value) => weekdayLabel(value))
-      .filter(Boolean)
-      .join("、");
-    return weekdays ? `每周${weekdays} ${Number(hour)}:${minute.padStart(2, "0")}` : cronExpression;
-  }
-
-  return cronExpression;
-}
-
-function weekdayLabel(value: string) {
-  const mapping: Record<string, string> = {
-    "0": "日",
-    "1": "一",
-    "2": "二",
-    "3": "三",
-    "4": "四",
-    "5": "五",
-    "6": "六",
-    "7": "日",
-  };
-  return mapping[value] ?? "";
+  return formatAutomationSchedule(automation.trigger.cronExpression);
 }
 
 function rowMeta(automation: Automation) {
-  const workspace = workspaceName(automation.workspaceId);
-  return `${workspace}`;
+  return getAutomationRowMeta(automation, workspaceName(automation.workspaceId));
 }
 
 function inferScheduleFromAutomation(automation: Automation) {
@@ -364,11 +317,12 @@ function isRowActive(automationId: number) {
         <div
           v-for="automation in automationList"
           :key="automation.id"
-          class="group flex w-[80%] items-center gap-4 rounded-md px-2 py-1 transition-all hover:bg-muted"
+          class="group flex w-[80%] cursor-pointer items-center gap-4 rounded-md px-2 py-1 transition-all hover:bg-muted"
           :class="{
             'border-border/80 bg-muted/35': isRowActive(automation.id),
             'opacity-60': automation.status !== 'enabled',
           }"
+          @click="openDetail(automation)"
         >
           <div class="min-w-0 flex-1 overflow-hidden">
             <div class="flex items-baseline gap-3 overflow-hidden">
@@ -390,23 +344,23 @@ function isRowActive(automationId: number) {
               variant="ghost"
               size="icon"
               class="size-6 rounded-full"
-              @click="openEditDialog(automation)"
+              @click.stop="openEditDialog(automation)"
             >
               <Pencil class="size-4" />
             </Button>
 
             <DropdownMenu @update:open="setMenuOpen(automation.id, $event)">
               <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="icon" class="size-6 rounded-full">
+                <Button variant="ghost" size="icon" class="size-6 rounded-full" @click.stop>
                   <Ellipsis class="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" class="w-36">
-                <DropdownMenuItem @click="duplicateAutomation(automation)">
+                <DropdownMenuItem @click.stop="duplicateAutomation(automation)">
                   <Copy class="size-4" />
                   复制
                 </DropdownMenuItem>
-                <DropdownMenuItem variant="destructive" @click="deleteAutomation(automation)">
+                <DropdownMenuItem variant="destructive" @click.stop="deleteAutomation(automation)">
                   <Trash2 class="size-4" />
                   删除
                 </DropdownMenuItem>

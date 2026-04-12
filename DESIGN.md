@@ -23,6 +23,8 @@ Willow 的 renderer 默认是桌面工作台，不是营销页。界面气质应
 - `baseColor`: `neutral`
 - `cssVariables`: `true`
 
+项目可使用组件和组件用法使用 `shadcn-vue` 的 mcp 进行查询
+
 项目视觉 token 的唯一来源是 [`app/work/src/renderer/index.css`](/Users/liujinglun/code/willow/app/work/src/renderer/index.css)。不要为页面私自发明第二套语义 token，也不要在 prompt 里要求不存在的主题变量。
 
 ### Color Roles

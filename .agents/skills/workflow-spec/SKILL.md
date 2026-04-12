@@ -14,6 +14,7 @@ Use this workflow when the goal is to turn an idea into implementable OpenSpec a
 - Present 2-3 viable approaches with a recommendation when the solution shape is still open.
 - Create or update the relevant `docs/ai-workflows/openspec/changes/<change>/` artifacts: `proposal.md`, `specs/*/spec.md`, `design.md`, `tasks.md`.
 - The repository root `openspec/` path may still be used by tools, but it is only a compatibility symlink.
+- 用中文输出相关内容
 
 ## Standard Flow
 

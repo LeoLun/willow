@@ -1,6 +1,7 @@
 import { createWebHistory, createRouter, type RouteRecordRaw } from "vue-router";
 
 import Auto from "./pages/auto/Auto.vue";
+import AutomationDetail from "./pages/auto/detail/AutomationDetail.vue";
 import Chat from "./pages/chat/Chat.vue";
 import Session from "./pages/chat/session/Session.vue";
 import Workspace from "./pages/chat/workspace/Workspace.vue";
@@ -26,6 +27,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/skills", name: "skills", component: Skills },
   { path: "/setting", name: "setting", component: Setting },
   { path: "/auto", name: "auto", component: Auto },
+  { path: "/auto/:automationId", name: "automationDetail", component: AutomationDetail },
 ];
 
 export const router = createRouter({

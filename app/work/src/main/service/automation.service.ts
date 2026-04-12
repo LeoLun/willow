@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import path from "node:path";
+import { ConfigService } from "@main/service/config.service";
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import { SessionService } from "@main/service/session.service";
 import { Injectable } from "@willow/poetry";
@@ -46,6 +47,7 @@ export interface AutomationTriggerInput {
 
 export interface CreateAutomationInput {
   workspaceId: number;
+  modelId?: string | null;
   title?: string;
   prompt: string;
   trigger: AutomationTriggerInput;
@@ -53,6 +55,8 @@ export interface CreateAutomationInput {
 }
 
 export interface UpdateAutomationInput {
+  workspaceId?: number;
+  modelId?: string | null;
   title?: string;
   prompt?: string;
   status?: AutomationStatus;
@@ -70,6 +74,7 @@ export class AutomationService {
     private readonly automationSchedulerService: AutomationSchedulerService,
     private readonly workspaceDao: WorkspaceDao,
     private readonly sessionService: SessionService,
+    private readonly configService: ConfigService,
   ) {}
 
   listAutomations() {
@@ -104,12 +109,9 @@ export class AutomationService {
   }
 
   createAutomation(input: CreateAutomationInput) {
-    const workspace = this.workspaceDao.findById(input.workspaceId);
-    if (!workspace) {
-      throw new Error("workspace not found");
-    }
-
+    this.requireWorkspace(input.workspaceId);
     this.validateTrigger(input.trigger);
+    const modelId = this.resolveModelId(input.modelId);
     const now = new Date();
     const title = this.resolveTitle(input.title, input.prompt);
     const status = input.status ?? "enabled";
@@ -117,6 +119,7 @@ export class AutomationService {
 
     const automation = this.automationDao.insert({
       workspaceId: input.workspaceId,
+      modelId,
       title,
       prompt: input.prompt,
       status,
@@ -150,8 +153,16 @@ export class AutomationService {
       this.validateTrigger(input.trigger);
     }
 
+    const nextWorkspaceId =
+      input.workspaceId === undefined
+        ? automation.workspaceId
+        : this.requireWorkspace(input.workspaceId).id;
     const nextPrompt = input.prompt ?? automation.prompt;
     const nextStatus = input.status ?? automation.status;
+    const nextModelId =
+      input.modelId === undefined
+        ? (automation.modelId ?? null)
+        : this.resolveModelId(input.modelId);
     const nextTitle =
       input.title === undefined ? automation.title : this.resolveTitle(input.title, nextPrompt);
     const nextTrigger = input.trigger ?? {
@@ -161,6 +172,8 @@ export class AutomationService {
     };
 
     const updatedAutomation = this.automationDao.update(id, {
+      workspaceId: nextWorkspaceId,
+      modelId: nextModelId,
       prompt: nextPrompt,
       status: nextStatus,
       title: nextTitle,
@@ -246,6 +259,7 @@ export class AutomationService {
 
       await this.sessionService.sendMessage(session.id, {
         message: automation.prompt,
+        modelId: automation.modelId ?? undefined,
       });
 
       const completedAt = new Date();
@@ -338,6 +352,14 @@ export class AutomationService {
     return automation;
   }
 
+  private requireWorkspace(workspaceId: number) {
+    const workspace = this.workspaceDao.findById(workspaceId);
+    if (!workspace) {
+      throw new Error("workspace not found");
+    }
+    return workspace;
+  }
+
   private requireTrigger(automationId: number) {
     const trigger = this.automationTriggerDao.findByAutomationId(automationId);
     if (!trigger) {
@@ -368,6 +390,23 @@ export class AutomationService {
     return normalized.slice(0, 24);
   }
 
+  private resolveModelId(modelId: string | null | undefined) {
+    if (modelId === undefined || modelId === null) {
+      return null;
+    }
+
+    const normalized = modelId.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (!this.configService.getModelByModelId(normalized)) {
+      throw new Error("model not found");
+    }
+
+    return normalized;
+  }
+
   private buildAutomationDetail(
     automation: AutomationRecord,
     trigger: AutomationTriggerRecord | undefined,
@@ -379,6 +418,7 @@ export class AutomationService {
 
     return {
       ...automation,
+      modelId: automation.modelId ?? null,
       status: automation.status as AutomationStatus,
       triggerType: automation.triggerType as AutomationTriggerType,
       trigger: trigger

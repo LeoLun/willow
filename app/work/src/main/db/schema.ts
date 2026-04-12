@@ -90,6 +90,7 @@ export const automations = sqliteTable("automations", {
   workspaceId: integer("workspace_id")
     .references(() => workspaces.id, { onDelete: "cascade" })
     .notNull(),
+  modelId: text("model_id"),
   title: text("title").notNull(),
   prompt: text("prompt").notNull(),
   status: text("status").notNull().default("enabled"),
