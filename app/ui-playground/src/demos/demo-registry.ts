@@ -1,9 +1,16 @@
 import { markRaw } from "vue";
+import AllToolsOverviewDemo from "./scenes/AllToolsOverviewDemo.vue";
+import AutomationToolDemo from "./scenes/AutomationToolDemo.vue";
+import BashToolDemo from "./scenes/BashToolDemo.vue";
 import ConversationDemo from "./scenes/ConversationDemo.vue";
+import CoreToolDemo from "./scenes/CoreToolDemo.vue";
+import DefaultToolDemo from "./scenes/DefaultToolDemo.vue";
 import EdgeStatesDemo from "./scenes/EdgeStatesDemo.vue";
 import MarkdownDemo from "./scenes/MarkdownDemo.vue";
 import StreamingDemo from "./scenes/StreamingDemo.vue";
-import ToolingDemo from "./scenes/ToolingDemo.vue";
+import TodoToolDemo from "./scenes/TodoToolDemo.vue";
+import WebFetchToolDemo from "./scenes/WebFetchToolDemo.vue";
+import WebSearchToolDemo from "./scenes/WebSearchToolDemo.vue";
 import type { DemoDefinition } from "./types";
 
 export const demoRegistry: DemoDefinition[] = [
@@ -29,11 +36,60 @@ export const demoRegistry: DemoDefinition[] = [
     component: markRaw(MarkdownDemo),
   },
   {
-    id: "tooling",
-    title: "工具渲染",
-    description: "检查工具摘要、展开面板、成功与失败结果的视觉反馈。",
+    id: "tools-overview",
+    title: "全部工具总览",
+    description: "把当前所有工具调用 demo 聚合到一个页面里统一检查。",
     group: "工具状态",
-    component: markRaw(ToolingDemo),
+    component: markRaw(AllToolsOverviewDemo),
+  },
+  {
+    id: "tool-bash",
+    title: "Bash",
+    description: "覆盖 bash 工具调用的成功态和失败态。",
+    group: "工具状态",
+    component: markRaw(BashToolDemo),
+  },
+  {
+    id: "tool-websearch",
+    title: "Web Search",
+    description: "覆盖搜索结果摘要、链接 pill 和展开结果区。",
+    group: "工具状态",
+    component: markRaw(WebSearchToolDemo),
+  },
+  {
+    id: "tool-webfetch",
+    title: "Web Fetch",
+    description: "覆盖网页抓取摘要、参数和抓取结果预览。",
+    group: "工具状态",
+    component: markRaw(WebFetchToolDemo),
+  },
+  {
+    id: "tool-todo",
+    title: "Todo",
+    description: "覆盖 todoread 与 todowrite 的状态统计和列表展示。",
+    group: "工具状态",
+    component: markRaw(TodoToolDemo),
+  },
+  {
+    id: "tool-automation",
+    title: "Automation Create",
+    description: "覆盖自动化创建结果卡片和计划文案展示。",
+    group: "工具状态",
+    component: markRaw(AutomationToolDemo),
+  },
+  {
+    id: "tool-core",
+    title: "Core Renderer",
+    description: "覆盖 core 通用工具渲染和 JSON 详情展开。",
+    group: "工具状态",
+    component: markRaw(CoreToolDemo),
+  },
+  {
+    id: "tool-default",
+    title: "Default Fallback",
+    description: "覆盖没有专用 renderer 时的默认回退样式。",
+    group: "工具状态",
+    component: markRaw(DefaultToolDemo),
   },
   {
     id: "edge-states",
