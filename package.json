@@ -5,6 +5,7 @@
   "scripts": {
     "build": "pnpm -r run build",
     "dev": "pnpm --filter ./app/work run dev",
+    "dev:ui": "pnpm --filter ./app/ui-playground run dev",
     "dev:p": "pnpm --filter ./packages/poetry run dev",
     "lint": "oxlint app/ packages/",
     "format": "oxfmt",
