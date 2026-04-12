@@ -4,6 +4,7 @@ import type { ToolResultMessage } from "@mariozechner/pi-ai";
 import type { AssistantMessage as AssistantMessageType } from "@mariozechner/pi-ai";
 import { ref, watch } from "vue";
 import AssistantMessage from "./AssistantMessage.vue";
+import StreamLoading from "./StreamLoading.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -55,7 +56,7 @@ watch(
 <template>
   <template v-if="!displayMessage">
     <div v-if="isStreaming" class="mb-3 flex flex-col gap-3">
-      <span class="mx-4 inline-block h-4 w-2 animate-pulse bg-muted-foreground"></span>
+      <StreamLoading class="mx-4 inline-block" />
     </div>
   </template>
 
@@ -73,10 +74,7 @@ watch(
         :on-reject-tool-call="onRejectToolCall"
         :on-cost-click="onCostClick"
       />
-      <span
-        v-if="isStreaming"
-        class="mx-4 inline-block h-4 w-2 animate-pulse bg-muted-foreground"
-      ></span>
+      <StreamLoading v-if="isStreaming" class="mx-4 inline-block" />
     </div>
   </template>
 </template>
