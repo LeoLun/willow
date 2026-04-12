@@ -2,6 +2,26 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { SendMessage } from "@shared/api";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@willow/shadcn/components/ui/dropdown-menu";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from "@willow/shadcn/components/ui/input-group";
+import { Separator } from "@willow/shadcn/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@willow/shadcn/components/ui/tooltip";
+import {
   ArrowUpIcon,
   CheckIcon,
   ChevronsUpDownIcon,
@@ -13,21 +33,6 @@ import {
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupTextarea,
-} from "@/components/ui/input-group";
-import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useConfigStore } from "@/stores/config";
 import CircularProgress from "../CircularProgress.vue";
 

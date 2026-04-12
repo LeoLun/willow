@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { useVModel } from "@vueuse/core";
-import { Check, Clock3, ChevronsUpDown } from "lucide-vue-next";
-import { computed, nextTick, ref, watch } from "vue";
-import { Button } from "@/components/ui/button";
+import { Button } from "@willow/shadcn/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@willow/shadcn/components/ui/dropdown-menu";
+import { ScrollArea } from "@willow/shadcn/components/ui/scroll-area";
+import { Check, Clock3, ChevronsUpDown } from "lucide-vue-next";
+import { computed, nextTick, ref, watch } from "vue";
 import { cn } from "@/lib/utils";
 
 const props = withDefaults(

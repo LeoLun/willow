@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown } from "lucide-vue-next";
-import { computed, onBeforeMount } from "vue";
-import { useRoute } from "vue-router";
-import { useRouter } from "vue-router";
-import { Button } from "@/components/ui/button";
+import { Button } from "@willow/shadcn/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -11,7 +7,11 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+} from "@willow/shadcn/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-vue-next";
+import { computed, onBeforeMount } from "vue";
+import { useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 import { useWorkspaceStore } from "@/stores/workspace";
 const route = useRoute();
 const router = useRouter();

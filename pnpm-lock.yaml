@@ -50,6 +50,9 @@ importers:
       '@mariozechner/pi-ai':
         specifier: ^0.62.0
         version: 0.62.0(@modelcontextprotocol/sdk@1.26.0(@cfworker/json-schema@4.1.1)(zod@3.25.76))(ws@8.19.0)(zod@3.25.76)
+      '@willow/shadcn':
+        specifier: workspace:*
+        version: link:../../packages/shadcn
       '@willow/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -90,6 +93,9 @@ importers:
       '@willow/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@willow/shadcn':
+        specifier: workspace:*
+        version: link:../../packages/shadcn
       '@willow/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -284,6 +290,33 @@ importers:
       tsyringe:
         specifier: 'catalog:'
         version: 4.10.0
+
+  packages/shadcn:
+    dependencies:
+      '@vueuse/core':
+        specifier: ^12.8.2
+        version: 12.8.2(typescript@5.9.3)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-vue-next:
+        specifier: ^0.473.0
+        version: 0.473.0(vue@3.5.31(typescript@5.9.3))
+      reka-ui:
+        specifier: ^2.8.0
+        version: 2.8.0(vue@3.5.31(typescript@5.9.3))
+      tailwind-merge:
+        specifier: ^2.6.0
+        version: 2.6.0
+      tailwindcss:
+        specifier: ^4.2.2
+        version: 4.2.2
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.31(typescript@5.9.3)
 
   packages/ui:
     dependencies:

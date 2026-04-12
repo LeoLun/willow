@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { ModelConfig, TavilyKeyConfig } from "@shared/api";
+import { Badge, Button } from "@willow/shadcn";
+import { Progress } from "@willow/shadcn/components/ui/progress";
+import { ToggleGroup, ToggleGroupItem } from "@willow/shadcn/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@willow/shadcn/components/ui/tooltip";
 import { Monitor, Moon, Pencil, Plus, Star, Sun, Trash2 } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { onBeforeMount } from "vue";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDarkMode } from "@/composables/useDarkMode";
 import type { ThemeMode } from "@/composables/useDarkMode";
 import { useDialog } from "@/layout/dialog";

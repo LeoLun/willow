@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { Session } from "@shared/api";
+import { Button } from "@willow/shadcn/components/ui/button";
 import { ArrowLeft } from "lucide-vue-next";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MainTitle from "@/components/base/MainTitle.vue";
-import { Button } from "@/components/ui/button";
 import { electronAPI } from "@/lib/ipc";
 import { useWorkspaceStore } from "@/stores/workspace";
 

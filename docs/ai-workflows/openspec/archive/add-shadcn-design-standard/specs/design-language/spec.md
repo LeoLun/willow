@@ -19,7 +19,7 @@ The design standard SHALL be based on the repository's current `shadcn-vue` conf
 
 #### Scenario: Use current shadcn-vue baseline
 
-- **GIVEN** `app/work/components.json` defines the project `shadcn-vue` setup
+- **GIVEN** `components.json` defines the project `shadcn-vue` setup
 - **WHEN** `DESIGN.md` describes the design system baseline
 - **THEN** it reflects the current `new-york` style
 - **AND** reflects the current `neutral` base color

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ToolResultMessage } from "@mariozechner/pi-ai";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@willow/shadcn";
 import {
   CheckCircle2Icon,
   ChevronDown,
@@ -9,7 +10,6 @@ import {
   XCircleIcon,
 } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
 
 interface TodoItem {
   id: string;

@@ -19,7 +19,7 @@
 
 `DESIGN.md` 的内容必须以仓库现有事实为前提：
 
-- `app/work/components.json`
+- `components.json`
   - `style = new-york`
   - `baseColor = neutral`
   - `cssVariables = true`

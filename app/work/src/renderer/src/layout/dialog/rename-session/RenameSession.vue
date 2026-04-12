@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import type { Session } from "@shared/api";
+import { Button } from "@willow/shadcn/components/ui/button";
+import {
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@willow/shadcn/components/ui/dialog";
+import { Input } from "@willow/shadcn/components/ui/input";
 import { ref } from "vue";
-import { Button } from "@/components/ui/button";
-import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { electronAPI } from "@/lib/ipc";
 
 const { session } = defineProps<{

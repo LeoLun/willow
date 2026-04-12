@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@willow/shadcn";
 import { computed, ref } from "vue";
 import { demoRegistry } from "./demos/demo-registry";
 
@@ -64,18 +65,18 @@ const selectedDemo = computed(
           </div>
         </aside>
 
-        <section
-          class="rounded-3xl border border-border bg-card px-4 py-4 shadow-sm lg:px-6 lg:py-6"
-        >
-          <div class="mb-5 flex flex-col gap-2 border-b border-border pb-4">
-            <h2 class="text-xl font-semibold text-foreground">{{ selectedDemo.title }}</h2>
-            <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
+        <Card class="rounded-3xl px-4 py-4 shadow-sm lg:px-6 lg:py-6">
+          <CardHeader class="mb-5 border-b border-border px-0 pb-4">
+            <CardTitle class="text-xl">{{ selectedDemo.title }}</CardTitle>
+            <CardDescription class="max-w-3xl leading-6">
               {{ selectedDemo.description }}
-            </p>
-          </div>
+            </CardDescription>
+          </CardHeader>
 
-          <component :is="selectedDemo.component" />
-        </section>
+          <CardContent class="px-0">
+            <component :is="selectedDemo.component" />
+          </CardContent>
+        </Card>
       </main>
     </div>
   </div>

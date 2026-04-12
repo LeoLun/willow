@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import type { Workspace, Session } from "@shared/api";
-import { FolderPlus, SquarePen, Clock, LayoutGrid, Ellipsis, ChevronRight } from "lucide-vue-next";
-import { storeToRefs } from "pinia";
-import { onBeforeMount, ref, computed } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Button } from "@willow/shadcn/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@willow/shadcn/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+} from "@willow/shadcn/components/ui/dropdown-menu";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -22,7 +22,11 @@ import {
   SidebarMenuSub,
   SidebarMenuSubItem,
   SidebarMenuSubButton,
-} from "@/components/ui/sidebar";
+} from "@willow/shadcn/components/ui/sidebar";
+import { FolderPlus, SquarePen, Clock, LayoutGrid, Ellipsis, ChevronRight } from "lucide-vue-next";
+import { storeToRefs } from "pinia";
+import { onBeforeMount, ref, computed } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import { useDialog } from "@/layout/dialog";
 import { CreateWorkspace } from "@/layout/dialog/create-workspace";
 import { DeleteSession } from "@/layout/dialog/delete-session";

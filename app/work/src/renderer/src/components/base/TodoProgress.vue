@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { TodoItem } from "@shared/api";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@willow/shadcn/components/ui/collapsible";
+import {
   CheckCircle2Icon,
   ChevronDownIcon,
   ChevronUpIcon,
@@ -10,7 +15,6 @@ import {
   XCircleIcon,
 } from "lucide-vue-next";
 import { computed, ref } from "vue";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const props = defineProps<{
   todos: TodoItem[];

@@ -25,6 +25,7 @@
     "@opencode-ai/sdk": "^1.1.53",
     "@vueuse/core": "^12.8.2",
     "@willow/core": "workspace:*",
+    "@willow/shadcn": "workspace:*",
     "@willow/ui": "workspace:*",
     "better-sqlite3": "^12.8.0",
     "class-variance-authority": "^0.7.1",

@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import type { AddModelRequest, ModelConfig } from "@shared/api";
+import { Button } from "@willow/shadcn/components/ui/button";
+import {
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@willow/shadcn/components/ui/dialog";
+import { Input } from "@willow/shadcn/components/ui/input";
+import { Label } from "@willow/shadcn/components/ui/label";
+import { Switch } from "@willow/shadcn/components/ui/switch";
 import { ref, onMounted } from "vue";
-import { Button } from "@/components/ui/button";
-import { DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useConfigStore } from "@/stores/config";
 
 const { model, onSaved } = defineProps<{

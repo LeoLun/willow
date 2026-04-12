@@ -1,5 +1,15 @@
 <script setup lang="ts">
 import type { Automation } from "@shared/api";
+import { Button } from "@willow/shadcn/components/ui/button";
+import { Card, CardContent } from "@willow/shadcn/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@willow/shadcn/components/ui/dropdown-menu";
+import { Label } from "@willow/shadcn/components/ui/label";
+import { Separator } from "@willow/shadcn/components/ui/separator";
 import {
   BookOpenText,
   Brain,
@@ -21,16 +31,6 @@ import { formatAutomationSchedule, getAutomationRowMeta } from "@/components/aut
 import type { AutomationTemplatePresetInput } from "@/components/automation/template-preset";
 import type { AutomationTemplatePreset } from "@/components/automation/template-preset";
 import MainTitle from "@/components/base/MainTitle.vue";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { useDialog } from "@/layout/dialog";
 import { AutomationForm } from "@/layout/dialog/automation-form";
 import { DeleteAutomation } from "@/layout/dialog/delete-automation";

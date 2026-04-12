@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useSidebar } from "@willow/shadcn/components/ui/sidebar";
 import { computed } from "vue";
-import { useSidebar } from "@/components/ui/sidebar";
 const { state } = useSidebar();
 
 const isCollapsed = computed(() => {

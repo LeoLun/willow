@@ -8,6 +8,7 @@
     "./style.css": "./src/style.css"
   },
   "dependencies": {
+    "@willow/shadcn": "workspace:*",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
     "lucide-vue-next": "^0.473.0",

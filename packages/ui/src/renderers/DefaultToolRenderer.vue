@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { ToolResultMessage } from "@mariozechner/pi-ai";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@willow/shadcn";
 import { ChevronDown, Circle, CircleCheck, CircleX, Clock3, Wrench } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 import CodeBlock from "../components/CodeBlock.vue";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
 import { i18n } from "../utils/i18n";
 import { getToolSummary } from "./tool-summary";
 

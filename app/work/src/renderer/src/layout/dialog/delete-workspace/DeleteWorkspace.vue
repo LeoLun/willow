@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import type { Workspace } from "@shared/api";
+import { Button } from "@willow/shadcn/components/ui/button";
+import {
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@willow/shadcn/components/ui/dialog";
 import { ref } from "vue";
-import { Button } from "@/components/ui/button";
-import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { electronAPI } from "@/lib/ipc";
 const { workspace } = defineProps<{
   workspace: Workspace;

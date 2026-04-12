@@ -6,6 +6,23 @@ import type {
   UpdateAutomationRequest,
   Workspace,
 } from "@shared/api";
+import { Button } from "@willow/shadcn/components/ui/button";
+import {
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@willow/shadcn/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@willow/shadcn/components/ui/dropdown-menu";
+import { Input } from "@willow/shadcn/components/ui/input";
+import { Label } from "@willow/shadcn/components/ui/label";
+import { Textarea } from "@willow/shadcn/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@willow/shadcn/components/ui/toggle-group";
 import { Check, ChevronsUpDown } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 import {
@@ -15,18 +32,6 @@ import {
 } from "@/components/automation/schedule-form";
 import type { AutomationTemplatePresetInput } from "@/components/automation/template-preset";
 import TimePicker from "@/components/automation/TimePicker.vue";
-import { Button } from "@/components/ui/button";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAutomationStore } from "@/stores/automation";
 
 const props = defineProps<{

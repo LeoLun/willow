@@ -5,6 +5,18 @@ import type {
   AutomationStatus,
   ModelConfig,
 } from "@shared/api";
+import { Badge } from "@willow/shadcn/components/ui/badge";
+import { Button } from "@willow/shadcn/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@willow/shadcn/components/ui/dropdown-menu";
+import { Input } from "@willow/shadcn/components/ui/input";
+import { Skeleton } from "@willow/shadcn/components/ui/skeleton";
+import { Textarea } from "@willow/shadcn/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@willow/shadcn/components/ui/toggle-group";
 import { ArrowLeft, Check, ChevronsUpDown, RotateCcw, Trash2 } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, ref, watch, onMounted } from "vue";
@@ -23,18 +35,6 @@ import {
 } from "@/components/automation/schedule-form";
 import TimePicker from "@/components/automation/TimePicker.vue";
 import MainTitle from "@/components/base/MainTitle.vue";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useDialog } from "@/layout/dialog";
 import { DeleteAutomation } from "@/layout/dialog/delete-automation";
 import { useAutomationStore } from "@/stores/automation";

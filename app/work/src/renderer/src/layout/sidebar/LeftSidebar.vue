@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { Button } from "@willow/shadcn/components/ui/button";
+import { Sidebar, SidebarContent, SidebarFooter } from "@willow/shadcn/components/ui/sidebar";
 import { Settings } from "lucide-vue-next";
 import { useRouter } from "vue-router";
-import { Button } from "@/components/ui/button";
-import { Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
 import NavMain from "./NavMain.vue";
 
 const router = useRouter();

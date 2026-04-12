@@ -13,7 +13,7 @@
 
 ## Current Code Anchors
 
-- `app/work/components.json`
+- `components.json`
 - `app/work/src/renderer/index.css`
 - `app/work/src/renderer/src/components/ui/`
 - `docs/ai-workflows/openspec/archive/add-shadcn-design-standard/`
@@ -28,7 +28,7 @@
 
 ## Dependencies
 
-- `DESIGN.md` 的内容必须与 `app/work/components.json` 和 `app/work/src/renderer/index.css` 保持一致
+- `DESIGN.md` 的内容必须与 `components.json` 和 `app/work/src/renderer/index.css` 保持一致
 - `AGENTS.md` 的入口说明必须与仓库既有 workflow 约定兼容，不能削弱 OpenSpec 的 source-of-truth 地位
 - 执行计划只描述文档落地顺序和验证方式，不重定义 OpenSpec 行为边界
 
@@ -69,7 +69,7 @@
 
 涉及文件 / 子系统：
 - `DESIGN.md`
-- `app/work/components.json`
+- `components.json`
 - `app/work/src/renderer/index.css`
 - `app/work/src/renderer/src/components/ui/`
 

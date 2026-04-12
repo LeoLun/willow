@@ -17,7 +17,7 @@ Willow 的 renderer 默认是桌面工作台，不是营销页。界面气质应
 
 ### Theme Baseline
 
-项目当前 `shadcn-vue` 基线来自 [`app/work/components.json`](/Users/liujinglun/code/willow/app/work/components.json)：
+项目当前 `shadcn-vue` 基线来自 [`components.json`](/Users/liujinglun/code/willow/components.json)：
 
 - `style`: `new-york`
 - `baseColor`: `neutral`

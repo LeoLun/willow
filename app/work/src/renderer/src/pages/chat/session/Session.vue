@@ -2,12 +2,10 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { Session, ToolApproval } from "@shared/api";
 import { MessageList, StreamingMessageContainer } from "@willow/ui";
-import { Plus } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import MainTitle from "@/components/base/MainTitle.vue";
-import { Button } from "@/components/ui/button";
 import { useSessionStore } from "@/stores/session";
 
 const props = withDefaults(

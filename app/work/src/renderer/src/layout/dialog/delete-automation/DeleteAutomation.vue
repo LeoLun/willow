@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import type { Automation } from "@shared/api";
+import { Button } from "@willow/shadcn/components/ui/button";
+import {
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@willow/shadcn/components/ui/dialog";
 import { ref } from "vue";
-import { Button } from "@/components/ui/button";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAutomationStore } from "@/stores/automation";
 
 const { automation, onDeleted } = defineProps<{

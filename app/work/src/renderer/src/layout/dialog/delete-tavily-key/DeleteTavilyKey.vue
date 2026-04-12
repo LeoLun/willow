@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import type { TavilyKeyConfig } from "@shared/api";
+import { Button } from "@willow/shadcn/components/ui/button";
+import {
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@willow/shadcn/components/ui/dialog";
 import { ref } from "vue";
-import { Button } from "@/components/ui/button";
-import { DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useConfigStore } from "@/stores/config";
 
 const { tavilyKey, onDeleted } = defineProps<{

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { Session } from "@shared/api";
 import { SESSION_TITLE_UPDATED } from "@shared/constants";
+import { Card } from "@willow/shadcn";
+import { SidebarProvider, SidebarTrigger } from "@willow/shadcn/components/ui/sidebar";
+import { Toaster } from "@willow/shadcn/components/ui/sonner";
 import {
   AutomationCreateRendererFactory,
   registerToolRenderer,
@@ -8,9 +11,6 @@ import {
 } from "@willow/ui";
 import { onMounted, onUnmounted } from "vue";
 import TopDragBar from "@/components/base/TopDragBar.vue";
-import { Card } from "@/components/ui/card";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Toaster } from "@/components/ui/sonner";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { useEventBus } from "@/composables/useEventBus";
 import { DialogProvider } from "@/layout/dialog";

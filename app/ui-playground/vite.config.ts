@@ -33,6 +33,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@willow/shadcn": resolve(__dirname, "../../packages/shadcn/src"),
       "@willow/ui": resolve(__dirname, "../../packages/ui/src"),
       "@": resolve(__dirname, "src"),
     },

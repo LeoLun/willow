@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@willow/shadcn/components/ui/dialog";
 import { useDialog } from "./use-dialog";
 
 const { dialogState, closeDialog } = useDialog();

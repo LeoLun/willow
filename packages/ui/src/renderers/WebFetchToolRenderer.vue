@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { ToolResultMessage } from "@mariozechner/pi-ai";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@willow/shadcn";
 import { ChevronDown, Clock3, Globe, RotateCcw } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 import CodeBlock from "../components/CodeBlock.vue";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
 import { i18n } from "../utils/i18n";
 
 interface WebFetchDetails {
