@@ -1,3 +1,5 @@
+import type { OpenPathRequest, OpenPathResponse } from "../api";
+
 /**
  * 目录选择对话框 IPC 通信类型定义
  */
@@ -14,4 +16,6 @@ export type ISelectDirectoryResult = {
 export interface IDialogRenderer {
   /** 打开目录选择对话框 */
   selectDirectory(defaultPath?: string): Promise<ISelectDirectoryResult>;
+  /** 使用系统文件管理器打开路径 */
+  openPath(request: OpenPathRequest): Promise<OpenPathResponse>;
 }

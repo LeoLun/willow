@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
-import type { Session, ToolApproval } from "@shared/api";
+import type { ToolApproval } from "@shared/api";
 import { MessageList, StreamingMessageContainer } from "@willow/ui";
-import { storeToRefs } from "pinia";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import MainTitle from "@/components/base/MainTitle.vue";
-import { useSessionStore } from "@/stores/session";
 
 const props = withDefaults(
   defineProps<{
@@ -28,25 +25,9 @@ const props = withDefaults(
     toolApprovals: () => new Map<string, ToolApproval>(),
   },
 );
-
-const sessionStore = useSessionStore();
-const { sessionMap } = storeToRefs(sessionStore);
-
 const route = useRoute();
 const sessionId = computed(() => {
   return Number(route.params.sessionId);
-});
-
-const session = computed(() => {
-  let _session: Session | undefined;
-  Object.keys(sessionMap.value).forEach((workspaceId) => {
-    const sessions = sessionMap.value[Number(workspaceId)];
-    const found = sessions.find((s) => s.id === sessionId.value);
-    if (found) {
-      _session = found;
-    }
-  });
-  return _session;
 });
 
 const scrollArea = ref<HTMLElement | null>(null);
@@ -133,9 +114,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex h-full min-h-0 flex-col items-center">
-    <MainTitle>
-      <div class="text-sm font-semibold">{{ session?.title || "未命名会话" }}</div>
-    </MainTitle>
     <div ref="scrollArea" class="min-h-0 w-full flex-1 overflow-y-auto pt-4 pb-4">
       <div ref="messageContainer" class="mx-auto max-w-3xl px-4">
         <MessageList

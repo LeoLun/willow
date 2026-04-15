@@ -15,7 +15,7 @@ const isCollapsed = computed(() => {
     <div class="drag-region h-2 w-full"></div>
     <div class="flex h-9 w-full items-center gap-1 px-2 pb-2">
       <slot />
-      <div class="drag-region flex-1"></div>
+      <div class="drag-region h-full flex-1"></div>
       <slot name="extra" />
     </div>
   </div>

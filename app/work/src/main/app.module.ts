@@ -29,9 +29,12 @@ import { SendMessageController } from "./controllers/session/send.messgae.contro
 import { StopSessionStreamController } from "./controllers/session/stop.session.stream.controller";
 import { CreateWorkspaceController } from "./controllers/workspace/create.workspace.controller";
 import { DeleteWorkspaceController } from "./controllers/workspace/delete.workspace.controller";
+import { GetWorkspaceFilesController } from "./controllers/workspace/get.workspace.files.controller";
 import { GetWorkspaceInfoController } from "./controllers/workspace/get.workspace.info.controller";
 import { GetWorkspaceListController } from "./controllers/workspace/get.workspace.list.controller";
+import { GetWorkspaceSettingsController } from "./controllers/workspace/get.workspace.settings.controller";
 import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controller";
+import { UpdateWorkspaceSettingsController } from "./controllers/workspace/update.workspace.settings.controller";
 import { AgentService } from "./service/agent.service";
 import { AutomationSchedulerService } from "./service/automation-scheduler.service";
 import { registerAutomationToolService } from "./service/automation-tool.service";
@@ -94,7 +97,10 @@ if (started) {
     CreateWorkspaceController,
     DeleteWorkspaceController,
     GetWorkspaceInfoController,
+    GetWorkspaceFilesController,
+    GetWorkspaceSettingsController,
     RenameWorkspaceController,
+    UpdateWorkspaceSettingsController,
     CreateSessionController,
     SendMessageController,
     GetSessionListController,
@@ -133,7 +139,10 @@ export class AppModule {
     private createWorkspaceController: CreateWorkspaceController,
     private deleteWorkspaceController: DeleteWorkspaceController,
     private getWorkspaceInfoController: GetWorkspaceInfoController,
+    private getWorkspaceFilesController: GetWorkspaceFilesController,
     private renameWorkspaceController: RenameWorkspaceController,
+    private getWorkspaceSettingsController: GetWorkspaceSettingsController,
+    private updateWorkspaceSettingsController: UpdateWorkspaceSettingsController,
     private createSessionController: CreateSessionController,
     private sendMessageController: SendMessageController,
     private getSessionListController: GetSessionListController,

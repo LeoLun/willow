@@ -74,6 +74,39 @@ export interface GetWorkspaceInfoResponse {
   workspace: Workspace;
 }
 
+export interface WorkspaceFileNode {
+  name: string;
+  path: string;
+  type: "file" | "folder";
+  size?: number;
+  extension?: string;
+  children?: WorkspaceFileNode[];
+}
+
+export interface GetWorkspaceFilesRequest {
+  id: number;
+}
+
+export interface GetWorkspaceFilesResponse {
+  rootPath: string;
+  files: WorkspaceFileNode[];
+}
+
+export interface GetWorkspaceSettingsRequest {
+  id: number;
+}
+
+export interface GetWorkspaceSettingsResponse {
+  workspace: Workspace;
+  soulContent: string;
+}
+
+export interface OpenPathRequest {
+  path: string;
+}
+
+export interface OpenPathResponse {}
+
 export interface RenameWorkspaceRequest {
   id: number;
   name: string;
@@ -81,6 +114,17 @@ export interface RenameWorkspaceRequest {
 
 export interface RenameWorkspaceResponse {
   workspace: Workspace;
+}
+
+export interface UpdateWorkspaceSettingsRequest {
+  id: number;
+  path: string;
+  soulContent: string;
+}
+
+export interface UpdateWorkspaceSettingsResponse {
+  workspace: Workspace;
+  soulContent: string;
 }
 
 export interface SendMessageRequest {

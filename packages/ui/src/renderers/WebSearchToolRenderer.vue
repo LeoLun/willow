@@ -2,7 +2,7 @@
 import type { ToolResultMessage } from "@mariozechner/pi-ai";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@willow/shadcn";
 import { ChevronDown, ExternalLink, Globe, Search } from "lucide-vue-next";
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import CodeBlock from "../components/CodeBlock.vue";
 import { i18n } from "../utils/i18n";
 
@@ -27,6 +27,8 @@ const props = defineProps<{
 }>();
 
 const open = ref(false);
+const resultListRef = ref<HTMLElement | null>(null);
+const resultListWidth = ref(0);
 
 const parsedParams = computed<Record<string, any>>(() => {
   if (!props.params) return {};
@@ -57,10 +59,41 @@ const headerLabel = computed(() => {
   return `${i18n("web_search")} "${queryText.value}"`;
 });
 
-const MAX_VISIBLE_RESULTS = 4;
 const resultItems = computed<WebSearchResultItem[]>(() => details.value.results ?? []);
-const visibleResults = computed(() => resultItems.value.slice(0, MAX_VISIBLE_RESULTS));
-const overflowCount = computed(() => Math.max(0, resultItems.value.length - MAX_VISIBLE_RESULTS));
+const MAX_VISIBLE_RESULTS = 6;
+const RESULT_CHIP_WIDTH = 136;
+const OVERFLOW_CHIP_WIDTH = 44;
+const RESULT_GAP = 6;
+const visibleResultCount = computed(() => {
+  if (resultItems.value.length === 0) {
+    return 0;
+  }
+
+  const width = resultListWidth.value;
+  if (!width) {
+    return Math.min(resultItems.value.length, 3);
+  }
+
+  const totalSlots = Math.max(
+    1,
+    Math.floor((width + RESULT_GAP) / (RESULT_CHIP_WIDTH + RESULT_GAP)),
+  );
+
+  if (resultItems.value.length <= totalSlots) {
+    return Math.min(resultItems.value.length, MAX_VISIBLE_RESULTS);
+  }
+
+  const visibleSlots = Math.max(
+    1,
+    Math.floor((width - OVERFLOW_CHIP_WIDTH + RESULT_GAP) / (RESULT_CHIP_WIDTH + RESULT_GAP)),
+  );
+
+  return Math.min(visibleSlots, resultItems.value.length, MAX_VISIBLE_RESULTS);
+});
+const visibleResults = computed(() => resultItems.value.slice(0, visibleResultCount.value));
+const overflowCount = computed(() =>
+  Math.max(0, resultItems.value.length - visibleResultCount.value),
+);
 
 function summarizeUrl(url: string): string {
   try {
@@ -114,13 +147,37 @@ function handleOpenChange(nextOpen: boolean) {
   }
   open.value = nextOpen;
 }
+
+function updateResultListWidth() {
+  resultListWidth.value = resultListRef.value?.clientWidth ?? 0;
+}
+
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+  updateResultListWidth();
+
+  if (!resultListRef.value || typeof ResizeObserver === "undefined") {
+    return;
+  }
+
+  resizeObserver = new ResizeObserver(() => {
+    updateResultListWidth();
+  });
+  resizeObserver.observe(resultListRef.value);
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+});
 </script>
 
 <template>
   <Collapsible :open="open" @update:open="handleOpenChange">
-    <div class="rounded-lg border border-border bg-card px-3 py-1.5 text-card-foreground">
+    <div class="min-w-0 rounded-lg border border-border bg-card px-3 py-1.5 text-card-foreground">
       <CollapsibleTrigger
-        class="flex w-full items-center justify-between gap-3 text-left disabled:pointer-events-none"
+        class="flex w-full min-w-0 items-center justify-between gap-3 text-left disabled:pointer-events-none"
         :disabled="!canExpand"
       >
         <div class="min-w-0 flex-1 space-y-2">
@@ -140,14 +197,18 @@ function handleOpenChange(nextOpen: boolean) {
             </span>
           </div>
 
-          <div v-if="resultItems.length > 0" class="flex items-center gap-1.5 overflow-hidden">
+          <div
+            v-if="resultItems.length > 0"
+            ref="resultListRef"
+            class="flex min-w-0 items-center gap-1.5 overflow-hidden"
+          >
             <a
               v-for="(item, idx) in visibleResults"
               :key="idx"
               :href="item.url"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex shrink-0 items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+              class="inline-flex min-w-0 shrink-0 items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
               @click.stop
             >
               <Globe class="h-3 w-3 shrink-0" />

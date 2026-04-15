@@ -9,8 +9,16 @@ import type {
   DeleteWorkspaceResponse,
   GetWorkspaceInfoRequest,
   GetWorkspaceInfoResponse,
+  GetWorkspaceFilesRequest,
+  GetWorkspaceFilesResponse,
+  GetWorkspaceSettingsRequest,
+  GetWorkspaceSettingsResponse,
+  OpenPathRequest,
+  OpenPathResponse,
   RenameWorkspaceRequest,
   RenameWorkspaceResponse,
+  UpdateWorkspaceSettingsRequest,
+  UpdateWorkspaceSettingsResponse,
   CreateSessionRequest,
   CreateSessionResponse,
   RenameSessionRequest,
@@ -62,7 +70,12 @@ import {
   CREATE_WORKSPACE,
   DELETE_WORKSPACE,
   GET_WORKSPACE_INFO,
+  GET_WORKSPACE_FILES,
+  GET_WORKSPACE_SETTINGS,
+  OPEN_PATH,
   RENAME_WORKSPACE,
+  SELECT_DIRECTORY,
+  UPDATE_WORKSPACE_SETTINGS,
   CREATE_SESSION,
   RENAME_SESSION,
   DELETE_SESSION,
@@ -142,6 +155,32 @@ const ipcObject: IRenderHook = {
     }
     return response.data;
   },
+  getWorkspaceFiles: async (request: GetWorkspaceFilesRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_FILES,
+      request,
+    )) as ApiResponse<GetWorkspaceFilesResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get workspace files failed");
+    }
+    return response.data;
+  },
+  getWorkspaceSettings: async (request: GetWorkspaceSettingsRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_SETTINGS,
+      request,
+    )) as ApiResponse<GetWorkspaceSettingsResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get workspace settings failed");
+    }
+    return response.data;
+  },
   renameWorkspace: async (request: RenameWorkspaceRequest) => {
     const response = (await ipcRenderer.invoke(
       RENAME_WORKSPACE,
@@ -152,6 +191,35 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("rename workspace failed");
+    }
+    return response.data;
+  },
+  updateWorkspaceSettings: async (request: UpdateWorkspaceSettingsRequest) => {
+    const response = (await ipcRenderer.invoke(
+      UPDATE_WORKSPACE_SETTINGS,
+      request,
+    )) as ApiResponse<UpdateWorkspaceSettingsResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("update workspace settings failed");
+    }
+    return response.data;
+  },
+  selectDirectory: async (defaultPath?: string) => {
+    return ipcRenderer.invoke(SELECT_DIRECTORY, defaultPath);
+  },
+  openPath: async (request: OpenPathRequest) => {
+    const response = (await ipcRenderer.invoke(
+      OPEN_PATH,
+      request,
+    )) as ApiResponse<OpenPathResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("open path failed");
     }
     return response.data;
   },
