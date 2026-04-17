@@ -24,7 +24,7 @@
 - **WHEN** 右侧栏处于展开状态
 - **THEN** 右侧栏展示工作空间设置内容
 - **AND** 内容以设置分组组织，而不是纯展示型空白页
-- **AND** 至少包含工作空间基础信息、路径相关信息、`soul.md` 设置和保存入口
+- **AND** 至少包含工作空间基础信息、路径相关信息、`AGENTS.md` 设置和保存入口
 
 ### Requirement: Show Session Summary And Files Sidebar In Session Context
 

@@ -79,11 +79,11 @@ export function RightSettingsPanel({
 
           <Separator />
 
-          {/* Soul.md 设置 */}
+          {/* AGENTS.md 设置 */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <FileText className="h-4 w-4" />
-              <span>soul.md 设置</span>
+              <span>AGENTS.md 设置</span>
             </div>
             <div className="space-y-2">
               <Label
@@ -130,7 +130,7 @@ export function RightSettingsPanel({
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            title="soul.md 设置"
+            title="AGENTS.md 设置"
           >
             <FileText className="h-4 w-4" />
           </Button>

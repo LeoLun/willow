@@ -2,6 +2,12 @@
 import type { Session, TodoItem, Workspace } from "@shared/api";
 import { Button } from "@willow/shadcn/components/ui/button";
 import { Label } from "@willow/shadcn/components/ui/label";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+} from "@willow/shadcn/components/ui/navigation-menu";
 import { Progress } from "@willow/shadcn/components/ui/progress";
 import { ScrollArea } from "@willow/shadcn/components/ui/scroll-area";
 import { Separator } from "@willow/shadcn/components/ui/separator";
@@ -49,7 +55,9 @@ const widthClass = computed(() => {
   return "w-0 basis-0";
 });
 const workspaceId = computed(() => props.workspace?.id ?? props.session?.workspaceId ?? 0);
-const activeTab = ref<"primary" | "files">(props.mode === "workspace" ? "primary" : "primary");
+const activeTab = ref<"primary" | "files" | "agents">(
+  props.mode === "workspace" ? "primary" : "primary",
+);
 const {
   files,
   rootPath,
@@ -59,7 +67,6 @@ const {
 const {
   workspacePath,
   soulContent,
-  isLoading: isSettingsLoading,
   isSaving,
   errorMessage: settingsErrorMessage,
   saveMessage,
@@ -97,7 +104,6 @@ const formattedUpdatedAt = computed(() => {
 const totalFileCount = computed(() => countFiles(files.value));
 const primaryTabLabel = computed(() => (props.mode === "workspace" ? "设置" : "概要"));
 const primaryTabIcon = computed(() => (props.mode === "workspace" ? Settings2Icon : InfoIcon));
-const hasValidWorkspace = computed(() => workspaceId.value > 0 && !Number.isNaN(workspaceId.value));
 
 const statusConfig = {
   completed: { icon: CheckCircle2Icon, className: "text-emerald-500" },
@@ -108,7 +114,7 @@ const statusConfig = {
 
 watch(
   () => props.mode,
-  (mode) => {
+  () => {
     activeTab.value = "primary";
   },
 );
@@ -150,35 +156,41 @@ async function handleOpenWorkspaceFolder() {
     >
       <div class="flex h-full flex-col">
         <div class="border-b border-sidebar-border px-3 py-2">
-          <div class="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              class="h-8 gap-1.5 px-2 text-xs"
-              :class="
-                activeTab === 'primary' ? 'bg-muted text-foreground' : 'text-muted-foreground'
-              "
-              @click="activeTab = 'primary'"
-            >
-              <component :is="primaryTabIcon" class="size-3.5" />
-              {{ primaryTabLabel }}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              class="h-8 gap-1.5 px-2 text-xs"
-              :class="activeTab === 'files' ? 'bg-muted text-foreground' : 'text-muted-foreground'"
-              @click="activeTab = 'files'"
-            >
-              <FolderOpenIcon class="size-3.5" />
-              文件
-              <span class="rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                {{ totalFileCount }}
-              </span>
-            </Button>
-          </div>
+          <NavigationMenu orientation="horizontal" class="max-w-full">
+            <NavigationMenuList class="flex-wrap justify-start">
+              <NavigationMenuItem>
+                <NavigationMenuLink as-child :active="activeTab === 'primary'">
+                  <button type="button" class="h-8" @click="activeTab = 'primary'">
+                    <component :is="primaryTabIcon" class="size-3.5" />
+                    {{ primaryTabLabel }}
+                  </button>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+
+              <NavigationMenuItem>
+                <NavigationMenuLink as-child :active="activeTab === 'files'">
+                  <button type="button" class="h-8" @click="activeTab = 'files'">
+                    <FolderOpenIcon class="size-3.5" />
+                    文件
+                    <span
+                      class="rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {{ totalFileCount }}
+                    </span>
+                  </button>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+
+              <NavigationMenuItem>
+                <NavigationMenuLink as-child :active="activeTab === 'agents'">
+                  <button type="button" class="h-8" @click="activeTab = 'agents'">
+                    <FileText class="size-3.5" />
+                    AGENTS.md
+                  </button>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
         </div>
 
         <ScrollArea v-if="activeTab === 'primary'" class="h-full">
@@ -194,41 +206,6 @@ async function handleOpenWorkspaceFolder() {
                 </div>
               </div>
             </div>
-
-            <Separator />
-
-            <div class="space-y-3">
-              <div class="flex items-center gap-2 text-sm font-medium text-foreground">
-                <FileText class="h-4 w-4" />
-                <span>soul.md 设置</span>
-              </div>
-              <div class="space-y-2">
-                <Label for="workspace-soul-content" class="text-xs text-muted-foreground">
-                  定义 AI 助手的行为和人格特征
-                </Label>
-                <Textarea
-                  id="workspace-soul-content"
-                  v-model="soulContent"
-                  placeholder="# AI 助手配置&#10;&#10;描述你希望 AI 助手具有的特性..."
-                  class="min-h-[240px] resize-none font-mono text-sm"
-                />
-                <p class="text-xs text-muted-foreground">
-                  支持 Markdown 格式，保存到工作空间的 soul.md
-                </p>
-              </div>
-            </div>
-
-            <div v-if="settingsErrorMessage" class="text-xs text-destructive">
-              {{ settingsErrorMessage }}
-            </div>
-            <div v-else-if="saveMessage" class="text-xs text-emerald-600">
-              {{ saveMessage }}
-            </div>
-
-            <Button class="w-full gap-2" :disabled="isSaving" @click="handleSaveWorkspaceSettings">
-              <Save class="h-4 w-4" />
-              {{ isSaving ? "保存中..." : "保存设置" }}
-            </Button>
           </div>
 
           <div v-else class="space-y-4 p-3">
@@ -299,7 +276,7 @@ async function handleOpenWorkspaceFolder() {
           </div>
         </ScrollArea>
 
-        <ScrollArea v-else class="h-full">
+        <ScrollArea v-else-if="activeTab === 'files'" class="h-full">
           <div class="space-y-3 p-3">
             <div class="space-y-1">
               <div class="text-xs font-medium text-muted-foreground">工作空间文件</div>
@@ -342,6 +319,43 @@ async function handleOpenWorkspaceFolder() {
             <div v-else class="rounded-lg bg-muted/40 p-2">
               <WorkspaceFileTree :items="files" />
             </div>
+          </div>
+        </ScrollArea>
+
+        <ScrollArea v-else-if="activeTab === 'agents'" class="h-full">
+          <div class="px-3 py-2">
+            <div class="space-y-3">
+              <div class="flex items-center gap-2 text-sm font-medium text-foreground">
+                <FileText class="h-4 w-4" />
+                <span>AGENTS.md 设置</span>
+              </div>
+              <div class="space-y-2">
+                <Label for="workspace-soul-content" class="text-xs text-muted-foreground">
+                  定义 AI 助手的行为和人格特征
+                </Label>
+                <Textarea
+                  id="workspace-soul-content"
+                  v-model="soulContent"
+                  placeholder="# AI 助手配置&#10;&#10;描述你希望 AI 助手具有的特性..."
+                  class="min-h-[240px] resize-none font-mono text-sm"
+                />
+                <p class="text-xs text-muted-foreground">
+                  支持 Markdown 格式，保存到工作空间的 AGENTS.md
+                </p>
+              </div>
+            </div>
+
+            <div v-if="settingsErrorMessage" class="text-xs text-destructive">
+              {{ settingsErrorMessage }}
+            </div>
+            <div v-else-if="saveMessage" class="text-xs text-emerald-600">
+              {{ saveMessage }}
+            </div>
+
+            <Button class="w-full gap-2" :disabled="isSaving" @click="handleSaveWorkspaceSettings">
+              <Save class="h-4 w-4" />
+              {{ isSaving ? "保存中..." : "保存设置" }}
+            </Button>
           </div>
         </ScrollArea>
       </div>

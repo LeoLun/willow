@@ -20,7 +20,7 @@ const { sessionMap } = storeToRefs(sessionStore);
 const { workspaceList } = storeToRefs(workspaceStore);
 const route = useRoute();
 const router = useRouter();
-const isSidebarOpen = ref(true);
+const isSidebarOpen = ref(false);
 const sessionId = computed(() => {
   const value = Number(route.params.sessionId);
   return Number.isNaN(value) ? 0 : value;

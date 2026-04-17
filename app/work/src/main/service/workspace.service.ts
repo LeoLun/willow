@@ -100,7 +100,7 @@ export class WorkspaceService {
     }
 
     await mkdir(nextPath, { recursive: true });
-    await writeFile(join(nextPath, "soul.md"), soulContent, "utf8");
+    await writeFile(join(nextPath, "AGENTS.md"), soulContent, "utf8");
 
     const updatedWorkspace =
       nextPath === workspace.path
@@ -119,7 +119,7 @@ export class WorkspaceService {
 
   private async readSoulContent(workspacePath: string): Promise<string> {
     try {
-      return await readFile(join(workspacePath, "soul.md"), "utf8");
+      return await readFile(join(workspacePath, "AGENTS.md"), "utf8");
     } catch {
       return "";
     }

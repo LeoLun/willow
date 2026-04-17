@@ -27,7 +27,11 @@ const routes: RouteRecordRaw[] = [
   { path: "/skills", name: "skills", component: Skills },
   { path: "/setting", name: "setting", component: Setting },
   { path: "/auto", name: "auto", component: Auto },
-  { path: "/auto/:automationId", name: "automationDetail", component: AutomationDetail },
+  {
+    path: "/auto/:automationId",
+    name: "automationDetail",
+    component: AutomationDetail,
+  },
 ];
 
 export const router = createRouter({
