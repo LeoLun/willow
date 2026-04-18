@@ -1,6 +1,9 @@
 @import "../../work/src/renderer/index.css";
 
 @source "./";
+@source "../../../packages/shadcn/src";
+@source "../../../packages/ui/src";
+@source "../../../packages/sender/src";
 
 html,
 body,

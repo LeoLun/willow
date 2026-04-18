@@ -6,6 +6,7 @@ import type {
   ToolResultMessage,
   UserMessage,
 } from "@mariozechner/pi-ai";
+import type { SenderModelOption, SenderSkillOption, SenderUsageMessage } from "@willow/sender";
 
 const timestamp = Date.now();
 
@@ -111,6 +112,72 @@ export const streamingMessage = {
 } as AssistantMessage;
 
 export const pendingToolCalls = new Set<string>(["call-web-1"]);
+
+export const senderModels: SenderModelOption[] = [
+  {
+    modelId: "deepseek-reasoner",
+    name: "DeepSeek Reasoner",
+    contextWindow: 64000,
+  },
+  {
+    modelId: "gpt-5.4",
+    name: "GPT-5.4",
+    contextWindow: 128000,
+  },
+];
+
+export const senderSkills: SenderSkillOption[] = [
+  {
+    name: "workflow-spec",
+    description: "把想法整理成 OpenSpec 变更文档与决策记录。",
+    filePath: "/Users/liujinglun/code/willow/.agents/skills/workflow-spec/SKILL.md",
+    scope: "global",
+    scopeLabel: "全局",
+  },
+  {
+    name: "workflow-plan",
+    description: "把已批准的 OpenSpec 任务拆成可执行实施计划。",
+    filePath: "/Users/liujinglun/code/willow/.agents/skills/workflow-plan/SKILL.md",
+    scope: "global",
+    scopeLabel: "全局",
+  },
+  {
+    name: "workflow-implement",
+    description: "按计划推进实现、验证并收口任务状态。",
+    filePath: "/Users/liujinglun/code/willow/.agents/skills/workflow-implement/SKILL.md",
+    scope: "workspace",
+    scopeLabel: "工作空间",
+  },
+  {
+    name: "vue-best-practices",
+    description: "为 Vue 3 SFC、Composition API 和类型边界提供最佳实践。",
+    filePath: "/Users/liujinglun/code/willow/.agents/skills/vue-best-practices/SKILL.md",
+    scope: "workspace",
+    scopeLabel: "工作空间",
+  },
+];
+
+export const senderMessages: SenderUsageMessage[] = [
+  {
+    usage: {
+      input: 12400,
+      output: 1600,
+    },
+  },
+  {
+    usage: {
+      input: 2800,
+      output: 340,
+    },
+  },
+];
+
+export const senderStreamMessage: SenderUsageMessage = {
+  usage: {
+    input: 800,
+    output: 220,
+  },
+};
 
 export const markdownSample = `# UI Playground 检查清单
 

@@ -9,6 +9,7 @@
   "dependencies": {
     "@mariozechner/pi-agent-core": "^0.62.0",
     "@mariozechner/pi-ai": "^0.62.0",
+    "@willow/sender": "workspace:*",
     "@willow/shadcn": "workspace:*",
     "@willow/ui": "workspace:*",
     "vue": "^3.5.31"

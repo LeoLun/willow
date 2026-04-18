@@ -7,6 +7,7 @@ import CoreToolDemo from "./scenes/CoreToolDemo.vue";
 import DefaultToolDemo from "./scenes/DefaultToolDemo.vue";
 import EdgeStatesDemo from "./scenes/EdgeStatesDemo.vue";
 import MarkdownDemo from "./scenes/MarkdownDemo.vue";
+import SenderDemo from "./scenes/SenderDemo.vue";
 import StreamingDemo from "./scenes/StreamingDemo.vue";
 import TodoToolDemo from "./scenes/TodoToolDemo.vue";
 import WebFetchToolDemo from "./scenes/WebFetchToolDemo.vue";
@@ -14,6 +15,13 @@ import WebSearchToolDemo from "./scenes/WebSearchToolDemo.vue";
 import type { DemoDefinition } from "./types";
 
 export const demoRegistry: DemoDefinition[] = [
+  {
+    id: "sender",
+    title: "Sender 输入器",
+    description: "直接验证 @willow/sender 的模型切换、技能选择、slash 搜索和发送事件。",
+    group: "输入器",
+    component: markRaw(SenderDemo),
+  },
   {
     id: "conversation",
     title: "消息列表",

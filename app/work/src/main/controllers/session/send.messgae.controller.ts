@@ -43,6 +43,19 @@ export class SendMessageController extends IPCBaseController<
         }
       }
     }
+    if (request.selectedSkills && request.selectedSkills.length > 0) {
+      for (const skill of request.selectedSkills) {
+        if (!skill.name?.trim()) {
+          return new Error("skill name is required");
+        }
+        if (!skill.filePath?.trim()) {
+          return new Error("skill filePath is required");
+        }
+        if (skill.scope !== "global" && skill.scope !== "workspace") {
+          return new Error("skill scope is invalid");
+        }
+      }
+    }
     return undefined;
   }
 }

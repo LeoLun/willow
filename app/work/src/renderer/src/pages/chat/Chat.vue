@@ -6,11 +6,11 @@ import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MainTitle from "@/components/base/MainTitle.vue";
-import Sender from "@/components/base/sender/index.vue";
 import { useAgentMessages } from "@/composables/useAgentMessages";
 import { useTodoProgress } from "@/composables/useTodoProgress";
 import { electronAPI } from "@/lib/ipc";
 import ChatRightSidebar from "@/pages/chat/components/ChatRightSidebar.vue";
+import SenderContainer from "@/pages/chat/components/SenderContainer.vue";
 import { useSessionStore } from "@/stores/session";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -162,11 +162,12 @@ onBeforeMount(async () => {
         </div>
 
         <div class="relative w-full max-w-3xl min-w-0 pr-3">
-          <Sender
+          <SenderContainer
             :messages="state.messages"
             :stream-message="state.streamMessage"
             :is-streaming="state.isStreaming"
             :show-usage="isSessionRoute"
+            :workspace-id="currentWorkspaceId"
             @send="handleSend"
             @stop="handleStop"
           />

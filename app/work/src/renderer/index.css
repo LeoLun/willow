@@ -2,6 +2,7 @@
 
 @source "../../../../packages/shadcn/src";
 @source "../../../../packages/ui/src";
+@source "../../../../packages/sender/src";
 
 @layer base {
   :root {

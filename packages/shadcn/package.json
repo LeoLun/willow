@@ -8,7 +8,7 @@
     "./style.css": "./src/style.css",
     "./components/ui/*": "./src/components/ui/*/index.ts",
     "./components/ui/*/*": "./src/components/ui/*/*",
-    "./lib/*": "./src/lib/*"
+    "./lib/*": "./src/lib/*.ts"
   },
   "dependencies": {
     "@vueuse/core": "^12.8.2",

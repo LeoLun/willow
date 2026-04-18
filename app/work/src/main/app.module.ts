@@ -20,6 +20,7 @@ import { EventController } from "./controllers/event.controller";
 import { InitController } from "./controllers/init.controller";
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { DeleteSessionController } from "./controllers/session/delete.session.controller";
+import { GetAvailableSkillsController } from "./controllers/session/get.available.skills.controller";
 import { GetSessionHistoryController } from "./controllers/session/get.session.history.controller";
 import { GetSessionListController } from "./controllers/session/get.session.list.controller";
 import { GetWorkspaceSessionsController } from "./controllers/session/get.workspace.sessions.controller";
@@ -51,6 +52,7 @@ import { WorkspaceDao } from "./service/dao/workspace.dao.service";
 import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
 import { SessionService } from "./service/session.service";
+import { SkillService } from "./service/skill.service";
 import { SystemService } from "./service/system.service";
 import { TavilyService } from "./service/tavily.service";
 import { TodoService } from "./service/todo.service";
@@ -69,6 +71,7 @@ if (started) {
     WorkspaceService,
     SystemService,
     SessionService,
+    SkillService,
     AgentService,
     ConfigService,
     WorkspaceDao,
@@ -106,6 +109,7 @@ if (started) {
     GetSessionListController,
     GetWorkspaceSessionsController,
     GetSessionHistoryController,
+    GetAvailableSkillsController,
     RenameSessionController,
     ResolveToolApprovalController,
     DeleteSessionController,
@@ -148,6 +152,7 @@ export class AppModule {
     private getSessionListController: GetSessionListController,
     private getWorkspaceSessionsController: GetWorkspaceSessionsController,
     private getSessionHistoryController: GetSessionHistoryController,
+    private getAvailableSkillsController: GetAvailableSkillsController,
     private renameSessionController: RenameSessionController,
     private resolveToolApprovalController: ResolveToolApprovalController,
     private deleteSessionController: DeleteSessionController,

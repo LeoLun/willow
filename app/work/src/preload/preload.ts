@@ -13,6 +13,8 @@ import type {
   GetWorkspaceFilesResponse,
   GetWorkspaceSettingsRequest,
   GetWorkspaceSettingsResponse,
+  GetAvailableSkillsRequest,
+  GetAvailableSkillsResponse,
   OpenPathRequest,
   OpenPathResponse,
   RenameWorkspaceRequest,
@@ -72,6 +74,7 @@ import {
   GET_WORKSPACE_INFO,
   GET_WORKSPACE_FILES,
   GET_WORKSPACE_SETTINGS,
+  GET_AVAILABLE_SKILLS,
   OPEN_PATH,
   RENAME_WORKSPACE,
   SELECT_DIRECTORY,
@@ -178,6 +181,19 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("get workspace settings failed");
+    }
+    return response.data;
+  },
+  getAvailableSkills: async (request: GetAvailableSkillsRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_AVAILABLE_SKILLS,
+      request,
+    )) as ApiResponse<GetAvailableSkillsResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get available skills failed");
     }
     return response.data;
   },
