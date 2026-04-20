@@ -3,6 +3,7 @@ import katex from "katex";
 import { Marked } from "marked";
 import { computed } from "vue";
 import CodeBlock from "./CodeBlock.vue";
+import SkillTag from "./SkillTag.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -39,6 +40,26 @@ const renderedHtml = computed(() => {
   const marked = new Marked();
   marked.use({
     extensions: [
+      {
+        name: "skillTag",
+        level: "inline",
+        start(src: string) {
+          return src.indexOf("[$");
+        },
+        tokenizer(src: string) {
+          const match = /^\[\$([^\]]+)\]\(([^)]+)\)/.exec(src);
+          if (match) {
+            return { type: "skillTag", raw: match[0], name: match[1], path: match[2] };
+          }
+          return undefined;
+        },
+        renderer(token: any) {
+          const encodedName = btoa(unescape(encodeURIComponent(token.name)));
+          return `<span class="willow-skill-tag" data-name="${encodedName}"></span>`;
+        },
+      },
+      // TODO: fileTag — 未来可在此添加 [name](path) 文件引用标签解析，
+      // 使用不同正则（不带 $ 前缀）和对应的文件图标渲染。
       {
         name: "inlineMathDollar",
         level: "inline",
@@ -150,6 +171,7 @@ const renderedHtml = computed(() => {
   let parsedContent = marked.parse(preservedContent, {
     async: false,
     renderer: renderer,
+    breaks: true,
   }) as string;
 
   // Replace fenced code blocks with data attributes for the Vue component to pick up
@@ -196,19 +218,17 @@ import { nextTick, onMounted, onUpdated, ref } from "vue";
 import { createApp, h } from "vue";
 
 const containerRef = ref<HTMLElement>();
-const codeBlockApps: any[] = [];
+const mountedApps: any[] = [];
 
-function mountCodeBlocks() {
+function mountDynamicComponents() {
   if (!containerRef.value) return;
 
-  // Clean up previous code block instances
-  for (const app of codeBlockApps) {
+  for (const app of mountedApps) {
     app.unmount();
   }
-  codeBlockApps.length = 0;
+  mountedApps.length = 0;
 
-  const placeholders = containerRef.value.querySelectorAll(".willow-code-block");
-  for (const el of placeholders) {
+  for (const el of containerRef.value.querySelectorAll(".willow-code-block")) {
     const lang = el.getAttribute("data-lang") || "text";
     const code = el.getAttribute("data-code") || "";
     const app = createApp({
@@ -217,24 +237,36 @@ function mountCodeBlocks() {
       },
     });
     app.mount(el);
-    codeBlockApps.push(app);
+    mountedApps.push(app);
+  }
+
+  for (const el of containerRef.value.querySelectorAll(".willow-skill-tag")) {
+    const encoded = el.getAttribute("data-name") || "";
+    const name = decodeURIComponent(escape(atob(encoded)));
+    const app = createApp({
+      render() {
+        return h(SkillTag, { name });
+      },
+    });
+    app.mount(el);
+    mountedApps.push(app);
   }
 }
 
 onMounted(() => {
-  nextTick(mountCodeBlocks);
+  nextTick(mountDynamicComponents);
 });
 
 onUpdated(() => {
-  nextTick(mountCodeBlocks);
+  nextTick(mountDynamicComponents);
 });
 
 import { onBeforeUnmount } from "vue";
 onBeforeUnmount(() => {
-  for (const app of codeBlockApps) {
+  for (const app of mountedApps) {
     app.unmount();
   }
-  codeBlockApps.length = 0;
+  mountedApps.length = 0;
 });
 </script>
 

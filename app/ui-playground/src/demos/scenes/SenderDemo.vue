@@ -26,6 +26,7 @@ const eventSummary = computed(() => {
 });
 
 function handleSend(payload: SenderSendPayload) {
+  console.log("handleSend", payload);
   latestPayload.value = payload;
   latestEvent.value = "已收到 send 事件";
 }

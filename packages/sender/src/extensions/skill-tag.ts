@@ -44,11 +44,12 @@ export const SkillTag = Node.create({
     ];
   },
 
-  renderText() {
-    return "";
+  renderText({ node }) {
+    const skillText = `[$${node.attrs.name}](${node.attrs.filePath})`;
+    return node.attrs.name ? skillText : "";
   },
 
   addNodeView() {
-    return VueNodeViewRenderer(SkillTagView);
+    return VueNodeViewRenderer(SkillTagView as any);
   },
 });

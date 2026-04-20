@@ -137,12 +137,6 @@ export interface SkillSummary {
   scopeLabel: "全局" | "工作空间";
 }
 
-export interface SelectedSkillReference {
-  name: string;
-  filePath: string;
-  scope: SkillScope;
-}
-
 export interface GetAvailableSkillsRequest {
   workspaceId?: number;
 }
@@ -154,7 +148,6 @@ export interface GetAvailableSkillsResponse {
 export interface SendMessageRequest {
   sessionId: number;
   message: string;
-  selectedSkills?: SelectedSkillReference[];
   modelId?: string;
   files?: IFile[];
   webSearchEnabled?: boolean;

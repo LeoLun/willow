@@ -262,15 +262,6 @@ function showModelTip() {
   }, 3000);
 }
 
-function buildSelectedSkillsPayload(): SenderSkillReference[] {
-  const tags = editorComponentRef.value?.getSkillTags() ?? [];
-  return tags.map((tag) => ({
-    name: tag.name,
-    filePath: tag.filePath,
-    scope: tag.scope as SenderSkillReference["scope"],
-  }));
-}
-
 function handleModelSelect(modelId: string) {
   localSelectedModelId.value = modelId;
   emit("update:selectedModelId", modelId);
@@ -294,7 +285,6 @@ async function handleSend() {
 
   emit("send", {
     message,
-    selectedSkills: buildSelectedSkillsPayload(),
     modelId: localSelectedModelId.value,
     webSearchEnabled: localWebSearchEnabled.value,
   });

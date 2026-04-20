@@ -13,13 +13,7 @@ import {
 } from "@main/utils/agent-message-text";
 import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 import type { AgentEvent, AgentMessage } from "@mariozechner/pi-agent-core";
-import type {
-  ActiveSessionStream,
-  SelectedSkillReference,
-  SendMessage,
-  SkillSummary,
-  ToolApproval,
-} from "@shared/api";
+import type { ActiveSessionStream, SendMessage, ToolApproval } from "@shared/api";
 import { SESSION_TITLE_UPDATED } from "@shared/constants";
 import type { ToolApprovalDecision } from "@willow/core";
 import { Injectable } from "@willow/poetry";
@@ -255,9 +249,7 @@ export class SessionService {
       });
     });
     try {
-      await agent.prompt(
-        this.buildPromptInput(session.workspaceId, data.message, data.selectedSkills),
-      );
+      await agent.prompt(this.buildPromptInput(session.workspaceId, data.message));
       return replyText;
     } catch (error) {
       if (this.runningSessions.get(sessionId)?.stopRequested) {
@@ -273,63 +265,13 @@ export class SessionService {
     }
   }
 
-  private buildPromptInput(
-    workspaceId: number,
-    message: string,
-    selectedSkills?: SelectedSkillReference[],
-  ) {
+  private buildPromptInput(workspaceId: number, message: string) {
+    console.log("workspaceId", workspaceId);
+    console.log("message", message);
+
     const normalizedMessage = message.trim();
-    if (!selectedSkills || selectedSkills.length === 0) {
-      return normalizedMessage;
-    }
 
-    const validSkills = this.resolveSelectedSkills(workspaceId, selectedSkills);
-    if (validSkills.length === 0) {
-      return normalizedMessage;
-    }
-
-    const skillLines = validSkills.map((skill, index) => {
-      return [
-        `${index + 1}. ${skill.name}（${skill.scopeLabel}）`,
-        `描述：${skill.description}`,
-        `路径：${skill.filePath}`,
-      ].join("\n");
-    });
-
-    return [
-      "以下技能由用户为当前这条消息显式指定，请优先按这些技能处理当前任务。",
-      "",
-      "<selected_skills>",
-      skillLines.join("\n\n"),
-      "</selected_skills>",
-      "",
-      "<user_message>",
-      normalizedMessage,
-      "</user_message>",
-    ].join("\n");
-  }
-
-  private resolveSelectedSkills(workspaceId: number, selectedSkills: SelectedSkillReference[]) {
-    const { skills } = this.skillService.getAvailableSkills(workspaceId);
-    const availableSkillMap = new Map(
-      skills.map((skill) => [this.getSkillKey(skill), skill] satisfies [string, SkillSummary]),
-    );
-    const validSkills: SkillSummary[] = [];
-
-    for (const selectedSkill of selectedSkills) {
-      const matchedSkill = availableSkillMap.get(this.getSkillKey(selectedSkill));
-      if (!matchedSkill || matchedSkill.name !== selectedSkill.name) {
-        console.warn("ignore unavailable selected skill", selectedSkill);
-        continue;
-      }
-      validSkills.push(matchedSkill);
-    }
-
-    return validSkills;
-  }
-
-  private getSkillKey(skill: Pick<SelectedSkillReference, "scope" | "filePath">) {
-    return `${skill.scope}:${skill.filePath}`;
+    return normalizedMessage;
   }
 
   async resolveToolApproval(
