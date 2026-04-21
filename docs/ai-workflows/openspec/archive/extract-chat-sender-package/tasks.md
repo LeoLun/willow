@@ -24,13 +24,13 @@
 
 ## 4. 验证
 
-- [ ] 4.1 验证 `app/work` 中输入、发送、停止、模型切换、联网开关与 usage 展示仍可用。
-- [ ] 4.2 验证技能入口、slash 搜索、技能选择、技能移除和发送后清空行为保持一致。
+- [x] 4.1 验证 `app/work` 中输入、发送、停止、模型切换、联网开关与 usage 展示仍可用。
+- [x] 4.2 验证技能入口、slash 搜索、技能选择、技能移除和发送后清空行为保持一致。
 - [x] 4.3 验证 `@willow/sender` 构建与导入时不再依赖 `app/work` 私有模块。
-- [ ] 4.4 如条件允许，验证 `app/ui-playground` 或最小示例可以接入 `@willow/sender`。
-- [ ] 4.5 对照 [`DESIGN.md`](/Users/liujinglun/code/willow/DESIGN.md) 检查发送器仍符合桌面工作台输入器规范。
+- [x] 4.4 如条件允许，验证 `app/ui-playground` 或最小示例可以接入 `@willow/sender`。
+- [x] 4.5 对照 [`DESIGN.md`](/Users/liujinglun/code/willow/DESIGN.md) 检查发送器仍符合桌面工作台输入器规范。
 
 ## 5. 交接
 
-- [ ] 5.1 进入 `workflow-worktree` 准备隔离实现环境。
-- [ ] 5.2 进入 `workflow-plan`，按“共享包实现、宿主容器适配、迁移替换、验证”四个切片拆解实施顺序。
+- [x] 5.1 进入 `workflow-worktree` 准备隔离实现环境。
+- [x] 5.2 进入 `workflow-plan`，按“共享包实现、宿主容器适配、迁移替换、验证”四个切片拆解实施顺序。
