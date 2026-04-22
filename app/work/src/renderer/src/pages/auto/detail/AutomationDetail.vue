@@ -5,6 +5,7 @@ import type {
   AutomationStatus,
   ModelConfig,
 } from "@shared/api";
+import { MarkdownEditor } from "@willow/editor-md";
 import { Badge } from "@willow/shadcn/components/ui/badge";
 import { Button } from "@willow/shadcn/components/ui/button";
 import {
@@ -15,7 +16,6 @@ import {
 } from "@willow/shadcn/components/ui/dropdown-menu";
 import { Input } from "@willow/shadcn/components/ui/input";
 import { Skeleton } from "@willow/shadcn/components/ui/skeleton";
-import { Textarea } from "@willow/shadcn/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@willow/shadcn/components/ui/toggle-group";
 import { ArrowLeft, Check, ChevronsUpDown, RotateCcw, Trash2 } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
@@ -395,9 +395,9 @@ watch(
               placeholder="自动化名称"
             />
             <div class="h-full max-h-[100%] w-full overflow-y-auto">
-              <Textarea
+              <MarkdownEditor
                 v-model="prompt"
-                class="min-h-[320px] flex-1 resize-none border-0 bg-transparent px-2 py-0 !text-base leading-9 text-foreground/90 shadow-none focus-visible:ring-0"
+                class="min-h-[320px] px-2 py-0"
                 placeholder="输入自动化执行时要发送给 AI 的提示词"
               />
             </div>

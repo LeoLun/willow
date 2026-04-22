@@ -29,6 +29,7 @@
     "@tiptap/vue-3": "^3.22.3",
     "@vueuse/core": "^12.8.2",
     "@willow/core": "workspace:*",
+    "@willow/editor-md": "workspace:*",
     "@willow/sender": "workspace:*",
     "@willow/shadcn": "workspace:*",
     "@willow/ui": "workspace:*",

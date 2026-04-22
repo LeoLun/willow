@@ -108,6 +108,9 @@ importers:
       '@willow/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@willow/editor-md':
+        specifier: workspace:*
+        version: link:../../packages/editor-md
       '@willow/sender':
         specifier: workspace:*
         version: link:../../packages/sender
@@ -287,6 +290,30 @@ importers:
       tsyringe:
         specifier: 'catalog:'
         version: 4.10.0
+
+  packages/editor-md:
+    dependencies:
+      '@tiptap/core':
+        specifier: ^3.22.3
+        version: 3.22.3(@tiptap/pm@3.22.3)
+      '@tiptap/extensions':
+        specifier: ^3.22.4
+        version: 3.22.4(@tiptap/core@3.22.3(@tiptap/pm@3.22.3))(@tiptap/pm@3.22.3)
+      '@tiptap/pm':
+        specifier: ^3.22.3
+        version: 3.22.3
+      '@tiptap/starter-kit':
+        specifier: ^3.22.3
+        version: 3.22.3
+      '@tiptap/vue-3':
+        specifier: ^3.22.3
+        version: 3.22.3(@floating-ui/dom@1.6.13)(@tiptap/core@3.22.3(@tiptap/pm@3.22.3))(@tiptap/pm@3.22.3)(vue@3.5.31(typescript@5.9.3))
+      prosemirror-markdown:
+        specifier: ^1.13.4
+        version: 1.13.4
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.31(typescript@5.9.3)
 
   packages/poetry:
     devDependencies:
