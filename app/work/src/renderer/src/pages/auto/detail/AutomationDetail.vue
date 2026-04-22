@@ -17,9 +17,17 @@ import {
 import { Input } from "@willow/shadcn/components/ui/input";
 import { Skeleton } from "@willow/shadcn/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@willow/shadcn/components/ui/toggle-group";
-import { ArrowLeft, Check, ChevronsUpDown, RotateCcw, Trash2 } from "lucide-vue-next";
+import {
+  ArrowLeft,
+  Check,
+  ChevronsUpDown,
+  Loader2,
+  Play,
+  RotateCcw,
+  Trash2,
+} from "lucide-vue-next";
 import { storeToRefs } from "pinia";
-import { computed, ref, watch, onMounted } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { toast } from "vue-sonner";
 import {
@@ -39,6 +47,7 @@ import { useDialog } from "@/layout/dialog";
 import { DeleteAutomation } from "@/layout/dialog/delete-automation";
 import { useAutomationStore } from "@/stores/automation";
 import { useConfigStore } from "@/stores/config";
+import { useSessionStore } from "@/stores/session";
 import { useWorkspaceStore } from "@/stores/workspace";
 
 const statusOptions: Array<{ value: AutomationStatus; label: string }> = [
@@ -51,6 +60,7 @@ const router = useRouter();
 const automationStore = useAutomationStore();
 const workspaceStore = useWorkspaceStore();
 const configStore = useConfigStore();
+const sessionStore = useSessionStore();
 const { openDialog } = useDialog();
 const { detailLoading } = storeToRefs(automationStore);
 const { workspaceList } = storeToRefs(workspaceStore);
@@ -72,6 +82,7 @@ const {
 
 const notFound = ref(false);
 const isSaving = ref(false);
+const isRunningNow = ref(false);
 const saveState = ref<"idle" | "success" | "error">("idle");
 const title = ref("");
 const prompt = ref("");
@@ -285,6 +296,33 @@ async function handleSave() {
   }
 }
 
+async function handleRunNow() {
+  if (
+    !automation.value ||
+    isDirty.value ||
+    !isValid.value ||
+    isSaving.value ||
+    isRunningNow.value
+  ) {
+    return;
+  }
+
+  isRunningNow.value = true;
+  try {
+    const { automation: updatedAutomation, session } = await automationStore.runAutomationNow(
+      automation.value.id,
+    );
+    applyFormState(updatedAutomation);
+    await sessionStore.fetchSessionList([session.workspaceId]);
+    await router.push(`/${session.id}`);
+    toast.success("已开始执行");
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "执行失败");
+  } finally {
+    isRunningNow.value = false;
+  }
+}
+
 function openDeleteDialog() {
   if (!automation.value) {
     return;
@@ -332,6 +370,17 @@ watch(
             @click="openDeleteDialog"
           >
             <Trash2 class="size-4" />
+          </Button>
+          <Button
+            class="h-7"
+            variant="outline"
+            size="sm"
+            :disabled="!automation || isDirty || !isValid || isSaving || isRunningNow"
+            @click="handleRunNow"
+          >
+            <Loader2 v-if="isRunningNow" class="size-4 animate-spin" />
+            <Play v-else class="size-4" />
+            {{ isRunningNow ? "执行中..." : "立即执行" }}
           </Button>
           <Button
             class="h-7"

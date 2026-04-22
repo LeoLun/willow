@@ -5,6 +5,7 @@ import { CreateAutomationController } from "./controllers/automation/create.auto
 import { DeleteAutomationController } from "./controllers/automation/delete.automation.controller";
 import { GetAutomationController } from "./controllers/automation/get.automation.controller";
 import { GetAutomationListController } from "./controllers/automation/get.automation.list.controller";
+import { RunAutomationNowController } from "./controllers/automation/run.automation.now.controller";
 import { UpdateAutomationController } from "./controllers/automation/update.automation.controller";
 import { AddModelController } from "./controllers/config/add.model.controller";
 import { AddTavilyKeyController } from "./controllers/config/add.tavily.key.controller";
@@ -95,6 +96,7 @@ if (started) {
     GetAutomationController,
     CreateAutomationController,
     UpdateAutomationController,
+    RunAutomationNowController,
     DeleteAutomationController,
     GetWorkspaceListController,
     CreateWorkspaceController,
@@ -138,6 +140,7 @@ export class AppModule {
     private getAutomationController: GetAutomationController,
     private createAutomationController: CreateAutomationController,
     private updateAutomationController: UpdateAutomationController,
+    private runAutomationNowController: RunAutomationNowController,
     private deleteAutomationController: DeleteAutomationController,
     private getWorkspaceListController: GetWorkspaceListController,
     private createWorkspaceController: CreateWorkspaceController,

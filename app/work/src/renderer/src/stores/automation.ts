@@ -39,6 +39,16 @@ export const useAutomationStore = defineStore("automation", () => {
     return automation;
   }
 
+  async function runAutomationNow(id: number) {
+    const response = await electronAPI.runAutomationNow({ id });
+    const { automation } = response;
+    automationDetails.value[automation.id] = automation;
+    automationList.value = automationList.value.map((item) =>
+      item.id === automation.id ? automation : item,
+    );
+    return response;
+  }
+
   async function deleteAutomation(id: number) {
     await electronAPI.deleteAutomation({ id });
     automationList.value = automationList.value.filter((item) => item.id !== id);
@@ -73,6 +83,7 @@ export const useAutomationStore = defineStore("automation", () => {
     fetchAutomation,
     createAutomation,
     updateAutomation,
+    runAutomationNow,
     deleteAutomation,
   };
 });

@@ -64,6 +64,8 @@ import type {
   CreateAutomationResponse,
   UpdateAutomationRequest,
   UpdateAutomationResponse,
+  RunAutomationNowRequest,
+  RunAutomationNowResponse,
   DeleteAutomationRequest,
   DeleteAutomationResponse,
 } from "../shared/api";
@@ -103,6 +105,7 @@ import {
   GET_AUTOMATION,
   CREATE_AUTOMATION,
   UPDATE_AUTOMATION,
+  RUN_AUTOMATION_NOW,
   DELETE_AUTOMATION,
 } from "../shared/constants";
 
@@ -546,6 +549,19 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("update automation failed");
+    }
+    return response.data;
+  },
+  runAutomationNow: async (request: RunAutomationNowRequest) => {
+    const response = (await ipcRenderer.invoke(
+      RUN_AUTOMATION_NOW,
+      request,
+    )) as ApiResponse<RunAutomationNowResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("run automation now failed");
     }
     return response.data;
   },

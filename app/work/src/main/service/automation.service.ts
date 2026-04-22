@@ -36,7 +36,7 @@ function createTimeMatcher(pattern: string, timezone?: string): CronTimeMatcher 
 
 export type AutomationStatus = "enabled" | "disabled";
 export type AutomationTriggerType = "schedule";
-export type AutomationRunKind = "scheduled" | "catch_up";
+export type AutomationRunKind = "scheduled" | "catch_up" | "manual";
 export type AutomationRunStatus = "running" | "completed" | "failed";
 
 export interface AutomationTriggerInput {
@@ -61,6 +61,15 @@ export interface UpdateAutomationInput {
   prompt?: string;
   status?: AutomationStatus;
   trigger?: AutomationTriggerInput;
+}
+
+interface ExecuteAutomationRunOptions {
+  automation: NonNullable<AutomationRecord>;
+  runKind: AutomationRunKind;
+  scheduledFor: Date;
+  triggeredAt: Date;
+  updateScheduleAnchor: boolean;
+  throwOnConflict: boolean;
 }
 
 @Injectable()
@@ -225,21 +234,128 @@ export class AutomationService {
       return;
     }
 
-    if (this.runningAutomationIds.has(automationId)) {
-      console.warn(`automation ${automationId} skipped because another run is active`);
-      return;
+    await this.executeAutomationRun({
+      automation,
+      runKind,
+      scheduledFor,
+      triggeredAt,
+      updateScheduleAnchor: true,
+      throwOnConflict: false,
+    });
+  }
+
+  async runAutomationNow(automationId: number) {
+    const automation = this.requireAutomation(automationId);
+    const trigger = this.requireTrigger(automationId);
+
+    if (automation.status !== "enabled" || trigger.isActive !== true) {
+      throw new Error("automation is not enabled");
     }
 
-    const runningRun = this.automationRunDao.findRunningByAutomationId(automationId);
+    if (this.runningAutomationIds.has(automation.id)) {
+      throw new Error("自动化正在执行中");
+    }
+
+    const runningRun = this.automationRunDao.findRunningByAutomationId(automation.id);
     if (runningRun) {
-      console.warn(`automation ${automationId} skipped because DAO reports a running task`);
-      return;
+      throw new Error("自动化正在执行中");
     }
 
-    this.runningAutomationIds.add(automationId);
+    const now = new Date();
+    this.runningAutomationIds.add(automation.id);
 
     const run = this.automationRunDao.insert({
-      automationId,
+      automationId: automation.id,
+      scheduledFor: now,
+      triggeredAt: now,
+      runKind: "manual",
+      status: "running",
+      sessionId: null,
+      errorMessage: null,
+    });
+
+    this.automationDao.update(automation.id, {
+      lastRunAt: now,
+    });
+
+    try {
+      const session = await this.sessionService.createSession(automation.workspaceId);
+      this.automationRunDao.update(run.id, { sessionId: session.id });
+
+      void this.sessionService
+        .sendMessage(session.id, {
+          message: automation.prompt,
+          modelId: automation.modelId ?? undefined,
+        })
+        .then(() => {
+          const completedAt = new Date();
+          this.automationRunDao.update(run.id, {
+            status: "completed",
+            updatedAt: completedAt,
+          });
+          this.automationDao.update(automation.id, {
+            lastCompletedAt: completedAt,
+          });
+        })
+        .catch((error) => {
+          this.automationRunDao.update(run.id, {
+            status: "failed",
+            errorMessage: error instanceof Error ? error.message : String(error),
+          });
+          console.error(
+            `automation ${automation.id} manual run failed`,
+            error instanceof Error ? error.message : error,
+          );
+        })
+        .finally(() => {
+          this.runningAutomationIds.delete(automation.id);
+        });
+
+      return {
+        automation: this.getAutomation(automationId),
+        session,
+      };
+    } catch (error) {
+      this.automationRunDao.update(run.id, {
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      this.runningAutomationIds.delete(automation.id);
+      throw error;
+    }
+  }
+
+  private async executeAutomationRun({
+    automation,
+    runKind,
+    scheduledFor,
+    triggeredAt,
+    updateScheduleAnchor,
+    throwOnConflict,
+  }: ExecuteAutomationRunOptions) {
+    if (this.runningAutomationIds.has(automation.id)) {
+      const message = `automation ${automation.id} skipped because another run is active`;
+      if (throwOnConflict) {
+        throw new Error("自动化正在执行中");
+      }
+      console.warn(message);
+      return;
+    }
+
+    const runningRun = this.automationRunDao.findRunningByAutomationId(automation.id);
+    if (runningRun) {
+      const message = `automation ${automation.id} skipped because DAO reports a running task`;
+      if (throwOnConflict) {
+        throw new Error("自动化正在执行中");
+      }
+      console.warn(message);
+      return;
+    }
+
+    this.runningAutomationIds.add(automation.id);
+
+    const run = this.automationRunDao.insert({
+      automationId: automation.id,
       scheduledFor,
       triggeredAt,
       runKind,
@@ -248,8 +364,8 @@ export class AutomationService {
       errorMessage: null,
     });
 
-    this.automationDao.update(automationId, {
-      lastScheduledAt: scheduledFor,
+    this.automationDao.update(automation.id, {
+      ...(updateScheduleAnchor ? { lastScheduledAt: scheduledFor } : {}),
       lastRunAt: triggeredAt,
     });
 
@@ -267,9 +383,9 @@ export class AutomationService {
         status: "completed",
         updatedAt: completedAt,
       });
-      this.automationDao.update(automationId, {
+      this.automationDao.update(automation.id, {
         lastCompletedAt: completedAt,
-        lastScheduledAt: scheduledFor,
+        ...(updateScheduleAnchor ? { lastScheduledAt: scheduledFor } : {}),
       });
     } catch (error) {
       this.automationRunDao.update(run.id, {
@@ -278,7 +394,7 @@ export class AutomationService {
       });
       throw error;
     } finally {
-      this.runningAutomationIds.delete(automationId);
+      this.runningAutomationIds.delete(automation.id);
     }
   }
 

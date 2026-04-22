@@ -243,5 +243,9 @@ export function getAutomationRunKindLabel(run: AutomationRunSummary | undefined)
     return "暂无更多历史";
   }
 
+  if (run.runKind === "manual") {
+    return "手动执行";
+  }
+
   return run.runKind === "catch_up" ? "补跑" : "按计划运行";
 }

@@ -389,7 +389,7 @@ export interface DeleteTavilyKeyResponse {
 export type AutomationStatus = "enabled" | "disabled";
 export type AutomationTriggerType = "schedule";
 export type AutomationScheduleMode = "daily_at" | "hourly" | "weekly_at" | "custom";
-export type AutomationRunKind = "scheduled" | "catch_up";
+export type AutomationRunKind = "scheduled" | "catch_up" | "manual";
 export type AutomationRunStatus = "running" | "completed" | "failed";
 
 export interface AutomationTrigger {
@@ -485,6 +485,15 @@ export interface UpdateAutomationRequest {
 
 export interface UpdateAutomationResponse {
   automation: Automation;
+}
+
+export interface RunAutomationNowRequest {
+  id: number;
+}
+
+export interface RunAutomationNowResponse {
+  automation: Automation;
+  session: Session;
 }
 
 export interface DeleteAutomationRequest {
