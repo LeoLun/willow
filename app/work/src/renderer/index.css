@@ -18,6 +18,28 @@
     outline: none !important;
     box-shadow: none !important;
   }
+
+  * {
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track,
+  *:hover::-webkit-scrollbar-track {
+    margin: 0;
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 0;
+    border-radius: 9999px;
+    background-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+  }
 }
 
 /* styles.css */

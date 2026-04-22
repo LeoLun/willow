@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, useEditor } from "@tiptap/vue-3";
 import { watch } from "vue";
+import { FileTag } from "../extensions/file-tag";
+import type { FileTagAttributes } from "../extensions/file-tag";
 import { SkillTag } from "../extensions/skill-tag";
 import type { SkillTagAttributes } from "../extensions/skill-tag";
 
@@ -34,6 +37,10 @@ const editor = useEditor({
       horizontalRule: false,
       orderedList: false,
     }),
+    Placeholder.configure({
+      placeholder: "向 AI 提问，@ 添加文件，/ 使用技能",
+    }),
+    FileTag,
     SkillTag,
   ],
   content: props.modelValue,
@@ -79,6 +86,18 @@ function insertSkillTag(attrs: SkillTagAttributes) {
     .run();
 }
 
+function insertFileTag(attrs: FileTagAttributes) {
+  if (!editor.value) return;
+  editor.value
+    .chain()
+    .focus()
+    .insertContent([
+      { type: "fileTag", attrs },
+      { type: "text", text: " " },
+    ])
+    .run();
+}
+
 function getSkillTags(): SkillTagAttributes[] {
   if (!editor.value) return [];
   const tags: SkillTagAttributes[] = [];
@@ -95,7 +114,45 @@ function getSkillTags(): SkillTagAttributes[] {
   return tags;
 }
 
-defineExpose({ editor, insertSkillTag, getSkillTags });
+function getFileTags(): FileTagAttributes[] {
+  if (!editor.value) return [];
+  const tags: FileTagAttributes[] = [];
+  editor.value.state.doc.descendants((node) => {
+    if (node.type.name === "fileTag") {
+      tags.push({
+        name: node.attrs.name,
+        path: node.attrs.path,
+        relativePath: node.attrs.relativePath,
+        extension: node.attrs.extension || undefined,
+      });
+    }
+  });
+  return tags;
+}
+
+function getTextWithoutFileTags(): string {
+  if (!editor.value) return "";
+  const parts: string[] = [];
+  editor.value.state.doc.descendants((node) => {
+    if (node.isText) {
+      parts.push(node.text ?? "");
+      return;
+    }
+    if (node.type.name === "skillTag") {
+      parts.push(node.attrs.name ? `[$${node.attrs.name}](${node.attrs.filePath})` : "");
+    }
+  });
+  return parts.join("");
+}
+
+defineExpose({
+  editor,
+  insertSkillTag,
+  insertFileTag,
+  getSkillTags,
+  getFileTags,
+  getTextWithoutFileTags,
+});
 </script>
 
 <template>
@@ -109,5 +166,21 @@ defineExpose({ editor, insertSkillTag, getSkillTags });
   white-space: pre-wrap;
   word-break: break-word;
   outline: none;
+}
+
+:deep(.ProseMirror.sender-editor-content p.is-editor-empty:first-child::before) {
+  color: var(--color-muted-foreground);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+:deep(.ProseMirror.sender-editor-content p.is-empty::before) {
+  color: var(--color-muted-foreground);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
 }
 </style>

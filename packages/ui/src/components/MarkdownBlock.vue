@@ -3,6 +3,7 @@ import katex from "katex";
 import { Marked } from "marked";
 import { computed } from "vue";
 import CodeBlock from "./CodeBlock.vue";
+import FileTag from "./FileTag.vue";
 import SkillTag from "./SkillTag.vue";
 
 const props = withDefaults(
@@ -13,6 +14,25 @@ const props = withDefaults(
   }>(),
   { isThinking: false, escapeHtml: true },
 );
+
+function encodeData(value: string) {
+  return btoa(unescape(encodeURIComponent(value)));
+}
+
+function decodeData(value: string) {
+  return decodeURIComponent(escape(atob(value)));
+}
+
+function isExternalHref(href: string) {
+  return /^(https?:|mailto:)/i.test(href);
+}
+
+function isFileReference(name: string, href: string) {
+  if (!name || name.startsWith("$") || isExternalHref(href) || href.startsWith("skill/")) {
+    return false;
+  }
+  return /\.[A-Za-z0-9][A-Za-z0-9_-]*$/.test(name.trim());
+}
 
 const renderedHtml = computed(() => {
   if (!props.content) return "";
@@ -54,12 +74,34 @@ const renderedHtml = computed(() => {
           return undefined;
         },
         renderer(token: any) {
-          const encodedName = btoa(unescape(encodeURIComponent(token.name)));
+          const encodedName = encodeData(token.name);
           return `<span class="willow-skill-tag" data-name="${encodedName}"></span>`;
         },
       },
-      // TODO: fileTag — 未来可在此添加 [name](path) 文件引用标签解析，
-      // 使用不同正则（不带 $ 前缀）和对应的文件图标渲染。
+      {
+        name: "fileTag",
+        level: "inline",
+        start(src: string) {
+          return src.indexOf("[");
+        },
+        tokenizer(src: string) {
+          const match = /^\[([^\]$][^\]]*)\]\(([^)]+)\)/.exec(src);
+          if (!match) {
+            return undefined;
+          }
+          const name = match[1].trim();
+          const path = match[2].trim();
+          if (!isFileReference(name, path)) {
+            return undefined;
+          }
+          return { type: "fileTag", raw: match[0], name, path };
+        },
+        renderer(token: any) {
+          const encodedName = encodeData(token.name);
+          const encodedPath = encodeData(token.path);
+          return `<span class="willow-file-tag" data-name="${encodedName}" data-path="${encodedPath}"></span>`;
+        },
+      },
       {
         name: "inlineMathDollar",
         level: "inline",
@@ -242,10 +284,24 @@ function mountDynamicComponents() {
 
   for (const el of containerRef.value.querySelectorAll(".willow-skill-tag")) {
     const encoded = el.getAttribute("data-name") || "";
-    const name = decodeURIComponent(escape(atob(encoded)));
+    const name = decodeData(encoded);
     const app = createApp({
       render() {
         return h(SkillTag, { name });
+      },
+    });
+    app.mount(el);
+    mountedApps.push(app);
+  }
+
+  for (const el of containerRef.value.querySelectorAll(".willow-file-tag")) {
+    const encodedName = el.getAttribute("data-name") || "";
+    const encodedPath = el.getAttribute("data-path") || "";
+    const name = decodeData(encodedName);
+    const path = decodeData(encodedPath);
+    const app = createApp({
+      render() {
+        return h(FileTag, { name, path });
       },
     });
     app.mount(el);

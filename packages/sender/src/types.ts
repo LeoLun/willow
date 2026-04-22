@@ -29,9 +29,25 @@ export interface SenderSkillReference {
   scope: SenderSkillScope;
 }
 
+export interface SenderFileOption {
+  name: string;
+  path: string;
+  relativePath: string;
+  extension?: string;
+  size?: number;
+}
+
+export interface SenderFileReference {
+  name: string;
+  path: string;
+  relativePath: string;
+  extension?: string;
+}
+
 export interface SenderSendPayload {
   message: string;
   selectedSkills?: SenderSkillReference[];
+  selectedFiles?: SenderFileReference[];
   modelId?: string;
   webSearchEnabled?: boolean;
 }

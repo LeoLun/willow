@@ -355,7 +355,7 @@ watch(
       </template>
     </MainTitle>
 
-    <div class="w-full flex-1 overflow-y-auto px-3 pb-3">
+    <div class="h-full w-full overflow-hidden px-3 pb-3">
       <div v-if="detailLoading" class="grid min-h-full grid-cols-[minmax(0,1fr)_320px] gap-8">
         <section class="space-y-6 pt-8">
           <Skeleton class="h-12 w-72" />
@@ -386,20 +386,21 @@ watch(
         </Button>
       </div>
 
-      <div v-else class="grid min-h-full grid-cols-[minmax(0,1fr)_320px] gap-8">
-        <section class="min-w-0 pt-2">
+      <div v-else class="flex h-full overflow-hidden">
+        <section class="min-w-0 flex-1 pt-2">
           <div class="flex h-full max-w-4xl flex-col space-y-4">
             <Input
               v-model="title"
               class="h-auto border-0 bg-transparent px-2 !text-3xl font-semibold tracking-tight text-foreground shadow-none focus-visible:ring-0"
               placeholder="自动化名称"
             />
-
-            <Textarea
-              v-model="prompt"
-              class="min-h-[320px] flex-1 resize-none border-0 bg-transparent px-2 py-0 !text-base leading-9 text-foreground/90 shadow-none focus-visible:ring-0"
-              placeholder="输入自动化执行时要发送给 AI 的提示词"
-            />
+            <div class="h-full max-h-[100%] w-full overflow-y-auto">
+              <Textarea
+                v-model="prompt"
+                class="min-h-[320px] flex-1 resize-none border-0 bg-transparent px-2 py-0 !text-base leading-9 text-foreground/90 shadow-none focus-visible:ring-0"
+                placeholder="输入自动化执行时要发送给 AI 的提示词"
+              />
+            </div>
           </div>
         </section>
 

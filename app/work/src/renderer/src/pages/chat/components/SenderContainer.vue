@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import type { SendMessage, SkillSummary } from "@shared/api";
+import type { SendMessage, SkillSummary, WorkspaceFileNode } from "@shared/api";
+import type { SenderFileOption, SenderSendPayload } from "@willow/sender";
 import { Sender } from "@willow/sender";
 import { storeToRefs } from "pinia";
-import { onBeforeMount, ref, watch } from "vue";
+import { computed, onBeforeMount, ref, toRef, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useWorkspaceFiles } from "@/composables/useWorkspaceFiles";
 import { electronAPI } from "@/lib/ipc";
 import { useConfigStore } from "@/stores/config";
 
@@ -32,10 +34,15 @@ const emit = defineEmits<{
 const router = useRouter();
 const configStore = useConfigStore();
 const { modelList, defaultModel } = storeToRefs(configStore);
+const workspaceFiles = useWorkspaceFiles(toRef(props, "workspaceId"));
 
 const skills = ref<SkillSummary[]>([]);
 const isSkillsLoading = ref(false);
 const skillsErrorMessage = ref("");
+
+const senderFiles = computed<SenderFileOption[]>(() =>
+  flattenWorkspaceFiles(workspaceFiles.files.value, workspaceFiles.rootPath.value),
+);
 
 onBeforeMount(async () => {
   if (modelList.value.length === 0) {
@@ -72,8 +79,50 @@ function handleOpenSettings() {
   router.push("/setting");
 }
 
-function handleSend(request: SendMessage) {
-  emit("send", request);
+function normalizePath(path: string) {
+  return path.replace(/\\/g, "/");
+}
+
+function getRelativePath(path: string, rootPath: string) {
+  const normalizedPath = normalizePath(path);
+  const normalizedRoot = normalizePath(rootPath).replace(/\/+$/, "");
+  if (!normalizedRoot) {
+    return normalizedPath;
+  }
+  if (normalizedPath === normalizedRoot) {
+    return "";
+  }
+  if (normalizedPath.startsWith(`${normalizedRoot}/`)) {
+    return normalizedPath.slice(normalizedRoot.length + 1);
+  }
+  return normalizedPath;
+}
+
+function flattenWorkspaceFiles(nodes: WorkspaceFileNode[], rootPath: string): SenderFileOption[] {
+  return nodes.flatMap((node) => {
+    if (node.type === "folder") {
+      return flattenWorkspaceFiles(node.children ?? [], rootPath);
+    }
+    return [
+      {
+        name: node.name,
+        path: node.path,
+        relativePath: getRelativePath(node.path, rootPath),
+        extension: node.extension,
+        size: node.size,
+      },
+    ];
+  });
+}
+
+function handleSend(request: SenderSendPayload) {
+  const nextRequest: SendMessage = {
+    message: request.message,
+    modelId: request.modelId,
+    selectedFiles: request.selectedFiles,
+    webSearchEnabled: request.webSearchEnabled,
+  };
+  emit("send", nextRequest);
 }
 </script>
 
@@ -88,6 +137,9 @@ function handleSend(request: SendMessage) {
     :skills="skills"
     :skills-loading="isSkillsLoading"
     :skills-error-message="skillsErrorMessage"
+    :files="senderFiles"
+    :files-loading="workspaceFiles.isLoading.value"
+    :files-error-message="workspaceFiles.errorMessage.value"
     @send="handleSend"
     @stop="emit('stop')"
     @open-settings="handleOpenSettings"

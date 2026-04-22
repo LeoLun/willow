@@ -45,6 +45,13 @@ export interface IFile {
   size: number;
   path: string;
 }
+
+export interface FileReference {
+  name: string;
+  path: string;
+  relativePath: string;
+  extension?: string;
+}
 export interface GetWorkspaceListResponse {
   workspaces: Workspace[];
 }
@@ -150,6 +157,7 @@ export interface SendMessageRequest {
   message: string;
   modelId?: string;
   files?: IFile[];
+  selectedFiles?: FileReference[];
   webSearchEnabled?: boolean;
 }
 

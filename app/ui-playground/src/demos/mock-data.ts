@@ -6,7 +6,12 @@ import type {
   ToolResultMessage,
   UserMessage,
 } from "@mariozechner/pi-ai";
-import type { SenderModelOption, SenderSkillOption, SenderUsageMessage } from "@willow/sender";
+import type {
+  SenderFileOption,
+  SenderModelOption,
+  SenderSkillOption,
+  SenderUsageMessage,
+} from "@willow/sender";
 
 const timestamp = Date.now();
 
@@ -157,6 +162,33 @@ export const senderSkills: SenderSkillOption[] = [
   },
 ];
 
+export const senderFiles: SenderFileOption[] = [
+  {
+    name: "App.vue",
+    path: "/Users/liujinglun/code/willow/app/ui-playground/src/App.vue",
+    relativePath: "app/ui-playground/src/App.vue",
+    extension: "vue",
+  },
+  {
+    name: "Sender.vue",
+    path: "/Users/liujinglun/code/willow/packages/sender/src/components/Sender.vue",
+    relativePath: "packages/sender/src/components/Sender.vue",
+    extension: "vue",
+  },
+  {
+    name: "types.ts",
+    path: "/Users/liujinglun/code/willow/packages/sender/src/types.ts",
+    relativePath: "packages/sender/src/types.ts",
+    extension: "ts",
+  },
+  {
+    name: "DESIGN.md",
+    path: "/Users/liujinglun/code/willow/DESIGN.md",
+    relativePath: "DESIGN.md",
+    extension: "md",
+  },
+];
+
 export const senderMessages: SenderUsageMessage[] = [
   {
     usage: {
@@ -188,6 +220,7 @@ export const markdownSample = `# UI Playground 检查清单
 - Markdown 排版是否稳定
 - 代码块与语法高亮是否正常
 - 表格、引用和数学公式是否可读
+- 文件引用 [app.ts](/user/xxxx/app.ts)、技能引用 [$workflow-spec](skill/workflow-spec.md) 和普通链接 [OpenAI](https://openai.com) 是否各自按预期渲染
 
 > 这块内容用于模拟较长的回复说明，方便检查段落间距、边框和行高。
 

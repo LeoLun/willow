@@ -18,6 +18,7 @@ import {
   ArrowUpIcon,
   CheckIcon,
   ChevronsUpDownIcon,
+  FileTextIcon,
   GlobeIcon,
   PlusIcon,
   SettingsIcon,
@@ -26,6 +27,8 @@ import {
 import { computed, ref, shallowRef, watch } from "vue";
 import { useTriggerManager } from "../composables/useTriggerManager";
 import type {
+  SenderFileOption,
+  SenderFileReference,
   SenderModelOption,
   SenderSendPayload,
   SenderSkillOption,
@@ -35,9 +38,11 @@ import type {
 } from "../types";
 import CircularProgress from "./CircularProgress.vue";
 import Editor from "./Editor.vue";
+import FilePickerPanel from "./FilePickerPanel.vue";
 import SkillPickerPanel from "./SkillPickerPanel.vue";
 
 const SKILL_TRIGGER = "/";
+const FILE_TRIGGER = "@";
 
 const props = withDefaults(
   defineProps<{
@@ -51,6 +56,9 @@ const props = withDefaults(
     skills?: SenderSkillOption[];
     skillsLoading?: boolean;
     skillsErrorMessage?: string;
+    files?: SenderFileOption[];
+    filesLoading?: boolean;
+    filesErrorMessage?: string;
     webSearchEnabled?: boolean;
   }>(),
   {
@@ -64,6 +72,9 @@ const props = withDefaults(
     skills: () => [],
     skillsLoading: false,
     skillsErrorMessage: "",
+    files: () => [],
+    filesLoading: false,
+    filesErrorMessage: "",
     webSearchEnabled: true,
   },
 );
@@ -79,17 +90,29 @@ const emit = defineEmits<{
 const showNoModelTip = ref(false);
 const editorText = ref("");
 const editorSkillKeys = ref<Set<string>>(new Set());
+const editorFileKeys = ref<Set<string>>(new Set());
 const localSelectedModelId = ref("");
 const localWebSearchEnabled = ref(props.webSearchEnabled);
 const editorComponentRef = ref<InstanceType<typeof Editor> | null>(null);
 const skillPickerPanelRef = ref<InstanceType<typeof SkillPickerPanel> | null>(null);
+const filePickerPanelRef = ref<InstanceType<typeof FilePickerPanel> | null>(null);
 const tiptapEditor = shallowRef<TiptapEditor | undefined>();
 
 const triggerManager = useTriggerManager(tiptapEditor, [
   { char: SKILL_TRIGGER, pattern: /(\/\S*)$/ },
+  { char: FILE_TRIGGER, pattern: /(@\S*)$/ },
 ]);
 
-const isSkillPanelVisible = computed(() => triggerManager.isAnyPanelVisible.value);
+const isSkillPanelVisible = computed(
+  () =>
+    triggerManager.isAnyPanelVisible.value &&
+    triggerManager.activeTriggerChar.value === SKILL_TRIGGER,
+);
+const isFilePanelVisible = computed(
+  () =>
+    triggerManager.isAnyPanelVisible.value &&
+    triggerManager.activeTriggerChar.value === FILE_TRIGGER,
+);
 
 const hasModels = computed(() => props.models.length > 0);
 const defaultModel = computed(
@@ -110,7 +133,10 @@ const shouldShowUsage = computed(
   () => hasModels.value && contextWindow.value > 0 && props.showUsage,
 );
 const selectedSkillKeys = computed(() => editorSkillKeys.value);
-const isEditorEmpty = computed(() => editorText.value.trim().length === 0);
+const isEditorEmpty = computed(() => {
+  const textWithoutFileTags = editorComponentRef.value?.getTextWithoutFileTags();
+  return (textWithoutFileTags ?? editorText.value).trim().length === 0;
+});
 const canSend = computed(() => props.isStreaming || !isEditorEmpty.value);
 
 watch(
@@ -193,6 +219,10 @@ function getSkillKey(skill: { filePath: string; scope: string }) {
   return `${skill.scope}:${skill.filePath}`;
 }
 
+function getFileKey(file: { path: string }) {
+  return file.path;
+}
+
 function getEditorInstance(): TiptapEditor | undefined {
   return editorComponentRef.value?.editor as TiptapEditor | undefined;
 }
@@ -202,12 +232,37 @@ function syncSkillKeysFromEditor() {
   editorSkillKeys.value = new Set(tags.map((t) => getSkillKey(t)));
 }
 
+function syncFileKeysFromEditor() {
+  const tags = editorComponentRef.value?.getFileTags() ?? [];
+  editorFileKeys.value = new Set(tags.map((t) => getFileKey(t)));
+}
+
+function getSelectedSkills(): SenderSkillReference[] {
+  const tags = editorComponentRef.value?.getSkillTags() ?? [];
+  return tags.map((tag) => ({
+    name: tag.name,
+    filePath: tag.filePath,
+    scope: tag.scope,
+  }));
+}
+
+function getSelectedFiles(): SenderFileReference[] {
+  const tags = editorComponentRef.value?.getFileTags() ?? [];
+  return tags.map((tag) => ({
+    name: tag.name,
+    path: tag.path,
+    relativePath: tag.relativePath,
+    extension: tag.extension,
+  }));
+}
+
 function handleEditorUpdate() {
   const e = getEditorInstance();
   if (!e) return;
   tiptapEditor.value = e;
   triggerManager.syncFromEditor(e);
   syncSkillKeysFromEditor();
+  syncFileKeysFromEditor();
 }
 
 function handleEditorSelectionUpdate() {
@@ -228,16 +283,30 @@ function handleEditorKeyDown(event: KeyboardEvent): boolean {
     }
     case "ArrowDown": {
       event.preventDefault();
-      const maxIndex = (skillPickerPanelRef.value?.filteredSkills?.length ?? 1) - 1;
+      const resultCount = isSkillPanelVisible.value
+        ? (skillPickerPanelRef.value?.filteredSkills?.length ?? 1)
+        : (filePickerPanelRef.value?.filteredFiles?.length ?? 1);
+      const maxIndex = resultCount - 1;
       triggerManager.navigateDown(maxIndex);
       return true;
     }
     case "Enter": {
       event.preventDefault();
-      const skills = skillPickerPanelRef.value?.filteredSkills ?? [];
-      const activeSkill = skills[triggerManager.activeIndex.value];
-      if (activeSkill) {
-        handleSkillSelect(activeSkill);
+      if (isSkillPanelVisible.value) {
+        const skills = skillPickerPanelRef.value?.filteredSkills ?? [];
+        const activeSkill = skills[triggerManager.activeIndex.value];
+        if (activeSkill) {
+          handleSkillSelect(activeSkill);
+        }
+        return true;
+      }
+
+      if (isFilePanelVisible.value) {
+        const files = filePickerPanelRef.value?.filteredFiles ?? [];
+        const activeFile = files[triggerManager.activeIndex.value];
+        if (activeFile) {
+          handleFileSelect(activeFile);
+        }
       }
       return true;
     }
@@ -279,12 +348,15 @@ async function handleSend() {
   }
 
   const message = editorText.value.trim();
-  if (!message) {
+  const textWithoutFileTags = editorComponentRef.value?.getTextWithoutFileTags() ?? message;
+  if (!textWithoutFileTags.trim()) {
     return;
   }
 
   emit("send", {
     message,
+    selectedSkills: getSelectedSkills(),
+    selectedFiles: getSelectedFiles(),
     modelId: localSelectedModelId.value,
     webSearchEnabled: localWebSearchEnabled.value,
   });
@@ -316,6 +388,23 @@ function handleSkillSelect(skill: SenderSkillOption) {
     scopeLabel: skill.scopeLabel,
   });
 }
+
+function handleFileSelect(file: SenderFileOption) {
+  const key = getFileKey(file);
+  if (editorFileKeys.value.has(key)) {
+    triggerManager.clearTriggerText();
+    triggerManager.close();
+    return;
+  }
+  triggerManager.clearTriggerText();
+  triggerManager.close();
+  editorComponentRef.value?.insertFileTag({
+    name: file.name,
+    path: file.path,
+    relativePath: file.relativePath,
+    extension: file.extension,
+  });
+}
 </script>
 
 <template>
@@ -342,6 +431,19 @@ function handleSkillSelect(skill: SenderSkillOption) {
       @select="handleSkillSelect"
     />
 
+    <FilePickerPanel
+      v-if="isFilePanelVisible"
+      ref="filePickerPanelRef"
+      :files="files"
+      :files-loading="filesLoading"
+      :files-error-message="filesErrorMessage"
+      :query="triggerManager.query.value"
+      :active-index="triggerManager.activeIndex.value"
+      :selected-file-keys="editorFileKeys"
+      :is-search-mode="triggerManager.isSearchMode.value"
+      @select="handleFileSelect"
+    />
+
     <div class="rounded-xl border border-border bg-card px-3 py-3">
       <div class="relative">
         <Editor
@@ -362,6 +464,16 @@ function handleSkillSelect(skill: SenderSkillOption) {
         >
           <PlusIcon class="size-4" />
           <span class="sr-only">选择技能</span>
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          class="size-8 rounded-full"
+          @click="triggerManager.toggleManualPanel(FILE_TRIGGER)"
+        >
+          <FileTextIcon class="size-4" />
+          <span class="sr-only">选择文件</span>
         </Button>
 
         <TooltipProvider>

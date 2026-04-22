@@ -3,6 +3,8 @@ export { default as SkillPickerPanel } from "./components/SkillPickerPanel.vue";
 export { useTriggerManager } from "./composables/useTriggerManager";
 export type { TriggerConfig, TriggerContext } from "./composables/useTriggerManager";
 export type {
+  SenderFileOption,
+  SenderFileReference,
   SenderModelOption,
   SenderSendPayload,
   SenderSkillOption,

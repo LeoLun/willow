@@ -3,7 +3,13 @@ import type { SenderSendPayload } from "@willow/sender";
 import { Sender } from "@willow/sender";
 import { Badge } from "@willow/shadcn";
 import { computed, ref } from "vue";
-import { senderMessages, senderModels, senderSkills, senderStreamMessage } from "../mock-data";
+import {
+  senderFiles,
+  senderMessages,
+  senderModels,
+  senderSkills,
+  senderStreamMessage,
+} from "../mock-data";
 
 const isStreaming = ref(false);
 const showUsage = ref(true);
@@ -19,10 +25,12 @@ const eventSummary = computed(() => {
 
   const selectedSkillNames =
     latestPayload.value.selectedSkills?.map((skill) => skill.name).join("、") || "无";
+  const selectedFileNames =
+    latestPayload.value.selectedFiles?.map((file) => file.name).join("、") || "无";
 
   return `模型：${latestPayload.value.modelId || "未选择"}；联网：${
     latestPayload.value.webSearchEnabled ? "开启" : "关闭"
-  }；技能：${selectedSkillNames}`;
+  }；技能：${selectedSkillNames}；文件：${selectedFileNames}`;
 });
 
 function handleSend(payload: SenderSendPayload) {
@@ -46,6 +54,7 @@ function handleOpenSettings() {
     <div class="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div class="flex flex-wrap items-center gap-2">
         <Badge variant="outline">slash 搜索</Badge>
+        <Badge variant="outline">@ 文件引用</Badge>
         <Badge variant="outline">技能胶囊</Badge>
         <Badge variant="outline">模型选择</Badge>
         <Badge variant="outline">发送事件</Badge>
@@ -54,8 +63,8 @@ function handleOpenSettings() {
       <div>
         <h3 class="text-sm font-semibold text-foreground">共享 Sender</h3>
         <p class="mt-1 text-sm text-muted-foreground">
-          这个场景不依赖 Electron IPC。输入 `/`
-          可以直接验证技能搜索面板、键盘选择和发送事件是否正常。
+          这个场景不依赖 Electron IPC。输入 `/` 可以验证技能搜索；输入 `@`
+          可以验证文件引用、键盘选择和发送事件是否正常。
         </p>
       </div>
 
@@ -68,6 +77,7 @@ function handleOpenSettings() {
         :default-model-id="senderModels[0]?.modelId ?? ''"
         :selected-model-id="selectedModelId"
         :skills="senderSkills"
+        :files="senderFiles"
         :web-search-enabled="webSearchEnabled"
         @send="handleSend"
         @stop="handleStop"
@@ -100,6 +110,7 @@ function handleOpenSettings() {
         <div class="rounded-xl border border-dashed border-border bg-muted/35 p-3">
           <div class="text-xs leading-5 text-muted-foreground">
             建议手动验证： 输入 `/work`、方向键上下切换、Enter 选中技能、Cmd/Ctrl + Enter 发送。
+            输入 `@sender` 可验证文件引用标签与 payload。
           </div>
         </div>
       </div>
