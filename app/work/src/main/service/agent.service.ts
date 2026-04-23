@@ -54,7 +54,7 @@ function toAgentModel(config: ModelConfig) {
   };
 }
 
-const titleSystemPrompt = `你是会话标题生成器。根据用户给出的「首轮用户提问」和「助手回复」摘要，生成一条简短中文标题。
+const titleSystemPrompt = `你是会话标题生成器。根据用户给出的「首轮用户输入」生成一条简短中文标题。
 要求：10～20 字为宜；只输出标题本身，不要引号、书名号、前缀（如「标题：」）、解释或换行。`;
 
 @Injectable()

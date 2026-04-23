@@ -6,8 +6,6 @@ import { SkillService } from "@main/service/skill.service";
 import { TodoService } from "@main/service/todo.service";
 import {
   clipForTitlePrompt,
-  extractPlainTextFromAgentMessage,
-  isUserLikeMessage,
   lastAssistantPlainText,
   sanitizeSessionTitle,
 } from "@main/utils/agent-message-text";
@@ -156,32 +154,29 @@ export class SessionService {
     runningSession.agent.abort();
   }
 
-  async createSessionTitle(sessionId: number): Promise<void> {
+  async createSessionTitle(sessionId: number, userInput: string): Promise<void> {
     try {
       const session = await this.sessionDao.findById(sessionId);
       if (!session || session.title.trim()) {
         return;
       }
 
-      const messages = this.getSessionHistoryAgentMessages(sessionId);
-      const userMsg = messages.find((m) => isUserLikeMessage(m));
-      const assistantMsg = messages.find((m) => m.role === "assistant");
-      if (!userMsg || !assistantMsg) {
-        return;
+      const userText = clipForTitlePrompt(userInput.trim());
+      let title = "";
+
+      if (userText) {
+        try {
+          const titleAgent = await this.agentService.getTitleAgent();
+          await titleAgent.prompt(`请为下面这段首轮用户输入生成标题。\n\n用户输入：\n${userText}`);
+          title = sanitizeSessionTitle(lastAssistantPlainText(titleAgent.state.messages));
+        } catch (e) {
+          console.error(
+            "createSessionTitle agent failed",
+            sessionId,
+            e instanceof Error ? e.message : e,
+          );
+        }
       }
-
-      const userText = clipForTitlePrompt(extractPlainTextFromAgentMessage(userMsg));
-      const assistantText = clipForTitlePrompt(extractPlainTextFromAgentMessage(assistantMsg));
-      if (!userText && !assistantText) {
-        return;
-      }
-
-      const titleAgent = await this.agentService.getTitleAgent();
-      await titleAgent.prompt(
-        `请为下面这段首轮对话生成标题。\n\n用户：\n${userText || "（无文本）"}\n\n助手：\n${assistantText || "（无文本）"}`,
-      );
-
-      let title = sanitizeSessionTitle(lastAssistantPlainText(titleAgent.state.messages));
       if (!title) {
         title = sanitizeSessionTitle(userText.slice(0, 40)) || "新会话";
       }
@@ -211,6 +206,7 @@ export class SessionService {
     this.sessionDao.update(sessionId, { lastActiveAt: new Date() });
 
     const priorMessageCount = this.sessionMessageDao.findBySessionId(sessionId).length;
+    const promptInput = this.buildPromptInput(session.workspaceId, data.message);
 
     const coreAgent = await this.agentService.getDefaultAgent(
       session,
@@ -236,9 +232,6 @@ export class SessionService {
       // agent_end 自带的 event.messages 仅为本轮新增（pi-agent-core newMessages），不含历史
       if (event.type === "agent_end") {
         this.persistAgentMessagesSnapshot(sessionId, agent.state.messages);
-        if (priorMessageCount === 0) {
-          void this.createSessionTitle(sessionId);
-        }
       }
       const outgoing: AgentEvent =
         event.type === "agent_end" ? { ...event, messages: agent.state.messages } : event;
@@ -249,7 +242,10 @@ export class SessionService {
       });
     });
     try {
-      await agent.prompt(this.buildPromptInput(session.workspaceId, data.message));
+      if (priorMessageCount === 0) {
+        void this.createSessionTitle(sessionId, promptInput);
+      }
+      await agent.prompt(promptInput);
       return replyText;
     } catch (error) {
       if (this.runningSessions.get(sessionId)?.stopRequested) {
