@@ -2,7 +2,7 @@ import { constants } from "fs";
 import { readFile, writeFile, access } from "fs/promises";
 import { Type } from "@sinclair/typebox";
 import { createTool } from "./create-tool";
-import { resolveToCwd } from "./path-utils";
+import { isPathInsideCwd, resolveToCwd } from "./path-utils";
 
 export interface EditToolDetails {
   absolutePath: string;
@@ -31,7 +31,10 @@ export function createEditTool(cwd: string) {
     parameters: editSchema,
     meta: {
       label: "编辑文件",
-      permission: () => ({ mode: "ask", reason: "编辑文件会修改工作区内容", risk: "high" }),
+      permission: (params) =>
+        isPathInsideCwd(params.path, cwd)
+          ? { mode: "allow" }
+          : { mode: "ask", reason: "编辑文件会修改工作区内容", risk: "high" },
     },
     async execute(_toolCallId, params) {
       const { path, oldText, newText } = params;

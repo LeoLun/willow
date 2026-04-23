@@ -437,7 +437,7 @@ watch(
 
       <div v-else class="flex h-full overflow-hidden">
         <section class="min-w-0 flex-1 pt-2">
-          <div class="flex h-full max-w-4xl flex-col space-y-4">
+          <div class="flex h-full max-w-4xl flex-col space-y-4 pr-3">
             <Input
               v-model="title"
               class="h-auto border-0 bg-transparent px-2 !text-3xl font-semibold tracking-tight text-foreground shadow-none focus-visible:ring-0"

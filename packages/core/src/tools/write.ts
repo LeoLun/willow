@@ -1,7 +1,8 @@
 import { writeFile, mkdir } from "fs/promises";
-import { resolve, dirname } from "path";
+import { dirname } from "path";
 import { Type } from "@sinclair/typebox";
 import { createTool } from "./create-tool";
+import { isPathInsideCwd, resolveToCwd } from "./path-utils";
 
 export interface WriteToolDetails {
   absolutePath: string;
@@ -22,11 +23,14 @@ export function createWriteTool(cwd: string) {
     parameters: writeSchema,
     meta: {
       label: "写入文件",
-      permission: () => ({ mode: "ask", reason: "写入文件会修改工作区内容", risk: "high" }),
+      permission: (params) =>
+        isPathInsideCwd(params.path, cwd)
+          ? { mode: "allow" }
+          : { mode: "ask", reason: "写入文件会修改工作区内容", risk: "high" },
     },
     async execute(_toolCallId, params) {
       const { path, content } = params;
-      const absolutePath = resolve(cwd, path);
+      const absolutePath = resolveToCwd(path, cwd);
       await mkdir(dirname(absolutePath), { recursive: true });
       await writeFile(absolutePath, content, "utf-8");
 
