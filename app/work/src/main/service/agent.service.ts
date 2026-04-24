@@ -13,20 +13,20 @@ import { Injectable } from "@willow/poetry";
 import { app } from "electron";
 
 const FALLBACK_MODELS: Record<string, ReturnType<typeof toAgentModel>> = {
-  "deepseek-chat": {
-    id: "deepseek-chat",
-    name: "DeepSeek Chat",
+  "deepseek-v4-flash": {
+    id: "deepseek-v4-flash",
+    name: "DeepSeek Flash",
     api: "openai-completions",
     provider: "deepseek",
     baseUrl: "https://api.deepseek.com",
     reasoning: false,
     input: ["text"] as ("text" | "image")[],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 64000,
-    maxTokens: 8192,
+    contextWindow: 1000000,
+    maxTokens: 384000,
   },
-  "deepseek-reasoner": {
-    id: "deepseek-reasoner",
+  "deepseek-v4-pro": {
+    id: "deepseek-v4-pro",
     name: "DeepSeek Reasoner",
     api: "openai-completions",
     provider: "deepseek",
@@ -34,10 +34,56 @@ const FALLBACK_MODELS: Record<string, ReturnType<typeof toAgentModel>> = {
     reasoning: true,
     input: ["text"] as ("text" | "image")[],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 64000,
-    maxTokens: 8192,
+    contextWindow: 1000000,
+    maxTokens: 384000,
   },
 };
+
+function isAssistantMessage(message: unknown): message is {
+  role: "assistant";
+  api: string;
+  provider: string;
+  model: string;
+  content: Array<{ type: string; thinkingSignature?: string }>;
+} {
+  return (
+    !!message && typeof message === "object" && (message as { role?: string }).role === "assistant"
+  );
+}
+
+function normalizeDeepSeekReasoningHistory<T extends { role: string }>(
+  history: T[],
+  targetModel: ReturnType<typeof toAgentModel>,
+): T[] {
+  if (targetModel.provider !== "deepseek" || targetModel.api !== "openai-completions") {
+    return history;
+  }
+
+  return history.map((message) => {
+    if (!isAssistantMessage(message)) {
+      return message;
+    }
+
+    const hasReasoningContent = message.content.some(
+      (block) => block.type === "thinking" && block.thinkingSignature === "reasoning_content",
+    );
+
+    if (!hasReasoningContent) {
+      return message;
+    }
+
+    if (message.provider !== targetModel.provider || message.api !== targetModel.api) {
+      return message;
+    }
+
+    return {
+      ...message,
+      // DeepSeek 的 reasoning 历史要求按当前请求模型身份原样回传；
+      // 否则 pi-ai 会把 thinking 降级成普通文本，导致后续多轮 400。
+      model: targetModel.id,
+    };
+  });
+}
 
 function toAgentModel(config: ModelConfig) {
   return {
@@ -73,7 +119,7 @@ export class AgentService {
 
   async getTitleAgent() {
     const dbModel = this.configService.getModelByModelId("deepseek-chat");
-    const resolvedModel = dbModel ? toAgentModel(dbModel) : FALLBACK_MODELS["deepseek-chat"];
+    const resolvedModel = dbModel ? toAgentModel(dbModel) : FALLBACK_MODELS["deepseek-v4-flash"];
     const apiKey = this.resolveApiKey(dbModel);
 
     const agent = new Agent({
@@ -96,7 +142,7 @@ export class AgentService {
       dbModel = this.configService.getDefaultModel() ?? undefined;
     }
 
-    const resolvedModel = dbModel ? toAgentModel(dbModel) : FALLBACK_MODELS["deepseek-reasoner"];
+    const resolvedModel = dbModel ? toAgentModel(dbModel) : FALLBACK_MODELS["deepseek-v4-pro"];
     const apiKey = this.resolveApiKey(dbModel);
 
     const workspace = this.workspaceDao.findById(session.workspaceId);
@@ -119,7 +165,10 @@ export class AgentService {
     });
 
     const rows = this.sessionMessageDao.findBySessionId(session.id);
-    const history = parseStoredSessionMessages(rows);
+    const history = normalizeDeepSeekReasoningHistory(
+      parseStoredSessionMessages(rows),
+      resolvedModel,
+    );
     if (history.length > 0) {
       agent.replaceMessages(history);
     }

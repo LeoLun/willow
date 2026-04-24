@@ -273,51 +273,59 @@ function handleEditorSelectionUpdate() {
 }
 
 function handleEditorKeyDown(event: KeyboardEvent): boolean {
-  if (!triggerManager.isAnyPanelVisible.value) return false;
+  if (triggerManager.isAnyPanelVisible.value) {
+    switch (event.key) {
+      case "ArrowUp": {
+        event.preventDefault();
+        triggerManager.navigateUp();
+        return true;
+      }
+      case "ArrowDown": {
+        event.preventDefault();
+        const resultCount = isSkillPanelVisible.value
+          ? (skillPickerPanelRef.value?.filteredSkills?.length ?? 1)
+          : (filePickerPanelRef.value?.filteredFiles?.length ?? 1);
+        const maxIndex = resultCount - 1;
+        triggerManager.navigateDown(maxIndex);
+        return true;
+      }
+      case "Enter": {
+        event.preventDefault();
+        if (isSkillPanelVisible.value) {
+          const skills = skillPickerPanelRef.value?.filteredSkills ?? [];
+          const activeSkill = skills[triggerManager.activeIndex.value];
+          if (activeSkill) {
+            handleSkillSelect(activeSkill);
+          }
+          return true;
+        }
 
-  switch (event.key) {
-    case "ArrowUp": {
-      event.preventDefault();
-      triggerManager.navigateUp();
-      return true;
-    }
-    case "ArrowDown": {
-      event.preventDefault();
-      const resultCount = isSkillPanelVisible.value
-        ? (skillPickerPanelRef.value?.filteredSkills?.length ?? 1)
-        : (filePickerPanelRef.value?.filteredFiles?.length ?? 1);
-      const maxIndex = resultCount - 1;
-      triggerManager.navigateDown(maxIndex);
-      return true;
-    }
-    case "Enter": {
-      event.preventDefault();
-      if (isSkillPanelVisible.value) {
-        const skills = skillPickerPanelRef.value?.filteredSkills ?? [];
-        const activeSkill = skills[triggerManager.activeIndex.value];
-        if (activeSkill) {
-          handleSkillSelect(activeSkill);
+        if (isFilePanelVisible.value) {
+          const files = filePickerPanelRef.value?.filteredFiles ?? [];
+          const activeFile = files[triggerManager.activeIndex.value];
+          if (activeFile) {
+            handleFileSelect(activeFile);
+          }
         }
         return true;
       }
-
-      if (isFilePanelVisible.value) {
-        const files = filePickerPanelRef.value?.filteredFiles ?? [];
-        const activeFile = files[triggerManager.activeIndex.value];
-        if (activeFile) {
-          handleFileSelect(activeFile);
-        }
+      case "Escape": {
+        event.preventDefault();
+        triggerManager.close();
+        return true;
       }
-      return true;
+      default:
+        return false;
     }
-    case "Escape": {
-      event.preventDefault();
-      triggerManager.close();
-      return true;
-    }
-    default:
-      return false;
   }
+
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    void handleSend();
+    return true;
+  }
+
+  return false;
 }
 
 function openSettings() {

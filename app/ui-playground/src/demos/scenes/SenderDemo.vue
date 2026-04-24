@@ -109,8 +109,7 @@ function handleOpenSettings() {
 
         <div class="rounded-xl border border-dashed border-border bg-muted/35 p-3">
           <div class="text-xs leading-5 text-muted-foreground">
-            建议手动验证： 输入 `/work`、方向键上下切换、Enter 选中技能、Cmd/Ctrl + Enter 发送。
-            输入 `@sender` 可验证文件引用标签与 payload。
+            建议手动验证：普通文本发送、多行输入、技能搜索、文件引用标签与 payload。
           </div>
         </div>
       </div>
