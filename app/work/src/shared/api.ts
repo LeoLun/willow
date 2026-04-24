@@ -52,6 +52,24 @@ export interface FileReference {
   relativePath: string;
   extension?: string;
 }
+
+export interface SelectedSystemFile {
+  name: string;
+  path: string;
+  size?: number;
+  extension?: string;
+}
+
+export interface SelectFilesRequest {
+  defaultPath?: string;
+  multiSelections?: boolean;
+}
+
+export interface SelectFilesResponse {
+  selected: boolean;
+  files: SelectedSystemFile[];
+}
+
 export interface GetWorkspaceListResponse {
   workspaces: Workspace[];
 }

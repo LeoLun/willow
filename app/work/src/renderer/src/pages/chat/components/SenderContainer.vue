@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SendMessage, SkillSummary, WorkspaceFileNode } from "@shared/api";
+import type { SelectedSystemFile, SendMessage, SkillSummary, WorkspaceFileNode } from "@shared/api";
 import type { SenderFileOption, SenderSendPayload } from "@willow/sender";
 import { Sender } from "@willow/sender";
 import { storeToRefs } from "pinia";
@@ -98,6 +98,30 @@ function getRelativePath(path: string, rootPath: string) {
   return normalizedPath;
 }
 
+function isWithinWorkspace(path: string, rootPath: string) {
+  const normalizedPath = normalizePath(path);
+  const normalizedRoot = normalizePath(rootPath).replace(/\/+$/, "");
+  return Boolean(normalizedRoot) && normalizedPath.startsWith(`${normalizedRoot}/`);
+}
+
+function getFileExtension(file: SelectedSystemFile) {
+  if (file.extension) return file.extension;
+  const extensionMatch = file.name.match(/\.([^.]+)$/);
+  return extensionMatch?.[1];
+}
+
+function mapSystemFile(file: SelectedSystemFile, rootPath: string): SenderFileOption {
+  return {
+    name: file.name,
+    path: file.path,
+    relativePath: isWithinWorkspace(file.path, rootPath)
+      ? getRelativePath(file.path, rootPath)
+      : file.name,
+    extension: getFileExtension(file),
+    size: file.size,
+  };
+}
+
 function flattenWorkspaceFiles(nodes: WorkspaceFileNode[], rootPath: string): SenderFileOption[] {
   return nodes.flatMap((node) => {
     if (node.type === "folder") {
@@ -113,6 +137,21 @@ function flattenWorkspaceFiles(nodes: WorkspaceFileNode[], rootPath: string): Se
       },
     ];
   });
+}
+
+async function handleSelectFiles(insertFiles: (files: SenderFileOption[]) => void) {
+  try {
+    const response = await electronAPI.selectFiles({
+      defaultPath: workspaceFiles.rootPath.value || undefined,
+      multiSelections: true,
+    });
+    if (!response.selected) {
+      return;
+    }
+    insertFiles(response.files.map((file) => mapSystemFile(file, workspaceFiles.rootPath.value)));
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function handleSend(request: SenderSendPayload) {
@@ -143,5 +182,6 @@ function handleSend(request: SenderSendPayload) {
     @send="handleSend"
     @stop="emit('stop')"
     @open-settings="handleOpenSettings"
+    @select-files="handleSelectFiles"
   />
 </template>

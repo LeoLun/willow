@@ -17,6 +17,8 @@ import type {
   GetAvailableSkillsResponse,
   OpenPathRequest,
   OpenPathResponse,
+  SelectFilesRequest,
+  SelectFilesResponse,
   RenameWorkspaceRequest,
   RenameWorkspaceResponse,
   UpdateWorkspaceSettingsRequest,
@@ -80,6 +82,7 @@ import {
   OPEN_PATH,
   RENAME_WORKSPACE,
   SELECT_DIRECTORY,
+  SELECT_FILES,
   UPDATE_WORKSPACE_SETTINGS,
   CREATE_SESSION,
   RENAME_SESSION,
@@ -228,6 +231,19 @@ const ipcObject: IRenderHook = {
   },
   selectDirectory: async (defaultPath?: string) => {
     return ipcRenderer.invoke(SELECT_DIRECTORY, defaultPath);
+  },
+  selectFiles: async (request?: SelectFilesRequest) => {
+    const response = (await ipcRenderer.invoke(
+      SELECT_FILES,
+      request,
+    )) as ApiResponse<SelectFilesResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("select files failed");
+    }
+    return response.data;
   },
   openPath: async (request: OpenPathRequest) => {
     const response = (await ipcRenderer.invoke(

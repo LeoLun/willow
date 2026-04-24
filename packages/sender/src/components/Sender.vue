@@ -18,6 +18,7 @@ import {
   ArrowUpIcon,
   CheckIcon,
   ChevronsUpDownIcon,
+  BlocksIcon,
   FileTextIcon,
   GlobeIcon,
   PlusIcon,
@@ -83,6 +84,7 @@ const emit = defineEmits<{
   send: [request: SenderSendPayload];
   stop: [];
   "open-settings": [];
+  "select-files": [insertFiles: (files: SenderFileOption[]) => void];
   "update:selectedModelId": [modelId: string];
   "update:webSearchEnabled": [enabled: boolean];
 }>();
@@ -397,21 +399,39 @@ function handleSkillSelect(skill: SenderSkillOption) {
   });
 }
 
-function handleFileSelect(file: SenderFileOption) {
-  const key = getFileKey(file);
-  if (editorFileKeys.value.has(key)) {
-    triggerManager.clearTriggerText();
-    triggerManager.close();
-    return;
+function insertFiles(files: SenderFileOption[]) {
+  let inserted = false;
+
+  for (const file of files) {
+    const key = getFileKey(file);
+    if (editorFileKeys.value.has(key)) {
+      continue;
+    }
+    editorComponentRef.value?.insertFileTag({
+      name: file.name,
+      path: file.path,
+      relativePath: file.relativePath,
+      extension: file.extension,
+    });
+    editorFileKeys.value = new Set([...editorFileKeys.value, key]);
+    inserted = true;
   }
+
+  if (inserted) {
+    syncFileKeysFromEditor();
+  }
+  getEditorInstance()?.commands.focus();
+}
+
+function handleFileSelect(file: SenderFileOption) {
   triggerManager.clearTriggerText();
   triggerManager.close();
-  editorComponentRef.value?.insertFileTag({
-    name: file.name,
-    path: file.path,
-    relativePath: file.relativePath,
-    extension: file.extension,
-  });
+  insertFiles([file]);
+}
+
+function handleSystemFileSelect() {
+  triggerManager.close();
+  emit("select-files", insertFiles);
 }
 </script>
 
@@ -468,9 +488,19 @@ function handleFileSelect(file: SenderFileOption) {
           variant="ghost"
           size="icon"
           class="size-8 rounded-full"
-          @click="triggerManager.toggleManualPanel(SKILL_TRIGGER)"
+          @click="handleSystemFileSelect"
         >
           <PlusIcon class="size-4" />
+          <span class="sr-only">添加文件</span>
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          class="size-8 rounded-full"
+          @click="triggerManager.toggleManualPanel(SKILL_TRIGGER)"
+        >
+          <BlocksIcon class="size-4" />
           <span class="sr-only">选择技能</span>
         </Button>
 
