@@ -2,19 +2,26 @@
 import type { Session } from "@shared/api";
 import { Button } from "@willow/shadcn/components/ui/button";
 import { ArrowLeft } from "lucide-vue-next";
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { storeToRefs } from "pinia";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MainTitle from "@/components/base/MainTitle.vue";
 import { electronAPI } from "@/lib/ipc";
+import { useSessionStore } from "@/stores/session";
 import { useWorkspaceStore } from "@/stores/workspace";
 
 const PAGE_SIZE = 20;
 
 const route = useRoute();
 const router = useRouter();
+const sessionStore = useSessionStore();
 const workspaceStore = useWorkspaceStore();
+const { lastDeletedSession } = storeToRefs(sessionStore);
 
-const workspaceId = computed(() => Number(route.params.workspaceId));
+const workspaceId = computed(() => {
+  const value = Number(route.params.workspaceId);
+  return Number.isNaN(value) ? 0 : value;
+});
 const workspace = computed(() =>
   workspaceStore.workspaceList.find((w) => w.id === workspaceId.value),
 );
@@ -24,6 +31,7 @@ const total = ref(-1);
 const page = ref(1);
 const loading = ref(false);
 const sentinelRef = ref<HTMLDivElement | null>(null);
+let loadToken = 0;
 
 const initialized = computed(() => total.value >= 0);
 const hasMore = computed(() => !initialized.value || sessions.value.length < total.value);
@@ -76,21 +84,42 @@ const groupedSessions = computed<TimeGroup[]>(() => {
     .map(([key, label]) => ({ label, sessions: buckets[key] }));
 });
 
-async function loadMore() {
-  if (loading.value || (initialized.value && !hasMore.value)) return;
+function resetHistoryState() {
+  sessions.value = [];
+  total.value = -1;
+  page.value = 1;
+  loading.value = false;
+}
+
+async function loadMore(expectedWorkspaceId = workspaceId.value, expectedToken = loadToken) {
+  if (!expectedWorkspaceId || loading.value || (initialized.value && !hasMore.value)) return;
   loading.value = true;
+  const nextPage = page.value;
   try {
     const response = await electronAPI.getWorkspaceSessions({
-      workspaceId: workspaceId.value,
-      page: page.value,
+      workspaceId: expectedWorkspaceId,
+      page: nextPage,
       pageSize: PAGE_SIZE,
     });
+    if (expectedToken !== loadToken || expectedWorkspaceId !== workspaceId.value) {
+      return;
+    }
     sessions.value.push(...response.sessions);
     total.value = response.total;
-    page.value++;
+    page.value = nextPage + 1;
   } finally {
-    loading.value = false;
+    if (expectedToken === loadToken) {
+      loading.value = false;
+    }
   }
+}
+
+async function reloadHistory() {
+  const targetWorkspaceId = workspaceId.value;
+  loadToken++;
+  const currentToken = loadToken;
+  resetHistoryState();
+  await loadMore(targetWorkspaceId, currentToken);
 }
 
 function formatTime(date: Date) {
@@ -107,12 +136,10 @@ onMounted(async () => {
     await workspaceStore.fetchWorkspaceList();
   }
 
-  await loadMore();
-
   observer = new IntersectionObserver(
     (entries) => {
       if (entries[0]?.isIntersecting) {
-        loadMore();
+        void loadMore();
       }
     },
     { threshold: 0.1 },
@@ -125,6 +152,21 @@ onMounted(async () => {
 
 onUnmounted(() => {
   observer?.disconnect();
+});
+
+watch(
+  workspaceId,
+  () => {
+    void reloadHistory();
+  },
+  { immediate: true },
+);
+
+watch(lastDeletedSession, (session) => {
+  if (!session || session.workspaceId !== workspaceId.value) {
+    return;
+  }
+  void reloadHistory();
 });
 </script>
 

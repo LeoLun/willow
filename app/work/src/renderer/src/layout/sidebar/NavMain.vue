@@ -61,7 +61,12 @@ function handleDeleteSession(session: Session) {
   openDialog(DeleteSession, {
     session,
     onDeleted: () => {
-      sessionStore.cleanSession(session.id, session.workspaceId);
+      if (sessionId.value === session.id) {
+        void router.push({
+          path: "/",
+          query: { workspaceId: String(session.workspaceId) },
+        });
+      }
     },
   });
 }

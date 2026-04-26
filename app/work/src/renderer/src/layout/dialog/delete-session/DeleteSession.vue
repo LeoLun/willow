@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from "@willow/shadcn/components/ui/dialog";
 import { ref } from "vue";
-import { electronAPI } from "@/lib/ipc";
+import { useSessionStore } from "@/stores/session";
 
 const { session } = defineProps<{
   session: Session;
@@ -20,11 +20,12 @@ const emit = defineEmits<{
 }>();
 
 const loading = ref(false);
+const sessionStore = useSessionStore();
 
 async function handleSubmit() {
   loading.value = true;
   try {
-    await electronAPI.deleteSession({ id: session.id });
+    await sessionStore.deleteSession(session.id, session.workspaceId);
     emit("deleted", session);
     emit("close");
   } catch (e) {
