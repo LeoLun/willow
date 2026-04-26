@@ -256,11 +256,6 @@ export class AutomationService {
       throw new Error("自动化正在执行中");
     }
 
-    const runningRun = this.automationRunDao.findRunningByAutomationId(automation.id);
-    if (runningRun) {
-      throw new Error("自动化正在执行中");
-    }
-
     const now = new Date();
     this.runningAutomationIds.add(automation.id);
 
@@ -335,16 +330,6 @@ export class AutomationService {
   }: ExecuteAutomationRunOptions) {
     if (this.runningAutomationIds.has(automation.id)) {
       const message = `automation ${automation.id} skipped because another run is active`;
-      if (throwOnConflict) {
-        throw new Error("自动化正在执行中");
-      }
-      console.warn(message);
-      return;
-    }
-
-    const runningRun = this.automationRunDao.findRunningByAutomationId(automation.id);
-    if (runningRun) {
-      const message = `automation ${automation.id} skipped because DAO reports a running task`;
       if (throwOnConflict) {
         throw new Error("自动化正在执行中");
       }

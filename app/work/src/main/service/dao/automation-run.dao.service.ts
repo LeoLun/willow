@@ -1,6 +1,6 @@
 import { DbService } from "@main/service/db.service";
 import { Injectable } from "@willow/poetry";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { automationRuns } from "../../db/schema";
 
 type AutomationRunInsert = typeof automationRuns.$inferInsert;
@@ -39,18 +39,6 @@ export class AutomationRunDao {
       .where(inArray(automationRuns.automationId, automationIds))
       .orderBy(desc(automationRuns.scheduledFor), desc(automationRuns.id))
       .all();
-  }
-
-  findRunningByAutomationId(automationId: number) {
-    return this.dbService
-      .getDb()
-      .select()
-      .from(automationRuns)
-      .where(
-        and(eq(automationRuns.automationId, automationId), eq(automationRuns.status, "running")),
-      )
-      .orderBy(desc(automationRuns.id))
-      .get();
   }
 
   insert(data: Omit<AutomationRunInsert, "id">) {

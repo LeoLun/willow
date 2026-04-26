@@ -127,11 +127,13 @@ function handleOpenChange(nextOpen: boolean) {
         :disabled="!canExpand"
       >
         <div class="min-w-0 flex-1 space-y-3">
-          <div class="flex items-center gap-2">
+          <div class="flex min-w-0 items-center gap-2">
             <Globe class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <div class="truncate text-xs leading-none text-muted-foreground">{{ hostLabel }}</div>
+            <div class="min-w-0 flex-1 truncate text-xs leading-none text-muted-foreground">
+              {{ hostLabel }}
+            </div>
             <span
-              class="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs leading-none text-muted-foreground"
+              class="inline-flex shrink-0 items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs leading-none whitespace-nowrap text-muted-foreground"
             >
               {{
                 state === "running"
