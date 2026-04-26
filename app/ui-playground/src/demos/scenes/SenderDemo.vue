@@ -7,6 +7,7 @@ import {
   senderFiles,
   senderMessages,
   senderModels,
+  senderPlugins,
   senderSkills,
   senderStreamMessage,
 } from "../mock-data";
@@ -20,7 +21,7 @@ const latestEvent = ref("等待输入");
 
 const eventSummary = computed(() => {
   if (!latestPayload.value) {
-    return "还没有触发 send 事件。你可以输入 `/` 搜索技能，再试一次发送。";
+    return "还没有触发 send 事件。你可以输入 `/` 搜索资源，再试一次发送。";
   }
 
   const selectedSkillNames =
@@ -54,8 +55,9 @@ function handleOpenSettings() {
     <div class="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div class="flex flex-wrap items-center gap-2">
         <Badge variant="outline">slash 搜索</Badge>
-        <Badge variant="outline">@ 文件引用</Badge>
+        <Badge variant="outline">统一资源选择</Badge>
         <Badge variant="outline">技能胶囊</Badge>
+        <Badge variant="outline">文件引用</Badge>
         <Badge variant="outline">模型选择</Badge>
         <Badge variant="outline">发送事件</Badge>
       </div>
@@ -63,8 +65,8 @@ function handleOpenSettings() {
       <div>
         <h3 class="text-sm font-semibold text-foreground">共享 Sender</h3>
         <p class="mt-1 text-sm text-muted-foreground">
-          这个场景不依赖 Electron IPC。输入 `/` 可以验证技能搜索；输入 `@`
-          可以验证文件引用、键盘选择和发送事件是否正常。
+          这个场景不依赖 Electron IPC。输入 `/`
+          可以验证插件、技能、文件的统一资源选择、键盘选择和发送事件是否正常。
         </p>
       </div>
 
@@ -76,6 +78,7 @@ function handleOpenSettings() {
         :models="senderModels"
         :default-model-id="senderModels[0]?.modelId ?? ''"
         :selected-model-id="selectedModelId"
+        :plugins="senderPlugins"
         :skills="senderSkills"
         :files="senderFiles"
         :web-search-enabled="webSearchEnabled"
@@ -109,7 +112,7 @@ function handleOpenSettings() {
 
         <div class="rounded-xl border border-dashed border-border bg-muted/35 p-3">
           <div class="text-xs leading-5 text-muted-foreground">
-            建议手动验证：普通文本发送、多行输入、技能搜索、文件引用标签与 payload。
+            建议手动验证：普通文本发送、多行输入、统一资源搜索、文件引用标签与 payload。
           </div>
         </div>
       </div>

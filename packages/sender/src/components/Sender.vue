@@ -18,8 +18,6 @@ import {
   ArrowUpIcon,
   CheckIcon,
   ChevronsUpDownIcon,
-  BlocksIcon,
-  FileTextIcon,
   GlobeIcon,
   PlusIcon,
   SettingsIcon,
@@ -31,6 +29,8 @@ import type {
   SenderFileOption,
   SenderFileReference,
   SenderModelOption,
+  SenderPluginOption,
+  SenderResourcePickerItem,
   SenderSendPayload,
   SenderSkillOption,
   SenderSkillReference,
@@ -39,11 +39,9 @@ import type {
 } from "../types";
 import CircularProgress from "./CircularProgress.vue";
 import Editor from "./Editor.vue";
-import FilePickerPanel from "./FilePickerPanel.vue";
-import SkillPickerPanel from "./SkillPickerPanel.vue";
+import ResourcePickerPanel from "./ResourcePickerPanel.vue";
 
-const SKILL_TRIGGER = "/";
-const FILE_TRIGGER = "@";
+const RESOURCE_TRIGGER = "/";
 
 const props = withDefaults(
   defineProps<{
@@ -54,6 +52,9 @@ const props = withDefaults(
     models?: SenderModelOption[];
     defaultModelId?: string;
     selectedModelId?: string;
+    plugins?: SenderPluginOption[];
+    pluginsLoading?: boolean;
+    pluginsErrorMessage?: string;
     skills?: SenderSkillOption[];
     skillsLoading?: boolean;
     skillsErrorMessage?: string;
@@ -70,6 +71,9 @@ const props = withDefaults(
     models: () => [],
     defaultModelId: "",
     selectedModelId: "",
+    plugins: () => [],
+    pluginsLoading: false,
+    pluginsErrorMessage: "",
     skills: () => [],
     skillsLoading: false,
     skillsErrorMessage: "",
@@ -84,6 +88,7 @@ const emit = defineEmits<{
   send: [request: SenderSendPayload];
   stop: [];
   "open-settings": [];
+  "select-plugin": [plugin: SenderPluginOption];
   "select-files": [insertFiles: (files: SenderFileOption[]) => void];
   "update:selectedModelId": [modelId: string];
   "update:webSearchEnabled": [enabled: boolean];
@@ -96,24 +101,17 @@ const editorFileKeys = ref<Set<string>>(new Set());
 const localSelectedModelId = ref("");
 const localWebSearchEnabled = ref(props.webSearchEnabled);
 const editorComponentRef = ref<InstanceType<typeof Editor> | null>(null);
-const skillPickerPanelRef = ref<InstanceType<typeof SkillPickerPanel> | null>(null);
-const filePickerPanelRef = ref<InstanceType<typeof FilePickerPanel> | null>(null);
+const resourcePickerPanelRef = ref<InstanceType<typeof ResourcePickerPanel> | null>(null);
 const tiptapEditor = shallowRef<TiptapEditor | undefined>();
 
 const triggerManager = useTriggerManager(tiptapEditor, [
-  { char: SKILL_TRIGGER, pattern: /(\/\S*)$/ },
-  { char: FILE_TRIGGER, pattern: /(@\S*)$/ },
+  { char: RESOURCE_TRIGGER, pattern: /(\/\S*)$/ },
 ]);
 
-const isSkillPanelVisible = computed(
+const isResourcePanelVisible = computed(
   () =>
     triggerManager.isAnyPanelVisible.value &&
-    triggerManager.activeTriggerChar.value === SKILL_TRIGGER,
-);
-const isFilePanelVisible = computed(
-  () =>
-    triggerManager.isAnyPanelVisible.value &&
-    triggerManager.activeTriggerChar.value === FILE_TRIGGER,
+    triggerManager.activeTriggerChar.value === RESOURCE_TRIGGER,
 );
 
 const hasModels = computed(() => props.models.length > 0);
@@ -284,30 +282,17 @@ function handleEditorKeyDown(event: KeyboardEvent): boolean {
       }
       case "ArrowDown": {
         event.preventDefault();
-        const resultCount = isSkillPanelVisible.value
-          ? (skillPickerPanelRef.value?.filteredSkills?.length ?? 1)
-          : (filePickerPanelRef.value?.filteredFiles?.length ?? 1);
+        const resultCount = resourcePickerPanelRef.value?.visibleItems.length ?? 1;
         const maxIndex = resultCount - 1;
         triggerManager.navigateDown(maxIndex);
         return true;
       }
       case "Enter": {
         event.preventDefault();
-        if (isSkillPanelVisible.value) {
-          const skills = skillPickerPanelRef.value?.filteredSkills ?? [];
-          const activeSkill = skills[triggerManager.activeIndex.value];
-          if (activeSkill) {
-            handleSkillSelect(activeSkill);
-          }
-          return true;
-        }
-
-        if (isFilePanelVisible.value) {
-          const files = filePickerPanelRef.value?.filteredFiles ?? [];
-          const activeFile = files[triggerManager.activeIndex.value];
-          if (activeFile) {
-            handleFileSelect(activeFile);
-          }
+        const items = resourcePickerPanelRef.value?.visibleItems ?? [];
+        const activeItem = items[triggerManager.activeIndex.value];
+        if (activeItem) {
+          handleResourceSelect(activeItem);
         }
         return true;
       }
@@ -382,6 +367,12 @@ function handleAction() {
   void handleSend();
 }
 
+function handlePluginSelect(plugin: SenderPluginOption) {
+  triggerManager.clearTriggerText();
+  triggerManager.close();
+  emit("select-plugin", plugin);
+}
+
 function handleSkillSelect(skill: SenderSkillOption) {
   const key = getSkillKey(skill);
   if (selectedSkillKeys.value.has(key)) {
@@ -397,6 +388,18 @@ function handleSkillSelect(skill: SenderSkillOption) {
     scope: skill.scope,
     scopeLabel: skill.scopeLabel,
   });
+}
+
+function handleResourceSelect(item: SenderResourcePickerItem) {
+  if (item.type === "plugin") {
+    handlePluginSelect(item.plugin);
+    return;
+  }
+  if (item.type === "skill") {
+    handleSkillSelect(item.skill);
+    return;
+  }
+  handleFileSelect(item.file);
 }
 
 function insertFiles(files: SenderFileOption[]) {
@@ -446,30 +449,26 @@ function handleSystemFileSelect() {
       配置模型
     </div>
 
-    <SkillPickerPanel
-      v-if="isSkillPanelVisible"
-      ref="skillPickerPanelRef"
+    <ResourcePickerPanel
+      v-if="isResourcePanelVisible"
+      ref="resourcePickerPanelRef"
+      :plugins="plugins"
+      :plugins-loading="pluginsLoading"
+      :plugins-error-message="pluginsErrorMessage"
       :skills="skills"
       :skills-loading="skillsLoading"
       :skills-error-message="skillsErrorMessage"
-      :query="triggerManager.query.value"
-      :active-index="triggerManager.activeIndex.value"
-      :selected-skill-keys="selectedSkillKeys"
-      :is-search-mode="triggerManager.isSearchMode.value"
-      @select="handleSkillSelect"
-    />
-
-    <FilePickerPanel
-      v-if="isFilePanelVisible"
-      ref="filePickerPanelRef"
       :files="files"
       :files-loading="filesLoading"
       :files-error-message="filesErrorMessage"
       :query="triggerManager.query.value"
       :active-index="triggerManager.activeIndex.value"
+      :selected-skill-keys="selectedSkillKeys"
       :selected-file-keys="editorFileKeys"
       :is-search-mode="triggerManager.isSearchMode.value"
-      @select="handleFileSelect"
+      @select-plugin="handlePluginSelect"
+      @select-skill="handleSkillSelect"
+      @select-file="handleFileSelect"
     />
 
     <div class="rounded-xl border border-border bg-card px-3 py-3">
@@ -498,20 +497,10 @@ function handleSystemFileSelect() {
           variant="ghost"
           size="icon"
           class="size-8 rounded-full"
-          @click="triggerManager.toggleManualPanel(SKILL_TRIGGER)"
+          @click="triggerManager.toggleManualPanel(RESOURCE_TRIGGER)"
         >
-          <BlocksIcon class="size-4" />
-          <span class="sr-only">选择技能</span>
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          class="size-8 rounded-full"
-          @click="triggerManager.toggleManualPanel(FILE_TRIGGER)"
-        >
-          <FileTextIcon class="size-4" />
-          <span class="sr-only">选择文件</span>
+          <span class="text-base leading-none font-semibold">/</span>
+          <span class="sr-only">选择资源</span>
         </Button>
 
         <TooltipProvider>

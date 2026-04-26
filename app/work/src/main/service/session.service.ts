@@ -262,9 +262,6 @@ export class SessionService {
   }
 
   private buildPromptInput(workspaceId: number, message: string) {
-    console.log("workspaceId", workspaceId);
-    console.log("message", message);
-
     const normalizedMessage = message.trim();
 
     return normalizedMessage;

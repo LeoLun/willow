@@ -29,6 +29,12 @@ export interface SenderSkillReference {
   scope: SenderSkillScope;
 }
 
+export interface SenderPluginOption {
+  id?: string;
+  name: string;
+  description: string;
+}
+
 export interface SenderFileOption {
   name: string;
   path: string;
@@ -43,6 +49,11 @@ export interface SenderFileReference {
   relativePath: string;
   extension?: string;
 }
+
+export type SenderResourcePickerItem =
+  | { type: "plugin"; key: string; plugin: SenderPluginOption }
+  | { type: "skill"; key: string; skill: SenderSkillOption }
+  | { type: "file"; key: string; file: SenderFileOption };
 
 export interface SenderSendPayload {
   message: string;

@@ -16,6 +16,7 @@ export default defineConfig({
   },
   plugins: [tailwindcss(), vue()],
   optimizeDeps: {
+    exclude: ["@willow/sender"],
     include: [
       "highlight.js/lib/core",
       "highlight.js/lib/languages/bash",
@@ -33,6 +34,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@willow/shadcn": resolve(__dirname, "../../packages/shadcn/src"),
+      "@willow/sender": resolve(__dirname, "../../packages/sender/src"),
       "@willow/ui": resolve(__dirname, "../../packages/ui/src"),
       "@": resolve(__dirname, "src/renderer/src"),
       "@renderer": resolve(__dirname, "src/renderer"),

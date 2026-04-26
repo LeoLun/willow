@@ -38,7 +38,7 @@ const editor = useEditor({
       orderedList: false,
     }),
     Placeholder.configure({
-      placeholder: "向 AI 提问，@ 添加文件，/ 使用技能",
+      placeholder: "向 AI 提问，/ 选择技能或文件",
     }),
     FileTag,
     SkillTag,

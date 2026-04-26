@@ -9,6 +9,7 @@ import type {
 import type {
   SenderFileOption,
   SenderModelOption,
+  SenderPluginOption,
   SenderSkillOption,
   SenderUsageMessage,
 } from "@willow/sender";
@@ -128,6 +129,14 @@ export const senderModels: SenderModelOption[] = [
     modelId: "gpt-5.4",
     name: "GPT-5.4",
     contextWindow: 128000,
+  },
+];
+
+export const senderPlugins: SenderPluginOption[] = [
+  {
+    id: "browser-use",
+    name: "Browser Use",
+    description: "Control the in-app browser",
   },
 ];
 
