@@ -4,12 +4,14 @@ import { SESSION_TITLE_UPDATED } from "@shared/constants";
 import { Card } from "@willow/shadcn";
 import { SidebarProvider, SidebarTrigger } from "@willow/shadcn/components/ui/sidebar";
 import { Toaster } from "@willow/shadcn/components/ui/sonner";
+import { TooltipProvider } from "@willow/shadcn/components/ui/tooltip";
 import {
   AutomationCreateRendererFactory,
   registerToolRenderer,
   TodoRendererFactory,
 } from "@willow/ui";
-import { onMounted, onUnmounted } from "vue";
+import { computed, onMounted, onUnmounted } from "vue";
+import { useRoute } from "vue-router";
 import TopDragBar from "@/components/base/TopDragBar.vue";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { useEventBus } from "@/composables/useEventBus";
@@ -29,8 +31,12 @@ useDarkMode();
 registerToolRenderer("todoread", new TodoRendererFactory());
 registerToolRenderer("todowrite", new TodoRendererFactory());
 
+const route = useRoute();
 const sessionStore = useSessionStore();
 const { addEventListener, removeEventListener } = useEventBus();
+const isSettingsLayout = computed(() =>
+  route.matched.some((record) => record.meta.layout === "settings"),
+);
 
 function onSessionTitleUpdated(data: { session: Session }) {
   if (data?.session) {
@@ -47,20 +53,26 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <SidebarProvider class="relative flex h-screen w-screen overflow-hidden bg-sidebar">
-    <LeftSidebar />
-    <SidebarTrigger class="absolute top-[9px] left-[70px] z-100" />
-
-    <!-- 主区域 -->
-    <div class="flex min-w-0 flex-1 flex-col">
-      <Card class="relative flex-1 !flex-row gap-0 overflow-hidden !py-0">
-        <!-- 中间内容区域 -->
-        <div class="h-full min-w-0 flex-1 overflow-hidden">
-          <RouterView />
-        </div>
-      </Card>
+  <TooltipProvider :delay-duration="0">
+    <div v-if="isSettingsLayout" class="h-screen w-screen overflow-hidden bg-background">
+      <RouterView />
     </div>
-  </SidebarProvider>
+
+    <SidebarProvider v-else class="relative flex h-screen w-screen overflow-hidden bg-sidebar">
+      <LeftSidebar />
+      <SidebarTrigger class="absolute top-[9px] left-[70px] z-100" />
+
+      <!-- 主区域 -->
+      <div class="flex min-w-0 flex-1 flex-col">
+        <Card class="relative flex-1 !flex-row gap-0 overflow-hidden !py-0">
+          <!-- 中间内容区域 -->
+          <div class="h-full min-w-0 flex-1 overflow-hidden">
+            <RouterView />
+          </div>
+        </Card>
+      </div>
+    </SidebarProvider>
+  </TooltipProvider>
   <DialogProvider />
   <Toaster position="top-center" />
 </template>

@@ -2,10 +2,18 @@
 import { Button } from "@willow/shadcn/components/ui/button";
 import { Sidebar, SidebarContent, SidebarFooter } from "@willow/shadcn/components/ui/sidebar";
 import { Settings } from "lucide-vue-next";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import NavMain from "./NavMain.vue";
 
+const route = useRoute();
 const router = useRouter();
+
+function openSettings() {
+  router.push({
+    path: "/setting",
+    query: route.path.startsWith("/setting") ? undefined : { from: route.fullPath },
+  });
+}
 </script>
 
 <template>
@@ -20,7 +28,7 @@ const router = useRouter();
 
     <!-- 底部区域 -->
     <SidebarFooter>
-      <Button variant="ghost" size="sm" class="justify-start" @click="router.push('/setting')">
+      <Button variant="ghost" size="sm" class="justify-start" @click="openSettings">
         <Settings class="size-4" aria-hidden="true" />
         设置
       </Button>

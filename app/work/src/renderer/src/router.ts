@@ -5,6 +5,8 @@ import AutomationDetail from "./pages/auto/detail/AutomationDetail.vue";
 import Chat from "./pages/chat/Chat.vue";
 import Session from "./pages/chat/session/Session.vue";
 import Workspace from "./pages/chat/workspace/Workspace.vue";
+import AppearanceSetting from "./pages/setting/appearance/AppearanceSetting.vue";
+import ConfigurationSetting from "./pages/setting/configuration/ConfigurationSetting.vue";
 import Setting from "./pages/setting/Setting.vue";
 import Skills from "./pages/skills/Skills.vue";
 import WorkspaceHistory from "./pages/workspace-history/WorkspaceHistory.vue";
@@ -25,7 +27,16 @@ const routes: RouteRecordRaw[] = [
     component: WorkspaceHistory,
   },
   { path: "/skills", name: "skills", component: Skills },
-  { path: "/setting", name: "setting", component: Setting },
+  {
+    path: "/setting",
+    component: Setting,
+    redirect: "/setting/appearance",
+    meta: { layout: "settings" },
+    children: [
+      { path: "appearance", name: "settingAppearance", component: AppearanceSetting },
+      { path: "configuration", name: "settingConfiguration", component: ConfigurationSetting },
+    ],
+  },
   { path: "/auto", name: "auto", component: Auto },
   {
     path: "/auto/:automationId",

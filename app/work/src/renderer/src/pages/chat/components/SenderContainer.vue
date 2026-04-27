@@ -4,7 +4,7 @@ import type { SenderFileOption, SenderSendPayload } from "@willow/sender";
 import { Sender } from "@willow/sender";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref, toRef, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useWorkspaceFiles } from "@/composables/useWorkspaceFiles";
 import { electronAPI } from "@/lib/ipc";
 import { useConfigStore } from "@/stores/config";
@@ -32,6 +32,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const route = useRoute();
 const configStore = useConfigStore();
 const { modelList, defaultModel } = storeToRefs(configStore);
 const workspaceFiles = useWorkspaceFiles(toRef(props, "workspaceId"));
@@ -76,7 +77,10 @@ async function loadAvailableSkills() {
 }
 
 function handleOpenSettings() {
-  router.push("/setting");
+  router.push({
+    path: "/setting/configuration",
+    query: { from: route.fullPath },
+  });
 }
 
 function normalizePath(path: string) {

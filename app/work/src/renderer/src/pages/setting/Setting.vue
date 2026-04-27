@@ -1,257 +1,86 @@
 <script setup lang="ts">
-import type { ModelConfig, TavilyKeyConfig } from "@shared/api";
-import { Badge, Button } from "@willow/shadcn";
-import { Progress } from "@willow/shadcn/components/ui/progress";
-import { ToggleGroup, ToggleGroupItem } from "@willow/shadcn/components/ui/toggle-group";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@willow/shadcn/components/ui/tooltip";
-import { Monitor, Moon, Pencil, Plus, Star, Sun, Trash2 } from "lucide-vue-next";
-import { storeToRefs } from "pinia";
-import { onBeforeMount } from "vue";
-import { useDarkMode } from "@/composables/useDarkMode";
-import type { ThemeMode } from "@/composables/useDarkMode";
-import { useDialog } from "@/layout/dialog";
-import { DeleteModel } from "@/layout/dialog/delete-model";
-import { DeleteTavilyKey } from "@/layout/dialog/delete-tavily-key";
-import { ModelForm } from "@/layout/dialog/model-form";
-import { TavilyKeyForm } from "@/layout/dialog/tavily-key-form";
-import { useConfigStore } from "@/stores/config";
+import { Button } from "@willow/shadcn/components/ui/button";
+import { ArrowLeft, Settings2, Sun } from "lucide-vue-next";
+import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
-const { themeMode } = useDarkMode();
-const { openDialog } = useDialog();
-const configStore = useConfigStore();
-const { modelList, tavilyKeyList } = storeToRefs(configStore);
+const route = useRoute();
+const router = useRouter();
 
-const themeModes: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
-  { value: "system", label: "跟随系统", icon: Monitor },
-  { value: "light", label: "浅色", icon: Sun },
-  { value: "dark", label: "深色", icon: Moon },
+const navItems = [
+  {
+    label: "外观",
+    icon: Sun,
+    routeName: "settingAppearance",
+    to: "/setting/appearance",
+  },
+  {
+    label: "配置",
+    icon: Settings2,
+    routeName: "settingConfiguration",
+    to: "/setting/configuration",
+  },
 ];
 
-function onThemeChange(value: string | string[]) {
-  if (value) {
-    themeMode.value = value as ThemeMode;
+const currentRouteName = computed(() => String(route.name ?? ""));
+const returnTarget = computed(() => {
+  const from = route.query.from;
+  if (typeof from === "string" && from && !from.startsWith("/setting")) {
+    return from;
   }
-}
-
-// ─── 模型管理 ───
-onBeforeMount(() => {
-  configStore.fetchModelList();
-  configStore.fetchTavilyKeyList();
+  return "/";
+});
+const settingsQuery = computed(() => {
+  const from = route.query.from;
+  return typeof from === "string" && from ? { from } : undefined;
 });
 
-function handleAddModel() {
-  openDialog(ModelForm);
+function isActive(routeName: string) {
+  return currentRouteName.value === routeName;
 }
 
-function handleEditModel(model: ModelConfig) {
-  openDialog(ModelForm, { model });
-}
-
-function handleDeleteModel(model: ModelConfig) {
-  openDialog(DeleteModel, { model });
-}
-
-async function handleSetDefault(model: ModelConfig) {
-  await configStore.setDefaultModel(model.id);
-}
-
-// ─── Tavily Key 管理 ───
-function maskKey(key: string): string {
-  if (key.length <= 8) return "****";
-  return key.slice(0, 4) + "****" + key.slice(-4);
-}
-
-function handleAddTavilyKey() {
-  openDialog(TavilyKeyForm);
-}
-
-function handleEditTavilyKey(tavilyKey: TavilyKeyConfig) {
-  openDialog(TavilyKeyForm, { tavilyKey });
-}
-
-function handleDeleteTavilyKey(tavilyKey: TavilyKeyConfig) {
-  openDialog(DeleteTavilyKey, { tavilyKey });
+function goBackToApp() {
+  router.push(returnTarget.value);
 }
 </script>
 
 <template>
-  <div class="mx-auto max-w-2xl space-y-8 p-8">
-    <h1 class="text-2xl font-semibold">设置</h1>
+  <div class="flex h-full min-h-0 bg-background">
+    <aside class="flex w-64 shrink-0 flex-col gap-2 border-r bg-muted/20 px-2 pt-10 pb-6">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 justify-start gap-2 px-2 text-muted-foreground hover:text-foreground"
+        @click="goBackToApp"
+      >
+        <ArrowLeft class="size-4" aria-hidden="true" />
+        返回应用
+      </Button>
 
-    <!-- 外观 -->
-    <section class="space-y-4">
-      <div>
-        <h2 class="text-base font-medium">外观</h2>
-        <p class="text-sm text-muted-foreground">自定义应用的显示主题</p>
-      </div>
-
-      <div class="flex items-center justify-between rounded-lg border p-4">
-        <div class="space-y-0.5">
-          <span class="text-sm font-medium">主题模式</span>
-          <p class="text-xs text-muted-foreground">选择浅色、深色或跟随系统</p>
-        </div>
-
-        <ToggleGroup
-          type="single"
-          :model-value="themeMode"
-          variant="outline"
-          @update:model-value="onThemeChange"
+      <nav class="space-y-1">
+        <Button
+          v-for="item in navItems"
+          :key="item.routeName"
+          variant="ghost"
+          size="sm"
+          class="h-7 w-full justify-start gap-2 px-2"
+          :class="
+            isActive(item.routeName)
+              ? 'bg-muted font-semibold text-foreground hover:bg-muted'
+              : 'font-medium text-foreground hover:bg-muted/60'
+          "
+          @click="router.push({ path: item.to, query: settingsQuery })"
         >
-          <ToggleGroupItem
-            v-for="mode in themeModes"
-            :key="mode.value"
-            :value="mode.value"
-            :aria-label="mode.label"
-            class="gap-1.5 px-3"
-          >
-            <component :is="mode.icon" class="size-4" />
-            <span class="text-xs">{{ mode.label }}</span>
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
-    </section>
-
-    <!-- 模型配置 -->
-    <section class="space-y-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-base font-medium">模型配置</h2>
-          <p class="text-sm text-muted-foreground">管理可用的 AI 模型</p>
-        </div>
-        <Button size="sm" class="gap-1" @click="handleAddModel">
-          <Plus class="size-4" />
-          添加模型
+          <component :is="item.icon" class="size-4" aria-hidden="true" />
+          {{ item.label }}
         </Button>
+      </nav>
+    </aside>
+
+    <main class="min-w-0 flex-1 overflow-y-auto">
+      <div class="mx-auto w-full max-w-[760px] px-10 py-[72px]">
+        <RouterView />
       </div>
-
-      <div v-if="modelList.length === 0" class="rounded-lg border p-8 text-center">
-        <p class="text-sm text-muted-foreground">暂无配置的模型</p>
-      </div>
-
-      <div v-else class="space-y-3">
-        <div
-          v-for="model in modelList"
-          :key="model.id"
-          class="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
-        >
-          <div class="min-w-0 flex-1 space-y-1">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium">{{ model.name }}</span>
-              <Badge v-if="model.isDefault" variant="default" class="text-[10px]"> 默认 </Badge>
-              <Badge variant="outline" class="text-[10px]">
-                {{ model.provider }}
-              </Badge>
-            </div>
-            <p class="truncate text-xs text-muted-foreground">
-              {{ model.modelId }} · {{ model.baseUrl }}
-            </p>
-          </div>
-
-          <div
-            class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
-          >
-            <Tooltip v-if="!model.isDefault">
-              <TooltipTrigger as-child>
-                <Button variant="ghost" size="icon" class="size-8" @click="handleSetDefault(model)">
-                  <Star class="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>设为默认</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button variant="ghost" size="icon" class="size-8" @click="handleEditModel(model)">
-                  <Pencil class="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>编辑</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-8 text-destructive hover:text-destructive"
-                  @click="handleDeleteModel(model)"
-                >
-                  <Trash2 class="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>删除</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 网络搜索 (Tavily) -->
-    <section class="space-y-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-base font-medium">网络搜索 (Tavily)</h2>
-          <p class="text-sm text-muted-foreground">管理 Tavily API Key，用于网络搜索功能</p>
-        </div>
-        <Button size="sm" class="gap-1" @click="handleAddTavilyKey">
-          <Plus class="size-4" />
-          添加 Key
-        </Button>
-      </div>
-
-      <div v-if="tavilyKeyList.length === 0" class="rounded-lg border p-8 text-center">
-        <p class="text-sm text-muted-foreground">暂无配置的 Tavily API Key</p>
-      </div>
-
-      <div v-else class="space-y-3">
-        <div
-          v-for="key in tavilyKeyList"
-          :key="key.id"
-          class="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
-        >
-          <div class="min-w-0 flex-1 space-y-2">
-            <div class="flex items-center gap-2">
-              <span class="font-mono text-sm">{{ maskKey(key.apiKey) }}</span>
-              <Badge variant="outline" class="text-[10px]">
-                {{ key.currentMonthUsage }} / {{ key.monthlyLimit }}
-              </Badge>
-            </div>
-            <Progress
-              :model-value="Math.min((key.currentMonthUsage / key.monthlyLimit) * 100, 100)"
-              class="h-1.5"
-            />
-          </div>
-
-          <div
-            class="flex shrink-0 items-center gap-1 pl-4 opacity-0 transition-opacity group-hover:opacity-100"
-          >
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-8"
-                  @click="handleEditTavilyKey(key)"
-                >
-                  <Pencil class="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>编辑</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-8 text-destructive hover:text-destructive"
-                  @click="handleDeleteTavilyKey(key)"
-                >
-                  <Trash2 class="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>删除</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      </div>
-    </section>
+    </main>
   </div>
 </template>

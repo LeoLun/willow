@@ -1,16 +1,16 @@
 # remove-automation-running-gate
 
-## Summary
-
-移除自动化执行链路中会跨进程残留的“正在执行”判断和数据库持久化运行中状态，不再让 `automation_runs.status = running` 或同类数据库状态阻止下一次执行。自动化可以继续保留运行记录与最终结果，但执行开始后即使应用进程被停止，下一次手动或定时触发也必须能够重新启动。
-
-## Background
+## Why
 
 当前立即执行自动化时，用户可能看到错误：
 
 `Error invoking remote method 'RUN_AUTOMATION_NOW': Error: 自动化正在执行中`
 
 现有实现同时使用内存集合 `runningAutomationIds` 和数据库 `automation_runs.status = running` 判断同一自动化是否正在执行。内存状态在进程退出后会消失，但数据库中的 `running` 记录会保留。如果执行过程中应用停止、崩溃或会话被中断，后续再次执行同一自动化时会因为历史 running 记录被永久拦截，用户无法恢复执行。
+
+## What Changes
+
+移除自动化执行链路中会跨进程残留的“正在执行”判断和数据库持久化运行中状态，不再让 `automation_runs.status = running` 或同类数据库状态阻止下一次执行。自动化可以继续保留运行记录与最终结果，但执行开始后即使应用进程被停止，下一次手动或定时触发也必须能够重新启动。
 
 ## Goals
 
