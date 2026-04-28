@@ -96,6 +96,29 @@ export function lastAssistantPlainText(messages: AgentMessage[]): string {
   return "";
 }
 
+/** 取最后一条 assistant 的普通文本，忽略 thinking/reasoning 内容 */
+export function lastAssistantTextOnly(messages: AgentMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const loose = asLooseMessage(messages[i]);
+    if (loose?.role !== "assistant") {
+      continue;
+    }
+    if (!Array.isArray(loose.content)) {
+      return "";
+    }
+    return loose.content
+      .map((part) => {
+        if (isRecord(part) && part.type === "text" && typeof part.text === "string") {
+          return part.text;
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
+}
+
 const TITLE_MAX_LEN = 60;
 const TITLE_PROMPT_MAX_CHARS = 8000;
 

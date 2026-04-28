@@ -6,7 +6,7 @@ import { SkillService } from "@main/service/skill.service";
 import { TodoService } from "@main/service/todo.service";
 import {
   clipForTitlePrompt,
-  lastAssistantPlainText,
+  lastAssistantTextOnly,
   sanitizeSessionTitle,
 } from "@main/utils/agent-message-text";
 import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
@@ -168,7 +168,7 @@ export class SessionService {
         try {
           const titleAgent = await this.agentService.getTitleAgent();
           await titleAgent.prompt(`请为下面这段首轮用户输入生成标题。\n\n用户输入：\n${userText}`);
-          title = sanitizeSessionTitle(lastAssistantPlainText(titleAgent.state.messages));
+          title = sanitizeSessionTitle(lastAssistantTextOnly(titleAgent.state.messages));
         } catch (e) {
           console.error(
             "createSessionTitle agent failed",

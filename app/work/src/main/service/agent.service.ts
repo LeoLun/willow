@@ -12,33 +12,6 @@ import { CoreAgent } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import { app } from "electron";
 
-const FALLBACK_MODELS: Record<string, ReturnType<typeof toAgentModel>> = {
-  "deepseek-v4-flash": {
-    id: "deepseek-v4-flash",
-    name: "DeepSeek Flash",
-    api: "openai-completions",
-    provider: "deepseek",
-    baseUrl: "https://api.deepseek.com",
-    reasoning: false,
-    input: ["text"] as ("text" | "image")[],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 1000000,
-    maxTokens: 384000,
-  },
-  "deepseek-v4-pro": {
-    id: "deepseek-v4-pro",
-    name: "DeepSeek Reasoner",
-    api: "openai-completions",
-    provider: "deepseek",
-    baseUrl: "https://api.deepseek.com",
-    reasoning: true,
-    input: ["text"] as ("text" | "image")[],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 1000000,
-    maxTokens: 384000,
-  },
-};
-
 function isAssistantMessage(message: unknown): message is {
   role: "assistant";
   api: string;
@@ -118,8 +91,12 @@ export class AgentService {
   }
 
   async getTitleAgent() {
-    const dbModel = this.configService.getModelByModelId("deepseek-chat");
-    const resolvedModel = dbModel ? toAgentModel(dbModel) : FALLBACK_MODELS["deepseek-v4-flash"];
+    const dbModel = this.configService.getDefaultModel();
+    // 如果没有直接默认模型直接报错
+    if (!dbModel) {
+      throw new Error("No default model found");
+    }
+    const resolvedModel = { ...toAgentModel(dbModel), reasoning: false };
     const apiKey = this.resolveApiKey(dbModel);
 
     const agent = new Agent({
@@ -141,8 +118,11 @@ export class AgentService {
     if (!dbModel) {
       dbModel = this.configService.getDefaultModel() ?? undefined;
     }
+    if (!dbModel) {
+      throw new Error("No model found");
+    }
 
-    const resolvedModel = dbModel ? toAgentModel(dbModel) : FALLBACK_MODELS["deepseek-v4-pro"];
+    const resolvedModel = toAgentModel(dbModel);
     const apiKey = this.resolveApiKey(dbModel);
 
     const workspace = this.workspaceDao.findById(session.workspaceId);
