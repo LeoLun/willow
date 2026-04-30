@@ -1,5 +1,7 @@
 # Willow DESIGN.md
 
+# UI 稿在 ui/work.pen 下面
+
 ## Product UI Intent
 
 Willow 的 renderer 默认是桌面工作台，不是营销页。界面气质应当冷静、专注、工具型，优先帮助用户高频完成任务，而不是制造情绪化视觉冲击。

@@ -1,39 +1,44 @@
 <script setup lang="ts">
-import { ToolMessage } from "@willow/ui";
-import {
-  conversationMessages,
-  demoTools,
-  failedBashResult,
-  failedBashToolCall,
-} from "../mock-data";
+import { CircleCheck, CircleX, FileText, Terminal } from "lucide-vue-next";
+import ToolGallerySection from "../components/ToolGallerySection.vue";
+import ToolSampleCard from "../components/ToolSampleCard.vue";
+import ToolStateRows from "../components/ToolStateRows.vue";
 
-const assistantMessage = conversationMessages.find((message) => message.role === "assistant");
+const bashSamples = [
+  {
+    title: "成功态",
+    description: "检查命令摘要、输出块和完成状态。",
+    action: "运行 pnpm lint",
+    details: [
+      { icon: Terminal, text: "pnpm lint" },
+      { icon: CircleCheck, text: "运行完成" },
+      { icon: FileText, text: "控制台输出" },
+    ],
+  },
+  {
+    title: "失败态",
+    description: "检查错误输出、边框和长文本表现。",
+    action: "运行 pnpm dev:ui",
+    details: [
+      { icon: Terminal, text: "pnpm dev:ui" },
+      { icon: CircleX, text: "运行失败" },
+      { icon: FileText, text: "错误输出" },
+    ],
+  },
+] as const;
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <div>
-        <h3 class="text-sm font-semibold text-foreground">成功态</h3>
-        <p class="mt-1 text-sm text-muted-foreground">检查命令摘要、输出块和完成状态。</p>
-      </div>
-      <ToolMessage
-        :tool="demoTools[0]"
-        :tool-call="assistantMessage!.content[2]"
-        :result="conversationMessages[2]"
-      />
+  <ToolGallerySection title="Bash" description="命令执行类工具，适合检查成功态、失败态和输出块。">
+    <div class="grid gap-5">
+      <ToolSampleCard
+        v-for="sample in bashSamples"
+        :key="sample.title"
+        :title="sample.title"
+        :description="sample.description"
+      >
+        <ToolStateRows :action="sample.action" :details="sample.details" />
+      </ToolSampleCard>
     </div>
-
-    <div class="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <div>
-        <h3 class="text-sm font-semibold text-foreground">失败态</h3>
-        <p class="mt-1 text-sm text-muted-foreground">检查错误输出、边框和长文本表现。</p>
-      </div>
-      <ToolMessage
-        :tool="demoTools[0]"
-        :tool-call="failedBashToolCall"
-        :result="failedBashResult"
-      />
-    </div>
-  </div>
+  </ToolGallerySection>
 </template>

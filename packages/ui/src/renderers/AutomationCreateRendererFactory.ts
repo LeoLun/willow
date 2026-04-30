@@ -2,9 +2,8 @@ import type { ToolResultMessage } from "@mariozechner/pi-ai";
 import { markRaw } from "vue";
 import AutomationCreateToolRenderer from "./AutomationCreateToolRenderer.vue";
 import type { ToolRenderer, ToolRenderResult } from "./types";
-
 interface AutomationCreateRendererOptions {
-  onOpen?: () => void | Promise<void>;
+  onOpenAutomation?: (automation: any) => void | Promise<void>;
 }
 
 export class AutomationCreateRendererFactory implements ToolRenderer {
@@ -21,7 +20,7 @@ export class AutomationCreateRendererFactory implements ToolRenderer {
         params,
         result,
         isStreaming,
-        onOpen: this.options.onOpen,
+        onOpenAutomation: this.options.onOpenAutomation,
       },
       isCustom: true,
     };

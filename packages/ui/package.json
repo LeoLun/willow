@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@willow/shadcn": "workspace:*",
+    "github-markdown-css": "^5.9.0",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
     "lucide-vue-next": "^0.473.0",

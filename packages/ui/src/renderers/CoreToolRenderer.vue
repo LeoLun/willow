@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { ToolResultMessage } from "@mariozechner/pi-ai";
-import { ChevronRight, Code } from "lucide-vue-next";
-import { computed, ref } from "vue";
+import { Braces, Code } from "lucide-vue-next";
+import { computed } from "vue";
 import CodeBlock from "../components/CodeBlock.vue";
-import ToolHeader from "../components/ToolHeader.vue";
+import ToolCallCard from "../components/ToolCallCard.vue";
+import ToolCallDetailRow from "../components/ToolCallDetailRow.vue";
 import { i18n } from "../utils/i18n";
 import { getToolSummary } from "./tool-summary";
 
@@ -14,11 +15,16 @@ const props = defineProps<{
   isStreaming?: boolean;
 }>();
 
-const isExpanded = ref(false);
-
 const state = computed(() => {
-  if (props.result) return props.result.isError ? "error" : "complete";
-  return props.isStreaming ? "inprogress" : "complete";
+  if (props.result) return props.result.isError ? "error" : "completed";
+  return props.isStreaming ? "running" : "pending";
+});
+
+const stateLabel = computed(() => {
+  if (state.value === "error") return i18n("Error");
+  if (state.value === "running") return i18n("Running");
+  if (state.value === "pending") return i18n("Pending");
+  return i18n("Completed");
 });
 
 const paramsJson = computed(() => {
@@ -38,8 +44,8 @@ const outputData = computed(() => {
   if (!props.result) return null;
   let outputJson =
     props.result.content
-      ?.filter((c) => c.type === "text")
-      .map((c: any) => c.text)
+      ?.filter((item) => item.type === "text")
+      .map((item: any) => item.text)
       .join("\n") || i18n("no_output");
   let outputLanguage = "text";
 
@@ -48,85 +54,57 @@ const outputData = computed(() => {
     outputJson = JSON.stringify(parsed, null, 2);
     outputLanguage = "json";
   } catch {
-    // Not JSON
+    // Keep plain text output as-is.
   }
 
   return { text: outputJson, language: outputLanguage };
 });
 
-const headerText = computed(() => i18n("tool_call"));
+const isInProgress = computed(() => state.value === "running");
+const summaryText = computed(() => {
+  return (
+    getToolSummary(props.toolName, props.params, props.result?.details, isInProgress.value) ||
+    props.toolName ||
+    i18n("tool_call")
+  );
+});
 
 const hasInputData = computed(
   () => !!(paramsJson.value && paramsJson.value !== "{}" && paramsJson.value !== "null"),
 );
-
 const hasOutputData = computed(() => !!outputData.value);
-
 const hasDetails = computed(() => hasInputData.value || hasOutputData.value);
-
-const isInProgress = computed(() => state.value === "inprogress");
-
-const shouldShowDetails = computed(
-  () => hasDetails.value && !isInProgress.value && isExpanded.value,
-);
-
-const summaryText = computed(() => {
-  return getToolSummary(props.toolName, props.params, props.result?.details, isInProgress.value);
-});
-
-function toggleExpanded() {
-  isExpanded.value = !isExpanded.value;
-}
+const canExpand = computed(() => hasDetails.value && !isInProgress.value);
 </script>
 
 <template>
-  <div class="space-y-3">
-    <ToolHeader :state="state" :text="summaryText">
-      <template #icon>
-        <Code class="h-4 w-4" />
-      </template>
-    </ToolHeader>
+  <ToolCallCard
+    :title="summaryText"
+    :state-label="stateLabel"
+    :can-expand="canExpand"
+    :error="state === 'error'"
+    :loading="state === 'running' || state === 'pending'"
+  >
+    <template #icon>
+      <Code class="size-3.5 shrink-0 text-muted-foreground" />
+    </template>
 
-    <!-- <div class="text-sm text-foreground">
-     {{ summaryText }}
-    </div> -->
+    <template #details>
+      <ToolCallDetailRow :icon="Code" text="renderer: core" />
+      <ToolCallDetailRow v-if="hasInputData" :icon="Braces" text="JSON 参数详情" />
 
-    <button
-      v-if="hasDetails && !isInProgress"
-      type="button"
-      class="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-      @click="toggleExpanded"
-    >
-      <span class="inline-block transition-transform" :class="{ 'rotate-90': shouldShowDetails }">
-        <ChevronRight class="h-3.5 w-3.5" />
-      </span>
-      {{ shouldShowDetails ? i18n("hide_details") : i18n("show_details") }}
-    </button>
-
-    <template v-if="shouldShowDetails">
-      <template v-if="result">
-        <div v-if="hasInputData">
-          <div class="mb-1 text-xs font-medium text-muted-foreground">
-            {{ i18n("Input") }}
-          </div>
+      <div v-if="hasInputData" class="mt-3 space-y-2">
+        <div class="text-xs font-semibold text-muted-foreground">{{ i18n("Input") }}</div>
+        <div class="rounded-lg border border-border p-3">
           <CodeBlock :code="paramsJson" language="json" />
         </div>
-        <div v-if="hasOutputData">
-          <div class="mb-1 text-xs font-medium text-muted-foreground">
-            {{ i18n("Output") }}
-          </div>
+      </div>
+      <div v-if="hasOutputData" class="mt-3 space-y-2">
+        <div class="text-xs font-semibold text-muted-foreground">{{ i18n("Output") }}</div>
+        <div class="rounded-lg border border-border p-3">
           <CodeBlock :code="outputData!.text" :language="outputData!.language" />
         </div>
-      </template>
-
-      <template v-else-if="hasInputData">
-        <div>
-          <div class="mb-1 text-xs font-medium text-muted-foreground">
-            {{ i18n("Input") }}
-          </div>
-          <CodeBlock :code="paramsJson" language="json" />
-        </div>
-      </template>
+      </div>
     </template>
-  </div>
+  </ToolCallCard>
 </template>

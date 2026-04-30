@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { ToolMessage } from "@willow/ui";
-import { demoTools, webSearchResult, webSearchToolCall } from "../mock-data";
+import { FileText, List, Search } from "lucide-vue-next";
+import ToolGallerySection from "../components/ToolGallerySection.vue";
+import ToolSampleCard from "../components/ToolSampleCard.vue";
+import ToolStateRows from "../components/ToolStateRows.vue";
+
+const webSearchDetails = [
+  { icon: Search, text: "Willow tool renderer" },
+  { icon: List, text: "2 条搜索结果" },
+  { icon: FileText, text: "结果摘要" },
+] as const;
 </script>
 
 <template>
-  <div class="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
-    <div>
-      <h3 class="text-sm font-semibold text-foreground">搜索结果摘要</h3>
-      <p class="mt-1 text-sm text-muted-foreground">检查站点 pill、展开区和 Markdown 输出。</p>
-    </div>
-    <ToolMessage :tool="demoTools[1]" :tool-call="webSearchToolCall" :result="webSearchResult" />
-  </div>
+  <ToolGallerySection
+    title="Web Search"
+    description="搜索类工具，适合检查站点摘要、链接 pill 和结果详情。"
+  >
+    <ToolSampleCard title="Web Search 工具状态" description="检查站点摘要、链接 pill 和结果详情。">
+      <ToolStateRows action="搜索 Willow tool renderer" :details="webSearchDetails" />
+    </ToolSampleCard>
+  </ToolGallerySection>
 </template>

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { ToolResultMessage } from "@mariozechner/pi-ai";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@willow/shadcn";
-import { ChevronDown, Clock3, Globe, RotateCcw } from "lucide-vue-next";
-import { computed, ref, watch } from "vue";
+import { CircleCheck, CircleX, FileText, Globe } from "lucide-vue-next";
+import { computed } from "vue";
 import CodeBlock from "../components/CodeBlock.vue";
+import ToolCallCard from "../components/ToolCallCard.vue";
+import ToolCallDetailRow from "../components/ToolCallDetailRow.vue";
 import { i18n } from "../utils/i18n";
 
 interface WebFetchDetails {
@@ -23,8 +24,6 @@ const props = defineProps<{
   result?: ToolResultMessage<WebFetchDetails>;
   isStreaming?: boolean;
 }>();
-
-const open = ref(false);
 
 const parsedParams = computed<Record<string, any>>(() => {
   if (!props.params) return {};
@@ -46,18 +45,28 @@ const state = computed(() => {
   return props.isStreaming ? "running" : "pending";
 });
 
-const hasResultError = computed(() => !!props.result?.isError);
+const stateLabel = computed(() => {
+  if (state.value === "error") return i18n("Error");
+  if (state.value === "running") return i18n("Running");
+  if (state.value === "pending") return i18n("Pending");
+  return i18n("Completed");
+});
 
 const requestUrl = computed(() => details.value.url || parsedParams.value.url || "");
 
-const hostLabel = computed(() => {
+const targetLabel = computed(() => {
   if (!requestUrl.value) return i18n("fetch_web");
   try {
     const url = new URL(requestUrl.value);
-    return `${i18n("read_web")} ${url.host}${url.pathname === "/" ? "" : url.pathname}`;
+    return `${url.host}${url.pathname === "/" ? "" : url.pathname}`;
   } catch {
     return requestUrl.value;
   }
+});
+
+const titleText = computed(() => {
+  if (!requestUrl.value) return i18n("fetch_web");
+  return `读取 ${targetLabel.value}`;
 });
 
 const outputText = computed(() => {
@@ -84,6 +93,19 @@ const outputLanguage = computed(() => {
   return "text";
 });
 
+const previewLabel = computed(() => {
+  if (outputLanguage.value === "html") return "HTML 内容预览";
+  if (outputLanguage.value === "markdown") return "Markdown 内容预览";
+  return "文本内容预览";
+});
+
+const statusDetailText = computed(() => {
+  if (state.value === "error") return "抓取失败";
+  if (state.value === "running") return "抓取中";
+  if (state.value === "pending") return "等待抓取";
+  return "抓取完成";
+});
+
 const paramsJson = computed(() => {
   if (!props.params) return "";
   try {
@@ -99,78 +121,18 @@ const paramsJson = computed(() => {
 
 const hasDetails = computed(() => !!props.result || !!paramsJson.value);
 const canExpand = computed(() => hasDetails.value && state.value !== "running");
-
-watch(
-  () => state.value,
-  (value) => {
-    if (value === "running") {
-      open.value = false;
-    }
-  },
-  { immediate: true },
-);
-
-function handleOpenChange(nextOpen: boolean) {
-  if (!canExpand.value) {
-    open.value = false;
-    return;
-  }
-  open.value = nextOpen;
-}
 </script>
 
 <template>
-  <Collapsible :open="open" @update:open="handleOpenChange">
-    <div class="rounded-lg border border-border bg-card px-3 py-1.5 text-card-foreground">
-      <CollapsibleTrigger
-        class="flex w-full items-center justify-between gap-3 text-left disabled:pointer-events-none"
-        :disabled="!canExpand"
-      >
-        <div class="min-w-0 flex-1 space-y-3">
-          <div class="flex min-w-0 items-center gap-2">
-            <Globe class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <div class="min-w-0 flex-1 truncate text-xs leading-none text-muted-foreground">
-              {{ hostLabel }}
-            </div>
-            <span
-              class="inline-flex shrink-0 items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs leading-none whitespace-nowrap text-muted-foreground"
-            >
-              {{
-                state === "running"
-                  ? i18n("fetch_web")
-                  : hasResultError
-                    ? i18n("Error")
-                    : i18n("Completed")
-              }}
-            </span>
-          </div>
-        </div>
-
-        <ChevronDown
-          class="h-5 w-5 shrink-0 text-muted-foreground transition-transform"
-          :class="{ 'rotate-180': open }"
-        />
-      </CollapsibleTrigger>
-
-      <CollapsibleContent v-if="hasDetails" class="CollapsibleContent mt-4 space-y-4">
-        <div v-if="paramsJson" class="space-y-2">
-          <div class="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-            {{ i18n("parameters") }}
-          </div>
-          <div class="rounded-xl border border-border p-3">
-            <CodeBlock :code="paramsJson" language="json" />
-          </div>
-        </div>
-
-        <div v-if="outputText" class="space-y-2">
-          <div class="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-            {{ i18n("Result") }}
-          </div>
-          <div class="rounded-xl border border-border p-3">
-            <CodeBlock :code="outputText" :language="outputLanguage" />
-          </div>
-        </div>
-      </CollapsibleContent>
-    </div>
-  </Collapsible>
+  <ToolCallCard
+    :title="titleText"
+    :state-label="stateLabel"
+    :can-expand="false"
+    :error="state === 'error'"
+    :loading="state === 'running' || state === 'pending'"
+  >
+    <template #icon>
+      <Globe class="size-3.5 shrink-0 text-muted-foreground" />
+    </template>
+  </ToolCallCard>
 </template>

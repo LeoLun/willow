@@ -1,18 +1,13 @@
 <script setup lang="ts">
-import type { Session } from "@shared/api";
+import type { Automation, Session } from "@shared/api";
 import { SESSION_TITLE_UPDATED } from "@shared/constants";
 import { Card } from "@willow/shadcn";
 import { SidebarProvider, SidebarTrigger } from "@willow/shadcn/components/ui/sidebar";
 import { Toaster } from "@willow/shadcn/components/ui/sonner";
 import { TooltipProvider } from "@willow/shadcn/components/ui/tooltip";
-import {
-  AutomationCreateRendererFactory,
-  registerToolRenderer,
-  TodoRendererFactory,
-} from "@willow/ui";
+import { registryAllToolRenderers } from "@willow/ui";
 import { computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
-import TopDragBar from "@/components/base/TopDragBar.vue";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { useEventBus } from "@/composables/useEventBus";
 import { DialogProvider } from "@/layout/dialog";
@@ -22,14 +17,15 @@ import "vue-sonner/style.css";
 import LeftSidebar from "./layout/sidebar/LeftSidebar.vue";
 
 useDarkMode();
-// registerToolRenderer(
-//   "automation_create",
-//   new AutomationCreateRendererFactory({
-//     onOpen: () => router.push("/auto"),
-//   }),
-// );
-registerToolRenderer("todoread", new TodoRendererFactory());
-registerToolRenderer("todowrite", new TodoRendererFactory());
+
+registryAllToolRenderers({
+  onOpenUrl: (url: string) => {
+    window.open(url, "_blank");
+  },
+  onOpenAutomation: (automation: Automation) => {
+    router.push(`/auto/${automation.id}`);
+  },
+});
 
 const route = useRoute();
 const sessionStore = useSessionStore();

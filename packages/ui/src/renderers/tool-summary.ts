@@ -6,7 +6,7 @@ function normalizeToolName(name: string | undefined): ToolName | null {
   if (!name) return null;
   const lowered = name.toLowerCase();
   const bySplit = lowered.split(/[/:.]/).filter(Boolean).pop() || lowered;
-  const base = bySplit.replace(/[-_](tool|file)$/g, "");
+  const base = bySplit.replace(/[-_](tool|file)$/g, "").replace(/[-_]/g, "");
 
   if (
     base === "read" ||

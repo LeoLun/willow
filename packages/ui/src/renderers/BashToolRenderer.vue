@@ -3,53 +3,79 @@ import type { ToolResultMessage } from "@mariozechner/pi-ai";
 import { SquareTerminal } from "lucide-vue-next";
 import { computed } from "vue";
 import ConsoleBlock from "../components/ConsoleBlock.vue";
-import ToolHeader from "../components/ToolHeader.vue";
+import ToolCallCard from "../components/ToolCallCard.vue";
 import { i18n } from "../utils/i18n";
 
 const props = defineProps<{
-  params?: { command?: string };
+  params?: { command?: string } | string;
   result?: ToolResultMessage;
   isStreaming?: boolean;
 }>();
 
-const state = computed(() => {
-  if (props.result) return props.result.isError ? "error" : "complete";
-  return "inprogress";
+const parsedParams = computed<Record<string, unknown>>(() => {
+  if (!props.params) return {};
+  if (typeof props.params === "object") return props.params;
+  try {
+    const parsed = JSON.parse(props.params);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
 });
 
-const headerText = computed(() => {
-  if (!props.params?.command) return i18n("waiting_for_command");
-  return i18n("running_command");
+const commandText = computed(() => {
+  const command = parsedParams.value.command;
+  return typeof command === "string" ? command : "";
+});
+
+const state = computed(() => {
+  if (props.result) return props.result.isError ? "error" : "completed";
+  return props.isStreaming ? "running" : "pending";
+});
+
+const titleText = computed(() => {
+  if (!commandText.value) return i18n("waiting_for_command");
+  return `运行 Bash 命令`;
+});
+
+const outputText = computed(() => {
+  return (
+    props.result?.content
+      ?.filter((item) => item.type === "text")
+      .map((item: any) => item.text)
+      .join("\n") ?? ""
+  );
 });
 
 const consoleContent = computed(() => {
-  if (props.result && props.params?.command) {
-    const output =
-      props.result.content
-        ?.filter((c) => c.type === "text")
-        .map((c: any) => c.text)
-        .join("\n") || "";
-    return output ? `> ${props.params.command}\n\n${output}` : `> ${props.params.command}`;
-  }
-  if (props.params?.command) {
-    return `> ${props.params.command}`;
-  }
-  return "";
+  if (!commandText.value && !outputText.value) return "";
+  if (!commandText.value) return outputText.value;
+  return outputText.value
+    ? `> ${commandText.value}\n\n${outputText.value}`
+    : `> ${commandText.value}`;
 });
+
+const canExpand = computed(() => Boolean(commandText.value || outputText.value || props.result));
 </script>
 
 <template>
-  <div class="space-y-3">
-    <ToolHeader :state="state" :text="headerText">
-      <template #icon>
-        <SquareTerminal class="h-4 w-4" />
-      </template>
-    </ToolHeader>
+  <ToolCallCard
+    :title="titleText"
+    :can-expand="canExpand"
+    :error="state === 'error'"
+    :loading="state === 'running' || state === 'pending'"
+  >
+    <template #icon>
+      <SquareTerminal class="size-3.5 shrink-0 text-muted-foreground" />
+    </template>
 
-    <ConsoleBlock
-      v-if="consoleContent"
-      :content="consoleContent"
-      :variant="result?.isError ? 'error' : 'default'"
-    />
-  </div>
+    <template #details>
+      <ConsoleBlock
+        v-if="consoleContent"
+        class="mt-3"
+        :content="consoleContent"
+        :variant="result?.isError ? 'error' : 'default'"
+      />
+    </template>
+  </ToolCallCard>
 </template>

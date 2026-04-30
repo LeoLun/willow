@@ -1,6 +1,7 @@
 const translations: Record<string, Record<string, string>> = {
   en: {
     "Error:": "Error:",
+    deleted: "Deleted",
     request_aborted: "Request aborted",
     console: "console",
     copy_output: "Copy output",
@@ -65,6 +66,7 @@ const translations: Record<string, Record<string, string>> = {
   },
   zh: {
     "Error:": "错误：",
+    deleted: "已删除",
     request_aborted: "请求已中止",
     console: "控制台",
     copy_output: "复制输出",

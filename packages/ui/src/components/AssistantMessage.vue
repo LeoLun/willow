@@ -103,14 +103,14 @@ const usageText = computed(() => {
       </template>
     </div>
 
-    <div
+    <!-- <div
       v-if="usageText"
       class="mt-2 px-4 text-xs text-muted-foreground transition-colors"
       :class="{ 'cursor-pointer hover:text-foreground': onCostClick }"
       @click="onCostClick?.()"
     >
       {{ usageText }}
-    </div>
+    </div> -->
 
     <div
       v-if="message.stopReason === 'error' && message.errorMessage"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import type { ToolCall, ToolResultMessage } from "@mariozechner/pi-ai";
+import { Button } from "@willow/shadcn";
 import { computed } from "vue";
 import { renderTool } from "../renderers/registry";
 
@@ -98,25 +99,15 @@ const argsSummary = computed(() => {
       </div>
       <div
         v-if="approval.toolName === 'bash' && approval.status === 'pending'"
-        class="mt-2 text-amber-600"
+        class="mt-2 text-xs text-amber-600"
       >
         这是高危操作，需要人工确认。
       </div>
       <div v-if="approval.status === 'pending'" class="mt-3 flex gap-2">
-        <button
-          type="button"
-          class="rounded-md bg-primary px-3 py-1.5 text-primary-foreground transition-opacity hover:opacity-90"
-          @click="onApprove?.(toolCall.id)"
-        >
-          批准本次执行
-        </button>
-        <button
-          type="button"
-          class="rounded-md border border-border px-3 py-1.5 transition-colors hover:bg-muted"
-          @click="onReject?.(toolCall.id)"
-        >
+        <Button type="button" size="sm" @click="onApprove?.(toolCall.id)"> 批准本次执行 </Button>
+        <Button type="button" variant="outline" size="sm" @click="onReject?.(toolCall.id)">
           拒绝本次执行
-        </button>
+        </Button>
       </div>
       <div v-else class="mt-3 text-xs text-muted-foreground">
         {{ approval.status === "approved" ? "本次调用已批准" : "本次调用已拒绝" }}

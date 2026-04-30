@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { BrowserWindow, app, ipcMain } from "electron";
+import { BrowserWindow, app, ipcMain, shell } from "electron";
 import { Container, interfaces } from "inversify";
 import { MODULE_METADATA, WINDOW_METADATA } from "../common/constants";
 import { PropertysExplorer } from "./propertys-explorer";
@@ -148,6 +148,8 @@ export class CoreFactoryStatic {
       return;
     }
     const browserWindow = new BrowserWindow(options);
+    this.openExternalUrlsInDefaultBrowser(browserWindow, loadURL);
+
     if (loadURL) {
       browserWindow.loadURL(loadURL);
     }
@@ -184,6 +186,47 @@ export class CoreFactoryStatic {
       });
     }
     return;
+  }
+
+  private openExternalUrlsInDefaultBrowser(browserWindow: BrowserWindow, appUrl?: string) {
+    browserWindow.webContents.setWindowOpenHandler(({ url }) => {
+      if (this.openUrlInDefaultBrowser(url, browserWindow.webContents.getURL(), appUrl)) {
+        return { action: "deny" };
+      }
+
+      return { action: "allow" };
+    });
+
+    browserWindow.webContents.on("will-navigate", (event, url) => {
+      if (url === browserWindow.webContents.getURL()) {
+        return;
+      }
+
+      if (this.openUrlInDefaultBrowser(url, browserWindow.webContents.getURL(), appUrl)) {
+        event.preventDefault();
+      }
+    });
+  }
+
+  private openUrlInDefaultBrowser(url: string, currentUrl: string, appUrl?: string) {
+    if (!/^(https?:|mailto:)/i.test(url)) {
+      return false;
+    }
+
+    if (this.hasSameOrigin(url, currentUrl) || (appUrl && this.hasSameOrigin(url, appUrl))) {
+      return false;
+    }
+
+    void shell.openExternal(url);
+    return true;
+  }
+
+  private hasSameOrigin(url: string, currentUrl: string) {
+    try {
+      return new URL(url).origin === new URL(currentUrl).origin;
+    } catch {
+      return false;
+    }
   }
 }
 

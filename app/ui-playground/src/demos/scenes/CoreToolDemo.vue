@@ -1,14 +1,22 @@
 <script setup lang="ts">
-import CoreToolRenderer from "@willow/ui/renderers/CoreToolRenderer.vue";
-import { coreToolParams, coreToolResult } from "../mock-data";
+import { Braces, Code } from "lucide-vue-next";
+import ToolGallerySection from "../components/ToolGallerySection.vue";
+import ToolSampleCard from "../components/ToolSampleCard.vue";
+import ToolStateRows from "../components/ToolStateRows.vue";
+
+const coreDetails = [
+  { icon: Code, text: "renderer: core" },
+  { icon: Braces, text: "JSON 参数详情" },
+] as const;
 </script>
 
 <template>
-  <div class="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
-    <div>
-      <h3 class="text-sm font-semibold text-foreground">Core Renderer</h3>
-      <p class="mt-1 text-sm text-muted-foreground">检查通用工具头部、展开详情和 JSON 输出。</p>
-    </div>
-    <CoreToolRenderer tool-name="finance" :params="coreToolParams" :result="coreToolResult" />
-  </div>
+  <ToolGallerySection
+    title="Core Renderer"
+    description="通用 core 渲染路径，适合检查展开详情和 JSON 输出。"
+  >
+    <ToolSampleCard title="Core Renderer" description="检查通用工具头部、展开详情和 JSON 输出。">
+      <ToolStateRows action="渲染 Core 工具详情" :details="coreDetails" />
+    </ToolSampleCard>
+  </ToolGallerySection>
 </template>

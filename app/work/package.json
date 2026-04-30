@@ -7,17 +7,25 @@
   "main": ".vite/build/main.js",
   "scripts": {
     "dev": "electron-forge start",
+    "predev": "pnpm run rebuild:native",
     "package": "electron-forge package",
+    "prepackage": "pnpm run rebuild:native",
     "package:mac": "electron-forge package --platform=darwin",
+    "prepackage:mac": "pnpm run rebuild:native",
     "make": "electron-forge make",
+    "premake": "pnpm run rebuild:native",
     "make:mac": "electron-forge make --platform=darwin",
+    "premake:mac": "pnpm run rebuild:native",
     "make:mac:arm64": "electron-forge make --platform=darwin --arch=arm64",
+    "premake:mac:arm64": "pnpm run rebuild:native",
     "make:mac:x64": "electron-forge make --platform=darwin --arch=x64",
+    "premake:mac:x64": "pnpm run rebuild:native",
     "publish": "electron-forge publish",
     "lint": "oxlint src/",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "postinstall": "cd ../../node_modules/better-sqlite3 && prebuild-install --runtime electron --target 33.2.1 || true"
+    "rebuild:native": "env HOME=$PWD/../.. electron-rebuild --force --which-module better-sqlite3 --module-dir ../.. --dist-url=https://npmmirror.com/mirrors/electron",
+    "postinstall": "pnpm run rebuild:native"
   },
   "dependencies": {
     "@mariozechner/pi-agent-core": "^0.62.0",

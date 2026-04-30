@@ -16,7 +16,7 @@ export default defineConfig({
   },
   plugins: [tailwindcss(), vue()],
   optimizeDeps: {
-    exclude: ["@willow/sender"],
+    exclude: ["@willow/sender", "@willow/ui"],
     include: [
       "highlight.js/lib/core",
       "highlight.js/lib/languages/bash",

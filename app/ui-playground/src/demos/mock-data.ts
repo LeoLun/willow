@@ -282,7 +282,20 @@ export const webSearchResult = {
       ),
     },
   ],
-  details: { source: "demo" },
+  details: {
+    query: "best practices for vite localhost dev server",
+    resultCount: 2,
+    results: [
+      {
+        title: "Vite Server Options",
+        url: "https://vite.dev/config/server-options",
+      },
+      {
+        title: "Vite CLI",
+        url: "https://vite.dev/guide/cli",
+      },
+    ],
+  },
   timestamp: timestamp + 4,
 } as ToolResultMessage;
 

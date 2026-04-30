@@ -19,6 +19,7 @@ jspm_packages/
 
 # Optional npm cache directory
 .npm/
+.electron-gyp/
 
 # Optional eslint cache
 .eslintcache

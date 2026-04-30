@@ -207,7 +207,7 @@ const renderedHtml = computed(() => {
   const originalTable = renderer.table;
   renderer.table = function (token: any) {
     const table = originalTable.call(this, token);
-    return `<div class="overflow-x-auto my-2 border border-border rounded">${table}</div>`;
+    return `<div class="overflow-x-auto my-3">${table}</div>`;
   };
 
   let parsedContent = marked.parse(preservedContent, {
@@ -249,8 +249,8 @@ const renderedHtml = computed(() => {
 
 const containerClasses = computed(() =>
   props.isThinking
-    ? "markdown-content text-muted-foreground italic max-w-none break-words overflow-wrap-anywhere text-sm [&>*:last-child]:!mb-0"
-    : "markdown-content text-foreground max-w-none break-words overflow-wrap-anywhere [&>*:last-child]:!mb-0",
+    ? "markdown-body markdown-content text-muted-foreground italic max-w-none break-words overflow-wrap-anywhere text-sm [&>*:last-child]:!mb-0"
+    : "markdown-body markdown-content text-foreground max-w-none break-words overflow-wrap-anywhere [&>*:last-child]:!mb-0",
 );
 
 // We need to render CodeBlock components for any code blocks in the parsed HTML.

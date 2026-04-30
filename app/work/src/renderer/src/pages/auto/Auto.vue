@@ -8,7 +8,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@willow/shadcn/components/ui/dropdown-menu";
-import { Label } from "@willow/shadcn/components/ui/label";
 import { Separator } from "@willow/shadcn/components/ui/separator";
 import {
   BookOpenText,
