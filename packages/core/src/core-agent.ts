@@ -16,6 +16,7 @@ export interface CoreAgentOptions {
   userData?: string;
   customInstructions?: string;
   projectContext?: string;
+  compressedContext?: string;
   websearch?: WebSearchOptions;
   todoStore?: TodoStore;
   extraTools?: WillowTool<any>[];
@@ -53,6 +54,7 @@ export class CoreAgent {
       skills,
       customInstructions: options.customInstructions,
       projectContext: options.projectContext,
+      compressedContext: options.compressedContext,
     };
 
     this.agent.setSystemPrompt(buildSystemPrompt(promptOptions));

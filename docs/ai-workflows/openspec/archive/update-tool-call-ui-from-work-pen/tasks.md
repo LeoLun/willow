@@ -43,7 +43,7 @@
 
 - [x] 6.1 运行 `pnpm lint`。
 - [x] 6.2 运行影响范围需要的 build 检查，至少覆盖 `packages/ui` 与 `app/ui-playground`。
-- [ ] 6.3 使用 `pnpm dev:ui` 手动检查工具总览 demo。
-- [ ] 6.4 在主应用聊天页手动检查工具调用内联展示、审批提示和异常状态。
-- [ ] 6.5 手动检查 loading 扫光不会遮挡标题、状态、chevron、展开详情或审批提示。
-- [ ] 6.6 对照 [`ui/work.pen`](/Users/liujinglun/code/willow/ui/work.pen) 与 [`DESIGN.md`](/Users/liujinglun/code/willow/DESIGN.md) 做最终视觉校对。
+- [x] 6.3 使用 `pnpm dev:ui` 手动检查工具总览 demo。
+- [x] 6.4 在主应用聊天页手动检查工具调用内联展示、审批提示和异常状态。
+- [x] 6.5 手动检查 loading 扫光不会遮挡标题、状态、chevron、展开详情或审批提示。
+- [x] 6.6 对照 [`ui/work.pen`](/Users/liujinglun/code/willow/ui/work.pen) 与 [`DESIGN.md`](/Users/liujinglun/code/willow/DESIGN.md) 做最终视觉校对。

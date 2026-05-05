@@ -86,4 +86,14 @@ export class SessionMessageDao {
       .returning()
       .all();
   }
+
+  deleteByIds(ids: number[]) {
+    if (ids.length === 0) return [];
+    return this.dbService
+      .getDb()
+      .delete(sessionMessages)
+      .where(inArray(sessionMessages.id, ids))
+      .returning()
+      .all();
+  }
 }

@@ -49,6 +49,26 @@ export const sessionMessages = sqliteTable("session_messages", {
     .notNull(),
 });
 
+export const sessionContextSummaries = sqliteTable("session_context_summaries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sessionId: integer("session_id")
+    .references(() => sessions.id, { onDelete: "cascade" })
+    .notNull(),
+  modelId: text("model_id").notNull(),
+  summary: text("summary").notNull(),
+  indexText: text("index_text").notNull(),
+  compressedUntilMessageId: integer("compressed_until_message_id").notNull(),
+  sourceMessageCount: integer("source_message_count").notNull(),
+  estimatedTokens: integer("estimated_tokens").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdateFn(() => new Date())
+    .notNull(),
+});
+
 export const tavilyApiKeys = sqliteTable("tavily_api_keys", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   apiKey: text("api_key").notNull(),

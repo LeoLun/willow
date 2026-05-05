@@ -31,6 +31,19 @@ export interface SessionHistory {
   createdAt: Date;
 }
 
+export interface SessionContextSummary {
+  id: number;
+  sessionId: number;
+  modelId: string;
+  summary: string;
+  indexText: string;
+  compressedUntilMessageId: number;
+  sourceMessageCount: number;
+  estimatedTokens: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface SessionDetail {
   id: number;
   workspaceId: number;
@@ -275,6 +288,13 @@ export interface ActiveSessionStream {
   pendingToolCallIds: string[];
   toolApprovals?: ToolApproval[];
   todos?: TodoItem[];
+}
+
+export interface ContextCompressionUpdate {
+  sessionId: number;
+  status: "compressed" | "degraded";
+  message?: string;
+  estimatedTokens?: number;
 }
 
 export interface GetSessionHistoryResponse {

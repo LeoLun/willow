@@ -1,6 +1,8 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
-import type { ActiveSessionStream, ToolApproval } from "@shared/api";
+import type { ActiveSessionStream, ContextCompressionUpdate, ToolApproval } from "@shared/api";
+import { CONTEXT_COMPRESSION_UPDATED } from "@shared/constants";
 import { reactive, onMounted, onUnmounted, type Ref, watch } from "vue";
+import { toast } from "vue-sonner";
 import { electronAPI } from "@/lib/ipc";
 import { useEventBus } from "./useEventBus";
 
@@ -129,12 +131,28 @@ export function useAgentMessages(sessionId: Ref<number>, options?: UseAgentMessa
     }
   }
 
+  function handleContextCompression(data: ContextCompressionUpdate) {
+    if (data.sessionId !== sessionId.value) return;
+    const message =
+      data.message ??
+      (data.status === "degraded"
+        ? "较早历史可能不完整，AI 已优先保留最近上下文"
+        : "上下文已自动压缩，较早消息已摘要供 AI 参考");
+    if (data.status === "degraded") {
+      toast.warning(message);
+      return;
+    }
+    toast.info(message);
+  }
+
   onMounted(() => {
     addEventListener("UPDATE_MESSAGE", handleUpdateMessage);
+    addEventListener(CONTEXT_COMPRESSION_UPDATED, handleContextCompression);
   });
 
   onUnmounted(() => {
     removeEventListener("UPDATE_MESSAGE", handleUpdateMessage);
+    removeEventListener(CONTEXT_COMPRESSION_UPDATED, handleContextCompression);
   });
 
   watch(

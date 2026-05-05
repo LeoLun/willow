@@ -42,10 +42,12 @@ import { AutomationSchedulerService } from "./service/automation-scheduler.servi
 import { registerAutomationToolService } from "./service/automation-tool.service";
 import { AutomationService } from "./service/automation.service";
 import { ConfigService } from "./service/config.service";
+import { ContextCompressionService } from "./service/context-compression.service";
 import { AutomationRunDao } from "./service/dao/automation-run.dao.service";
 import { AutomationTriggerDao } from "./service/dao/automation-trigger.dao.service";
 import { AutomationDao } from "./service/dao/automation.dao.service";
 import { ModelDao } from "./service/dao/model.dao.service";
+import { SessionContextSummaryDao } from "./service/dao/session-context-summary.dao.service";
 import { SessionMessageDao } from "./service/dao/session-message.dao.service";
 import { SessionDao } from "./service/dao/session.dao.service";
 import { TavilyDao } from "./service/dao/tavily.dao.service";
@@ -75,9 +77,11 @@ if (started) {
     SkillService,
     AgentService,
     ConfigService,
+    ContextCompressionService,
     WorkspaceDao,
     SessionDao,
     SessionMessageDao,
+    SessionContextSummaryDao,
     ModelDao,
     TavilyDao,
     TavilyService,

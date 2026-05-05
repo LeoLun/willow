@@ -1,4 +1,4 @@
-import { AgentService } from "@main/service/agent.service";
+import { AgentService, type AgentContextCompressionState } from "@main/service/agent.service";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import { SessionDao } from "@main/service/dao/session.dao.service";
 import { EventService } from "@main/service/event.service";
@@ -12,7 +12,7 @@ import {
 import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 import type { AgentEvent, AgentMessage } from "@mariozechner/pi-agent-core";
 import type { ActiveSessionStream, SendMessage, ToolApproval } from "@shared/api";
-import { SESSION_TITLE_UPDATED } from "@shared/constants";
+import { CONTEXT_COMPRESSION_UPDATED, SESSION_TITLE_UPDATED } from "@shared/constants";
 import type { ToolApprovalDecision } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 
@@ -39,6 +39,7 @@ interface RunningSession {
       onResolved(listener: (approval: ToolApproval) => void): () => void;
     };
     resolveToolApproval(toolCallId: string, decision: ToolApprovalDecision): boolean;
+    contextCompression?: AgentContextCompressionState;
   };
   agent: {
     abort(): void;
@@ -212,8 +213,15 @@ export class SessionService {
       session,
       data.modelId,
       data.webSearchEnabled,
+      promptInput,
     );
     const agent = coreAgent.agent;
+    if (coreAgent.contextCompression?.notification) {
+      this.eventService.sendEvent(
+        CONTEXT_COMPRESSION_UPDATED,
+        coreAgent.contextCompression.notification,
+      );
+    }
     const offPendingApproval = coreAgent.approvalCoordinator.onPending((approval) => {
       this.upsertToolApproval(sessionId, approval);
     });
@@ -228,13 +236,18 @@ export class SessionService {
     let replyText = "";
 
     const unsubscribe = agent.subscribe((event: AgentEvent) => {
-      this.updateActiveSessionStream(sessionId, event, agent.state.messages);
+      const displayMessages = this.buildDisplayMessages(coreAgent, agent.state.messages);
+      this.updateActiveSessionStream(sessionId, event, displayMessages);
       // agent_end 自带的 event.messages 仅为本轮新增（pi-agent-core newMessages），不含历史
       if (event.type === "agent_end") {
-        this.persistAgentMessagesSnapshot(sessionId, agent.state.messages);
+        this.persistAgentMessagesSnapshot(
+          sessionId,
+          agent.state.messages,
+          coreAgent.contextCompression,
+        );
       }
       const outgoing: AgentEvent =
-        event.type === "agent_end" ? { ...event, messages: agent.state.messages } : event;
+        event.type === "agent_end" ? { ...event, messages: displayMessages } : event;
       this.eventService.sendEvent("UPDATE_MESSAGE", {
         sessionId: sessionId,
         groupId: "0",
@@ -285,12 +298,21 @@ export class SessionService {
 
   /**
    * 尚无「会话分组」产品时 group_id 统一占位为 0。
-   * 用 agent.state.messages 全量覆盖写入（勿用 agent_end.event.messages，其不含历史）。
+   * 未压缩时用 agent.state.messages 全量覆盖写入（勿用 agent_end.event.messages，其不含历史）。
+   * 已压缩时保留较早原始消息行，只替换主 Agent 实际持有的最近窗口和新消息。
    */
-  private persistAgentMessagesSnapshot(sessionId: number, messages: AgentMessage[]): void {
+  private persistAgentMessagesSnapshot(
+    sessionId: number,
+    messages: AgentMessage[],
+    compression?: AgentContextCompressionState,
+  ): void {
     const GROUP_PLACEHOLDER = 0;
     try {
-      this.sessionMessageDao.deleteBySessionId(sessionId);
+      if (compression && compression.replaceMessageIds.length > 0) {
+        this.sessionMessageDao.deleteByIds(compression.replaceMessageIds);
+      } else {
+        this.sessionMessageDao.deleteBySessionId(sessionId);
+      }
       if (messages.length === 0) {
         return;
       }
@@ -305,6 +327,17 @@ export class SessionService {
     } catch (e) {
       console.error("persist session messages failed", sessionId, e);
     }
+  }
+
+  private buildDisplayMessages(
+    coreAgent: RunningSession["coreAgent"],
+    messages: AgentMessage[],
+  ): AgentMessage[] {
+    const prefix = coreAgent.contextCompression?.displayMessagePrefix;
+    if (!prefix || prefix.length === 0) {
+      return messages;
+    }
+    return [...prefix, ...messages];
   }
 
   private updateActiveSessionStream(

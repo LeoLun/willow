@@ -10,6 +10,7 @@ export interface SystemPromptOptions {
   skills?: Skill[];
   customInstructions?: string;
   projectContext?: string;
+  compressedContext?: string;
 }
 
 export function buildSystemPrompt(options: SystemPromptOptions): string {
@@ -19,6 +20,7 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
     skills = [],
     customInstructions,
     projectContext,
+    compressedContext,
     userDir,
     projectDir,
   } = options;
@@ -72,6 +74,10 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
 
   if (projectContext) {
     prompt += `\n# 项目上下文\n\n${projectContext}\n`;
+  }
+
+  if (compressedContext) {
+    prompt += `\n# 已压缩历史上下文\n\n${compressedContext}\n`;
   }
 
   const hasTodo = toolNames.includes("todowrite");
