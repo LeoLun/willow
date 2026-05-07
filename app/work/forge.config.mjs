@@ -21,6 +21,7 @@ const config = {
     appBundleId: "com.willow.work",
     appCategoryType: "public.app-category.productivity",
     executableName: "Willow Work",
+    icon: "./assets/icons/icon",
     extraResource: ["./src/main/db/migrations"],
   },
   rebuildConfig: {},

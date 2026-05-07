@@ -5,7 +5,10 @@
       "Bash(openspec status *)",
       "Bash(openspec show *)",
       "Bash(openspec validate *)",
-      "Bash(openspec list *)"
+      "Bash(openspec list *)",
+      "Bash(pnpm build *)",
+      "Bash(npx tsc *)",
+      "Bash(npx tsgo *)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -56,7 +56,7 @@ onUnmounted(() => {
 
     <SidebarProvider v-else class="relative flex h-screen w-screen overflow-hidden bg-sidebar">
       <LeftSidebar />
-      <SidebarTrigger class="absolute top-[9px] left-[70px] z-100" />
+      <SidebarTrigger class="absolute top-[7.5px] left-[70px] z-100" />
 
       <!-- 主区域 -->
       <div class="flex min-w-0 flex-1 flex-col">

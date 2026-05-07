@@ -36,26 +36,28 @@ const props = withDefaults(
   defineProps<{
     mode: "workspace" | "session";
     open: boolean;
+    width: number;
+    isDragging?: boolean;
     session?: Session;
     workspace?: Workspace;
     messageCount?: number;
     todos?: TodoItem[];
   }>(),
   {
+    width: 320,
+    isDragging: false,
     messageCount: 0,
     todos: () => [],
   },
 );
 
 const workspaceStore = useWorkspaceStore();
-const widthClass = computed(() => {
-  if (props.open) {
-    return "w-80 basis-80";
-  }
-  return "w-0 basis-0";
-});
+const sidebarStyle = computed(() => ({
+  width: props.open ? `${props.width}px` : "0px",
+  flexBasis: props.open ? `${props.width}px` : "0px",
+}));
 const workspaceId = computed(() => props.workspace?.id ?? props.session?.workspaceId ?? 0);
-const activeTab = ref<"primary" | "files" | "agents">(
+const activeTab = ref<"primary" | "files" | "app">(
   props.mode === "workspace" ? "primary" : "primary",
 );
 const {
@@ -145,14 +147,18 @@ async function handleOpenWorkspaceFolder() {
 
 <template>
   <aside
-    class="min-h-0 flex-none overflow-hidden transition-[width,flex-basis] duration-300 ease-in-out"
-    :class="widthClass"
+    class="min-h-0 flex-none overflow-hidden"
+    :class="{ 'transition-[width,flex-basis] duration-300 ease-in-out': !props.isDragging }"
+    :style="sidebarStyle"
   >
     <Sidebar
       side="right"
       collapsible="none"
-      class="h-full w-80 border-l border-border bg-card"
-      :style="{ '--sidebar-width': props.open ? '20rem' : '0rem' }"
+      class="h-full bg-card"
+      :style="{
+        width: props.open ? `${props.width}px` : '0px',
+        '--sidebar-width': props.open ? `${props.width / 16}rem` : '0rem',
+      }"
     >
       <div class="flex h-full flex-col">
         <div class="border-b border-sidebar-border px-3 py-2">
@@ -182,10 +188,10 @@ async function handleOpenWorkspaceFolder() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuLink as-child :active="activeTab === 'agents'">
-                  <button type="button" class="h-8" @click="activeTab = 'agents'">
+                <NavigationMenuLink as-child :active="activeTab === 'app'">
+                  <button type="button" class="h-8" @click="activeTab = 'app'">
                     <FileText class="size-3.5" />
-                    AGENTS.md
+                    应用
                   </button>
                 </NavigationMenuLink>
               </NavigationMenuItem>
@@ -322,40 +328,9 @@ async function handleOpenWorkspaceFolder() {
           </div>
         </ScrollArea>
 
-        <ScrollArea v-else-if="activeTab === 'agents'" class="h-full">
+        <ScrollArea v-else-if="activeTab === 'app'" class="h-full">
           <div class="px-3 py-2">
-            <div class="space-y-3">
-              <div class="flex items-center gap-2 text-sm font-medium text-foreground">
-                <FileText class="h-4 w-4" />
-                <span>AGENTS.md 设置</span>
-              </div>
-              <div class="space-y-2">
-                <Label for="workspace-soul-content" class="text-xs text-muted-foreground">
-                  定义 AI 助手的行为和人格特征
-                </Label>
-                <Textarea
-                  id="workspace-soul-content"
-                  v-model="soulContent"
-                  placeholder="# AI 助手配置&#10;&#10;描述你希望 AI 助手具有的特性..."
-                  class="min-h-[240px] resize-none font-mono text-sm"
-                />
-                <p class="text-xs text-muted-foreground">
-                  支持 Markdown 格式，保存到工作空间的 AGENTS.md
-                </p>
-              </div>
-            </div>
-
-            <div v-if="settingsErrorMessage" class="text-xs text-destructive">
-              {{ settingsErrorMessage }}
-            </div>
-            <div v-else-if="saveMessage" class="text-xs text-emerald-600">
-              {{ saveMessage }}
-            </div>
-
-            <Button class="w-full gap-2" :disabled="isSaving" @click="handleSaveWorkspaceSettings">
-              <Save class="h-4 w-4" />
-              {{ isSaving ? "保存中..." : "保存设置" }}
-            </Button>
+            <div>目录的打开 index.html 文件</div>
           </div>
         </ScrollArea>
       </div>

@@ -9,7 +9,7 @@ const option: WindowMetadata = {
     titleBarStyle: "hiddenInset",
     trafficLightPosition: {
       x: 10,
-      y: 13,
+      y: 12,
     },
     webPreferences: {
       preload: join(__dirname, "preload.js"),

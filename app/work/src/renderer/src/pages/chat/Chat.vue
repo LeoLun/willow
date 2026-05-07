@@ -7,6 +7,7 @@ import { computed, onBeforeMount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MainTitle from "@/components/base/MainTitle.vue";
 import { useAgentMessages } from "@/composables/useAgentMessages";
+import { useDragResize } from "@/composables/useDragResize";
 import { useTodoProgress } from "@/composables/useTodoProgress";
 import { electronAPI } from "@/lib/ipc";
 import ChatRightSidebar from "@/pages/chat/components/ChatRightSidebar.vue";
@@ -120,6 +121,18 @@ function toggleSidebar() {
   isSidebarOpen.value = !isSidebarOpen.value;
 }
 
+const {
+  width: sidebarWidth,
+  isDragging,
+  onMouseDown,
+  onDblClick,
+} = useDragResize({
+  minWidth: 240,
+  maxWidth: 600,
+  defaultWidth: 320,
+  storageKey: "sidebar-width",
+});
+
 onBeforeMount(async () => {
   if (workspaceList.value.length === 0) {
     await workspaceStore.fetchWorkspaceList();
@@ -174,9 +187,20 @@ onBeforeMount(async () => {
         </div>
       </div>
 
+      <div
+        v-if="isSidebarOpen"
+        class="relative h-full w-1 shrink-0 cursor-col-resize bg-transparent transition-colors select-none hover:bg-border/50"
+        @mousedown="onMouseDown"
+        @dblclick="onDblClick"
+      >
+        <div class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+      </div>
+
       <ChatRightSidebar
         :mode="isSessionRoute ? 'session' : 'workspace'"
         :open="isSidebarOpen"
+        :width="sidebarWidth"
+        :is-dragging="isDragging"
         :session="currentSession"
         :workspace="currentWorkspace"
         :message-count="messageCount"
