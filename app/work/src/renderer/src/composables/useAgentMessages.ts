@@ -38,6 +38,33 @@ export interface UseAgentMessagesOptions {
   onActiveStreamLoaded?: (activeStream: ActiveSessionStream) => void;
 }
 
+function stableStringify(value: unknown) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function isSameAgentMessage(a: AgentMessage | undefined, b: AgentMessage | undefined) {
+  if (!a || !b) {
+    return false;
+  }
+  return (
+    a.role === b.role &&
+    (a as { timestamp?: unknown }).timestamp === (b as { timestamp?: unknown }).timestamp &&
+    stableStringify((a as { content?: unknown }).content) ===
+      stableStringify((b as { content?: unknown }).content)
+  );
+}
+
+function appendMessageOnce(messages: AgentMessage[], message: AgentMessage) {
+  if (isSameAgentMessage(messages[messages.length - 1], message)) {
+    return messages;
+  }
+  return [...messages, message];
+}
+
 export function useAgentMessages(sessionId: Ref<number>, options?: UseAgentMessagesOptions) {
   const state = reactive<AgentMessagesState>({
     messages: [],
@@ -89,7 +116,7 @@ export function useAgentMessages(sessionId: Ref<number>, options?: UseAgentMessa
       case "message_end":
         state.streamMessage = null;
         if (event.message) {
-          state.messages = [...state.messages, event.message];
+          state.messages = appendMessageOnce(state.messages, event.message);
         }
         break;
 
