@@ -3,7 +3,7 @@ import { homedir } from "os";
 import { basename, dirname, join, resolve } from "path";
 import { parseFrontmatter } from "./utils/frontmatter";
 
-const WILLOW_CONFIG_DIR = ".willow";
+const WILLOW_CONFIG_DIR = ".agents";
 
 export interface SkillFrontmatter {
   name?: string;

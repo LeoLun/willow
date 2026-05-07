@@ -1,7 +1,13 @@
 {
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["shadcnVue"],
   "permissions": {
-    "allow": ["Bash(pnpm lint *)"]
-  }
+    "allow": [
+      "Bash(pnpm lint *)",
+      "Bash(openspec status *)",
+      "Bash(openspec show *)",
+      "Bash(openspec validate *)",
+      "Bash(openspec list *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["shadcnVue"]
 }
