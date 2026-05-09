@@ -1,6 +1,7 @@
 import { On, WindowFactoryResolver, Module } from "@willow/poetry";
 import { app, BrowserWindow, dialog as electronDialog } from "electron";
 import started from "electron-squirrel-startup";
+import { AiAppViewController } from "./controllers/ai-app-view.controller";
 import { CreateAutomationController } from "./controllers/automation/create.automation.controller";
 import { DeleteAutomationController } from "./controllers/automation/delete.automation.controller";
 import { GetAutomationController } from "./controllers/automation/get.automation.controller";
@@ -38,6 +39,7 @@ import { GetWorkspaceSettingsController } from "./controllers/workspace/get.work
 import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controller";
 import { UpdateWorkspaceSettingsController } from "./controllers/workspace/update.workspace.settings.controller";
 import { AgentService } from "./service/agent.service";
+import { AiAppViewService } from "./service/ai-app-view.service";
 import { AutomationSchedulerService } from "./service/automation-scheduler.service";
 import { registerAutomationToolService } from "./service/automation-tool.service";
 import { AutomationService } from "./service/automation.service";
@@ -92,6 +94,7 @@ if (started) {
     AutomationRunDao,
     AutomationSchedulerService,
     AutomationService,
+    AiAppViewService,
   ],
   controllers: [
     InitController,
@@ -130,6 +133,7 @@ if (started) {
     AddTavilyKeyController,
     UpdateTavilyKeyController,
     DeleteTavilyKeyController,
+    AiAppViewController,
   ],
 })
 export class AppModule {
@@ -174,6 +178,7 @@ export class AppModule {
     private addTavilyKeyController: AddTavilyKeyController,
     private updateTavilyKeyController: UpdateTavilyKeyController,
     private deleteTavilyKeyController: DeleteTavilyKeyController,
+    private aiAppViewController: AiAppViewController,
   ) {
     registerAutomationToolService(this.automationService);
   }

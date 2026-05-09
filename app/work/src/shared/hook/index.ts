@@ -1,3 +1,4 @@
+import type { IAiAppApi } from "./ai-app.hook";
 import type { IAutomationApi } from "./automation.hook";
 import type { IConfigApi } from "./config.hook";
 import type { IDialogRenderer } from "./dialog.hook";
@@ -13,6 +14,7 @@ export interface IRenderHook
     IEventApi,
     IConfigApi,
     IAutomationApi,
-    IDialogRenderer {}
+    IDialogRenderer,
+    IAiAppApi {}
 
 export * from "./dialog.hook";

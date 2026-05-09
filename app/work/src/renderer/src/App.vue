@@ -59,7 +59,9 @@ onUnmounted(() => {
       <SidebarTrigger class="absolute top-[7.5px] left-[70px] z-100" />
 
       <!-- 主区域 -->
-      <div class="flex min-w-0 flex-1 flex-col">
+      <div
+        class="flex min-w-0 flex-1 flex-col [--left-sidebar-released-width:0px] peer-data-[collapsible=offcanvas]:[--left-sidebar-released-width:16rem]"
+      >
         <Card class="relative flex-1 !flex-row gap-0 overflow-hidden !py-0">
           <!-- 中间内容区域 -->
           <div class="h-full min-w-0 flex-1 overflow-hidden">

@@ -25,7 +25,7 @@ import {
   Settings2Icon,
   XCircleIcon,
 } from "lucide-vue-next";
-import { computed, ref, toRef, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, toRef, watch } from "vue";
 import { useWorkspaceFiles } from "@/composables/useWorkspaceFiles";
 import { useWorkspaceSettings } from "@/composables/useWorkspaceSettings";
 import { electronAPI } from "@/lib/ipc";
@@ -53,8 +53,12 @@ const props = withDefaults(
 
 const workspaceStore = useWorkspaceStore();
 const sidebarStyle = computed(() => ({
-  width: props.open ? `${props.width}px` : "0px",
-  flexBasis: props.open ? `${props.width}px` : "0px",
+  width: props.open
+    ? `clamp(240px, calc(${props.width}px + var(--left-sidebar-released-width, 0px)), calc(100% - 350px - 4px))`
+    : "0px",
+  flexBasis: props.open
+    ? `clamp(240px, calc(${props.width}px + var(--left-sidebar-released-width, 0px)), calc(100% - 350px - 4px))`
+    : "0px",
 }));
 const workspaceId = computed(() => props.workspace?.id ?? props.session?.workspaceId ?? 0);
 const activeTab = ref<"primary" | "files" | "app">(
@@ -143,12 +147,108 @@ async function handleOpenWorkspaceFolder() {
 
   await electronAPI.openPath({ path });
 }
+
+// AI 应用视图 — WebContentsView 绑定
+const viewAnchor = ref<HTMLElement | null>(null);
+const isAppVisible = ref(false);
+let resizeObserver: ResizeObserver | null = null;
+let lastBounds: { x: number; y: number; width: number; height: number } | null = null;
+
+function sameBounds(bounds: { x: number; y: number; width: number; height: number }) {
+  return (
+    lastBounds?.x === bounds.x &&
+    lastBounds.y === bounds.y &&
+    lastBounds.width === bounds.width &&
+    lastBounds.height === bounds.height
+  );
+}
+
+function sendBounds() {
+  if (!viewAnchor.value) return;
+  const rect = viewAnchor.value.getBoundingClientRect();
+  const bounds = {
+    x: Math.round(rect.x),
+    y: Math.round(rect.y),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+  };
+  if (sameBounds(bounds)) return;
+  lastBounds = bounds;
+  electronAPI.updateAiAppBounds(bounds);
+}
+
+async function sendBoundsAfterLayout() {
+  await nextTick();
+  requestAnimationFrame(() => {
+    sendBounds();
+  });
+}
+
+async function showApp() {
+  if (!workspacePath.value) return;
+  await nextTick();
+  if (viewAnchor.value) {
+    resizeObserver?.observe(viewAnchor.value);
+  }
+  await electronAPI.loadAiApp({ workspaceRoot: workspacePath.value });
+  // 等待 sidebar transition (300ms) 完成后再发送 bounds
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  sendBounds();
+  isAppVisible.value = true;
+}
+
+async function hideApp() {
+  resizeObserver?.disconnect();
+  await electronAPI.closeAiApp();
+  isAppVisible.value = false;
+  lastBounds = null;
+}
+
+onMounted(() => {
+  resizeObserver = new ResizeObserver(() => {
+    sendBounds();
+  });
+});
+
+watch([activeTab, () => props.open], async ([newTab, isOpen]) => {
+  const shouldShow = newTab === "app" && isOpen;
+  if (shouldShow) {
+    await showApp();
+  } else if (isAppVisible.value) {
+    await hideApp();
+  }
+});
+
+// 切换工作空间时，主进程根据 rootChanged 自动决定是否重新加载
+watch(workspacePath, async (newPath, oldPath) => {
+  if (isAppVisible.value && newPath !== oldPath) {
+    await electronAPI.loadAiApp({ workspaceRoot: newPath! });
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    sendBounds();
+  }
+});
+
+watch(
+  () => [props.width, props.open, props.isDragging] as const,
+  async () => {
+    if (isAppVisible.value) {
+      await sendBoundsAfterLayout();
+    }
+  },
+);
+
+onUnmounted(() => {
+  resizeObserver?.disconnect();
+  if (isAppVisible.value) {
+    electronAPI.closeAiApp();
+  }
+});
 </script>
 
 <template>
   <aside
     class="min-h-0 flex-none overflow-hidden"
-    :class="{ 'transition-[width,flex-basis] duration-300 ease-in-out': !props.isDragging }"
+    :class="{ 'transition-[width,flex-basis] duration-200 ease-linear': !props.isDragging }"
     :style="sidebarStyle"
   >
     <Sidebar
@@ -156,8 +256,8 @@ async function handleOpenWorkspaceFolder() {
       collapsible="none"
       class="h-full bg-card"
       :style="{
-        width: props.open ? `${props.width}px` : '0px',
-        '--sidebar-width': props.open ? `${props.width / 16}rem` : '0rem',
+        width: props.open ? '100%' : '0px',
+        '--sidebar-width': props.open ? '100%' : '0rem',
       }"
     >
       <div class="flex h-full flex-col">
@@ -328,11 +428,7 @@ async function handleOpenWorkspaceFolder() {
           </div>
         </ScrollArea>
 
-        <ScrollArea v-else-if="activeTab === 'app'" class="h-full">
-          <div class="px-3 py-2">
-            <div>目录的打开 index.html 文件</div>
-          </div>
-        </ScrollArea>
+        <div v-else-if="activeTab === 'app'" ref="viewAnchor" class="ai-app-anchor h-full w-full" />
       </div>
     </Sidebar>
   </aside>

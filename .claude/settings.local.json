@@ -8,7 +8,9 @@
       "Bash(openspec list *)",
       "Bash(pnpm build *)",
       "Bash(npx tsc *)",
-      "Bash(npx tsgo *)"
+      "Bash(npx tsgo *)",
+      "Bash(node -e \"console.log\\(require\\('electron/package.json'\\).version\\)\")",
+      "Bash(npx electron *)"
     ]
   },
   "enableAllProjectMcpServers": true,

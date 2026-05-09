@@ -22,6 +22,10 @@ const { workspaceList } = storeToRefs(workspaceStore);
 const route = useRoute();
 const router = useRouter();
 const isSidebarOpen = ref(false);
+
+const CHAT_MAIN_MIN_WIDTH = 350;
+const RIGHT_SIDEBAR_MIN_WIDTH = 240;
+const RIGHT_SIDEBAR_DEFAULT_WIDTH = 320;
 const sessionId = computed(() => {
   const value = Number(route.params.sessionId);
   return Number.isNaN(value) ? 0 : value;
@@ -127,11 +131,15 @@ const {
   onMouseDown,
   onDblClick,
 } = useDragResize({
-  minWidth: 240,
-  maxWidth: 600,
-  defaultWidth: 320,
+  minWidth: RIGHT_SIDEBAR_MIN_WIDTH,
+  maxWidth: Number.MAX_SAFE_INTEGER,
+  defaultWidth: RIGHT_SIDEBAR_DEFAULT_WIDTH,
   storageKey: "sidebar-width",
 });
+
+const mainColumnStyle = computed(() => ({
+  minWidth: isSidebarOpen.value ? `${CHAT_MAIN_MIN_WIDTH}px` : "0px",
+}));
 
 onBeforeMount(async () => {
   if (workspaceList.value.length === 0) {
@@ -142,8 +150,11 @@ onBeforeMount(async () => {
 
 <template>
   <div class="flex h-full min-h-0 flex-col">
-    <div class="flex min-h-0 flex-1">
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col items-center pb-3 pl-3">
+    <div class="flex min-h-0 flex-1 overflow-hidden">
+      <div
+        class="flex min-h-0 min-w-0 flex-1 flex-col items-center pb-3 pl-3"
+        :style="mainColumnStyle"
+      >
         <MainTitle>
           <div class="text-sm font-semibold">{{ pageTitle }}</div>
           <template #extra>

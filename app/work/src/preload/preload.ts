@@ -70,6 +70,8 @@ import type {
   RunAutomationNowResponse,
   DeleteAutomationRequest,
   DeleteAutomationResponse,
+  AiAppLoadRequest,
+  AiAppBoundsRequest,
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
@@ -110,6 +112,9 @@ import {
   UPDATE_AUTOMATION,
   RUN_AUTOMATION_NOW,
   DELETE_AUTOMATION,
+  AI_APP_LOAD,
+  AI_APP_BOUNDS,
+  AI_APP_CLOSE,
 } from "../shared/constants";
 
 const ipcObject: IRenderHook = {
@@ -593,6 +598,24 @@ const ipcObject: IRenderHook = {
       throw new Error("delete automation failed");
     }
     return response.data;
+  },
+  loadAiApp: async (request: AiAppLoadRequest) => {
+    const response = (await ipcRenderer.invoke(AI_APP_LOAD, request)) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+  },
+  updateAiAppBounds: async (request: AiAppBoundsRequest) => {
+    const response = (await ipcRenderer.invoke(AI_APP_BOUNDS, request)) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+  },
+  closeAiApp: async () => {
+    const response = (await ipcRenderer.invoke(AI_APP_CLOSE)) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
   },
 };
 

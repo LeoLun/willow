@@ -541,3 +541,16 @@ export interface DeleteAutomationRequest {
 export interface DeleteAutomationResponse {
   automation: Automation;
 }
+
+// ─── AI 应用视图 ───
+
+export interface AiAppLoadRequest {
+  workspaceRoot: string;
+}
+
+export interface AiAppBoundsRequest {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
