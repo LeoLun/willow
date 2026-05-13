@@ -12,6 +12,7 @@ import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 import { Agent } from "@mariozechner/pi-agent-core";
 import { streamSimple } from "@mariozechner/pi-ai";
 import type { ModelConfig, Session } from "@shared/api";
+import { getBuiltinModelConfig } from "@shared/model-config";
 import { CoreAgent } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import { app } from "electron";
@@ -63,6 +64,7 @@ function normalizeDeepSeekReasoningHistory<T extends { role: string }>(
 }
 
 function toAgentModel(config: ModelConfig) {
+  const builtin = getBuiltinModelConfig(config.modelId);
   return {
     id: config.modelId,
     name: config.name,
@@ -70,10 +72,11 @@ function toAgentModel(config: ModelConfig) {
     provider: config.provider,
     baseUrl: config.baseUrl,
     reasoning: config.reasoning,
-    input: ["text"] as ("text" | "image")[],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    input: (builtin?.input ?? ["text"]) as ("text" | "image")[],
+    cost: builtin?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: config.contextWindow,
     maxTokens: config.maxTokens,
+    ...(builtin?.compat ? { compat: builtin.compat } : {}),
   };
 }
 
@@ -118,8 +121,8 @@ export class AgentService {
       streamFn: streamSimple,
       getApiKey: () => apiKey,
     });
-    agent.setModel(resolvedModel);
-    agent.setSystemPrompt(titleSystemPrompt);
+    agent.state.model = resolvedModel as any;
+    agent.state.systemPrompt = titleSystemPrompt;
 
     return agent;
   }
@@ -163,7 +166,7 @@ export class AgentService {
       streamFn: streamSimple,
       getApiKey: () => apiKey,
     });
-    agent.setModel(resolvedModel);
+    agent.state.model = resolvedModel as any;
 
     const tavilyService = this.tavilyService;
     const todoStore = this.todoService.createStore(session.id);
@@ -185,7 +188,7 @@ export class AgentService {
     }
 
     if (history.length > 0) {
-      agent.replaceMessages(history);
+      agent.state.messages = history;
     }
 
     return coreAgent;

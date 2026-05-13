@@ -44,12 +44,8 @@ import type {
   RegisterEventRequest,
   RegisterEventResponse,
   GetModelListResponse,
-  AddModelRequest,
-  AddModelResponse,
-  UpdateModelRequest,
-  UpdateModelResponse,
-  DeleteModelRequest,
-  DeleteModelResponse,
+  SetDeepSeekApiKeyRequest,
+  SetDeepSeekApiKeyResponse,
   SetDefaultModelRequest,
   SetDefaultModelResponse,
   GetTavilyKeyListResponse,
@@ -98,9 +94,7 @@ import {
   REGISTER_EVENT,
   EVENT_BUS,
   GET_MODEL_LIST,
-  ADD_MODEL,
-  UPDATE_MODEL,
-  DELETE_MODEL,
+  SET_DEEPSEEK_API_KEY,
   SET_DEFAULT_MODEL,
   GET_TAVILY_KEY_LIST,
   ADD_TAVILY_KEY,
@@ -419,42 +413,16 @@ const ipcObject: IRenderHook = {
     }
     return response.data;
   },
-  addModel: async (request: AddModelRequest) => {
+  setDeepSeekApiKey: async (request: SetDeepSeekApiKeyRequest) => {
     const response = (await ipcRenderer.invoke(
-      ADD_MODEL,
+      SET_DEEPSEEK_API_KEY,
       request,
-    )) as ApiResponse<AddModelResponse>;
+    )) as ApiResponse<SetDeepSeekApiKeyResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
     }
     if (!response.data) {
-      throw new Error("add model failed");
-    }
-    return response.data;
-  },
-  updateModel: async (request: UpdateModelRequest) => {
-    const response = (await ipcRenderer.invoke(
-      UPDATE_MODEL,
-      request,
-    )) as ApiResponse<UpdateModelResponse>;
-    if (response.code !== 0) {
-      throw new Error(response.msg);
-    }
-    if (!response.data) {
-      throw new Error("update model failed");
-    }
-    return response.data;
-  },
-  deleteModel: async (request: DeleteModelRequest) => {
-    const response = (await ipcRenderer.invoke(
-      DELETE_MODEL,
-      request,
-    )) as ApiResponse<DeleteModelResponse>;
-    if (response.code !== 0) {
-      throw new Error(response.msg);
-    }
-    if (!response.data) {
-      throw new Error("delete model failed");
+      throw new Error("set deepseek api key failed");
     }
     return response.data;
   },

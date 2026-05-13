@@ -28,8 +28,8 @@
     "postinstall": "pnpm run rebuild:native"
   },
   "dependencies": {
-    "@mariozechner/pi-agent-core": "^0.62.0",
-    "@mariozechner/pi-ai": "^0.62.0",
+    "@mariozechner/pi-agent-core": "^0.73.1",
+    "@mariozechner/pi-ai": "^0.73.1",
     "@opencode-ai/sdk": "^1.1.53",
     "@tiptap/core": "^3.22.3",
     "@tiptap/pm": "^3.22.3",

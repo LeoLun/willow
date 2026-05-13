@@ -18,6 +18,7 @@ import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import { Agent } from "@mariozechner/pi-agent-core";
 import { streamSimple } from "@mariozechner/pi-ai";
 import type { ModelConfig } from "@shared/api";
+import { getBuiltinModelConfig } from "@shared/model-config";
 import { Injectable } from "@willow/poetry";
 
 const SUMMARY_TIMEOUT_MS = 10_000;
@@ -44,6 +45,7 @@ export interface PreparedContextCompression {
 }
 
 function toAgentModel(config: ModelConfig) {
+  const builtin = getBuiltinModelConfig(config.modelId);
   return {
     id: config.modelId,
     name: config.name,
@@ -51,10 +53,11 @@ function toAgentModel(config: ModelConfig) {
     provider: config.provider,
     baseUrl: config.baseUrl,
     reasoning: config.reasoning,
-    input: ["text"] as ("text" | "image")[],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    input: (builtin?.input ?? ["text"]) as ("text" | "image")[],
+    cost: builtin?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: config.contextWindow,
     maxTokens: config.maxTokens,
+    ...(builtin?.compat ? { compat: builtin.compat } : {}),
   };
 }
 
@@ -213,8 +216,8 @@ export class ContextCompressionService {
       streamFn: streamSimple,
       getApiKey: () => resolveApiKey(params.model),
     });
-    agent.setModel(toAgentModel(params.model));
-    agent.setSystemPrompt(contextSummarySystemPrompt);
+    agent.state.model = toAgentModel(params.model) as any;
+    agent.state.systemPrompt = contextSummarySystemPrompt;
     await withTimeout(
       agent.prompt(
         buildContextSummaryPrompt({

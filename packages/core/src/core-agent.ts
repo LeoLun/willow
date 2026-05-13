@@ -57,9 +57,9 @@ export class CoreAgent {
       compressedContext: options.compressedContext,
     };
 
-    this.agent.setSystemPrompt(buildSystemPrompt(promptOptions));
-    this.agent.setTools(tools);
-    this.agent.setBeforeToolCall(async ({ toolCall, args }, signal) => {
+    this.agent.state.systemPrompt = buildSystemPrompt(promptOptions);
+    this.agent.state.tools = tools;
+    this.agent.beforeToolCall = async ({ toolCall, args }, signal) => {
       const tool = this.tools.find((item) => item.name === toolCall.name);
       const decision = tool?.meta.permission?.(args as never) ?? { mode: "allow" as const };
 
@@ -89,7 +89,7 @@ export class CoreAgent {
         block: true,
         reason: customReason ?? "用户拒绝了本次工具调用",
       };
-    });
+    };
   }
 
   private rejectionReasons = new Map<string, string>();

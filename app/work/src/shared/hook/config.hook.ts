@@ -1,11 +1,7 @@
 import type {
   GetModelListResponse,
-  AddModelRequest,
-  AddModelResponse,
-  UpdateModelRequest,
-  UpdateModelResponse,
-  DeleteModelRequest,
-  DeleteModelResponse,
+  SetDeepSeekApiKeyRequest,
+  SetDeepSeekApiKeyResponse,
   SetDefaultModelRequest,
   SetDefaultModelResponse,
   GetTavilyKeyListResponse,
@@ -19,9 +15,7 @@ import type {
 
 export interface IConfigApi {
   getModelList(): Promise<GetModelListResponse>;
-  addModel(request: AddModelRequest): Promise<AddModelResponse>;
-  updateModel(request: UpdateModelRequest): Promise<UpdateModelResponse>;
-  deleteModel(request: DeleteModelRequest): Promise<DeleteModelResponse>;
+  setDeepSeekApiKey(request: SetDeepSeekApiKeyRequest): Promise<SetDeepSeekApiKeyResponse>;
   setDefaultModel(request: SetDefaultModelRequest): Promise<SetDefaultModelResponse>;
   getTavilyKeyList(): Promise<GetTavilyKeyListResponse>;
   addTavilyKey(request: AddTavilyKeyRequest): Promise<AddTavilyKeyResponse>;

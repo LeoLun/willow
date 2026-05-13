@@ -47,25 +47,25 @@ export interface CreateAllToolsOptions {
   extraTools?: WillowTool<any>[];
 }
 
-export function createAllTools(cwd: string, options?: CreateAllToolsOptions) {
+export function createAllTools(cwd: string, options?: CreateAllToolsOptions): WillowTool<any>[] {
   const tools: WillowTool<any>[] = [
-    createBashTool(cwd),
-    createEditTool(cwd),
-    createFindTool(cwd),
-    createGrepTool(cwd),
-    createLsTool(cwd),
-    createReadTool(cwd),
-    createWebFetchTool(),
-    createWriteTool(cwd),
+    createBashTool(cwd) as WillowTool<any>,
+    createEditTool(cwd) as WillowTool<any>,
+    createFindTool(cwd) as WillowTool<any>,
+    createGrepTool(cwd) as WillowTool<any>,
+    createLsTool(cwd) as WillowTool<any>,
+    createReadTool(cwd) as WillowTool<any>,
+    createWebFetchTool() as WillowTool<any>,
+    createWriteTool(cwd) as WillowTool<any>,
   ];
 
   if (options?.websearch) {
-    tools.push(createWebSearchTool(options.websearch.getApiKey));
+    tools.push(createWebSearchTool(options.websearch.getApiKey) as WillowTool<any>);
   }
 
   if (options?.todoStore) {
-    tools.push(createTodoWriteTool(options.todoStore));
-    tools.push(createTodoReadTool(options.todoStore));
+    tools.push(createTodoWriteTool(options.todoStore) as WillowTool<any>);
+    tools.push(createTodoReadTool(options.todoStore) as WillowTool<any>);
   }
 
   if (options?.extraTools?.length) {

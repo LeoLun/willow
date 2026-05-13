@@ -8,14 +8,12 @@ import { GetAutomationController } from "./controllers/automation/get.automation
 import { GetAutomationListController } from "./controllers/automation/get.automation.list.controller";
 import { RunAutomationNowController } from "./controllers/automation/run.automation.now.controller";
 import { UpdateAutomationController } from "./controllers/automation/update.automation.controller";
-import { AddModelController } from "./controllers/config/add.model.controller";
 import { AddTavilyKeyController } from "./controllers/config/add.tavily.key.controller";
-import { DeleteModelController } from "./controllers/config/delete.model.controller";
 import { DeleteTavilyKeyController } from "./controllers/config/delete.tavily.key.controller";
 import { GetModelListController } from "./controllers/config/get.model.list.controller";
 import { GetTavilyKeyListController } from "./controllers/config/get.tavily.key.list.controller";
+import { SetDeepSeekApiKeyController } from "./controllers/config/set.deepseek.api.key.controller";
 import { SetDefaultModelController } from "./controllers/config/set.default.model.controller";
-import { UpdateModelController } from "./controllers/config/update.model.controller";
 import { UpdateTavilyKeyController } from "./controllers/config/update.tavily.key.controller";
 import { DialogController } from "./controllers/dialog.controller";
 import { EventController } from "./controllers/event.controller";
@@ -125,9 +123,7 @@ if (started) {
     StopSessionStreamController,
     EventController,
     GetModelListController,
-    AddModelController,
-    UpdateModelController,
-    DeleteModelController,
+    SetDeepSeekApiKeyController,
     SetDefaultModelController,
     GetTavilyKeyListController,
     AddTavilyKeyController,
@@ -170,9 +166,7 @@ export class AppModule {
     private stopSessionStreamController: StopSessionStreamController,
     private eventController: EventController,
     private getModelListController: GetModelListController,
-    private addModelController: AddModelController,
-    private updateModelController: UpdateModelController,
-    private deleteModelController: DeleteModelController,
+    private setDeepSeekApiKeyController: SetDeepSeekApiKeyController,
     private setDefaultModelController: SetDefaultModelController,
     private getTavilyKeyListController: GetTavilyKeyListController,
     private addTavilyKeyController: AddTavilyKeyController,

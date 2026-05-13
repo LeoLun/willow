@@ -1,7 +1,5 @@
 import type {
   ModelConfig,
-  AddModelRequest,
-  UpdateModelRequest,
   TavilyKeyConfig,
   AddTavilyKeyRequest,
   UpdateTavilyKeyRequest,
@@ -26,21 +24,10 @@ export const useConfigStore = defineStore("config", () => {
     return modelList.value;
   }
 
-  async function addModel(data: AddModelRequest) {
-    const { model } = await electronAPI.addModel(toRaw(data));
+  async function setDeepSeekApiKey(apiKey: string) {
+    const { models } = await electronAPI.setDeepSeekApiKey({ apiKey: toRaw(apiKey) as string });
     await fetchModelList();
-    return model;
-  }
-
-  async function updateModel(data: UpdateModelRequest) {
-    const { model } = await electronAPI.updateModel(toRaw(data));
-    await fetchModelList();
-    return model;
-  }
-
-  async function deleteModel(id: number) {
-    await electronAPI.deleteModel({ id });
-    await fetchModelList();
+    return models;
   }
 
   async function setDefaultModel(id: number) {
@@ -77,9 +64,7 @@ export const useConfigStore = defineStore("config", () => {
     modelList,
     defaultModel,
     fetchModelList,
-    addModel,
-    updateModel,
-    deleteModel,
+    setDeepSeekApiKey,
     setDefaultModel,
     tavilyKeyList,
     hasTavilyKeys,

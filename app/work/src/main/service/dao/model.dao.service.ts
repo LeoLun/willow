@@ -52,4 +52,21 @@ export class ModelDao {
       .returning()
       .all();
   }
+
+  upsertByModelId(data: Omit<ModelInsert, "id" | "createdAt" | "updatedAt">) {
+    const existing = this.findByModelId(data.modelId);
+    if (existing) {
+      return this.update(existing.id, data);
+    }
+    return this.insert(data);
+  }
+
+  deleteByModelId(modelId: string) {
+    return this.dbService
+      .getDb()
+      .delete(models)
+      .where(eq(models.modelId, modelId))
+      .returning()
+      .get();
+  }
 }

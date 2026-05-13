@@ -9,8 +9,8 @@
     "dev": "tsup --watch"
   },
   "dependencies": {
-    "@mariozechner/pi-agent-core": "^0.62.0",
-    "@mariozechner/pi-ai": "^0.62.0",
+    "@mariozechner/pi-agent-core": "^0.73.1",
+    "@mariozechner/pi-ai": "^0.73.1",
     "@sinclair/typebox": "^0.34.41",
     "glob": "^7.2.3",
     "turndown": "^7.2.0",

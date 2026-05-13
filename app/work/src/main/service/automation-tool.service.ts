@@ -69,7 +69,7 @@ export function createAutomationTools(): WillowTool<any>[] {
         const automations = getAutomationService().listAutomations();
         return toTextPayload({ automations });
       },
-    }),
+    }) as WillowTool<any>,
     createTool({
       name: "automation_get",
       label: "查询单个自动化",
@@ -83,7 +83,7 @@ export function createAutomationTools(): WillowTool<any>[] {
         const automation = getAutomationService().getAutomation(params.id);
         return toTextPayload({ automation });
       },
-    }),
+    }) as WillowTool<any>,
     createTool({
       name: "automation_create",
       label: "创建自动化",
@@ -97,7 +97,7 @@ export function createAutomationTools(): WillowTool<any>[] {
         const automation = getAutomationService().createAutomation(params);
         return toTextPayload({ automation });
       },
-    }),
+    }) as WillowTool<any>,
     createTool({
       name: "automation_update",
       label: "更新自动化",
@@ -116,7 +116,7 @@ export function createAutomationTools(): WillowTool<any>[] {
         });
         return toTextPayload({ automation });
       },
-    }),
+    }) as WillowTool<any>,
     createTool({
       name: "automation_delete",
       label: "删除自动化",
@@ -130,6 +130,6 @@ export function createAutomationTools(): WillowTool<any>[] {
         const automation = getAutomationService().deleteAutomation(params.id);
         return toTextPayload({ automation });
       },
-    }),
+    }) as WillowTool<any>,
   ];
 }

@@ -332,55 +332,20 @@ export interface GetModelListResponse {
   models: ModelConfig[];
 }
 
-export interface AddModelRequest {
-  modelId: string;
-  name: string;
-  api: string;
-  provider: string;
-  baseUrl: string;
-  apiKey?: string;
-  reasoning?: boolean;
-  contextWindow?: number;
-  maxTokens?: number;
-  isDefault?: boolean;
-}
-
-export interface AddModelResponse {
-  model: ModelConfig;
-}
-
-export interface UpdateModelRequest {
-  id: number;
-  modelId?: string;
-  name?: string;
-  api?: string;
-  provider?: string;
-  baseUrl?: string;
-  apiKey?: string;
-  reasoning?: boolean;
-  contextWindow?: number;
-  maxTokens?: number;
-  isDefault?: boolean;
-}
-
-export interface UpdateModelResponse {
-  model: ModelConfig;
-}
-
-export interface DeleteModelRequest {
-  id: number;
-}
-
-export interface DeleteModelResponse {
-  model: ModelConfig;
-}
-
 export interface SetDefaultModelRequest {
   id: number;
 }
 
 export interface SetDefaultModelResponse {
   model: ModelConfig;
+}
+
+export interface SetDeepSeekApiKeyRequest {
+  apiKey: string;
+}
+
+export interface SetDeepSeekApiKeyResponse {
+  models: ModelConfig[];
 }
 
 // ─── Tavily API Key 配置 ───

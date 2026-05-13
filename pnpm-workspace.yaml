@@ -8,5 +8,5 @@ catalog:
   tsyringe: ^4.10.0
   "@typescript/native-preview": 7.0.0-dev.20260325.1
   inversify: ^6.2.1
-  "@mariozechner/pi-ai": ^0.55.3
-  "@mariozechner/pi-agent-core": ^0.55.3
+  "@mariozechner/pi-ai": ^0.73.1
+  "@mariozechner/pi-agent-core": ^0.73.1
