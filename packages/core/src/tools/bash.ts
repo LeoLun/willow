@@ -25,7 +25,8 @@ export function createBashTool(cwd: string) {
   return createTool({
     name: "bash",
     label: "执行命令",
-    description: "在工作目录中执行 bash 命令。返回合并后的 stdout 与 stderr。",
+    description:
+      "在工作目录中执行 bash 命令。返回合并后的 stdout 与 stderr。系统会判断是否为危险 bash 命令，如果是则需要人工确认。",
     parameters: bashSchema,
     meta: {
       label: "执行命令",

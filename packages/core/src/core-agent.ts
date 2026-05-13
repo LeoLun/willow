@@ -72,6 +72,7 @@ export class CoreAgent {
           toolCallId: toolCall.id,
           toolName: toolCall.name,
           arguments: args,
+          title: decision.title,
           reason: decision.reason,
           risk: decision.risk,
         },
@@ -82,14 +83,25 @@ export class CoreAgent {
         return undefined;
       }
 
+      const customReason = this.rejectionReasons.get(toolCall.id);
+      this.rejectionReasons.delete(toolCall.id);
       return {
         block: true,
-        reason: "用户拒绝了本次工具调用",
+        reason: customReason ?? "用户拒绝了本次工具调用",
       };
     });
   }
 
-  resolveToolApproval(toolCallId: string, decision: "approved" | "rejected"): boolean {
+  private rejectionReasons = new Map<string, string>();
+
+  resolveToolApproval(
+    toolCallId: string,
+    decision: "approved" | "rejected",
+    reason?: string,
+  ): boolean {
+    if (reason) {
+      this.rejectionReasons.set(toolCallId, reason);
+    }
     return this.approvalCoordinator.resolve(toolCallId, decision);
   }
 }

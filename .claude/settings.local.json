@@ -10,7 +10,10 @@
       "Bash(npx tsc *)",
       "Bash(npx tsgo *)",
       "Bash(node -e \"console.log\\(require\\('electron/package.json'\\).version\\)\")",
-      "Bash(npx electron *)"
+      "Bash(npx electron *)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm format *)",
+      "Bash(npx tsup *)"
     ]
   },
   "enableAllProjectMcpServers": true,

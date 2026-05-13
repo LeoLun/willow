@@ -23,6 +23,7 @@ export function classifyBashCommand(command: string): ToolPermissionDecision {
   if (HIGH_RISK_PATTERNS.some((pattern) => pattern.test(normalized))) {
     return {
       mode: "ask",
+      title: `是否允许执行 ${normalized}`,
       reason: "检测到高危 shell 操作，需要人工确认",
       risk: "high",
     };

@@ -14,8 +14,6 @@ const props = withDefaults(
     pendingToolCalls?: Set<string>;
     toolApprovals?: Map<string, any>;
     toolResultsById?: Map<string, ToolResultMessage>;
-    onApproveToolCall?: (toolCallId: string) => void;
-    onRejectToolCall?: (toolCallId: string) => void;
     onCostClick?: () => void;
   }>(),
   {
@@ -70,8 +68,6 @@ watch(
         :tool-approvals="toolApprovals"
         :tool-results-by-id="toolResultsById"
         :hide-tool-calls="false"
-        :on-approve-tool-call="onApproveToolCall"
-        :on-reject-tool-call="onRejectToolCall"
         :on-cost-click="onCostClick"
       />
       <StreamLoading v-if="isStreaming" class="mx-4 inline-block" />

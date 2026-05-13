@@ -5,7 +5,7 @@ export type ToolPermissionRisk = "medium" | "high";
 
 export type ToolPermissionDecision =
   | { mode: "allow" }
-  | { mode: "ask"; reason: string; risk: ToolPermissionRisk };
+  | { mode: "ask"; title: string; reason: string; risk: ToolPermissionRisk };
 
 export type ToolPermissionResolver<TParams> = (params: TParams) => ToolPermissionDecision;
 

@@ -13,8 +13,6 @@ const props = withDefaults(
     tools?: any[];
     pendingToolCalls?: Set<string>;
     toolApprovals?: Map<string, ToolApproval>;
-    onApproveToolCall?: (toolCallId: string) => void;
-    onRejectToolCall?: (toolCallId: string) => void;
   }>(),
   {
     messages: () => [],
@@ -122,8 +120,6 @@ onBeforeUnmount(() => {
           :is-streaming="props.isStreaming"
           :pending-tool-calls="props.pendingToolCalls"
           :tool-approvals="props.toolApprovals"
-          :on-approve-tool-call="props.onApproveToolCall"
-          :on-reject-tool-call="props.onRejectToolCall"
         />
 
         <StreamingMessageContainer
@@ -133,8 +129,6 @@ onBeforeUnmount(() => {
           :tools="props.tools"
           :pending-tool-calls="props.pendingToolCalls"
           :tool-approvals="props.toolApprovals"
-          :on-approve-tool-call="props.onApproveToolCall"
-          :on-reject-tool-call="props.onRejectToolCall"
         />
       </div>
     </div>

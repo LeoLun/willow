@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import type { ToolCall, ToolResultMessage } from "@mariozechner/pi-ai";
-import { Button } from "@willow/shadcn";
 import { computed } from "vue";
 import { renderTool } from "../renderers/registry";
 
@@ -23,8 +22,6 @@ const props = withDefaults(
     aborted?: boolean;
     isStreaming?: boolean;
     approval?: ToolApproval;
-    onApprove?: (toolCallId: string) => void;
-    onReject?: (toolCallId: string) => void;
   }>(),
   {
     pending: false,
@@ -103,13 +100,7 @@ const argsSummary = computed(() => {
       >
         这是高危操作，需要人工确认。
       </div>
-      <div v-if="approval.status === 'pending'" class="mt-3 flex gap-2">
-        <Button type="button" size="sm" @click="onApprove?.(toolCall.id)"> 批准本次执行 </Button>
-        <Button type="button" variant="outline" size="sm" @click="onReject?.(toolCall.id)">
-          拒绝本次执行
-        </Button>
-      </div>
-      <div v-else class="mt-3 text-xs text-muted-foreground">
+      <div v-if="approval.status !== 'pending'" class="mt-3 text-xs text-muted-foreground">
         {{ approval.status === "approved" ? "本次调用已批准" : "本次调用已拒绝" }}
       </div>
     </div>

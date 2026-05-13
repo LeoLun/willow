@@ -34,7 +34,12 @@ export function createEditTool(cwd: string) {
       permission: (params) =>
         isPathInsideCwd(params.path, cwd)
           ? { mode: "allow" }
-          : { mode: "ask", reason: "编辑文件会修改工作区内容", risk: "high" },
+          : {
+              mode: "ask",
+              title: `是否允许执行 编辑 ${params.path}`,
+              reason: "编辑文件会修改工作区内容",
+              risk: "high",
+            },
     },
     async execute(_toolCallId, params) {
       const { path, oldText, newText } = params;

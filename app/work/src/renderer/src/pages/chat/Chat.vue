@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SendMessage, Session } from "@shared/api";
 import { Button } from "@willow/shadcn/components/ui/button";
+import { PermissionApprovalPanel } from "@willow/ui";
 import { ChevronLeft, ChevronRight } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref } from "vue";
@@ -109,7 +110,11 @@ async function handleStop() {
   });
 }
 
-async function handleToolApproval(toolCallId: string, decision: "approved" | "rejected") {
+async function handleToolApproval(
+  toolCallId: string,
+  decision: "approved" | "rejected",
+  reason?: string,
+) {
   if (!isSessionRoute.value) {
     return;
   }
@@ -118,7 +123,25 @@ async function handleToolApproval(toolCallId: string, decision: "approved" | "re
     sessionId: sessionId.value,
     toolCallId,
     decision,
+    reason,
   });
+}
+
+const pendingApprovals = computed(() =>
+  Array.from(state.toolApprovals.values()).filter((a) => a.status === "pending"),
+);
+
+async function handleSkipApproval() {
+  // Reject all pending approvals
+  for (const approval of pendingApprovals.value) {
+    await electronAPI.resolveToolApproval({
+      sessionId: sessionId.value,
+      toolCallId: approval.toolCallId,
+      decision: "rejected",
+    });
+  }
+  // Stop the session stream
+  await handleStop();
 }
 
 function toggleSidebar() {
@@ -175,18 +198,21 @@ onBeforeMount(async () => {
               :tools="state.tools"
               :pending-tool-calls="state.pendingToolCalls"
               :tool-approvals="state.toolApprovals"
-              :on-approve-tool-call="
-                (toolCallId: string) => handleToolApproval(toolCallId, 'approved')
-              "
-              :on-reject-tool-call="
-                (toolCallId: string) => handleToolApproval(toolCallId, 'rejected')
-              "
             />
           </RouterView>
         </div>
 
         <div class="relative w-full max-w-3xl min-w-0 pr-3">
+          <PermissionApprovalPanel
+            v-if="pendingApprovals.length > 0"
+            :approvals="pendingApprovals"
+            @approve="(id) => handleToolApproval(id, 'approved')"
+            @reject="(id, reason) => handleToolApproval(id, 'rejected', reason)"
+            @skip="handleSkipApproval"
+            @close="handleSkipApproval"
+          />
           <SenderContainer
+            v-else
             :messages="state.messages"
             :stream-message="state.streamMessage"
             :is-streaming="state.isStreaming"

@@ -11,7 +11,9 @@ import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 
-const betterSqlite3Source = fileURLToPath(new URL("../../node_modules/better-sqlite3", import.meta.url));
+const betterSqlite3Source = fileURLToPath(
+  new URL("../../node_modules/better-sqlite3", import.meta.url),
+);
 
 const config = {
   packagerConfig: {

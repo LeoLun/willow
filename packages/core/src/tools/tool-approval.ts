@@ -7,6 +7,7 @@ export interface ToolApprovalRequest {
   toolCallId: string;
   toolName: string;
   arguments: unknown;
+  title: string;
   reason: string;
   risk: ToolPermissionRisk;
   status: ToolApprovalStatus;

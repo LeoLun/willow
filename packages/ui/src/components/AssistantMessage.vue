@@ -21,8 +21,6 @@ const props = withDefaults(
     toolResultsById?: Map<string, ToolResultMessage>;
     isStreaming?: boolean;
     hidePendingToolCalls?: boolean;
-    onApproveToolCall?: (toolCallId: string) => void;
-    onRejectToolCall?: (toolCallId: string) => void;
     onCostClick?: () => void;
   }>(),
   {
@@ -97,8 +95,6 @@ const usageText = computed(() => {
           :aborted="part.data.aborted"
           :is-streaming="isStreaming"
           :approval="toolApprovals?.get(part.data.chunk.id)"
-          :on-approve="onApproveToolCall"
-          :on-reject="onRejectToolCall"
         />
       </template>
     </div>

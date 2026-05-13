@@ -38,7 +38,11 @@ interface RunningSession {
       onPending(listener: (approval: ToolApproval) => void): () => void;
       onResolved(listener: (approval: ToolApproval) => void): () => void;
     };
-    resolveToolApproval(toolCallId: string, decision: ToolApprovalDecision): boolean;
+    resolveToolApproval(
+      toolCallId: string,
+      decision: ToolApprovalDecision,
+      reason?: string,
+    ): boolean;
     contextCompression?: AgentContextCompressionState;
   };
   agent: {
@@ -284,13 +288,14 @@ export class SessionService {
     sessionId: number,
     toolCallId: string,
     decision: ToolApprovalDecision,
+    reason?: string,
   ): Promise<void> {
     const runningSession = this.runningSessions.get(sessionId);
     if (!runningSession) {
       throw new Error("session is not running");
     }
 
-    const resolved = runningSession.coreAgent.resolveToolApproval(toolCallId, decision);
+    const resolved = runningSession.coreAgent.resolveToolApproval(toolCallId, decision, reason);
     if (!resolved) {
       throw new Error("tool approval not found");
     }

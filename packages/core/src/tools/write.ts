@@ -26,7 +26,12 @@ export function createWriteTool(cwd: string) {
       permission: (params) =>
         isPathInsideCwd(params.path, cwd)
           ? { mode: "allow" }
-          : { mode: "ask", reason: "写入文件会修改工作区内容", risk: "high" },
+          : {
+              mode: "ask",
+              title: `是否允许执行 写入 ${params.path}`,
+              reason: "写入文件会修改工作区内容",
+              risk: "high",
+            },
     },
     async execute(_toolCallId, params) {
       const { path, content } = params;

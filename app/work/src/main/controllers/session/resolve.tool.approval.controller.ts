@@ -31,6 +31,7 @@ export class ResolveToolApprovalController extends IPCBaseController<
       request.sessionId,
       request.toolCallId,
       request.decision,
+      request.reason,
     );
     return this.buildResponse({});
   }

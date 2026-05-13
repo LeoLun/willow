@@ -63,3 +63,8 @@
 .markdown-content.markdown-body table tr:nth-child(2n) {
   background-color: var(--muted);
 }
+
+.markdown-body .willow-code-block pre {
+  margin: 0;
+  padding: 0;
+}

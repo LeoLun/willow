@@ -204,6 +204,7 @@ export interface ToolApproval {
   toolCallId: string;
   toolName: string;
   arguments: unknown;
+  title: string;
   reason: string;
   risk: "medium" | "high";
   status: "pending" | "approved" | "rejected";
@@ -213,6 +214,7 @@ export interface ResolveToolApprovalRequest {
   sessionId: number;
   toolCallId: string;
   decision: "approved" | "rejected";
+  reason?: string;
 }
 
 export interface ResolveToolApprovalResponse {}

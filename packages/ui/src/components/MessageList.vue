@@ -16,8 +16,6 @@ const props = withDefaults(
     isStreaming?: boolean;
     pendingToolCalls?: Set<string>;
     toolApprovals?: Map<string, any>;
-    onApproveToolCall?: (toolCallId: string) => void;
-    onRejectToolCall?: (toolCallId: string) => void;
     onCostClick?: () => void;
   }>(),
   {
@@ -96,8 +94,6 @@ const renderItems = computed(() => {
         :tool-results-by-id="item.data.toolResultsById"
         :hide-tool-calls="false"
         :hide-pending-tool-calls="false"
-        :on-approve-tool-call="onApproveToolCall"
-        :on-reject-tool-call="onRejectToolCall"
         :on-cost-click="onCostClick"
       />
     </template>

@@ -529,8 +529,7 @@
               "id": "l8v2I",
               "name": "plus",
               "width": 20,
-              "height": 
-              ,
+              "height": 20,
               "stroke": {
                 "align": "inside",
                 "thickness": 1
@@ -15073,6 +15072,671 @@
                       "fontFamily": "Geist",
                       "fontSize": 14,
                       "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "SPaus",
+      "x": 9211,
+      "y": 1863,
+      "name": "Willow / Ask User Tool",
+      "width": 1280,
+      "fill": "$--background",
+      "cornerRadius": 12,
+      "stroke": {
+        "thickness": 1,
+        "fill": "$--border"
+      },
+      "layout": "vertical",
+      "gap": 20,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "mFWfp",
+          "name": "header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 6,
+          "children": [
+            {
+              "type": "text",
+              "id": "neskl",
+              "fill": "$--foreground",
+              "content": "Ask User 工具",
+              "fontFamily": "Funnel Sans",
+              "fontSize": 24,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "a6hBv",
+              "fill": "$--muted-foreground",
+              "content": "权限确认与 AI 不确定时的用户询问组件，覆盖在输入框上方。",
+              "fontFamily": "Inter",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "KIzHL",
+          "name": "scenariosStack",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 20,
+          "children": [
+            {
+              "type": "frame",
+              "id": "Ttan6",
+              "name": "scenario1",
+              "width": "fill_container",
+              "fill": "$--card",
+              "cornerRadius": 12,
+              "stroke": {
+                "thickness": 1,
+                "fill": "$--border"
+              },
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 16,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "o1tNz",
+                  "fill": "$--foreground",
+                  "content": "1. 权限申请 — 允许 / 不允许",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "fyByC",
+                  "name": "s1Canvas",
+                  "width": "fill_container",
+                  "height": 360,
+                  "layout": "vertical",
+                  "justifyContent": "end",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "oZAzQ",
+                      "name": "askPermPanel",
+                      "width": 856,
+                      "fill": "$--white",
+                      "cornerRadius": 24,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$--border"
+                      },
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#00000014",
+                        "offset": {
+                          "x": 0,
+                          "y": 10
+                        },
+                        "blur": 28
+                      },
+                      "layout": "vertical",
+                      "padding": [
+                        22,
+                        28
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "vVBOg",
+                          "name": "dialogHeader",
+                          "width": "fill_container",
+                          "gap": 16,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "NnWsW",
+                              "name": "permTitle",
+                              "fill": "$--foreground",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "是否允许 AI 读取以下文件？",
+                              "lineHeight": 1.45,
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "icon_font",
+                              "id": "bttCc",
+                              "name": "permClose",
+                              "width": 18,
+                              "height": 18,
+                              "iconFontName": "x",
+                              "iconFontFamily": "lucide",
+                              "fill": "$--muted-foreground"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "EKTTD",
+                          "name": "choiceList",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "padding": [
+                            22,
+                            0,
+                            0,
+                            0
+                          ],
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "E95jkl",
+                              "name": "choiceRow1",
+                              "width": "fill_container",
+                              "height": 64,
+                              "gap": 14,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "f74o9",
+                                  "name": "permNum1",
+                                  "width": 28,
+                                  "height": 28,
+                                  "fill": "$--muted",
+                                  "cornerRadius": 7,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "Tdb4q",
+                                      "name": "permNum1Text",
+                                      "fill": "$--muted-foreground",
+                                      "content": "1",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 13,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "i1bND",
+                                  "name": "permText1",
+                                  "fill": "$--foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "允许",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 15
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ynwcx",
+                          "name": "dialogFooter",
+                          "width": "fill_container",
+                          "height": 48,
+                          "gap": 12,
+                          "padding": [
+                            10,
+                            0,
+                            0,
+                            0
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "g3DiA",
+                              "name": "customInput",
+                              "width": "fill_container",
+                              "height": 36,
+                              "gap": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "GTVJI",
+                                  "name": "permEdit",
+                                  "width": 28,
+                                  "height": 28,
+                                  "fill": "$--muted",
+                                  "cornerRadius": 7,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon_font",
+                                      "id": "Z7XCP",
+                                      "name": "permEditIcon",
+                                      "width": 15,
+                                      "height": 15,
+                                      "iconFontName": "pencil",
+                                      "iconFontFamily": "lucide",
+                                      "fill": "$--muted-foreground"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "ZaVa9",
+                                  "name": "permCustomText",
+                                  "fill": "$--muted-foreground",
+                                  "content": "否",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 15
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "z0Ts5",
+                              "name": "permSkip",
+                              "width": 86,
+                              "height": 38,
+                              "fill": "$--white",
+                              "cornerRadius": 19,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "$--border"
+                              },
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "rl5Nc",
+                                  "name": "permSkipText",
+                                  "fill": "$--foreground",
+                                  "content": "跳过",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 15,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Akjk4",
+              "name": "scenario2",
+              "width": "fill_container",
+              "fill": "$--card",
+              "cornerRadius": 12,
+              "stroke": {
+                "thickness": 1,
+                "fill": "$--border"
+              },
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 16,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "X297uf",
+                  "fill": "$--foreground",
+                  "content": "2. AI 不确定 — 多选项询问",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "O4xqT",
+                  "name": "s2Canvas",
+                  "width": "fill_container",
+                  "height": 460,
+                  "layout": "vertical",
+                  "justifyContent": "end",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "dNjo6",
+                      "name": "askOptPanel",
+                      "width": 856,
+                      "fill": "$--white",
+                      "cornerRadius": 24,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$--border"
+                      },
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#00000014",
+                        "offset": {
+                          "x": 0,
+                          "y": 10
+                        },
+                        "blur": 28
+                      },
+                      "layout": "vertical",
+                      "padding": [
+                        22,
+                        28
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "qZXHw",
+                          "name": "dialogHeader",
+                          "width": "fill_container",
+                          "gap": 16,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r80QB7",
+                              "name": "optTitle",
+                              "fill": "$--foreground",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "我查了一下，本周的日程、待办和最近文档都是空的。你希望怎么生成周报？",
+                              "lineHeight": 1.45,
+                              "fontFamily": "Inter",
+                              "fontSize": 16,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "icon_font",
+                              "id": "W6Cqx",
+                              "name": "optClose",
+                              "width": 18,
+                              "height": 18,
+                              "iconFontName": "x",
+                              "iconFontFamily": "lucide",
+                              "fill": "$--muted-foreground"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Z95DA",
+                          "name": "choiceList",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "padding": [
+                            22,
+                            0,
+                            0,
+                            0
+                          ],
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "LxoEA",
+                              "name": "choiceRow1",
+                              "width": "fill_container",
+                              "height": 64,
+                              "gap": 14,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "kTjCD",
+                                  "name": "optNum1",
+                                  "width": 28,
+                                  "height": 28,
+                                  "fill": "$--muted",
+                                  "cornerRadius": 7,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "YtNTB",
+                                      "name": "optNum1Text",
+                                      "fill": "$--muted-foreground",
+                                      "content": "1",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 13,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "EAD3G",
+                                  "name": "optText1",
+                                  "fill": "$--foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "我来说，你帮我整理成周报",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 15
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "VOLFt",
+                              "name": "optLine1",
+                              "width": "fill_container",
+                              "height": 1,
+                              "fill": "$--border"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "yedrO",
+                              "name": "choiceRow2",
+                              "width": "fill_container",
+                              "height": 64,
+                              "gap": 14,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "audZt",
+                                  "name": "optNum2",
+                                  "width": 28,
+                                  "height": 28,
+                                  "fill": "$--muted",
+                                  "cornerRadius": 7,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "hPaH4",
+                                      "name": "optNum2Text",
+                                      "fill": "$--muted-foreground",
+                                      "content": "2",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 13,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "b3xwJ",
+                                  "name": "optText2",
+                                  "fill": "$--foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "先不做了",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 15
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "ONdjK",
+                              "name": "optLine2",
+                              "width": "fill_container",
+                              "height": 1,
+                              "fill": "$--border"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "B95HO",
+                              "name": "choiceRow3",
+                              "width": "fill_container",
+                              "height": 64,
+                              "gap": 14,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "Z5Ob0r",
+                                  "name": "optNum3",
+                                  "width": 28,
+                                  "height": 28,
+                                  "fill": "$--muted",
+                                  "cornerRadius": 7,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "jZHq4",
+                                      "name": "optNum3Text",
+                                      "fill": "$--muted-foreground",
+                                      "content": "3",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 13,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "mDX9g",
+                                  "name": "optText3",
+                                  "fill": "$--foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "给我一个周报模板，我自己填",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 15
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "CXLI5",
+                              "name": "optLine3",
+                              "width": "fill_container",
+                              "height": 1,
+                              "fill": "$--border"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "x4YUl",
+                          "name": "dialogFooter",
+                          "width": "fill_container",
+                          "height": 48,
+                          "gap": 12,
+                          "padding": [
+                            10,
+                            0,
+                            0,
+                            0
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "RNjkA",
+                              "name": "customInput",
+                              "width": "fill_container",
+                              "height": 36,
+                              "gap": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "KR0Dm",
+                                  "name": "optEdit",
+                                  "width": 28,
+                                  "height": 28,
+                                  "fill": "$--muted",
+                                  "cornerRadius": 7,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon_font",
+                                      "id": "Hv3uW",
+                                      "name": "optEditIcon",
+                                      "width": 15,
+                                      "height": 15,
+                                      "iconFontName": "pencil",
+                                      "iconFontFamily": "lucide",
+                                      "fill": "$--muted-foreground"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "XHm8N",
+                                  "name": "optCustomText",
+                                  "fill": "$--muted-foreground",
+                                  "content": "输入其他",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 15
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "B0Lcl",
+                              "name": "optSkip",
+                              "width": 86,
+                              "height": 38,
+                              "fill": "$--white",
+                              "cornerRadius": 19,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "$--border"
+                              },
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "nTvT2",
+                                  "name": "optSkipText",
+                                  "fill": "$--foreground",
+                                  "content": "跳过",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 15,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
                     }
                   ]
                 }
