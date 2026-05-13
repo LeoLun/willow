@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, watch, onMounted } from "vue";
 
 export type ThemeMode = "system" | "light" | "dark";
 
@@ -13,8 +13,7 @@ function getSystemDark(): boolean {
 
 function applyTheme() {
   const shouldBeDark =
-    themeMode.value === "dark" ||
-    (themeMode.value === "system" && getSystemDark());
+    themeMode.value === "dark" || (themeMode.value === "system" && getSystemDark());
 
   isDark.value = shouldBeDark;
 

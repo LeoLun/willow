@@ -1,19 +1,16 @@
-import {
-  Window,
-  WindowInstance,
-  OnInit,
-  On,
-  OnDestroy,
-  WindowMetadata,
-} from "poetry";
-import { BrowserWindow } from "electron";
 import { join } from "path";
+import { Window, WindowInstance, OnInit, On, OnDestroy, WindowMetadata } from "@willow/poetry";
+import { BrowserWindow } from "electron";
 
 const option: WindowMetadata = {
   options: {
     height: 800,
     width: 1200,
     titleBarStyle: "hiddenInset",
+    trafficLightPosition: {
+      x: 10,
+      y: 12,
+    },
     webPreferences: {
       preload: join(__dirname, "preload.js"),
       webSecurity: false,
@@ -25,16 +22,13 @@ const option: WindowMetadata = {
 if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
   option.loadURL = MAIN_WINDOW_VITE_DEV_SERVER_URL;
 } else {
-  option.loadFile = join(
-    __dirname,
-    `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-  );
+  option.loadFile = join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`);
 }
 
 @Window(option)
 export class MainWindow implements OnInit, OnDestroy {
   @WindowInstance()
-  private win: BrowserWindow;
+  private win!: BrowserWindow;
 
   onInit() {
     console.log("OnInit");

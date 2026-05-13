@@ -1,14 +1,19 @@
 {
   "compilerOptions": {
-    "target": "ES6",
-    "module": "commonjs",
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "paths": {
+      "@willow/shadcn": ["./packages/shadcn/src/index.ts"],
+      "@willow/shadcn/*": ["./packages/shadcn/src/*"]
+    }
   },
   "include": ["packages/**/*.ts"],
   "exclude": ["node_modules", "dist"]

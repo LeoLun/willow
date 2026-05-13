@@ -1,0 +1,28 @@
+{
+  "name": "@willow/shadcn",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./style.css": "./src/style.css",
+    "./components/ai-elements/*": "./src/components/ai-elements/*/index.ts",
+    "./components/ai-elements/*/*": "./src/components/ai-elements/*/*",
+    "./components/ui/*": "./src/components/ui/*/index.ts",
+    "./components/ui/*/*": "./src/components/ui/*/*",
+    "./lib/*": "./src/lib/*.ts"
+  },
+  "dependencies": {
+    "@vueuse/core": "^12.8.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-vue-next": "^0.473.0",
+    "reka-ui": "^2.8.0",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss": "^4.2.2",
+    "vue-sonner": "^2.0.9"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  }
+}

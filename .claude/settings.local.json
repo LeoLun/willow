@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm lint *)",
+      "Bash(openspec status *)",
+      "Bash(openspec show *)",
+      "Bash(openspec validate *)",
+      "Bash(openspec list *)",
+      "Bash(pnpm build *)",
+      "Bash(npx tsc *)",
+      "Bash(npx tsgo *)",
+      "Bash(node -e \"console.log\\(require\\('electron/package.json'\\).version\\)\")",
+      "Bash(npx electron *)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm format *)",
+      "Bash(npx tsup *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["shadcnVue"]
+}

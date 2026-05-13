@@ -1,8 +1,4 @@
-import {
-  IPC_METADATA,
-  ON_METADATA,
-  WINDOW_INSTANCE_METADATA,
-} from "../common/constants";
+import { IPC_METADATA, ON_METADATA, WINDOW_INSTANCE_METADATA } from "../common/constants";
 import { isFunction } from "../common/utils";
 
 export class PropertysExplorer {
@@ -17,21 +13,14 @@ export class PropertysExplorer {
         propertyList.push(property);
       }
     }
-    const propertys: any[] = propertyList.reduce(
-      (acc: any[], property: string) => {
-        const event = this.explorePropertyMetadata(
-          instance,
-          instancePrototype,
-          property,
-        );
+    const propertys: any[] = propertyList.reduce((acc: any[], property: string) => {
+      const event = this.explorePropertyMetadata(instance, instancePrototype, property);
 
-        if (event) {
-          acc.push(event);
-        }
-        return acc;
-      },
-      [],
-    );
+      if (event) {
+        acc.push(event);
+      }
+      return acc;
+    }, []);
     const events = methodList.reduce((acc: any[], method: string) => {
       const event = this.exploreMethodMetadata(
         ON_METADATA.EVENT,
@@ -91,13 +80,9 @@ export class PropertysExplorer {
     prototype: { [key: string]: any },
     propertyName: string,
   ) {
-    const instanceProperty = instance[propertyName];
-    const prototypeProperty = prototype[propertyName];
-    const isWindowInstance = Reflect.getMetadata(
-      WINDOW_INSTANCE_METADATA,
-      prototype,
-      propertyName,
-    );
+    // const instanceProperty = instance[propertyName];
+    // const prototypeProperty = prototype[propertyName];
+    const isWindowInstance = Reflect.getMetadata(WINDOW_INSTANCE_METADATA, prototype, propertyName);
     if (!isWindowInstance) {
       return null;
     }

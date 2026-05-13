@@ -1,161 +1,123 @@
-# AGENTS.md — Willow Monorepo
+# Willow AGENTS.md
 
-## Project Overview
+For renderer, `shadcn-vue`, and page design work, always consult the repository root `DESIGN.md` after reading the relevant OpenSpec artifacts.
 
-Willow 是基于 **pnpm 9 workspace** 的 monorepo，包含以下包：
+## Workflow Contract
 
-- `packages/poetry` — Electron 框架库（装饰器、DI、IPC 接线），基于 Inversify + reflect-metadata
-- `packages/ai-core` — AI 核心逻辑库，封装模型适配、流式响应、会话管理、Prompt 构建，基于 @mariozechner/pi-ai
-- `app/work` — Electron 桌面应用（OpenCode 聊天 UI），使用 Poetry、Vue 3、Pinia、Tailwind CSS 4
+- Only use these workflow skills for project process orchestration: `workflow-spec`, `workflow-worktree`, `workflow-plan`, `workflow-implement`, `workflow-close`.
+- Do not use legacy `openspec-*` or `superpowers` workflow skill names in this repository.
+- All new workflow-side documents must be written under `docs/ai-workflows/`.
+- The canonical OpenSpec storage location is `docs/ai-workflows/openspec/`.
+- The repository root `DESIGN.md` is the long-lived renderer design standard. It does not replace feature-level OpenSpec behavior or requirements.
+- The repository root `openspec/` path is a compatibility symlink for tools that still expect the default OpenSpec directory.
+- Standard sequence:
+  1. `workflow-spec`: define or update the OpenSpec change.
+  2. `workflow-worktree`: prepare an isolated implementation workspace.
+  3. `workflow-plan`: write an execution plan to `docs/ai-workflows/plans/`.
+  4. `workflow-implement`: implement strictly against OpenSpec and the plan.
+  5. `workflow-close`: run final verification, review, and archive when ready.
+- If implementation reveals a missing requirement or design conflict, return to `workflow-spec` before continuing code changes.
 
-## Build / Lint / Test Commands
+## Repository Guidelines
+
+### Project Structure And Module Organization
+
+This repository is a `pnpm` workspace with app packages and shared packages:
+
+- `app/work/`: Electron desktop app.
+- `app/ui-playground/`: isolated Vite playground for renderer and UI experiments.
+- `packages/core/src/`: shared business/domain utilities published as `@willow/core`.
+- `packages/poetry/src/`: reusable Electron framework layer (decorators, dependency injection, IPC binding, window/module management).
+- `packages/shadcn/src/`: local `shadcn-vue` component package published as `@willow/shadcn`.
+- `packages/ui/src/`: shared higher-level UI package published as `@willow/ui`.
+
+Inside `app/work/src/`, code is split by process:
+
+- `main/`: Electron services, controllers, database access, and app bootstrap.
+- `preload/`: `contextBridge` exposure.
+- `renderer/`: desktop app shell entry and Vue renderer assets.
+- `shared/`: IPC constants, hooks, and shared types.
+
+Database schema and migrations live in `app/work/src/main/db/`.
+
+### Build, Test, And Development Commands
+
+Install dependencies first:
 
 ```bash
-# ─── Workspace ───
-pnpm install                  # 安装所有依赖
-pnpm -r run build             # 构建所有包
-
-# ─── packages/poetry ───
-cd packages/poetry
-pnpm build                    # tsup → CJS + ESM + .d.ts → dist/
-pnpm dev                      # tsup --watch
-
-# ─── packages/ai-core ───
-cd packages/ai-core
-pnpm build                    # tsup → CJS + ESM + .d.ts → dist/
-pnpm dev                      # tsup --watch
-
-# ─── app/work ───
-cd app/work
-pnpm start                    # electron-forge start (dev mode)
-pnpm run package              # electron-forge package
-pnpm run make                 # electron-forge make
-pnpm run lint                 # eslint --ext .ts,.tsx .
+pnpm install
 ```
 
-### Running a Single Test
+Key workspace commands:
 
-尚未配置测试框架。推荐采用 Vitest：
+- `pnpm build`: build all workspace packages.
+- `pnpm dev`: run the Electron app in development mode (`app/work`).
+- `pnpm dev:ui`: run the UI playground (`app/ui-playground`).
+- `pnpm dev:p`: watch-build `packages/poetry`.
+- `pnpm lint`: run `oxlint` for `app/` and `packages/`.
+- `pnpm format`: format with `oxfmt`.
+- `pnpm format:check`: check formatting with `oxfmt --check`.
 
-```bash
-pnpm vitest run src/path/to/file.test.ts      # 单文件
-pnpm vitest run -t "test name pattern"         # 按名称
-```
+App-specific commands:
 
-## Tech Stack
+- `cd app/work && pnpm package`: package the desktop app.
+- `cd app/work && pnpm make`: generate platform installers.
+- `cd app/work && pnpm lint`: lint only the Electron app sources.
+- `cd app/work && pnpm db:generate`: generate Drizzle migrations.
+- `cd app/work && pnpm db:push`: push schema changes.
 
-| Layer       | Technology                                        |
-|-------------|---------------------------------------------------|
-| Monorepo    | pnpm workspaces, catalog deps                     |
-| Framework   | Electron (Forge), Vue 3.5, Poetry (custom DI)     |
-| AI Core     | @mariozechner/pi-ai, @mariozechner/pi-agent-core   |
-| State       | Pinia 3 (setup-style stores)                       |
-| UI          | shadcn-vue, reka-ui, lucide-vue-next               |
-| Styling     | Tailwind CSS 4, tw-animate-css                     |
-| Build       | Vite 5, tsup (poetry & ai-core)                    |
-| TypeScript  | Strict mode, decorators enabled                    |
+### Coding Style And Naming Conventions
 
-## Repository Structure
+- Language: TypeScript with `strict` mode enabled.
+- Vue SFCs must use `<script setup lang="ts">`.
+- Prefer Composition API and setup-style stores for Vue and Pinia code.
+- Indentation: 2 spaces.
+- Imports order: Node built-ins, third-party deps, alias imports, relative imports.
+- Prefer double quotes for imports; follow surrounding semicolon style.
 
-```
-willow/
-├── packages/
-│   ├── poetry/               # DI 框架
-│   │   └── src/
-│   │       ├── decorators/       @Injectable, @Module, @Window, @IPC, @On
-│   │       ├── core/             CoreFactory, WindowFactoryResolver
-│   │       ├── interfaces/       OnInit, OnDestroy hooks
-│   │       └── manager/          ModuleManager, WindowManager
-│   └── ai-core/              # AI 核心逻辑
-│       └── src/
-│           ├── adapter/          ModelAdapter, StreamTransformer, TokenGuard
-│           ├── models/           模型注册表 (DeepSeek, Qwen), resolveModel
-│           ├── prompt/           PromptBuilder (模板变量 + 动态上下文)
-│           └── session/          SessionManager, ConversationTree, Serializer
-├── app/
-│   └── work/                 # Electron 应用
-│       └── src/
-│           ├── main/             Poetry module, controllers, services
-│           ├── preload/          contextBridge IPC exposure
-│           ├── renderer/         Vue SPA (components, stores, composables)
-│           └── shared/           IPC constants & typed interfaces
-└── pnpm-workspace.yaml
-```
+Naming:
 
-## Code Style Guidelines
+- Vue components: `PascalCase` (for example `ChatInput.vue`)
+- Files: `kebab-case` (for example `workspace.service.ts`)
+- Functions and composables: `camelCase`; composables start with `use`
+- Pinia stores: setup-style `defineStore("name", () => {})`
+- IPC constants and channels: `UPPER_SNAKE_CASE`
 
-### 语言
+### UI And Renderer Notes
 
-- 注释、文档、commit message 统一使用**简体中文**，除非上下文需要英文。
+- Treat `app/work` renderer as a desktop productivity surface, not a marketing page.
+- Reuse the existing token system from `app/work/src/renderer/index.css`; do not invent a parallel theme layer.
+- Prefer `@willow/shadcn` and `@willow/ui` before creating one-off UI primitives.
+- Use `app/ui-playground` to validate new renderer patterns or shared UI changes when a fast isolated preview helps.
+- For `shadcn-vue` usage or page design updates, read the relevant OpenSpec artifacts first, then `DESIGN.md`.
 
-### TypeScript
+### Testing Guidelines
 
-- 全局 `strict: true`；`app/work` 额外启用 `noImplicitAny`。
-- `experimentalDecorators` + `emitDecoratorMetadata`（Poetry DI 必需）。
-- `ai-core` 使用 `moduleResolution: "bundler"`，target ES2020。
-- 函数参数必须显式标注类型；返回值简单时可推断。
-- 类型导入使用 `import type { ... }`。
+There is no formal repository-wide test runner configured yet.
 
-### Imports
+- `packages/poetry` includes Jest as a dev dependency, but no active root test script is wired up.
+- `app/work` currently relies on linting, build validation, and manual verification.
+- When adding tests, place them near source files and use `*.test.ts`.
 
-- **双引号**，所有 import 路径统一。
-- 顺序：Node 内置 → 外部包 → 本地别名（`@/`, `@main/`, `@shared/`）→ 相对路径。
-- `ai-core` 内部相对引用带 `.js` 后缀（如 `"./model-adapter.js"`）。
-- 依赖引用：`workspace:*`（本地包），`catalog:`（共享版本）。
+Before submitting changes, run the relevant checks for the area you touched:
 
-### Naming Conventions
+- `pnpm lint`
+- `pnpm build` when the change can affect package build output
+- manual verification with `pnpm dev` or `pnpm dev:ui` for renderer/UI work
 
-| Kind           | Convention   | Example                                 |
-|---------------|-------------|------------------------------------------|
-| 文件           | kebab-case   | `model-adapter.ts`, `chat-input.vue`     |
-| Vue 组件       | PascalCase   | `ChatInput.vue`, `LeftSidebar.vue`       |
-| 类             | PascalCase   | `SessionManager`, `TokenGuard`           |
-| 函数           | camelCase    | `resolveModel`, `transformStream`        |
-| Composables   | `use` 前缀   | `useDarkMode`, `useOpencodeEvents`       |
-| Pinia stores  | `use` 前缀   | `useChatStore`, `useInitStore`           |
-| 常量           | UPPER_SNAKE  | `MODULE_METADATA`, `OPEN_SETTING`        |
-| IPC channels  | UPPER_SNAKE  | `START_AI_STREAM`, `PARSE_BILL_FILE`     |
-| 生成 ID 函数   | 前缀格式     | `sess_`, `msg_`, `node_` + timestamp     |
+### Commit And Pull Request Guidelines
 
-### Vue Components
+- Use concise Conventional Commit prefixes consistent with history.
+- Prefer Simplified Chinese for user-visible changes and commit summaries when it matches existing history.
 
-- 必须使用 `<script setup lang="ts">`（仅 Composition API）。
-- 文件顺序：`<script setup>` → `<template>` → `<style scoped>`。
-- Props 使用 `defineProps<Props>()` + `withDefaults`；事件使用 `defineEmits`。
-- UI 基于 shadcn-vue (reka-ui)；用 `cn()` 合并 class。
+PRs should include:
 
-### Pinia Stores
+- scope summary and impacted packages
+- screenshots for renderer or UI updates
+- explicit notes for migrations, environment variable changes, or build-impacting changes
 
-- Setup-style：`defineStore("name", () => { ... })`。
-- 用 `// ─── 状态 ───` / `// ─── Getters ───` / `// ─── Actions ───` 分区。
+### Security And Configuration Tips
 
-### ai-core Patterns
-
-- 类中用 `private` 字段 + public 方法，方法加中文 JSDoc 注释。
-- 流式事件类型用 discriminated union：`{ type: "stream:text-delta"; ... }`。
-- 所有流式事件必须可 JSON 序列化（适配 Electron IPC）。
-- Builder 类方法返回 `this` 支持链式调用（如 `PromptBuilder`）。
-- 模型定义集中在 `models/` 目录，按厂商分文件，统一注册到 `ModelRegistry`。
-- Token 估算区分 CJK / Latin 字符（CJK ≈ 1.5 字符/token，Latin ≈ 4 字符/token）。
-- 用 `// ─── 分区标题 ───` 注释在类型文件和大类中划分逻辑区域。
-
-### Error Handling
-
-- IPC handler 必须 try/catch，失败返回 `{ result: 'error', error: string }`。
-- 使用 `e instanceof Error ? e.message : String(e)` 安全提取错误信息。
-- 禁止 throw 原始字符串，必须 throw `Error` 对象。
-- 错误消息使用中文（如 `throw new Error("会话不存在: ${id}")`）。
-
-### Formatting
-
-- 2 空格缩进，尾随逗号，使用分号。
-- 无 Prettier 配置——保持与周围代码一致。
-
-### ESLint
-
-`app/work/.eslintrc.json`：extends `eslint:recommended`, `@typescript-eslint/recommended`, `import/recommended`, `import/electron`。
-
-### Git & Environment
-
-- `.env` 已 gitignore，敏感 token 放 `.env`。
-- `pnpm-workspace.yaml` 中用 `catalog:` 管理共享依赖版本。
+- Never commit `.env` files or any secrets.
+- Store app tokens only in local `.env`.
+- Use `workspace:*` for local package references and `catalog:` for shared dependency versions.

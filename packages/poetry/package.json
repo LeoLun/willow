@@ -11,10 +11,10 @@
   "dependencies": {},
   "devDependencies": {
     "electron": "catalog:",
+    "inversify": "catalog:",
     "jest": "^27.4.5",
-    "tsup": "^8.3.5",
     "reflect-metadata": "catalog:",
-    "tsyringe": "catalog:",
-    "inversify": "catalog:"
+    "tsup": "^8.3.5",
+    "tsyringe": "catalog:"
   }
 }

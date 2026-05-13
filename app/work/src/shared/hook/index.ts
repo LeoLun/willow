@@ -1,15 +1,20 @@
-import { IEchoRenderer } from "./echo.hook";
-import { IStartOpencodeRenderer } from "./opencode.hook";
-import { IInitRenderer } from "./init.hook";
-import { IDialogRenderer } from "./dialog.hook";
-
+import type { IAiAppApi } from "./ai-app.hook";
+import type { IAutomationApi } from "./automation.hook";
+import type { IConfigApi } from "./config.hook";
+import type { IDialogRenderer } from "./dialog.hook";
+import type { IEventApi } from "./event.hook";
+import type { ISessionApi } from "./session.hook";
+import type { ISkillApi } from "./skill.hook";
+import type { IWorkspaceApi } from "./workspace.hook";
 export interface IRenderHook
-  extends IEchoRenderer,
-    IStartOpencodeRenderer,
-    IInitRenderer,
-    IDialogRenderer {}
+  extends
+    IWorkspaceApi,
+    ISessionApi,
+    ISkillApi,
+    IEventApi,
+    IConfigApi,
+    IAutomationApi,
+    IDialogRenderer,
+    IAiAppApi {}
 
-export * from "./echo.hook";
-export * from "./opencode.hook";
-export * from "./init.hook";
 export * from "./dialog.hook";

@@ -1,0 +1,28 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="surface" x1="216" y1="144" x2="808" y2="880" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E8EEF0"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="294" y1="318" x2="730" y2="706" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#1E40AF"/>
+    </linearGradient>
+    <filter id="shadow" x="152" y="112" width="720" height="800" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="22" stdDeviation="30" flood-color="#0F172A" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="192" y="152" width="640" height="720" rx="168" fill="url(#surface)"/>
+    <rect x="214" y="174" width="596" height="676" rx="146" stroke="#0F172A" stroke-opacity="0.08" stroke-width="4"/>
+  </g>
+
+  <path
+    d="M304 342L405 686L512 420L619 686L720 342"
+    stroke="url(#mark)"
+    stroke-width="88"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

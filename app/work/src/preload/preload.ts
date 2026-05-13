@@ -1,70 +1,589 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+import type { IRenderHook } from "../shared";
 import type {
-  IEchoResponce,
-  IRenderHook,
-  IStartOpencodeResponce,
-  IInitProgressPayload,
-  IInitWorkspacePayload,
-  IInitOpencodeServicePayload,
-  ISelectDirectoryResult,
-} from "../shared";
-
+  ApiResponse,
+  GetWorkspaceListResponse,
+  CreateWorkspaceRequest,
+  CreateWorkspaceResponse,
+  DeleteWorkspaceRequest,
+  DeleteWorkspaceResponse,
+  GetWorkspaceInfoRequest,
+  GetWorkspaceInfoResponse,
+  GetWorkspaceFilesRequest,
+  GetWorkspaceFilesResponse,
+  GetWorkspaceSettingsRequest,
+  GetWorkspaceSettingsResponse,
+  GetAvailableSkillsRequest,
+  GetAvailableSkillsResponse,
+  OpenPathRequest,
+  OpenPathResponse,
+  SelectFilesRequest,
+  SelectFilesResponse,
+  RenameWorkspaceRequest,
+  RenameWorkspaceResponse,
+  UpdateWorkspaceSettingsRequest,
+  UpdateWorkspaceSettingsResponse,
+  CreateSessionRequest,
+  CreateSessionResponse,
+  RenameSessionRequest,
+  RenameSessionResponse,
+  DeleteSessionRequest,
+  DeleteSessionResponse,
+  SendMessageRequest,
+  SendMessageResponse,
+  ResolveToolApprovalRequest,
+  ResolveToolApprovalResponse,
+  StopSessionStreamRequest,
+  StopSessionStreamResponse,
+  GetSessionListRequest,
+  GetSessionListResponse,
+  GetSessionHistoryRequest,
+  GetSessionHistoryResponse,
+  GetWorkspaceSessionsRequest,
+  GetWorkspaceSessionsResponse,
+  RegisterEventRequest,
+  RegisterEventResponse,
+  GetModelListResponse,
+  SetDeepSeekApiKeyRequest,
+  SetDeepSeekApiKeyResponse,
+  SetDefaultModelRequest,
+  SetDefaultModelResponse,
+  GetTavilyKeyListResponse,
+  AddTavilyKeyRequest,
+  AddTavilyKeyResponse,
+  UpdateTavilyKeyRequest,
+  UpdateTavilyKeyResponse,
+  DeleteTavilyKeyRequest,
+  DeleteTavilyKeyResponse,
+  GetAutomationListResponse,
+  GetAutomationRequest,
+  GetAutomationResponse,
+  CreateAutomationRequest,
+  CreateAutomationResponse,
+  UpdateAutomationRequest,
+  UpdateAutomationResponse,
+  RunAutomationNowRequest,
+  RunAutomationNowResponse,
+  DeleteAutomationRequest,
+  DeleteAutomationResponse,
+  AiAppLoadRequest,
+  AiAppBoundsRequest,
+} from "../shared/api";
 import {
-  ECHO,
-  START_OPENCODE,
-  INIT,
-  INIT_PROGRESS,
-  INIT_WORKSPACE,
-  INIT_OPENCODE_SERVICE,
+  GET_WORKSPACE_LIST,
+  CREATE_WORKSPACE,
+  DELETE_WORKSPACE,
+  GET_WORKSPACE_INFO,
+  GET_WORKSPACE_FILES,
+  GET_WORKSPACE_SETTINGS,
+  GET_AVAILABLE_SKILLS,
+  OPEN_PATH,
+  RENAME_WORKSPACE,
   SELECT_DIRECTORY,
-} from "../shared";
+  SELECT_FILES,
+  UPDATE_WORKSPACE_SETTINGS,
+  CREATE_SESSION,
+  RENAME_SESSION,
+  DELETE_SESSION,
+  SEND_MESSAGE,
+  RESOLVE_TOOL_APPROVAL,
+  STOP_SESSION_STREAM,
+  GET_SESSION_LIST,
+  GET_SESSION_HISTORY,
+  GET_WORKSPACE_SESSIONS,
+  REGISTER_EVENT,
+  EVENT_BUS,
+  GET_MODEL_LIST,
+  SET_DEEPSEEK_API_KEY,
+  SET_DEFAULT_MODEL,
+  GET_TAVILY_KEY_LIST,
+  ADD_TAVILY_KEY,
+  UPDATE_TAVILY_KEY,
+  DELETE_TAVILY_KEY,
+  GET_AUTOMATION_LIST,
+  GET_AUTOMATION,
+  CREATE_AUTOMATION,
+  UPDATE_AUTOMATION,
+  RUN_AUTOMATION_NOW,
+  DELETE_AUTOMATION,
+  AI_APP_LOAD,
+  AI_APP_BOUNDS,
+  AI_APP_CLOSE,
+} from "../shared/constants";
 
 const ipcObject: IRenderHook = {
-  async echo(message: string): Promise<IEchoResponce> {
-    return await ipcRenderer.invoke(ECHO, message);
+  getWorkspaceList: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_LIST,
+    )) as ApiResponse<GetWorkspaceListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get workspace list failed");
+    }
+    return response.data;
   },
-  async startOpencode(): Promise<IStartOpencodeResponce> {
-    return await ipcRenderer.invoke(START_OPENCODE);
+  createWorkspace: async (request: CreateWorkspaceRequest) => {
+    const response = (await ipcRenderer.invoke(
+      CREATE_WORKSPACE,
+      request,
+    )) as ApiResponse<CreateWorkspaceResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("create workspace failed");
+    }
+    return response.data;
   },
-  async init(): Promise<void> {
-    return await ipcRenderer.invoke(INIT);
+  deleteWorkspace: async (request: DeleteWorkspaceRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_WORKSPACE,
+      request,
+    )) as ApiResponse<DeleteWorkspaceResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("delete workspace failed");
+    }
+    return response.data;
   },
-  onInitProgress(callback: (payload: IInitProgressPayload) => void) {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      payload: IInitProgressPayload,
-    ) => callback(payload);
-    ipcRenderer.on(INIT_PROGRESS, handler);
-    return () => {
-      ipcRenderer.removeListener(INIT_PROGRESS, handler);
-    };
+  getWorkspaceInfo: async (request: GetWorkspaceInfoRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_INFO,
+      request,
+    )) as ApiResponse<GetWorkspaceInfoResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get workspace info failed");
+    }
+    return response.data;
   },
-  onInitWorkspace(callback: (payload: IInitWorkspacePayload) => void) {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      payload: IInitWorkspacePayload,
-    ) => callback(payload);
-    ipcRenderer.on(INIT_WORKSPACE, handler);
-    return () => {
-      ipcRenderer.removeListener(INIT_WORKSPACE, handler);
-    };
+  getWorkspaceFiles: async (request: GetWorkspaceFilesRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_FILES,
+      request,
+    )) as ApiResponse<GetWorkspaceFilesResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get workspace files failed");
+    }
+    return response.data;
   },
-  onInitOpencodeService(
-    callback: (payload: IInitOpencodeServicePayload) => void,
-  ) {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      payload: IInitOpencodeServicePayload,
-    ) => callback(payload);
-    ipcRenderer.on(INIT_OPENCODE_SERVICE, handler);
-    return () => {
-      ipcRenderer.removeListener(INIT_OPENCODE_SERVICE, handler);
-    };
+  getWorkspaceSettings: async (request: GetWorkspaceSettingsRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_SETTINGS,
+      request,
+    )) as ApiResponse<GetWorkspaceSettingsResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get workspace settings failed");
+    }
+    return response.data;
   },
-  async selectDirectory(
-    defaultPath?: string,
-  ): Promise<ISelectDirectoryResult> {
-    return await ipcRenderer.invoke(SELECT_DIRECTORY, defaultPath);
+  getAvailableSkills: async (request: GetAvailableSkillsRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_AVAILABLE_SKILLS,
+      request,
+    )) as ApiResponse<GetAvailableSkillsResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get available skills failed");
+    }
+    return response.data;
+  },
+  renameWorkspace: async (request: RenameWorkspaceRequest) => {
+    const response = (await ipcRenderer.invoke(
+      RENAME_WORKSPACE,
+      request,
+    )) as ApiResponse<RenameWorkspaceResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("rename workspace failed");
+    }
+    return response.data;
+  },
+  updateWorkspaceSettings: async (request: UpdateWorkspaceSettingsRequest) => {
+    const response = (await ipcRenderer.invoke(
+      UPDATE_WORKSPACE_SETTINGS,
+      request,
+    )) as ApiResponse<UpdateWorkspaceSettingsResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("update workspace settings failed");
+    }
+    return response.data;
+  },
+  selectDirectory: async (defaultPath?: string) => {
+    return ipcRenderer.invoke(SELECT_DIRECTORY, defaultPath);
+  },
+  selectFiles: async (request?: SelectFilesRequest) => {
+    const response = (await ipcRenderer.invoke(
+      SELECT_FILES,
+      request,
+    )) as ApiResponse<SelectFilesResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("select files failed");
+    }
+    return response.data;
+  },
+  openPath: async (request: OpenPathRequest) => {
+    const response = (await ipcRenderer.invoke(
+      OPEN_PATH,
+      request,
+    )) as ApiResponse<OpenPathResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("open path failed");
+    }
+    return response.data;
+  },
+  createSession: async (request: CreateSessionRequest) => {
+    const response = (await ipcRenderer.invoke(
+      CREATE_SESSION,
+      request,
+    )) as ApiResponse<CreateSessionResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("create session failed");
+    }
+    return response.data;
+  },
+  renameSession: async (request: RenameSessionRequest) => {
+    const response = (await ipcRenderer.invoke(
+      RENAME_SESSION,
+      request,
+    )) as ApiResponse<RenameSessionResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("rename session failed");
+    }
+    return response.data;
+  },
+  deleteSession: async (request: DeleteSessionRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_SESSION,
+      request,
+    )) as ApiResponse<DeleteSessionResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("delete session failed");
+    }
+    return response.data;
+  },
+  sendMessage: async (request: SendMessageRequest) => {
+    const response = (await ipcRenderer.invoke(
+      SEND_MESSAGE,
+      request,
+    )) as ApiResponse<SendMessageResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("send message failed");
+    }
+    return response.data;
+  },
+  resolveToolApproval: async (request: ResolveToolApprovalRequest) => {
+    const response = (await ipcRenderer.invoke(
+      RESOLVE_TOOL_APPROVAL,
+      request,
+    )) as ApiResponse<ResolveToolApprovalResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("resolve tool approval failed");
+    }
+    return response.data;
+  },
+  stopSessionStream: async (request: StopSessionStreamRequest) => {
+    const response = (await ipcRenderer.invoke(
+      STOP_SESSION_STREAM,
+      request,
+    )) as ApiResponse<StopSessionStreamResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("stop session stream failed");
+    }
+    return response.data;
+  },
+  getSessionList: async (request: GetSessionListRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_SESSION_LIST,
+      request,
+    )) as ApiResponse<GetSessionListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get session list failed");
+    }
+    return response.data;
+  },
+  getSessionHistory: async (request: GetSessionHistoryRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_SESSION_HISTORY,
+      request,
+    )) as ApiResponse<GetSessionHistoryResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get session history failed");
+    }
+    return response.data;
+  },
+  getWorkspaceSessions: async (request: GetWorkspaceSessionsRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_SESSIONS,
+      request,
+    )) as ApiResponse<GetWorkspaceSessionsResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get workspace sessions failed");
+    }
+    return response.data;
+  },
+  registerEvent: async (
+    request: RegisterEventRequest,
+    callback?: (event: string, data: any) => void,
+  ) => {
+    const response = (await ipcRenderer.invoke(
+      REGISTER_EVENT,
+      request,
+    )) as ApiResponse<RegisterEventResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (callback) {
+      ipcObject.onEventBus(callback);
+    }
+    if (!response.data) {
+      throw new Error("register event failed");
+    }
+    return response.data;
+  },
+  onEventBus: (callback: (event: string, data: any) => void) => {
+    ipcRenderer.on(
+      EVENT_BUS,
+      (_event: IpcRendererEvent, { event, data }: { event: string; data: any }) => {
+        callback(event, data);
+      },
+    );
+  },
+  getModelList: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_MODEL_LIST,
+    )) as ApiResponse<GetModelListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get model list failed");
+    }
+    return response.data;
+  },
+  setDeepSeekApiKey: async (request: SetDeepSeekApiKeyRequest) => {
+    const response = (await ipcRenderer.invoke(
+      SET_DEEPSEEK_API_KEY,
+      request,
+    )) as ApiResponse<SetDeepSeekApiKeyResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("set deepseek api key failed");
+    }
+    return response.data;
+  },
+  setDefaultModel: async (request: SetDefaultModelRequest) => {
+    const response = (await ipcRenderer.invoke(
+      SET_DEFAULT_MODEL,
+      request,
+    )) as ApiResponse<SetDefaultModelResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("set default model failed");
+    }
+    return response.data;
+  },
+  getTavilyKeyList: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_TAVILY_KEY_LIST,
+    )) as ApiResponse<GetTavilyKeyListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get tavily key list failed");
+    }
+    return response.data;
+  },
+  addTavilyKey: async (request: AddTavilyKeyRequest) => {
+    const response = (await ipcRenderer.invoke(
+      ADD_TAVILY_KEY,
+      request,
+    )) as ApiResponse<AddTavilyKeyResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("add tavily key failed");
+    }
+    return response.data;
+  },
+  updateTavilyKey: async (request: UpdateTavilyKeyRequest) => {
+    const response = (await ipcRenderer.invoke(
+      UPDATE_TAVILY_KEY,
+      request,
+    )) as ApiResponse<UpdateTavilyKeyResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("update tavily key failed");
+    }
+    return response.data;
+  },
+  deleteTavilyKey: async (request: DeleteTavilyKeyRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_TAVILY_KEY,
+      request,
+    )) as ApiResponse<DeleteTavilyKeyResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("delete tavily key failed");
+    }
+    return response.data;
+  },
+  getAutomationList: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_AUTOMATION_LIST,
+    )) as ApiResponse<GetAutomationListResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get automation list failed");
+    }
+    return response.data;
+  },
+  getAutomation: async (request: GetAutomationRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_AUTOMATION,
+      request,
+    )) as ApiResponse<GetAutomationResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get automation failed");
+    }
+    return response.data;
+  },
+  createAutomation: async (request: CreateAutomationRequest) => {
+    const response = (await ipcRenderer.invoke(
+      CREATE_AUTOMATION,
+      request,
+    )) as ApiResponse<CreateAutomationResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("create automation failed");
+    }
+    return response.data;
+  },
+  updateAutomation: async (request: UpdateAutomationRequest) => {
+    const response = (await ipcRenderer.invoke(
+      UPDATE_AUTOMATION,
+      request,
+    )) as ApiResponse<UpdateAutomationResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("update automation failed");
+    }
+    return response.data;
+  },
+  runAutomationNow: async (request: RunAutomationNowRequest) => {
+    const response = (await ipcRenderer.invoke(
+      RUN_AUTOMATION_NOW,
+      request,
+    )) as ApiResponse<RunAutomationNowResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("run automation now failed");
+    }
+    return response.data;
+  },
+  deleteAutomation: async (request: DeleteAutomationRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_AUTOMATION,
+      request,
+    )) as ApiResponse<DeleteAutomationResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("delete automation failed");
+    }
+    return response.data;
+  },
+  loadAiApp: async (request: AiAppLoadRequest) => {
+    const response = (await ipcRenderer.invoke(AI_APP_LOAD, request)) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+  },
+  updateAiAppBounds: async (request: AiAppBoundsRequest) => {
+    const response = (await ipcRenderer.invoke(AI_APP_BOUNDS, request)) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+  },
+  closeAiApp: async () => {
+    const response = (await ipcRenderer.invoke(AI_APP_CLOSE)) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
   },
 };
 

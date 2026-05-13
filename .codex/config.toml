@@ -1,0 +1,31 @@
+[mcp_servers.shadcn]
+command = "npx"
+args = ["shadcn-vue@latest", "mcp"]
+
+[mcp_servers.pencil]
+command = "/Applications/Pencil.app/Contents/Resources/app.asar.unpacked/out/mcp-server-darwin-arm64"
+args = ["--app", "desktop"]
+
+[mcp_servers.pencil.tools.get_editor_state]
+approval_mode = "approve"
+
+[mcp_servers.pencil.tools.snapshot_layout]
+approval_mode = "approve"
+
+[mcp_servers.pencil.tools.batch_get]
+approval_mode = "approve"
+
+[mcp_servers.pencil.tools.batch_design]
+approval_mode = "approve"
+
+[mcp_servers.pencil.tools.get_screenshot]
+approval_mode = "approve"
+
+[mcp_servers.pencil.tools.get_variables]
+approval_mode = "approve"
+
+[mcp_servers.pencil.tools.get_guidelines]
+approval_mode = "approve"
+
+[mcp_servers.pencil.tools.find_empty_space_on_canvas]
+approval_mode = "approve"

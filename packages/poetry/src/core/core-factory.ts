@@ -1,9 +1,9 @@
 import "reflect-metadata";
-import { BrowserWindow, app, ipcMain } from "electron";
+import { BrowserWindow, app, ipcMain, shell } from "electron";
 import { Container, interfaces } from "inversify";
 import { MODULE_METADATA, WINDOW_METADATA } from "../common/constants";
-import { WindowFactoryResolver } from "./window-factory-resolver";
 import { PropertysExplorer } from "./propertys-explorer";
+import { WindowFactoryResolver } from "./window-factory-resolver";
 
 export class CoreFactoryStatic {
   private container: Container;
@@ -33,32 +33,23 @@ export class CoreFactoryStatic {
       });
 
     // 获取所有的controllers
-    const controllers = Reflect.getMetadata(
-      MODULE_METADATA.CONTROLLERS,
-      module,
-    );
+    const controllers = Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, module);
     // 将controllers注册到容器
     controllers &&
       controllers.forEach((controller: any) => {
         container.bind(controller).toSelf();
 
-        container.onActivation(
-          controller,
-          (context: interfaces.Context, result: any): any => {
-            // 实例化controller对象，添加 IPC 监听
-            this.initController(controller, result, container);
-            return result;
-          },
-        );
+        container.onActivation(controller, (context: interfaces.Context, result: any): any => {
+          // 实例化controller对象，添加 IPC 监听
+          this.initController(controller, result, container);
+          return result;
+        });
 
-        container.onDeactivation(
-          controller,
-          async (result: any): Promise<any> => {
-            // 移除 IPC 监听
-            this.removeController(controller, result, container);
-            return;
-          },
-        );
+        container.onDeactivation(controller, async (result: any): Promise<any> => {
+          // 移除 IPC 监听
+          this.removeController(controller, result, container);
+          return;
+        });
       });
 
     // 获取所有的windows
@@ -67,15 +58,12 @@ export class CoreFactoryStatic {
     windows &&
       windows.forEach((window: any) => {
         container.bind(window).toSelf();
-        container.onActivation(
-          window,
-          (context: interfaces.Context, result: any): any => {
-            // 实例化窗口对象
-            this.initWindow(window, result, container);
-            result.onInit && result.onInit();
-            return result;
-          },
-        );
+        container.onActivation(window, (context: interfaces.Context, result: any): any => {
+          // 实例化窗口对象
+          this.initWindow(window, result, container);
+          result.onInit && result.onInit();
+          return result;
+        });
 
         container.onDeactivation(window, async (result: any): Promise<any> => {
           return result.onDestroy && (await result.onDestroy());
@@ -90,10 +78,7 @@ export class CoreFactoryStatic {
         const childContainer = container.createChild();
         const moduleInstance = this.createModule(childModule, childContainer);
         // 获取子模块导出的providers
-        const exports = Reflect.getMetadata(
-          MODULE_METADATA.EXPORTS,
-          childModule,
-        );
+        const exports = Reflect.getMetadata(MODULE_METADATA.EXPORTS, childModule);
         // 实例化导出的providers
         exports.forEach((exportProvider: any) => {
           container.bind(exportProvider).toDynamicValue(() => {
@@ -128,15 +113,12 @@ export class CoreFactoryStatic {
     }
   }
 
+  // oxlint-disable-next-line no-unused-vars
   private initController(controller: any, instance: any, container: Container) {
     const propertysExplorer = new PropertysExplorer();
     const { ipcMethods } = propertysExplorer.scanForPropertys(instance);
 
     for (const event of ipcMethods) {
-      // @TODO 优化改用 rxjs 监听, 以便于取消监听
-      const func = (...args: any[]) => {
-        return event.targetCallback.apply(instance, args);
-      };
       ipcMain.handle(event.eventName, (...args) => {
         return event.targetCallback.apply(instance, args);
       });
@@ -146,6 +128,7 @@ export class CoreFactoryStatic {
   private removeController(
     controller: any,
     instance: any,
+    // oxlint-disable-next-line no-unused-vars
     container: Container,
   ) {
     const propertysExplorer = new PropertysExplorer();
@@ -160,14 +143,13 @@ export class CoreFactoryStatic {
     const options = Reflect.getMetadata(WINDOW_METADATA.OPTIONS, window);
     const loadFile = Reflect.getMetadata(WINDOW_METADATA.LOAD_FILE, window);
     const loadURL = Reflect.getMetadata(WINDOW_METADATA.LOAD_URL, window);
-    const openDevTools = Reflect.getMetadata(
-      WINDOW_METADATA.OPEN_DEV_TOOLS,
-      window,
-    );
+    const openDevTools = Reflect.getMetadata(WINDOW_METADATA.OPEN_DEV_TOOLS, window);
     if (!options) {
       return;
     }
     const browserWindow = new BrowserWindow(options);
+    this.openExternalUrlsInDefaultBrowser(browserWindow, loadURL);
+
     if (loadURL) {
       browserWindow.loadURL(loadURL);
     }
@@ -187,8 +169,7 @@ export class CoreFactoryStatic {
 
     // 添加窗口事件监听
     const propertysExplorer = new PropertysExplorer();
-    const { propertys, events, ipcMethods } =
-      propertysExplorer.scanForPropertys(instance);
+    const { propertys, events, ipcMethods } = propertysExplorer.scanForPropertys(instance);
     // 注入窗口对象实例
     for (const property of propertys) {
       Reflect.set(instance, property.propertyName, browserWindow);
@@ -205,6 +186,47 @@ export class CoreFactoryStatic {
       });
     }
     return;
+  }
+
+  private openExternalUrlsInDefaultBrowser(browserWindow: BrowserWindow, appUrl?: string) {
+    browserWindow.webContents.setWindowOpenHandler(({ url }) => {
+      if (this.openUrlInDefaultBrowser(url, browserWindow.webContents.getURL(), appUrl)) {
+        return { action: "deny" };
+      }
+
+      return { action: "allow" };
+    });
+
+    browserWindow.webContents.on("will-navigate", (event, url) => {
+      if (url === browserWindow.webContents.getURL()) {
+        return;
+      }
+
+      if (this.openUrlInDefaultBrowser(url, browserWindow.webContents.getURL(), appUrl)) {
+        event.preventDefault();
+      }
+    });
+  }
+
+  private openUrlInDefaultBrowser(url: string, currentUrl: string, appUrl?: string) {
+    if (!/^(https?:|mailto:)/i.test(url)) {
+      return false;
+    }
+
+    if (this.hasSameOrigin(url, currentUrl) || (appUrl && this.hasSameOrigin(url, appUrl))) {
+      return false;
+    }
+
+    void shell.openExternal(url);
+    return true;
+  }
+
+  private hasSameOrigin(url: string, currentUrl: string) {
+    try {
+      return new URL(url).origin === new URL(currentUrl).origin;
+    } catch {
+      return false;
+    }
   }
 }
 

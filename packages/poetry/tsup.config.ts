@@ -1,13 +1,13 @@
-import { defineConfig } from 'tsup'
+import { defineConfig } from "tsup";
 
 export default defineConfig(() => ({
-  entry: ['src/index.ts'],
+  entry: ["src/index.ts"],
   minify: false,
-  format: ['cjs', 'esm'],
-  target: 'es2018',
+  format: ["cjs", "esm"],
+  target: "es2018",
   treeshake: true,
   silent: true,
   clean: true,
   dts: true,
-  external: ['electron', 'tsyringe', 'inversify', 'reflect-metadata'],
-}))
+  external: ["electron", "tsyringe", "inversify", "reflect-metadata"],
+}));

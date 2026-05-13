@@ -1,5 +1,5 @@
-import { IWindowManager } from "../interfaces/manager/window-manager.interface";
 import { IModuleManager } from "../interfaces/manager/module-manager.interface";
+import { IWindowManager } from "../interfaces/manager/window-manager.interface";
 
 export class ModuleManager implements IModuleManager {
   module: any;
@@ -10,7 +10,7 @@ export class ModuleManager implements IModuleManager {
   constructor(parentModuleManager?: IModuleManager) {
     this.parentModuleManager = parentModuleManager;
     this.windowManagerMap = new WeakMap();
-    this.childModuleManagers = []
+    this.childModuleManagers = [];
   }
 
   setModule(module: any) {

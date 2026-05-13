@@ -5,4 +5,3 @@ export interface IWindowManager {
   parentModuleManager: IModuleManager;
   window: BrowserWindow;
 }
-

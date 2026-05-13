@@ -1,0 +1,70 @@
+@import "github-markdown-css/github-markdown.css";
+@import "katex/dist/katex.min.css";
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.user-message-container {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  backdrop-filter: blur(10px);
+  max-width: 100%;
+  margin-left: auto;
+}
+
+.markdown-content {
+  overflow-wrap: anywhere;
+}
+
+.markdown-content.markdown-body {
+  --fgColor-default: var(--foreground);
+  --fgColor-muted: var(--muted-foreground);
+  --fgColor-accent: var(--primary);
+  --bgColor-default: transparent;
+  --bgColor-muted: var(--muted);
+  --bgColor-neutral-muted: color-mix(in oklab, var(--muted) 80%, transparent);
+  --borderColor-default: var(--border);
+  --borderColor-muted: var(--border);
+  --borderColor-neutral-muted: var(--border);
+  color: var(--foreground);
+  background-color: transparent;
+  font-size: 14px;
+}
+
+.markdown-content.markdown-body a {
+  color: var(--primary);
+}
+
+.markdown-content.markdown-body blockquote {
+  color: var(--muted-foreground);
+  border-left-color: var(--border);
+}
+
+.markdown-content.markdown-body table th,
+.markdown-content.markdown-body table td {
+  border-color: var(--border);
+}
+
+.markdown-content.markdown-body table tr {
+  background-color: transparent;
+  border-top-color: var(--border);
+}
+
+.markdown-content.markdown-body table tr:nth-child(2n) {
+  background-color: var(--muted);
+}
+
+.markdown-body .willow-code-block pre {
+  margin: 0;
+  padding: 0;
+}
