@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { On, WindowFactoryResolver, Module } from "@willow/poetry";
 import { app, BrowserWindow, dialog as electronDialog } from "electron";
 import started from "electron-squirrel-startup";
@@ -66,6 +67,9 @@ if (started) {
   app.quit();
 }
 
+if (!app.isPackaged && process.platform === "darwin") {
+  app.dock.setIcon(join(__dirname, "../../assets/icons/icon2.png"));
+}
 @Module({
   imports: [],
   windows: [MainWindow],

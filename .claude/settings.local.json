@@ -13,7 +13,8 @@
       "Bash(npx electron *)",
       "Bash(pnpm format:check)",
       "Bash(pnpm format *)",
-      "Bash(npx tsup *)"
+      "Bash(npx tsup *)",
+      "Bash(pnpm exec *)"
     ]
   },
   "enableAllProjectMcpServers": true,

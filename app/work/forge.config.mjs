@@ -30,13 +30,22 @@ const config = {
   hooks: {
     async packageAfterCopy(_forgeConfig, buildPath) {
       const packagedNodeModulesPath = join(buildPath, "node_modules");
-      const packagedBetterSqlite3Path = join(packagedNodeModulesPath, "better-sqlite3");
+      const packagedBetterSqlite3Path = join(
+        packagedNodeModulesPath,
+        "better-sqlite3",
+      );
+      const packagedNodeCronPath = join(packagedNodeModulesPath, "node-cron");
 
       await mkdir(packagedNodeModulesPath, { recursive: true });
       await cp(betterSqlite3Source, packagedBetterSqlite3Path, {
         force: true,
         recursive: true,
       });
+      await cp(
+        fileURLToPath(new URL("../../node_modules/node-cron", import.meta.url)),
+        packagedNodeCronPath,
+        { force: true, recursive: true },
+      );
     },
   },
   makers: [
@@ -47,13 +56,13 @@ const config = {
       title: "Willow Work",
       format: "ULFO",
       overwrite: true,
+      icon: "./assets/icons/icon.icns",
       window: {
         size: {
           width: 640,
           height: 480,
         },
       },
-      "icon-size": 128,
       contents: (options) => [
         {
           x: 176,
