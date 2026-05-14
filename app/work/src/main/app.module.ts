@@ -68,7 +68,7 @@ if (started) {
 }
 
 if (!app.isPackaged && process.platform === "darwin") {
-  app.dock.setIcon(join(__dirname, "../../assets/icons/icon2.png"));
+  app.dock.setIcon(join(__dirname, "../../assets/icons/icon.png"));
 }
 @Module({
   imports: [],
