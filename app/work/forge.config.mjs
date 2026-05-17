@@ -105,6 +105,10 @@ const config = {
           name: "main_window",
           config: "vite.renderer.config.ts",
         },
+        {
+          name: "floating_ball",
+          config: "vite.floating-ball.config.ts",
+        },
       ],
     }),
     // Fuses are used to enable/disable various Electron functionality

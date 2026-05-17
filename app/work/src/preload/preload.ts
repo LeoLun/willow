@@ -68,6 +68,10 @@ import type {
   DeleteAutomationResponse,
   AiAppLoadRequest,
   AiAppBoundsRequest,
+  GetFloatingBallConfigResponse,
+  MoveFloatingBallWindowRequest,
+  SetFloatingBallEnabledRequest,
+  SetFloatingBallPositionRequest,
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
@@ -109,6 +113,12 @@ import {
   AI_APP_LOAD,
   AI_APP_BOUNDS,
   AI_APP_CLOSE,
+  GET_FLOATING_BALL_CONFIG,
+  MOVE_FLOATING_BALL_WINDOW,
+  SET_FLOATING_BALL_ENABLED,
+  SET_FLOATING_BALL_POSITION,
+  SHOW_MAIN_WINDOW,
+  SHOW_FLOATING_BALL_MENU,
 } from "../shared/constants";
 
 const ipcObject: IRenderHook = {
@@ -581,6 +591,54 @@ const ipcObject: IRenderHook = {
   },
   closeAiApp: async () => {
     const response = (await ipcRenderer.invoke(AI_APP_CLOSE)) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+  },
+  getFloatingBallConfig: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_FLOATING_BALL_CONFIG,
+    )) as ApiResponse<GetFloatingBallConfigResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data!;
+  },
+  setFloatingBallEnabled: async (request: SetFloatingBallEnabledRequest) => {
+    const response = (await ipcRenderer.invoke(
+      SET_FLOATING_BALL_ENABLED,
+      request,
+    )) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+  },
+  setFloatingBallPosition: async (request: SetFloatingBallPositionRequest) => {
+    const response = (await ipcRenderer.invoke(
+      SET_FLOATING_BALL_POSITION,
+      request,
+    )) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+  },
+  moveFloatingBallWindow: async (request: MoveFloatingBallWindowRequest) => {
+    const response = (await ipcRenderer.invoke(
+      MOVE_FLOATING_BALL_WINDOW,
+      request,
+    )) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+  },
+  showMainWindow: async () => {
+    const response = (await ipcRenderer.invoke(SHOW_MAIN_WINDOW)) as ApiResponse<void>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+  },
+  showFloatingBallMenu: async () => {
+    const response = (await ipcRenderer.invoke(SHOW_FLOATING_BALL_MENU)) as ApiResponse<void>;
     if (response.code !== 0) {
       throw new Error(response.msg);
     }

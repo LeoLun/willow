@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { On, WindowFactoryResolver, Module } from "@willow/poetry";
-import { app, BrowserWindow, dialog as electronDialog } from "electron";
+import { app, dialog as electronDialog } from "electron";
 import started from "electron-squirrel-startup";
 import { AiAppViewController } from "./controllers/ai-app-view.controller";
 import { CreateAutomationController } from "./controllers/automation/create.automation.controller";
@@ -18,6 +18,7 @@ import { SetDefaultModelController } from "./controllers/config/set.default.mode
 import { UpdateTavilyKeyController } from "./controllers/config/update.tavily.key.controller";
 import { DialogController } from "./controllers/dialog.controller";
 import { EventController } from "./controllers/event.controller";
+import { FloatingBallController } from "./controllers/floating-ball.controller";
 import { InitController } from "./controllers/init.controller";
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { DeleteSessionController } from "./controllers/session/delete.session.controller";
@@ -55,12 +56,14 @@ import { TavilyDao } from "./service/dao/tavily.dao.service";
 import { WorkspaceDao } from "./service/dao/workspace.dao.service";
 import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
+import { FloatingBallService } from "./service/floating-ball.service";
 import { SessionService } from "./service/session.service";
 import { SkillService } from "./service/skill.service";
 import { SystemService } from "./service/system.service";
 import { TavilyService } from "./service/tavily.service";
 import { TodoService } from "./service/todo.service";
 import { WorkspaceService } from "./service/workspace.service";
+import { FloatingBallWindow } from "./window/floating-ball.window";
 import { MainWindow } from "./window/main.window";
 
 if (started) {
@@ -72,7 +75,7 @@ if (!app.isPackaged && process.platform === "darwin") {
 }
 @Module({
   imports: [],
-  windows: [MainWindow],
+  windows: [MainWindow, FloatingBallWindow],
   providers: [
     DbService,
     WorkspaceService,
@@ -97,6 +100,7 @@ if (!app.isPackaged && process.platform === "darwin") {
     AutomationSchedulerService,
     AutomationService,
     AiAppViewService,
+    FloatingBallService,
   ],
   controllers: [
     InitController,
@@ -134,6 +138,7 @@ if (!app.isPackaged && process.platform === "darwin") {
     UpdateTavilyKeyController,
     DeleteTavilyKeyController,
     AiAppViewController,
+    FloatingBallController,
   ],
 })
 export class AppModule {
@@ -177,6 +182,8 @@ export class AppModule {
     private updateTavilyKeyController: UpdateTavilyKeyController,
     private deleteTavilyKeyController: DeleteTavilyKeyController,
     private aiAppViewController: AiAppViewController,
+    private floatingBallService: FloatingBallService,
+    private floatingBallController: FloatingBallController,
   ) {
     registerAutomationToolService(this.automationService);
   }
@@ -204,13 +211,12 @@ export class AppModule {
 
   @On("activate")
   async onActivate() {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      if (!this.initSucceeded) {
-        await this.bootstrapApplication();
-        return;
-      }
-      this.createWindow();
+    if (!this.initSucceeded) {
+      await this.bootstrapApplication();
+      return;
     }
+
+    this.showMainWindow();
   }
 
   private async bootstrapApplication() {
@@ -220,6 +226,7 @@ export class AppModule {
 
     try {
       await this.initController.init();
+      await this.floatingBallService.init();
       this.initSucceeded = true;
       this.createWindow();
       return true;
@@ -231,5 +238,21 @@ export class AppModule {
       );
       return false;
     }
+  }
+
+  private showMainWindow() {
+    const mainWindow = this.windowFactoryResolver.resolveWindowFactory(MainWindow);
+
+    if (!mainWindow.win || mainWindow.win.isDestroyed()) {
+      this.createWindow();
+      return;
+    }
+
+    if (mainWindow.win.isMinimized()) {
+      mainWindow.win.restore();
+    }
+
+    mainWindow.win.show();
+    mainWindow.win.focus();
   }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Button } from "@willow/shadcn/components/ui/button";
-import { ArrowLeft, Settings2, Sun } from "lucide-vue-next";
+import { ArrowLeft, Settings2, Sun, Circle } from "lucide-vue-next";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -19,6 +19,12 @@ const navItems = [
     icon: Settings2,
     routeName: "settingConfiguration",
     to: "/setting/configuration",
+  },
+  {
+    label: "悬浮球",
+    icon: Circle,
+    routeName: "settingFloatingBall",
+    to: "/setting/floating-ball",
   },
 ];
 

@@ -521,3 +521,27 @@ export interface AiAppBoundsRequest {
   width: number;
   height: number;
 }
+
+export interface FloatingBallConfig {
+  enabled: boolean;
+  x: number;
+  y: number;
+}
+
+export interface GetFloatingBallConfigResponse {
+  config: FloatingBallConfig;
+}
+
+export interface SetFloatingBallEnabledRequest {
+  enabled: boolean;
+}
+
+export interface SetFloatingBallPositionRequest {
+  x: number;
+  y: number;
+}
+
+export interface MoveFloatingBallWindowRequest {
+  x: number;
+  y: number;
+}
