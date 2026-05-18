@@ -18,6 +18,7 @@ interface AgentMessagesState {
 interface UpdateMessagePayload {
   sessionId: number;
   groupId: string;
+  chatScope?: "conversation" | "workspace";
   event: {
     type: string;
     message?: AgentMessage;

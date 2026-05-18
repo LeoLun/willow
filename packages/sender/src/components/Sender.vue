@@ -576,8 +576,8 @@ function handleSystemFileSelect() {
             :disabled="!canSend"
             @click="handleAction"
           >
-            <SquareIcon v-if="isStreaming" class="size-3 fill-current" />
-            <ArrowUpIcon v-else class="size-3" />
+            <SquareIcon v-if="isStreaming" class="size-5 fill-current" />
+            <ArrowUpIcon v-else class="size-5" />
             <span class="sr-only">{{ isStreaming ? "Stop" : "Send" }}</span>
           </Button>
         </div>

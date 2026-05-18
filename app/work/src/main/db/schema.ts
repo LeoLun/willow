@@ -4,6 +4,9 @@ export const workspaces = sqliteTable("workspaces", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   path: text("path").notNull(),
+  kind: text("kind", { enum: ["project", "conversation"] })
+    .notNull()
+    .default("project"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .$defaultFn(() => new Date())
     .notNull(),
@@ -57,6 +60,28 @@ export const sessionContextSummaries = sqliteTable("session_context_summaries", 
   modelId: text("model_id").notNull(),
   summary: text("summary").notNull(),
   indexText: text("index_text").notNull(),
+  compressedUntilMessageId: integer("compressed_until_message_id").notNull(),
+  sourceMessageCount: integer("source_message_count").notNull(),
+  estimatedTokens: integer("estimated_tokens").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdateFn(() => new Date())
+    .notNull(),
+});
+
+export const conversationContextStates = sqliteTable("conversation_context_states", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sessionId: integer("session_id")
+    .references(() => sessions.id, { onDelete: "cascade" })
+    .notNull(),
+  modelId: text("model_id").notNull(),
+  summary: text("summary").notNull(),
+  stableFacts: text("stable_facts").notNull(),
+  openLoops: text("open_loops").notNull(),
+  checkpointIndex: integer("checkpoint_index").notNull().default(0),
   compressedUntilMessageId: integer("compressed_until_message_id").notNull(),
   sourceMessageCount: integer("source_message_count").notNull(),
   estimatedTokens: integer("estimated_tokens").notNull(),

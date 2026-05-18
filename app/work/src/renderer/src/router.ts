@@ -19,6 +19,7 @@ const routes: RouteRecordRaw[] = [
     redirect: "/",
     children: [
       { path: "/", name: "workspace", component: Workspace },
+      { path: "/conversation", name: "conversation", component: Session },
       { path: "/:sessionId", name: "session", component: Session },
     ],
   },
@@ -54,14 +55,6 @@ export const router = createRouter({
 
 router.beforeEach(async (to) => {
   if (to.path === "/" && !to.query.workspaceId) {
-    const { useWorkspaceStore } = await import("./stores/workspace");
-    const workspaceStore = useWorkspaceStore();
-    const list =
-      workspaceStore.workspaceList.length > 0
-        ? workspaceStore.workspaceList
-        : await workspaceStore.fetchWorkspaceList();
-    if (list.length > 0) {
-      return { path: "/", query: { workspaceId: String(list[0].id) } };
-    }
+    return { path: "/conversation" };
   }
 });

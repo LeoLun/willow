@@ -10,7 +10,7 @@ let mouseDownOnBall = false;
 let movedDuringDrag = false;
 
 function handleEvent(eventName: string, data: any) {
-  if (eventName === "UPDATE_MESSAGE") {
+  if (eventName === "UPDATE_MESSAGE" && data?.chatScope === "conversation") {
     const eventType = data?.event?.type;
     if (eventType === "agent_start") {
       isStreaming.value = true;

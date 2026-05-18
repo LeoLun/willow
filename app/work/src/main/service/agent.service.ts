@@ -4,6 +4,7 @@ import {
   ContextCompressionService,
   type ContextCompressionNotification,
 } from "@main/service/context-compression.service";
+import { ConversationContextCompressionService } from "@main/service/conversation-context-compression.service";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import { TavilyService } from "@main/service/tavily.service";
@@ -102,6 +103,7 @@ export class AgentService {
     private readonly tavilyService: TavilyService,
     private readonly todoService: TodoService,
     private readonly contextCompressionService: ContextCompressionService,
+    private readonly conversationContextCompressionService: ConversationContextCompressionService,
   ) {}
 
   private resolveApiKey(config?: ModelConfig | null): string | undefined {
@@ -153,13 +155,22 @@ export class AgentService {
 
     const rows = this.sessionMessageDao.findBySessionId(session.id);
     const parsedHistory = parseStoredSessionMessages(rows);
-    const preparedContext = await this.contextCompressionService.prepare({
-      sessionId: session.id,
-      model: dbModel,
-      rows,
-      history: parsedHistory,
-      currentInput,
-    });
+    const preparedContext =
+      workspace?.kind === "conversation"
+        ? await this.conversationContextCompressionService.prepare({
+            sessionId: session.id,
+            model: dbModel,
+            rows,
+            history: parsedHistory,
+            currentInput,
+          })
+        : await this.contextCompressionService.prepare({
+            sessionId: session.id,
+            model: dbModel,
+            rows,
+            history: parsedHistory,
+            currentInput,
+          });
     const history = normalizeDeepSeekReasoningHistory(preparedContext.messages, resolvedModel);
 
     const agent = new Agent({

@@ -31,15 +31,15 @@ export class WorkspaceService {
     const id = this.generateWorkspaceId();
     const workspacePath = join(app.getPath("userData"), "workspace", id.toString());
     await mkdir(workspacePath, { recursive: true });
-    return this.workspaceDao.insert({ name, path: workspacePath, id });
+    return this.workspaceDao.insert({ name, path: workspacePath, id, kind: "project" });
   }
 
   async getWorkspaceList() {
-    return this.workspaceDao.findAll();
+    return this.workspaceDao.findByKind("project");
   }
 
   async createWorkspace(name: string, path: string) {
-    return this.workspaceDao.insert({ name, path });
+    return this.workspaceDao.insert({ name, path, kind: "project" });
   }
 
   async deleteWorkspace(id: number) {
@@ -52,6 +52,22 @@ export class WorkspaceService {
 
   async getWorkspaceInfo(id: number) {
     return this.workspaceDao.findById(id);
+  }
+
+  async getOrCreateConversationWorkspace() {
+    const existing = this.workspaceDao.findFirstByKind("conversation");
+    if (existing) {
+      await mkdir(existing.path, { recursive: true });
+      return existing;
+    }
+
+    const conversationPath = join(app.getPath("home"), ".willow");
+    await mkdir(conversationPath, { recursive: true });
+    return this.workspaceDao.insert({
+      name: "对话",
+      path: conversationPath,
+      kind: "conversation",
+    });
   }
 
   async renameWorkspace(id: number, name: string) {

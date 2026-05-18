@@ -27,6 +27,17 @@ export class SessionDao {
       .all();
   }
 
+  findLatestByWorkspaceId(workspaceId: number) {
+    return this.dbService
+      .getDb()
+      .select()
+      .from(sessions)
+      .where(eq(sessions.workspaceId, workspaceId))
+      .orderBy(desc(sessions.lastActiveAt))
+      .limit(1)
+      .get();
+  }
+
   insert(data: Omit<SessionInsert, "id">) {
     return this.dbService.getDb().insert(sessions).values(data).returning().get();
   }

@@ -4,6 +4,7 @@ import { SessionDao } from "@main/service/dao/session.dao.service";
 import { EventService } from "@main/service/event.service";
 import { SkillService } from "@main/service/skill.service";
 import { TodoService } from "@main/service/todo.service";
+import { WorkspaceService } from "@main/service/workspace.service";
 import {
   clipForTitlePrompt,
   lastAssistantTextOnly,
@@ -63,6 +64,7 @@ export class SessionService {
     private readonly eventService: EventService,
     private readonly skillService: SkillService,
     private readonly todoService: TodoService,
+    private readonly workspaceService: WorkspaceService,
   ) {}
 
   async getSessionList(workspaceId: number) {
@@ -102,6 +104,17 @@ export class SessionService {
       workspaceId: workspaceId,
       title: "",
     });
+  }
+
+  async getOrCreateConversationSession() {
+    const workspace = await this.workspaceService.getOrCreateConversationWorkspace();
+    const existing = this.sessionDao.findLatestByWorkspaceId(workspace.id);
+    if (existing) {
+      return { session: existing, workspace };
+    }
+
+    const session = await this.createSession(workspace.id);
+    return { session, workspace };
   }
 
   async renameSession(sessionId: number, title: string) {
@@ -207,6 +220,8 @@ export class SessionService {
     if (!session) {
       throw new Error("session not found");
     }
+    const workspace = await this.workspaceService.getWorkspaceInfo(session.workspaceId);
+    const chatScope = workspace?.kind === "conversation" ? "conversation" : "workspace";
 
     this.sessionDao.update(sessionId, { lastActiveAt: new Date() });
 
@@ -221,10 +236,10 @@ export class SessionService {
     );
     const agent = coreAgent.agent;
     if (coreAgent.contextCompression?.notification) {
-      this.eventService.sendEvent(
-        CONTEXT_COMPRESSION_UPDATED,
-        coreAgent.contextCompression.notification,
-      );
+      this.eventService.sendEvent(CONTEXT_COMPRESSION_UPDATED, {
+        ...coreAgent.contextCompression.notification,
+        chatScope,
+      });
     }
     const offPendingApproval = coreAgent.approvalCoordinator.onPending((approval) => {
       this.upsertToolApproval(sessionId, approval);
@@ -255,6 +270,7 @@ export class SessionService {
       this.eventService.sendEvent("UPDATE_MESSAGE", {
         sessionId: sessionId,
         groupId: "0",
+        chatScope,
         event: outgoing,
       });
     });

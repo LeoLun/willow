@@ -57,6 +57,13 @@
       "when": 1777910400000,
       "tag": "0007_context_compression",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1778522400000,
+      "tag": "0008_add_conversation_mode",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ export interface Workspace {
   id: number;
   name: string;
   path: string;
+  kind: "project" | "conversation";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -277,6 +278,13 @@ export interface GetSessionHistoryRequest {
   sessionId: number;
 }
 
+export interface GetConversationSessionRequest {}
+
+export interface GetConversationSessionResponse {
+  session: Session;
+  workspace: Workspace;
+}
+
 export interface TodoItem {
   id: string;
   content: string;
@@ -297,6 +305,7 @@ export interface ContextCompressionUpdate {
   status: "compressed" | "degraded";
   message?: string;
   estimatedTokens?: number;
+  chatScope?: "conversation" | "workspace";
 }
 
 export interface GetSessionHistoryResponse {

@@ -23,6 +23,7 @@ import { InitController } from "./controllers/init.controller";
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { DeleteSessionController } from "./controllers/session/delete.session.controller";
 import { GetAvailableSkillsController } from "./controllers/session/get.available.skills.controller";
+import { GetConversationSessionController } from "./controllers/session/get.conversation.session.controller";
 import { GetSessionHistoryController } from "./controllers/session/get.session.history.controller";
 import { GetSessionListController } from "./controllers/session/get.session.list.controller";
 import { GetWorkspaceSessionsController } from "./controllers/session/get.workspace.sessions.controller";
@@ -45,9 +46,11 @@ import { registerAutomationToolService } from "./service/automation-tool.service
 import { AutomationService } from "./service/automation.service";
 import { ConfigService } from "./service/config.service";
 import { ContextCompressionService } from "./service/context-compression.service";
+import { ConversationContextCompressionService } from "./service/conversation-context-compression.service";
 import { AutomationRunDao } from "./service/dao/automation-run.dao.service";
 import { AutomationTriggerDao } from "./service/dao/automation-trigger.dao.service";
 import { AutomationDao } from "./service/dao/automation.dao.service";
+import { ConversationContextStateDao } from "./service/dao/conversation-context-state.dao.service";
 import { ModelDao } from "./service/dao/model.dao.service";
 import { SessionContextSummaryDao } from "./service/dao/session-context-summary.dao.service";
 import { SessionMessageDao } from "./service/dao/session-message.dao.service";
@@ -85,10 +88,12 @@ if (!app.isPackaged && process.platform === "darwin") {
     AgentService,
     ConfigService,
     ContextCompressionService,
+    ConversationContextCompressionService,
     WorkspaceDao,
     SessionDao,
     SessionMessageDao,
     SessionContextSummaryDao,
+    ConversationContextStateDao,
     ModelDao,
     TavilyDao,
     TavilyService,
@@ -124,6 +129,7 @@ if (!app.isPackaged && process.platform === "darwin") {
     GetSessionListController,
     GetWorkspaceSessionsController,
     GetSessionHistoryController,
+    GetConversationSessionController,
     GetAvailableSkillsController,
     RenameSessionController,
     ResolveToolApprovalController,
@@ -168,6 +174,7 @@ export class AppModule {
     private getSessionListController: GetSessionListController,
     private getWorkspaceSessionsController: GetWorkspaceSessionsController,
     private getSessionHistoryController: GetSessionHistoryController,
+    private getConversationSessionController: GetConversationSessionController,
     private getAvailableSkillsController: GetAvailableSkillsController,
     private renameSessionController: RenameSessionController,
     private resolveToolApprovalController: ResolveToolApprovalController,

@@ -13,6 +13,7 @@ const props = withDefaults(
     tools?: any[];
     pendingToolCalls?: Set<string>;
     toolApprovals?: Map<string, ToolApproval>;
+    sessionIdOverride?: number;
   }>(),
   {
     messages: () => [],
@@ -21,10 +22,14 @@ const props = withDefaults(
     tools: () => [],
     pendingToolCalls: () => new Set<string>(),
     toolApprovals: () => new Map<string, ToolApproval>(),
+    sessionIdOverride: 0,
   },
 );
 const route = useRoute();
 const sessionId = computed(() => {
+  if (props.sessionIdOverride) {
+    return props.sessionIdOverride;
+  }
   return Number(route.params.sessionId);
 });
 

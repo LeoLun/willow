@@ -17,6 +17,8 @@ import type {
   GetSessionHistoryResponse,
   GetWorkspaceSessionsRequest,
   GetWorkspaceSessionsResponse,
+  GetConversationSessionRequest,
+  GetConversationSessionResponse,
 } from "../api";
 
 export interface ISessionApi {
@@ -29,4 +31,7 @@ export interface ISessionApi {
   getSessionList(request: GetSessionListRequest): Promise<GetSessionListResponse>;
   getSessionHistory(request: GetSessionHistoryRequest): Promise<GetSessionHistoryResponse>;
   getWorkspaceSessions(request: GetWorkspaceSessionsRequest): Promise<GetWorkspaceSessionsResponse>;
+  getConversationSession(
+    request?: GetConversationSessionRequest,
+  ): Promise<GetConversationSessionResponse>;
 }

@@ -17,6 +17,14 @@ export class WorkspaceDao {
     return this.dbService.getDb().select().from(workspaces).where(eq(workspaces.id, id)).get();
   }
 
+  findByKind(kind: "project" | "conversation") {
+    return this.dbService.getDb().select().from(workspaces).where(eq(workspaces.kind, kind)).all();
+  }
+
+  findFirstByKind(kind: "project" | "conversation") {
+    return this.dbService.getDb().select().from(workspaces).where(eq(workspaces.kind, kind)).get();
+  }
+
   insert(data: Omit<WorkspaceInsert, "createdAt" | "updatedAt">) {
     return this.dbService.getDb().insert(workspaces).values(data).returning().get();
   }

@@ -23,7 +23,15 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
 } from "@willow/shadcn/components/ui/sidebar";
-import { FolderPlus, SquarePen, Clock, LayoutGrid, Ellipsis, ChevronRight } from "lucide-vue-next";
+import {
+  FolderPlus,
+  MessageSquare,
+  SquarePen,
+  Clock,
+  LayoutGrid,
+  Ellipsis,
+  ChevronRight,
+} from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { onBeforeMount, ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
@@ -41,7 +49,7 @@ const route = useRoute();
 const { openDialog } = useDialog();
 const workspaceStore = useWorkspaceStore();
 const sessionStore = useSessionStore();
-const { workspaceList } = storeToRefs(workspaceStore);
+const { projectWorkspaceList } = storeToRefs(workspaceStore);
 const { sessionMap } = storeToRefs(sessionStore);
 const dropdownOpenId = ref<string | null>(null);
 
@@ -53,7 +61,7 @@ const sessionId = computed(() => {
 function handleRenameSession(session: Session) {
   openDialog(RenameSession, {
     session,
-    onRenamed: () => sessionStore.fetchSessionList(workspaceList.value.map((w) => w.id)),
+    onRenamed: () => sessionStore.fetchSessionList(projectWorkspaceList.value.map((w) => w.id)),
   });
 }
 
@@ -93,7 +101,9 @@ function handleCreateWorkspace() {
 
 onBeforeMount(async () => {
   const workspaces = await workspaceStore.fetchWorkspaceList();
-  await sessionStore.fetchSessionList(workspaces.map((w) => w.id));
+  await sessionStore.fetchSessionList(
+    workspaces.filter((workspace) => workspace.kind !== "conversation").map((w) => w.id),
+  );
 });
 </script>
 
@@ -121,6 +131,20 @@ onBeforeMount(async () => {
         </SidebarMenuItem>
       </SidebarMenu>
 
+      <SidebarGroupLabel class="mt-[20px]">对话</SidebarGroupLabel>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            class="cursor-pointer"
+            :is-active="route.name === 'conversation'"
+            @click="router.push('/conversation')"
+          >
+            <MessageSquare />
+            <span>对话</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+
       <SidebarGroupLabel class="mt-[20px] flex items-center justify-between">
         <div>工作空间</div>
         <Button variant="ghost" class="size-6 text-neutral-500" @click="handleCreateWorkspace">
@@ -129,7 +153,7 @@ onBeforeMount(async () => {
       </SidebarGroupLabel>
       <SidebarMenu>
         <Collapsible
-          v-for="workspace in workspaceList"
+          v-for="workspace in projectWorkspaceList"
           :key="workspace.id"
           as-child
           class="group/collapsible"

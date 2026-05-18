@@ -30,10 +30,7 @@ const config = {
   hooks: {
     async packageAfterCopy(_forgeConfig, buildPath) {
       const packagedNodeModulesPath = join(buildPath, "node_modules");
-      const packagedBetterSqlite3Path = join(
-        packagedNodeModulesPath,
-        "better-sqlite3",
-      );
+      const packagedBetterSqlite3Path = join(packagedNodeModulesPath, "better-sqlite3");
       const packagedNodeCronPath = join(packagedNodeModulesPath, "node-cron");
 
       await mkdir(packagedNodeModulesPath, { recursive: true });

@@ -41,6 +41,8 @@ import type {
   GetSessionHistoryResponse,
   GetWorkspaceSessionsRequest,
   GetWorkspaceSessionsResponse,
+  GetConversationSessionRequest,
+  GetConversationSessionResponse,
   RegisterEventRequest,
   RegisterEventResponse,
   GetModelListResponse,
@@ -95,6 +97,7 @@ import {
   GET_SESSION_LIST,
   GET_SESSION_HISTORY,
   GET_WORKSPACE_SESSIONS,
+  GET_CONVERSATION_SESSION,
   REGISTER_EVENT,
   EVENT_BUS,
   GET_MODEL_LIST,
@@ -381,6 +384,19 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("get workspace sessions failed");
+    }
+    return response.data;
+  },
+  getConversationSession: async (request?: GetConversationSessionRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_CONVERSATION_SESSION,
+      request,
+    )) as ApiResponse<GetConversationSessionResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get conversation session failed");
     }
     return response.data;
   },
