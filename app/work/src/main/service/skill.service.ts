@@ -1,4 +1,4 @@
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import type { GetAvailableSkillsResponse, SkillScope, SkillSummary } from "@shared/api";
 import { loadSkills } from "@willow/core";
@@ -8,6 +8,14 @@ import { app } from "electron";
 @Injectable()
 export class SkillService {
   constructor(private readonly workspaceDao: WorkspaceDao) {}
+
+  /**
+   * Kept for compatibility with existing startup wiring. `/init` is now an
+   * in-app built-in command, not a user skill written to disk.
+   */
+  ensureBuiltinSkills() {
+    return;
+  }
 
   getAvailableSkills(workspaceId?: number): GetAvailableSkillsResponse {
     const workspace = workspaceId ? this.workspaceDao.findById(workspaceId) : undefined;
@@ -19,6 +27,9 @@ export class SkillService {
 
     const summaries = skills
       .map((skill) => {
+        if (this.isLegacyBuiltinInitSkill(skill.filePath, userDir)) {
+          return null;
+        }
         const scope = this.resolveScope(skill.filePath, userDir, projectDir);
         if (!scope) {
           return null;
@@ -60,5 +71,9 @@ export class SkillService {
   private isWithin(targetPath: string, basePath: string) {
     const rel = relative(basePath, targetPath);
     return rel !== "" && !rel.startsWith("..") && !rel.startsWith("../");
+  }
+
+  private isLegacyBuiltinInitSkill(filePath: string, userDir: string) {
+    return filePath === join(userDir, "init", "SKILL.md");
   }
 }

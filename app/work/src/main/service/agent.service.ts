@@ -9,6 +9,7 @@ import { SessionMessageDao } from "@main/service/dao/session-message.dao.service
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import { TavilyService } from "@main/service/tavily.service";
 import { TodoService } from "@main/service/todo.service";
+import { lastAssistantTextOnly } from "@main/utils/agent-message-text";
 import { parseStoredSessionMessages } from "@main/utils/session-message-parse";
 import { Agent } from "@mariozechner/pi-agent-core";
 import { streamSimple } from "@mariozechner/pi-ai";
@@ -17,6 +18,25 @@ import { getBuiltinModelConfig } from "@shared/model-config";
 import { CoreAgent } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import { app } from "electron";
+import { createWorkspaceDelegateTool } from "./tools/workspace-delegate.tool";
+
+export type WorkspaceDelegateHandler = (params: {
+  workspaceId: number;
+  task: string;
+  sessionId?: number;
+  toolCallId: string;
+  parentSessionId: number;
+}) => Promise<{
+  content: Array<{ type: "text"; text: string }>;
+  details: {
+    childSessionId: number;
+    workspaceId: number;
+    workspaceName: string;
+    agentName: string;
+    status: "completed" | "stopped" | "failed";
+    summary: string;
+  };
+}>;
 
 function isAssistantMessage(message: unknown): message is {
   role: "assistant";
@@ -84,6 +104,12 @@ function toAgentModel(config: ModelConfig) {
 const titleSystemPrompt = `你是会话标题生成器。根据用户给出的「首轮用户输入」生成一条简短中文标题。
 要求：10～20 字为宜；只输出标题本身，不要引号、书名号、前缀（如「标题：」）、解释或换行。`;
 
+const oneShotTextGenerationSystemPrompt = `你是一个严格遵循输出约束的中文写作者。
+要求：
+1. 优先遵守用户消息里的格式、字段、结构和长度要求。
+2. 只输出最终结果，不补充解释、前言、后记或代码块围栏。
+3. 如果用户要求输出 Markdown 文件内容，就直接输出 Markdown 正文。`;
+
 export interface AgentContextCompressionState {
   displayMessagePrefix: ReturnType<typeof parseStoredSessionMessages>;
   replaceMessageIds: number[];
@@ -96,6 +122,12 @@ export type WillowCoreAgent = CoreAgent & {
 
 @Injectable()
 export class AgentService {
+  private workspaceDelegateHandler?: WorkspaceDelegateHandler;
+
+  registerWorkspaceDelegateHandler(handler: WorkspaceDelegateHandler) {
+    this.workspaceDelegateHandler = handler;
+  }
+
   constructor(
     private readonly sessionMessageDao: SessionMessageDao,
     private readonly configService: ConfigService,
@@ -129,11 +161,40 @@ export class AgentService {
     return agent;
   }
 
+  async generateSingleTurnText(
+    userPrompt: string,
+    systemPrompt = oneShotTextGenerationSystemPrompt,
+  ) {
+    const dbModel = this.configService.getDefaultModel();
+    if (!dbModel) {
+      throw new Error("No default model found");
+    }
+
+    const resolvedModel = { ...toAgentModel(dbModel), reasoning: false };
+    const apiKey = this.resolveApiKey(dbModel);
+    const agent = new Agent({
+      streamFn: streamSimple,
+      getApiKey: () => apiKey,
+    });
+    agent.state.model = resolvedModel as any;
+    agent.state.systemPrompt = systemPrompt;
+    await agent.prompt(userPrompt);
+
+    const result = lastAssistantTextOnly(agent.state.messages).trim();
+    if (!result) {
+      throw new Error("LLM did not return any text");
+    }
+
+    return result;
+  }
+
   async getDefaultAgent(
     session: Session,
     modelId?: string,
     webSearchEnabled?: boolean,
     currentInput = "",
+    targetWorkspaceId?: number,
+    workspaceAgentsContext?: string,
   ): Promise<WillowCoreAgent> {
     let dbModel: ModelConfig | undefined;
 
@@ -150,7 +211,7 @@ export class AgentService {
     const resolvedModel = toAgentModel(dbModel);
     const apiKey = this.resolveApiKey(dbModel);
 
-    const workspace = this.workspaceDao.findById(session.workspaceId);
+    const workspace = this.workspaceDao.findById(targetWorkspaceId ?? session.workspaceId);
     const cwd = workspace?.path ?? process.cwd();
 
     const rows = this.sessionMessageDao.findBySessionId(session.id);
@@ -181,14 +242,25 @@ export class AgentService {
 
     const tavilyService = this.tavilyService;
     const todoStore = this.todoService.createStore(session.id);
+
+    const extraTools = [...createAutomationTools()];
+    if (this.workspaceDelegateHandler) {
+      extraTools.push(createWorkspaceDelegateTool(session.id, this.workspaceDelegateHandler));
+    }
+
     const coreAgent = new CoreAgent(agent, {
       cwd,
       userData: app.getPath("userData"),
       websearch: webSearchEnabled ? { getApiKey: () => tavilyService.getApiKey() } : undefined,
       todoStore,
-      extraTools: createAutomationTools(),
+      extraTools,
       compressedContext: preparedContext.compressedContext,
+      workspaceAgentsContext,
     }) as WillowCoreAgent;
+
+    if (targetWorkspaceId) {
+      coreAgent.agent.state.systemPrompt += `\n\n用户明确指定了目标工作空间 Agent（ID: ${targetWorkspaceId}）。你必须调用 \`workspace_delegate\` 工具，将用户的提问指派给该工作空间 Agent。禁止直接回答或使用其他工具。`;
+    }
 
     if (preparedContext.displayMessagePrefix || preparedContext.replaceMessageIds) {
       coreAgent.contextCompression = {

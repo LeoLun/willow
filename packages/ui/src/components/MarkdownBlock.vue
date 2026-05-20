@@ -5,6 +5,7 @@ import { computed } from "vue";
 import CodeBlock from "./CodeBlock.vue";
 import FileTag from "./FileTag.vue";
 import SkillTag from "./SkillTag.vue";
+import WorkspaceAgentTag from "./WorkspaceAgentTag.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -34,6 +35,100 @@ function isFileReference(name: string, href: string) {
   return /\.[A-Za-z0-9][A-Za-z0-9_-]*$/.test(name.trim());
 }
 
+function isEscapedAt(src: string, index: number) {
+  let slashCount = 0;
+  for (let i = index - 1; i >= 0 && src[i] === "\\"; i--) {
+    slashCount++;
+  }
+  return slashCount % 2 === 1;
+}
+
+function unescapeMarkdownInline(value: string) {
+  return value.replace(/\\([\\\])>])/g, "$1");
+}
+
+function findLinkLabelEnd(src: string) {
+  for (let i = 1; i < src.length; i++) {
+    if (src[i] === "]" && !isEscapedAt(src, i)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function parseMarkdownLinkDestination(src: string, start: number) {
+  if (src[start] !== "(") {
+    return undefined;
+  }
+
+  const destinationStart = start + 1;
+  if (src[destinationStart] === "<") {
+    for (let i = destinationStart + 1; i < src.length; i++) {
+      if (src[i] !== ">" || isEscapedAt(src, i)) {
+        continue;
+      }
+      if (src[i + 1] !== ")") {
+        return undefined;
+      }
+      return {
+        path: unescapeMarkdownInline(src.slice(destinationStart + 1, i).trim()),
+        end: i + 2,
+      };
+    }
+    return undefined;
+  }
+
+  let depth = 0;
+  for (let i = destinationStart; i < src.length; i++) {
+    const char = src[i];
+    if (isEscapedAt(src, i)) {
+      continue;
+    }
+    if (char === "(") {
+      depth++;
+      continue;
+    }
+    if (char === ")") {
+      if (depth === 0) {
+        return {
+          path: unescapeMarkdownInline(src.slice(destinationStart, i).trim()),
+          end: i + 1,
+        };
+      }
+      depth--;
+    }
+  }
+  return undefined;
+}
+
+function parseFileReferenceToken(src: string) {
+  if (!src.startsWith("[") || src[1] === "$") {
+    return undefined;
+  }
+
+  const labelEnd = findLinkLabelEnd(src);
+  if (labelEnd <= 1) {
+    return undefined;
+  }
+
+  const destination = parseMarkdownLinkDestination(src, labelEnd + 1);
+  if (!destination) {
+    return undefined;
+  }
+
+  const name = unescapeMarkdownInline(src.slice(1, labelEnd)).trim();
+  const path = destination.path.trim();
+  if (!isFileReference(name, path)) {
+    return undefined;
+  }
+
+  return {
+    raw: src.slice(0, destination.end),
+    name,
+    path,
+  };
+}
+
 const renderedHtml = computed(() => {
   if (!props.content) return "";
 
@@ -61,6 +156,30 @@ const renderedHtml = computed(() => {
   marked.use({
     extensions: [
       {
+        name: "workspaceAgentTag",
+        level: "inline",
+        start(src: string) {
+          return src.indexOf("[@");
+        },
+        tokenizer(src: string) {
+          const match = /^\[@([^\]]+)\]\(agent:\/\/([^)]+)\)/.exec(src);
+          if (match) {
+            return {
+              type: "workspaceAgentTag",
+              raw: match[0],
+              agentName: match[1],
+              workspaceId: match[2],
+            };
+          }
+          return undefined;
+        },
+        renderer(token: any) {
+          const encodedAgentName = encodeData(token.agentName);
+          const encodedWorkspaceId = encodeData(token.workspaceId);
+          return `<span class="willow-workspace-agent-tag" data-agent-name="${encodedAgentName}" data-workspace-id="${encodedWorkspaceId}"></span>`;
+        },
+      },
+      {
         name: "skillTag",
         level: "inline",
         start(src: string) {
@@ -85,16 +204,11 @@ const renderedHtml = computed(() => {
           return src.indexOf("[");
         },
         tokenizer(src: string) {
-          const match = /^\[([^\]$][^\]]*)\]\(([^)]+)\)/.exec(src);
-          if (!match) {
+          const token = parseFileReferenceToken(src);
+          if (!token) {
             return undefined;
           }
-          const name = match[1].trim();
-          const path = match[2].trim();
-          if (!isFileReference(name, path)) {
-            return undefined;
-          }
-          return { type: "fileTag", raw: match[0], name, path };
+          return { type: "fileTag", raw: token.raw, name: token.name, path: token.path };
         },
         renderer(token: any) {
           const encodedName = encodeData(token.name);
@@ -302,6 +416,20 @@ function mountDynamicComponents() {
     const app = createApp({
       render() {
         return h(FileTag, { name, path });
+      },
+    });
+    app.mount(el);
+    mountedApps.push(app);
+  }
+
+  for (const el of containerRef.value.querySelectorAll(".willow-workspace-agent-tag")) {
+    const encodedAgentName = el.getAttribute("data-agent-name") || "";
+    const encodedWorkspaceId = el.getAttribute("data-workspace-id") || "";
+    const agentName = decodeData(encodedAgentName);
+    const workspaceId = Number(decodeData(encodedWorkspaceId)) || 0;
+    const app = createApp({
+      render() {
+        return h(WorkspaceAgentTag, { agentName, workspaceId });
       },
     });
     app.mount(el);

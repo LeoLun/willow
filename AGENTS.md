@@ -1,5 +1,8 @@
 # Willow AGENTS.md
 
+名称：Willow 工作空间 Agent
+描述：当任务明显属于 Willow 仓库的桌面应用、renderer、共享包、OpenSpec 工作流或工程配置范围时触发；触发后在该工作空间内分析、修改并验证结果。这是对话功能调用此工作空间的主要触发机制。
+
 For renderer, `shadcn-vue`, and page design work, always consult the repository root `DESIGN.md` after reading the relevant OpenSpec artifacts.
 
 ## Workflow Contract

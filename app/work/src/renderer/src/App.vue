@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Automation, Session } from "@shared/api";
-import { SESSION_TITLE_UPDATED } from "@shared/constants";
+import { SESSION_LIST_UPDATED, SESSION_TITLE_UPDATED } from "@shared/constants";
 import { Card } from "@willow/shadcn";
 import { SidebarProvider, SidebarTrigger } from "@willow/shadcn/components/ui/sidebar";
 import { Toaster } from "@willow/shadcn/components/ui/sonner";
@@ -11,6 +11,7 @@ import { useRoute } from "vue-router";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { useEventBus } from "@/composables/useEventBus";
 import { DialogProvider } from "@/layout/dialog";
+import { electronAPI } from "@/lib/ipc";
 import { router } from "@/router";
 import { useSessionStore } from "@/stores/session";
 import "vue-sonner/style.css";
@@ -18,12 +19,30 @@ import LeftSidebar from "./layout/sidebar/LeftSidebar.vue";
 
 useDarkMode();
 
+const { addEventListener: registerBusEvent, removeEventListener: unregisterBusEvent } =
+  useEventBus();
+
 registryAllToolRenderers({
   onOpenUrl: (url: string) => {
     window.open(url, "_blank");
   },
   onOpenAutomation: (automation: Automation) => {
     router.push(`/auto/${automation.id}`);
+  },
+  onNavigateToSession: (childSessionId: number) => {
+    router.push(`/${childSessionId}`);
+  },
+  onGetSessionHistory: async (sessionId: number) => {
+    return electronAPI.getSessionHistory({ sessionId });
+  },
+  onSubscribeSessionUpdate: (sessionId: number, callback: (event: any) => void) => {
+    const handleUpdate = (data: any) => {
+      if (data.sessionId === sessionId) {
+        callback(data.event);
+      }
+    };
+    registerBusEvent("UPDATE_MESSAGE", handleUpdate);
+    return () => unregisterBusEvent("UPDATE_MESSAGE", handleUpdate);
   },
 });
 
@@ -40,12 +59,20 @@ function onSessionTitleUpdated(data: { session: Session }) {
   }
 }
 
+function onSessionListUpdated(data: { workspaceId: number }) {
+  if (data?.workspaceId) {
+    sessionStore.refreshWorkspaceSessions(data.workspaceId);
+  }
+}
+
 onMounted(() => {
   addEventListener(SESSION_TITLE_UPDATED, onSessionTitleUpdated);
+  addEventListener(SESSION_LIST_UPDATED, onSessionListUpdated);
 });
 
 onUnmounted(() => {
   removeEventListener(SESSION_TITLE_UPDATED, onSessionTitleUpdated);
+  removeEventListener(SESSION_LIST_UPDATED, onSessionListUpdated);
 });
 </script>
 <template>

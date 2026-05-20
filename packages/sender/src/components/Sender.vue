@@ -26,6 +26,7 @@ import {
 import { computed, ref, shallowRef, watch } from "vue";
 import { useTriggerManager } from "../composables/useTriggerManager";
 import type {
+  SenderBuiltinCommandOption,
   SenderFileOption,
   SenderFileReference,
   SenderModelOption,
@@ -36,6 +37,8 @@ import type {
   SenderSkillReference,
   SenderUsageLike,
   SenderUsageMessage,
+  SenderBuiltinCommandReference,
+  SenderWorkspaceAgentOption,
 } from "../types";
 import CircularProgress from "./CircularProgress.vue";
 import Editor from "./Editor.vue";
@@ -52,9 +55,13 @@ const props = withDefaults(
     models?: SenderModelOption[];
     defaultModelId?: string;
     selectedModelId?: string;
+    builtinCommands?: SenderBuiltinCommandOption[];
     plugins?: SenderPluginOption[];
     pluginsLoading?: boolean;
     pluginsErrorMessage?: string;
+    workspaceAgents?: SenderWorkspaceAgentOption[];
+    workspaceAgentsLoading?: boolean;
+    workspaceAgentsErrorMessage?: string;
     skills?: SenderSkillOption[];
     skillsLoading?: boolean;
     skillsErrorMessage?: string;
@@ -71,9 +78,13 @@ const props = withDefaults(
     models: () => [],
     defaultModelId: "",
     selectedModelId: "",
+    builtinCommands: () => [],
     plugins: () => [],
     pluginsLoading: false,
     pluginsErrorMessage: "",
+    workspaceAgents: () => [],
+    workspaceAgentsLoading: false,
+    workspaceAgentsErrorMessage: "",
     skills: () => [],
     skillsLoading: false,
     skillsErrorMessage: "",
@@ -96,8 +107,10 @@ const emit = defineEmits<{
 
 const showNoModelTip = ref(false);
 const editorText = ref("");
+const editorBuiltinCommandIds = ref<Set<string>>(new Set());
 const editorSkillKeys = ref<Set<string>>(new Set());
 const editorFileKeys = ref<Set<string>>(new Set());
+const editorWorkspaceAgentKeys = ref<Set<string>>(new Set());
 const localSelectedModelId = ref("");
 const localWebSearchEnabled = ref(props.webSearchEnabled);
 const editorComponentRef = ref<InstanceType<typeof Editor> | null>(null);
@@ -123,6 +136,10 @@ const selectedModel = computed(
     props.models.find((model) => model.modelId === localSelectedModelId.value) ??
     defaultModel.value,
 );
+const selectedBuiltinCommand = computed(
+  () =>
+    props.builtinCommands.find((command) => editorBuiltinCommandIds.value.has(command.id)) ?? null,
+);
 const contextWindow = computed(() => selectedModel.value?.contextWindow ?? 0);
 const selectedModelName = computed(() => {
   if (!hasModels.value) return "未配置模型";
@@ -137,7 +154,13 @@ const isEditorEmpty = computed(() => {
   const textWithoutFileTags = editorComponentRef.value?.getTextWithoutFileTags();
   return (textWithoutFileTags ?? editorText.value).trim().length === 0;
 });
-const canSend = computed(() => props.isStreaming || !isEditorEmpty.value);
+const canSend = computed(
+  () =>
+    props.isStreaming ||
+    selectedBuiltinCommand.value ||
+    !isEditorEmpty.value ||
+    editorWorkspaceAgentKeys.value.size > 0,
+);
 
 watch(
   () => props.defaultModelId,
@@ -232,6 +255,18 @@ function syncSkillKeysFromEditor() {
   editorSkillKeys.value = new Set(tags.map((t) => getSkillKey(t)));
 }
 
+function syncBuiltinCommandIdsFromEditor() {
+  const tags = editorComponentRef.value?.getBuiltinCommandTags() ?? [];
+  editorBuiltinCommandIds.value = new Set(tags.map((tag) => tag.id));
+}
+
+function syncWorkspaceAgentKeysFromEditor() {
+  const tags = editorComponentRef.value?.getWorkspaceAgentTags() ?? [];
+  editorWorkspaceAgentKeys.value = new Set(
+    tags.map((tag) => `${tag.workspaceId}:${tag.agentName}`),
+  );
+}
+
 function syncFileKeysFromEditor() {
   const tags = editorComponentRef.value?.getFileTags() ?? [];
   editorFileKeys.value = new Set(tags.map((t) => getFileKey(t)));
@@ -256,11 +291,34 @@ function getSelectedFiles(): SenderFileReference[] {
   }));
 }
 
+function getSelectedBuiltinCommand(): SenderBuiltinCommandReference | undefined {
+  const command = selectedBuiltinCommand.value;
+  if (!command) {
+    return undefined;
+  }
+  return {
+    id: command.id,
+    name: command.name,
+  };
+}
+
+function getSelectedWorkspaceAgent() {
+  const tags = editorComponentRef.value?.getWorkspaceAgentTags() ?? [];
+  const tag = tags[0];
+  if (!tag) return undefined;
+  return {
+    workspaceId: tag.workspaceId,
+    agentName: tag.agentName,
+  };
+}
+
 function handleEditorUpdate() {
   const e = getEditorInstance();
   if (!e) return;
   tiptapEditor.value = e;
   triggerManager.syncFromEditor(e);
+  syncBuiltinCommandIdsFromEditor();
+  syncWorkspaceAgentKeysFromEditor();
   syncSkillKeysFromEditor();
   syncFileKeysFromEditor();
 }
@@ -344,19 +402,33 @@ async function handleSend() {
 
   const message = editorText.value.trim();
   const textWithoutFileTags = editorComponentRef.value?.getTextWithoutFileTags() ?? message;
-  if (!textWithoutFileTags.trim()) {
+  if (
+    !textWithoutFileTags.trim() &&
+    !selectedBuiltinCommand.value &&
+    editorWorkspaceAgentKeys.value.size === 0
+  ) {
     return;
   }
 
-  emit("send", {
+  const payload = {
     message,
+    selectedBuiltinCommand: getSelectedBuiltinCommand(),
     selectedSkills: getSelectedSkills(),
     selectedFiles: getSelectedFiles(),
+    selectedWorkspaceAgent: getSelectedWorkspaceAgent(),
     modelId: localSelectedModelId.value,
     webSearchEnabled: localWebSearchEnabled.value,
-  });
+  };
+  console.log("[Sender] handleSend message=", payload.message?.slice(0, 50));
+
+  emit("send", payload);
 
   editorText.value = "";
+  editorBuiltinCommandIds.value = new Set();
+  editorSkillKeys.value = new Set();
+  editorFileKeys.value = new Set();
+  editorWorkspaceAgentKeys.value = new Set();
+  editorComponentRef.value?.clear();
 }
 
 function handleAction() {
@@ -371,6 +443,33 @@ function handlePluginSelect(plugin: SenderPluginOption) {
   triggerManager.clearTriggerText();
   triggerManager.close();
   emit("select-plugin", plugin);
+}
+
+function handleBuiltinCommandSelect(command: SenderBuiltinCommandOption) {
+  triggerManager.clearTriggerText();
+  triggerManager.close();
+  editorComponentRef.value?.clearWorkspaceAgentTags();
+  editorWorkspaceAgentKeys.value = new Set();
+  editorComponentRef.value?.insertBuiltinCommandTag({
+    id: command.id,
+    name: command.name,
+    description: command.description,
+  });
+  syncBuiltinCommandIdsFromEditor();
+}
+
+function handleWorkspaceAgentSelect(workspaceAgent: SenderWorkspaceAgentOption) {
+  triggerManager.clearTriggerText();
+  triggerManager.close();
+  editorComponentRef.value?.clearBuiltinCommandTags();
+  syncBuiltinCommandIdsFromEditor();
+  editorComponentRef.value?.insertWorkspaceAgentTag({
+    workspaceId: workspaceAgent.workspaceId,
+    workspaceName: workspaceAgent.workspaceName,
+    agentName: workspaceAgent.agentName,
+    agentDescription: workspaceAgent.agentDescription,
+  });
+  syncWorkspaceAgentKeysFromEditor();
 }
 
 function handleSkillSelect(skill: SenderSkillOption) {
@@ -391,6 +490,14 @@ function handleSkillSelect(skill: SenderSkillOption) {
 }
 
 function handleResourceSelect(item: SenderResourcePickerItem) {
+  if (item.type === "builtin-command") {
+    handleBuiltinCommandSelect(item.command);
+    return;
+  }
+  if (item.type === "workspace-agent") {
+    handleWorkspaceAgentSelect(item.workspaceAgent);
+    return;
+  }
   if (item.type === "plugin") {
     handlePluginSelect(item.plugin);
     return;
@@ -452,9 +559,13 @@ function handleSystemFileSelect() {
     <ResourcePickerPanel
       v-if="isResourcePanelVisible"
       ref="resourcePickerPanelRef"
+      :builtin-commands="builtinCommands"
       :plugins="plugins"
       :plugins-loading="pluginsLoading"
       :plugins-error-message="pluginsErrorMessage"
+      :workspace-agents="workspaceAgents"
+      :workspace-agents-loading="workspaceAgentsLoading"
+      :workspace-agents-error-message="workspaceAgentsErrorMessage"
       :skills="skills"
       :skills-loading="skillsLoading"
       :skills-error-message="skillsErrorMessage"
@@ -466,7 +577,9 @@ function handleSystemFileSelect() {
       :selected-skill-keys="selectedSkillKeys"
       :selected-file-keys="editorFileKeys"
       :is-search-mode="triggerManager.isSearchMode.value"
+      @select-builtin-command="handleBuiltinCommandSelect"
       @select-plugin="handlePluginSelect"
+      @select-workspace-agent="handleWorkspaceAgentSelect"
       @select-skill="handleSkillSelect"
       @select-file="handleFileSelect"
     />
@@ -576,7 +689,7 @@ function handleSystemFileSelect() {
             :disabled="!canSend"
             @click="handleAction"
           >
-            <SquareIcon v-if="isStreaming" class="size-5 fill-current" />
+            <SquareIcon v-if="isStreaming" class="size-3 fill-current" />
             <ArrowUpIcon v-else class="size-5" />
             <span class="sr-only">{{ isStreaming ? "Stop" : "Send" }}</span>
           </Button>

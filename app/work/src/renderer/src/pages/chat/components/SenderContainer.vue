@@ -1,6 +1,17 @@
 <script setup lang="ts">
-import type { SelectedSystemFile, SendMessage, SkillSummary, WorkspaceFileNode } from "@shared/api";
-import type { SenderFileOption, SenderSendPayload } from "@willow/sender";
+import type {
+  SelectedSystemFile,
+  SendMessage,
+  SkillSummary,
+  WorkspaceAgentSummary,
+  WorkspaceFileNode,
+} from "@shared/api";
+import type {
+  SenderBuiltinCommandOption,
+  SenderFileOption,
+  SenderSendPayload,
+  SenderWorkspaceAgentOption,
+} from "@willow/sender";
 import { Sender } from "@willow/sender";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref, toRef, watch } from "vue";
@@ -16,6 +27,7 @@ const props = withDefaults(
     streamMessage?: { usage?: { input?: number; output?: number } } | null;
     showUsage?: boolean;
     workspaceId?: number;
+    chatScope?: "conversation" | "workspace";
   }>(),
   {
     messages: () => [],
@@ -23,6 +35,7 @@ const props = withDefaults(
     streamMessage: null,
     showUsage: true,
     workspaceId: 0,
+    chatScope: "workspace",
   },
 );
 
@@ -40,6 +53,34 @@ const workspaceFiles = useWorkspaceFiles(toRef(props, "workspaceId"));
 const skills = ref<SkillSummary[]>([]);
 const isSkillsLoading = ref(false);
 const skillsErrorMessage = ref("");
+const workspaceAgents = ref<WorkspaceAgentSummary[]>([]);
+const isWorkspaceAgentsLoading = ref(false);
+const workspaceAgentsErrorMessage = ref("");
+
+const builtinCommands = computed<SenderBuiltinCommandOption[]>(() => {
+  if (props.chatScope !== "workspace") {
+    return [];
+  }
+  return [
+    {
+      id: "init",
+      name: "/init",
+      description: "分析当前工作空间并创建或改进 AGENTS.md",
+    },
+  ];
+});
+
+const senderWorkspaceAgents = computed<SenderWorkspaceAgentOption[]>(() =>
+  workspaceAgents.value
+    .filter((agent) => agent.available)
+    .map((agent) => ({
+      workspaceId: agent.workspaceId,
+      workspaceName: agent.workspaceName,
+      workspacePath: agent.workspacePath,
+      agentName: agent.agentName,
+      agentDescription: agent.agentDescription,
+    })),
+);
 
 const senderFiles = computed<SenderFileOption[]>(() =>
   flattenWorkspaceFiles(workspaceFiles.files.value, workspaceFiles.rootPath.value),
@@ -52,9 +93,10 @@ onBeforeMount(async () => {
 });
 
 watch(
-  () => props.workspaceId,
+  () => [props.workspaceId, props.chatScope],
   async () => {
     await loadAvailableSkills();
+    await loadWorkspaceAgents();
   },
   { immediate: true },
 );
@@ -73,6 +115,29 @@ async function loadAvailableSkills() {
     skillsErrorMessage.value = error instanceof Error ? error.message : "读取技能失败";
   } finally {
     isSkillsLoading.value = false;
+  }
+}
+
+async function loadWorkspaceAgents() {
+  if (props.chatScope !== "conversation") {
+    workspaceAgents.value = [];
+    workspaceAgentsErrorMessage.value = "";
+    isWorkspaceAgentsLoading.value = false;
+    return;
+  }
+
+  isWorkspaceAgentsLoading.value = true;
+  workspaceAgentsErrorMessage.value = "";
+
+  try {
+    const response = await electronAPI.getWorkspaceAgents();
+    workspaceAgents.value = response.agents;
+  } catch (error) {
+    workspaceAgents.value = [];
+    workspaceAgentsErrorMessage.value =
+      error instanceof Error ? error.message : "读取工作空间 Agent 失败";
+  } finally {
+    isWorkspaceAgentsLoading.value = false;
   }
 }
 
@@ -162,9 +227,12 @@ function handleSend(request: SenderSendPayload) {
   const nextRequest: SendMessage = {
     message: request.message,
     modelId: request.modelId,
+    selectedBuiltinCommand: request.selectedBuiltinCommand,
     selectedFiles: request.selectedFiles,
+    selectedWorkspaceAgent: request.selectedWorkspaceAgent,
     webSearchEnabled: request.webSearchEnabled,
   };
+  console.log("[SenderContainer] handleSend");
   emit("send", nextRequest);
 }
 </script>
@@ -177,6 +245,10 @@ function handleSend(request: SenderSendPayload) {
     :show-usage="showUsage"
     :models="modelList"
     :default-model-id="defaultModel?.modelId ?? ''"
+    :builtin-commands="builtinCommands"
+    :workspace-agents="senderWorkspaceAgents"
+    :workspace-agents-loading="isWorkspaceAgentsLoading"
+    :workspace-agents-error-message="workspaceAgentsErrorMessage"
     :skills="skills"
     :skills-loading="isSkillsLoading"
     :skills-error-message="skillsErrorMessage"

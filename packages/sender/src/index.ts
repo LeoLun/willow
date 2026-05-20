@@ -3,6 +3,7 @@ export { default as ResourcePickerPanel } from "./components/ResourcePickerPanel
 export { useTriggerManager } from "./composables/useTriggerManager";
 export type { TriggerConfig, TriggerContext } from "./composables/useTriggerManager";
 export type {
+  SenderBuiltinCommandOption,
   SenderFileOption,
   SenderFileReference,
   SenderModelOption,
@@ -13,4 +14,6 @@ export type {
   SenderSkillReference,
   SenderUsageLike,
   SenderUsageMessage,
+  SenderWorkspaceAgentOption,
+  SenderWorkspaceAgentReference,
 } from "./types";

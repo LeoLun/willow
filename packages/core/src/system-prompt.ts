@@ -11,6 +11,8 @@ export interface SystemPromptOptions {
   customInstructions?: string;
   projectContext?: string;
   compressedContext?: string;
+  /** 在对话作用域中注入的可用工作空间 Agent 索引 */
+  workspaceAgentsContext?: string;
 }
 
 export function buildSystemPrompt(options: SystemPromptOptions): string {
@@ -21,6 +23,7 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
     customInstructions,
     projectContext,
     compressedContext,
+    workspaceAgentsContext,
     userDir,
     projectDir,
   } = options;
@@ -74,6 +77,10 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
 
   if (projectContext) {
     prompt += `\n# 项目上下文\n\n${projectContext}\n`;
+  }
+
+  if (workspaceAgentsContext) {
+    prompt += `\n# 可用工作空间 Agent\n\n${workspaceAgentsContext}\n`;
   }
 
   if (compressedContext) {

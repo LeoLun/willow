@@ -2,6 +2,8 @@
 import { cn } from "@willow/shadcn/lib/utils";
 import {
   BlocksIcon,
+  BotIcon,
+  CommandIcon,
   FileCodeIcon,
   FileJsonIcon,
   FileTextIcon,
@@ -11,14 +13,16 @@ import {
 import { computed } from "vue";
 import type { Component } from "vue";
 import type {
+  SenderBuiltinCommandOption,
   SenderFileOption,
   SenderPluginOption,
   SenderResourcePickerItem,
   SenderSkillOption,
+  SenderWorkspaceAgentOption,
 } from "../types";
 
 interface ResourcePickerGroup {
-  type: "plugin" | "skill" | "file";
+  type: "builtin-command" | "workspace-agent" | "plugin" | "skill" | "file";
   label: string;
   items: SenderResourcePickerItem[];
   loading: boolean;
@@ -28,9 +32,13 @@ interface ResourcePickerGroup {
 
 const props = withDefaults(
   defineProps<{
+    builtinCommands?: SenderBuiltinCommandOption[];
     plugins?: SenderPluginOption[];
     pluginsLoading?: boolean;
     pluginsErrorMessage?: string;
+    workspaceAgents?: SenderWorkspaceAgentOption[];
+    workspaceAgentsLoading?: boolean;
+    workspaceAgentsErrorMessage?: string;
     skills: SenderSkillOption[];
     skillsLoading?: boolean;
     skillsErrorMessage?: string;
@@ -44,9 +52,13 @@ const props = withDefaults(
     isSearchMode: boolean;
   }>(),
   {
+    builtinCommands: () => [],
     plugins: () => [],
     pluginsLoading: false,
     pluginsErrorMessage: "",
+    workspaceAgents: () => [],
+    workspaceAgentsLoading: false,
+    workspaceAgentsErrorMessage: "",
     skillsLoading: false,
     skillsErrorMessage: "",
     filesLoading: false,
@@ -55,12 +67,25 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
+  "select-builtin-command": [command: SenderBuiltinCommandOption];
   "select-plugin": [plugin: SenderPluginOption];
+  "select-workspace-agent": [workspaceAgent: SenderWorkspaceAgentOption];
   "select-skill": [skill: SenderSkillOption];
   "select-file": [file: SenderFileOption];
 }>();
 
 const normalizedQuery = computed(() => props.query.trim().toLowerCase());
+
+const filteredBuiltinCommands = computed(() => {
+  if (!props.isSearchMode || !normalizedQuery.value) {
+    return props.builtinCommands;
+  }
+
+  return props.builtinCommands.filter((command) => {
+    const haystack = `${command.name} ${command.description}`.toLowerCase();
+    return haystack.includes(normalizedQuery.value);
+  });
+});
 
 const filteredPlugins = computed(() => {
   if (!props.isSearchMode || !normalizedQuery.value) {
@@ -69,6 +94,18 @@ const filteredPlugins = computed(() => {
 
   return props.plugins.filter((plugin) => {
     const haystack = `${plugin.name} ${plugin.description}`.toLowerCase();
+    return haystack.includes(normalizedQuery.value);
+  });
+});
+
+const filteredWorkspaceAgents = computed(() => {
+  if (!props.isSearchMode || !normalizedQuery.value) {
+    return props.workspaceAgents;
+  }
+
+  return props.workspaceAgents.filter((workspaceAgent) => {
+    const haystack =
+      `${workspaceAgent.agentName} ${workspaceAgent.agentDescription} ${workspaceAgent.workspaceName}`.toLowerCase();
     return haystack.includes(normalizedQuery.value);
   });
 });
@@ -107,11 +144,27 @@ function getFileKey(file: Pick<SenderFileOption, "path">) {
   return file.path;
 }
 
+const builtinCommandItems = computed<SenderResourcePickerItem[]>(() =>
+  filteredBuiltinCommands.value.map((command) => ({
+    type: "builtin-command",
+    key: `builtin-command:${command.id}`,
+    command,
+  })),
+);
+
 const pluginItems = computed<SenderResourcePickerItem[]>(() =>
   filteredPlugins.value.map((plugin) => ({
     type: "plugin",
     key: `plugin:${getPluginKey(plugin)}`,
     plugin,
+  })),
+);
+
+const workspaceAgentItems = computed<SenderResourcePickerItem[]>(() =>
+  filteredWorkspaceAgents.value.map((workspaceAgent) => ({
+    type: "workspace-agent",
+    key: `workspace-agent:${workspaceAgent.workspaceId}`,
+    workspaceAgent,
   })),
 );
 
@@ -132,6 +185,22 @@ const fileItems = computed<SenderResourcePickerItem[]>(() =>
 );
 
 const groups = computed<ResourcePickerGroup[]>(() => [
+  {
+    type: "builtin-command",
+    label: "命令",
+    items: builtinCommandItems.value,
+    loading: false,
+    errorMessage: "",
+    emptyMessage: "当前没有可用命令。",
+  },
+  {
+    type: "workspace-agent",
+    label: "工作空间 Agent",
+    items: workspaceAgentItems.value,
+    loading: props.workspaceAgentsLoading,
+    errorMessage: props.workspaceAgentsErrorMessage,
+    emptyMessage: "当前没有可用的工作空间 Agent。",
+  },
   {
     type: "plugin",
     label: "插件",
@@ -220,24 +289,40 @@ function iconForFile(extension?: string): Component {
 }
 
 function getItemIcon(item: SenderResourcePickerItem): Component {
+  if (item.type === "builtin-command") return CommandIcon;
+  if (item.type === "workspace-agent") return BotIcon;
   if (item.type === "plugin") return PuzzleIcon;
   if (item.type === "skill") return BlocksIcon;
   return iconForFile(item.file.extension);
 }
 
 function getItemLabel(item: SenderResourcePickerItem) {
+  if (item.type === "builtin-command") return item.command.name;
+  if (item.type === "workspace-agent") return item.workspaceAgent.agentName;
   if (item.type === "plugin") return item.plugin.name;
   if (item.type === "skill") return item.skill.name;
   return item.file.name;
 }
 
 function getItemDescription(item: SenderResourcePickerItem) {
+  if (item.type === "builtin-command") return item.command.description;
+  if (item.type === "workspace-agent") {
+    return item.workspaceAgent.agentDescription || item.workspaceAgent.workspaceName;
+  }
   if (item.type === "plugin") return item.plugin.description;
   if (item.type === "skill") return item.skill.description;
   return item.file.relativePath;
 }
 
 function selectItem(item: SenderResourcePickerItem) {
+  if (item.type === "builtin-command") {
+    emit("select-builtin-command", item.command);
+    return;
+  }
+  if (item.type === "workspace-agent") {
+    emit("select-workspace-agent", item.workspaceAgent);
+    return;
+  }
   if (item.type === "plugin") {
     emit("select-plugin", item.plugin);
     return;

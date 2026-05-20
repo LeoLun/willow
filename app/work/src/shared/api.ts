@@ -184,12 +184,35 @@ export interface GetAvailableSkillsResponse {
   skills: SkillSummary[];
 }
 
+export interface WorkspaceAgentSummary {
+  workspaceId: number;
+  workspaceName: string;
+  workspacePath: string;
+  agentName: string;
+  agentDescription: string;
+  available: boolean;
+}
+
+export interface GetWorkspaceAgentsRequest {}
+
+export interface GetWorkspaceAgentsResponse {
+  agents: WorkspaceAgentSummary[];
+}
+
 export interface SendMessageRequest {
   sessionId: number;
   message: string;
   modelId?: string;
   files?: IFile[];
+  selectedBuiltinCommand?: {
+    id: string;
+    name: string;
+  };
   selectedFiles?: FileReference[];
+  selectedWorkspaceAgent?: {
+    workspaceId: number;
+    agentName: string;
+  };
   webSearchEnabled?: boolean;
 }
 
@@ -220,7 +243,7 @@ export interface ResolveToolApprovalRequest {
 
 export interface ResolveToolApprovalResponse {}
 
-export interface SendMessage extends Omit<SendMessageRequest, "sessionId"> {}
+export type SendMessage = Omit<SendMessageRequest, "sessionId">;
 
 export interface CreateSessionRequest {
   workspaceId: number;

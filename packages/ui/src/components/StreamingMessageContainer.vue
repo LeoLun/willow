@@ -23,29 +23,11 @@ const props = withDefaults(
 );
 
 const displayMessage = ref<AgentMessage | null>(null);
-let updateScheduled = false;
-let immediateUpdate = false;
 
 watch(
   () => props.message,
   (newMsg) => {
-    if (newMsg === null) {
-      immediateUpdate = true;
-      displayMessage.value = null;
-      updateScheduled = false;
-      return;
-    }
-
-    if (!updateScheduled) {
-      updateScheduled = true;
-      requestAnimationFrame(() => {
-        if (!immediateUpdate && props.message !== null) {
-          displayMessage.value = JSON.parse(JSON.stringify(props.message));
-        }
-        updateScheduled = false;
-        immediateUpdate = false;
-      });
-    }
+    displayMessage.value = newMsg;
   },
   { deep: true, immediate: true },
 );

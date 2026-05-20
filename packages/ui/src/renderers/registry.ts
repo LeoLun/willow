@@ -10,6 +10,7 @@ import { TodoRendererFactory } from "./TodoRendererFactory";
 import type { ToolRenderer, ToolRenderResult } from "./types";
 import { WebFetchRendererFactory } from "./WebFetchRendererFactory";
 import { WebSearchRendererFactory } from "./WebSearchRendererFactory";
+import { WorkspaceDelegateRendererFactory } from "./WorkspaceDelegateRendererFactory";
 
 const toolRenderers = new Map<string, ToolRenderer>();
 
@@ -55,6 +56,9 @@ export function renderTool(
 export function registryAllToolRenderers(options: {
   onOpenUrl?: (url: string) => void | Promise<void>;
   onOpenAutomation?: (automation: any) => void | Promise<void>;
+  onNavigateToSession?: (childSessionId: number) => void | Promise<void>;
+  onGetSessionHistory?: (sessionId: number) => Promise<any>;
+  onSubscribeSessionUpdate?: (sessionId: number, callback: (event: any) => void) => () => void;
 }): void {
   console.log("registryAllToolRenderers", options.onOpenUrl, options.onOpenAutomation);
   registerToolRenderer("bash", new BashRendererFactory());
@@ -78,4 +82,12 @@ export function registryAllToolRenderers(options: {
   registerToolRenderer("automation_update", new AutomationUpdateRendererFactory());
   registerToolRenderer("todoread", new TodoRendererFactory());
   registerToolRenderer("todowrite", new TodoRendererFactory());
+  registerToolRenderer(
+    "workspace_delegate",
+    new WorkspaceDelegateRendererFactory({
+      onNavigateToSession: options.onNavigateToSession,
+      onGetSessionHistory: options.onGetSessionHistory,
+      onSubscribeSessionUpdate: options.onSubscribeSessionUpdate,
+    }),
+  );
 }

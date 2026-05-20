@@ -2,7 +2,9 @@ import { join } from "node:path";
 import { On, WindowFactoryResolver, Module } from "@willow/poetry";
 import { app, dialog as electronDialog } from "electron";
 import started from "electron-squirrel-startup";
-import { AiAppViewController } from "./controllers/ai-app-view.controller";
+import { AiAppBoundsController } from "./controllers/ai-app/ai.app.bounds.controller";
+import { AiAppCloseController } from "./controllers/ai-app/ai.app.close.controller";
+import { AiAppLoadController } from "./controllers/ai-app/ai.app.load.controller";
 import { CreateAutomationController } from "./controllers/automation/create.automation.controller";
 import { DeleteAutomationController } from "./controllers/automation/delete.automation.controller";
 import { GetAutomationController } from "./controllers/automation/get.automation.controller";
@@ -18,7 +20,12 @@ import { SetDefaultModelController } from "./controllers/config/set.default.mode
 import { UpdateTavilyKeyController } from "./controllers/config/update.tavily.key.controller";
 import { DialogController } from "./controllers/dialog.controller";
 import { EventController } from "./controllers/event.controller";
-import { FloatingBallController } from "./controllers/floating-ball.controller";
+import { GetFloatingBallConfigController } from "./controllers/floating-ball/get.floating.ball.config.controller";
+import { MoveFloatingBallWindowController } from "./controllers/floating-ball/move.floating.ball.window.controller";
+import { SetFloatingBallEnabledController } from "./controllers/floating-ball/set.floating.ball.enabled.controller";
+import { SetFloatingBallPositionController } from "./controllers/floating-ball/set.floating.ball.position.controller";
+import { ShowFloatingBallMenuController } from "./controllers/floating-ball/show.floating.ball.menu.controller";
+import { ShowMainWindowController } from "./controllers/floating-ball/show.main.window.controller";
 import { InitController } from "./controllers/init.controller";
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { DeleteSessionController } from "./controllers/session/delete.session.controller";
@@ -33,6 +40,7 @@ import { SendMessageController } from "./controllers/session/send.messgae.contro
 import { StopSessionStreamController } from "./controllers/session/stop.session.stream.controller";
 import { CreateWorkspaceController } from "./controllers/workspace/create.workspace.controller";
 import { DeleteWorkspaceController } from "./controllers/workspace/delete.workspace.controller";
+import { GetWorkspaceAgentsController } from "./controllers/workspace/get.workspace.agents.controller";
 import { GetWorkspaceFilesController } from "./controllers/workspace/get.workspace.files.controller";
 import { GetWorkspaceInfoController } from "./controllers/workspace/get.workspace.info.controller";
 import { GetWorkspaceListController } from "./controllers/workspace/get.workspace.list.controller";
@@ -65,6 +73,8 @@ import { SkillService } from "./service/skill.service";
 import { SystemService } from "./service/system.service";
 import { TavilyService } from "./service/tavily.service";
 import { TodoService } from "./service/todo.service";
+import { WorkspaceAgentService } from "./service/workspace-agent.service";
+import { WorkspaceInitService } from "./service/workspace-init.service";
 import { WorkspaceService } from "./service/workspace.service";
 import { FloatingBallWindow } from "./window/floating-ball.window";
 import { MainWindow } from "./window/main.window";
@@ -82,6 +92,8 @@ if (!app.isPackaged && process.platform === "darwin") {
   providers: [
     DbService,
     WorkspaceService,
+    WorkspaceAgentService,
+    WorkspaceInitService,
     SystemService,
     SessionService,
     SkillService,
@@ -121,6 +133,7 @@ if (!app.isPackaged && process.platform === "darwin") {
     DeleteWorkspaceController,
     GetWorkspaceInfoController,
     GetWorkspaceFilesController,
+    GetWorkspaceAgentsController,
     GetWorkspaceSettingsController,
     RenameWorkspaceController,
     UpdateWorkspaceSettingsController,
@@ -143,8 +156,15 @@ if (!app.isPackaged && process.platform === "darwin") {
     AddTavilyKeyController,
     UpdateTavilyKeyController,
     DeleteTavilyKeyController,
-    AiAppViewController,
-    FloatingBallController,
+    AiAppLoadController,
+    AiAppBoundsController,
+    AiAppCloseController,
+    GetFloatingBallConfigController,
+    SetFloatingBallEnabledController,
+    SetFloatingBallPositionController,
+    MoveFloatingBallWindowController,
+    ShowMainWindowController,
+    ShowFloatingBallMenuController,
   ],
 })
 export class AppModule {
@@ -152,6 +172,7 @@ export class AppModule {
 
   constructor(
     private windowFactoryResolver: WindowFactoryResolver,
+    private skillService: SkillService,
     private automationService: AutomationService,
     private initController: InitController,
     private dialogController: DialogController,
@@ -166,6 +187,7 @@ export class AppModule {
     private deleteWorkspaceController: DeleteWorkspaceController,
     private getWorkspaceInfoController: GetWorkspaceInfoController,
     private getWorkspaceFilesController: GetWorkspaceFilesController,
+    private getWorkspaceAgentsController: GetWorkspaceAgentsController,
     private renameWorkspaceController: RenameWorkspaceController,
     private getWorkspaceSettingsController: GetWorkspaceSettingsController,
     private updateWorkspaceSettingsController: UpdateWorkspaceSettingsController,
@@ -188,9 +210,16 @@ export class AppModule {
     private addTavilyKeyController: AddTavilyKeyController,
     private updateTavilyKeyController: UpdateTavilyKeyController,
     private deleteTavilyKeyController: DeleteTavilyKeyController,
-    private aiAppViewController: AiAppViewController,
+    private aiAppLoadController: AiAppLoadController,
+    private aiAppBoundsController: AiAppBoundsController,
+    private aiAppCloseController: AiAppCloseController,
+    private getFloatingBallConfigController: GetFloatingBallConfigController,
+    private setFloatingBallEnabledController: SetFloatingBallEnabledController,
+    private setFloatingBallPositionController: SetFloatingBallPositionController,
+    private moveFloatingBallWindowController: MoveFloatingBallWindowController,
+    private showMainWindowController: ShowMainWindowController,
+    private showFloatingBallMenuController: ShowFloatingBallMenuController,
     private floatingBallService: FloatingBallService,
-    private floatingBallController: FloatingBallController,
   ) {
     registerAutomationToolService(this.automationService);
   }
@@ -232,6 +261,7 @@ export class AppModule {
     }
 
     try {
+      this.skillService.ensureBuiltinSkills();
       await this.initController.init();
       await this.floatingBallService.init();
       this.initSucceeded = true;

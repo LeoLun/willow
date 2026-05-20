@@ -16,8 +16,6 @@ export class WebSearchRendererFactory implements ToolRenderer {
     isStreaming?: boolean,
     _toolName?: string,
   ): ToolRenderResult {
-    console.log("render", this.options.onOpenUrl);
-
     return {
       component: markRaw(WebSearchToolRenderer),
       props: { params, result, isStreaming, onOpenUrl: this.options.onOpenUrl },

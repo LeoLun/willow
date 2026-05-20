@@ -117,8 +117,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex h-full min-h-0 flex-col items-center">
-    <div ref="scrollArea" class="min-h-0 w-full flex-1 overflow-y-auto pt-4 pb-4">
-      <div ref="messageContainer" class="mx-auto max-w-3xl px-4">
+    <div ref="scrollArea" class="min-h-0 w-full flex-1 overflow-y-auto pt-4 pb-10">
+      <div ref="messageContainer" class="mx-auto flex max-w-3xl flex-col gap-3 px-4">
         <MessageList
           :messages="props.messages"
           :tools="props.tools"

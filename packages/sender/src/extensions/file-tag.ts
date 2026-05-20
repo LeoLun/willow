@@ -9,6 +9,14 @@ export interface FileTagAttributes {
   extension?: string;
 }
 
+function escapeMarkdownLinkLabel(value: string) {
+  return value.replace(/([\\\]])/g, "\\$1");
+}
+
+function escapeMarkdownLinkDestination(value: string) {
+  return value.replace(/([\\>])/g, "\\$1");
+}
+
 export const FileTag = Node.create({
   name: "fileTag",
   group: "inline",
@@ -44,7 +52,12 @@ export const FileTag = Node.create({
   },
 
   renderText({ node }) {
-    return node.attrs.name && node.attrs.path ? `[${node.attrs.name}](${node.attrs.path})` : "";
+    if (!node.attrs.name || !node.attrs.path) {
+      return "";
+    }
+    const name = escapeMarkdownLinkLabel(node.attrs.name);
+    const path = escapeMarkdownLinkDestination(node.attrs.path);
+    return `[${name}](<${path}>)`;
   },
 
   addNodeView() {

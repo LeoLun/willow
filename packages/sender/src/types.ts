@@ -35,6 +35,30 @@ export interface SenderPluginOption {
   description: string;
 }
 
+export interface SenderBuiltinCommandOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface SenderWorkspaceAgentOption {
+  workspaceId: number;
+  workspaceName: string;
+  workspacePath: string;
+  agentName: string;
+  agentDescription: string;
+}
+
+export interface SenderWorkspaceAgentReference {
+  workspaceId: number;
+  agentName: string;
+}
+
+export interface SenderBuiltinCommandReference {
+  id: string;
+  name: string;
+}
+
 export interface SenderFileOption {
   name: string;
   path: string;
@@ -51,14 +75,18 @@ export interface SenderFileReference {
 }
 
 export type SenderResourcePickerItem =
+  | { type: "builtin-command"; key: string; command: SenderBuiltinCommandOption }
+  | { type: "workspace-agent"; key: string; workspaceAgent: SenderWorkspaceAgentOption }
   | { type: "plugin"; key: string; plugin: SenderPluginOption }
   | { type: "skill"; key: string; skill: SenderSkillOption }
   | { type: "file"; key: string; file: SenderFileOption };
 
 export interface SenderSendPayload {
   message: string;
+  selectedBuiltinCommand?: SenderBuiltinCommandReference;
   selectedSkills?: SenderSkillReference[];
   selectedFiles?: SenderFileReference[];
+  selectedWorkspaceAgent?: SenderWorkspaceAgentReference;
   modelId?: string;
   webSearchEnabled?: boolean;
 }

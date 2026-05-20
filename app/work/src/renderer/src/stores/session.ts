@@ -66,6 +66,8 @@ export const useSessionStore = defineStore("session", () => {
       const idx = list.findIndex((s) => s.id === session.id);
       if (idx !== -1) {
         list[idx] = session;
+      } else {
+        refreshWorkspaceSessions(session.workspaceId);
       }
     }
   }

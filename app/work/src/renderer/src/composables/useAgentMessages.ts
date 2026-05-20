@@ -107,10 +107,29 @@ export function useAgentMessages(sessionId: Ref<number>, options?: UseAgentMessa
       case "agent_start":
         state.isStreaming = true;
         state.streamMessage = null;
+        if (event.messages) {
+          state.messages = event.messages;
+        }
         break;
 
       case "message_start":
+        state.streamMessage = event.message ?? null;
+        break;
+
       case "message_update":
+        if (event.message) {
+          const bTime = (event.message as any).timestamp;
+          if (bTime !== undefined) {
+            const idx = state.messages.findIndex(
+              (m) => m.role === event.message!.role && (m as any).timestamp === bTime,
+            );
+            if (idx !== -1) {
+              state.messages[idx] = event.message;
+              state.streamMessage = null;
+              break;
+            }
+          }
+        }
         state.streamMessage = event.message ?? null;
         break;
 

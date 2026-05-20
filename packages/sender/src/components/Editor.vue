@@ -3,10 +3,14 @@ import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, useEditor } from "@tiptap/vue-3";
 import { watch } from "vue";
+import { BuiltinCommandTag } from "../extensions/builtin-command-tag";
+import type { BuiltinCommandTagAttributes } from "../extensions/builtin-command-tag";
 import { FileTag } from "../extensions/file-tag";
 import type { FileTagAttributes } from "../extensions/file-tag";
 import { SkillTag } from "../extensions/skill-tag";
 import type { SkillTagAttributes } from "../extensions/skill-tag";
+import { WorkspaceAgentTag } from "../extensions/workspace-agent-tag";
+import type { WorkspaceAgentTagAttributes } from "../extensions/workspace-agent-tag";
 
 const props = withDefaults(
   defineProps<{
@@ -40,8 +44,10 @@ const editor = useEditor({
     Placeholder.configure({
       placeholder: "向 AI 提问，/ 选择技能或文件",
     }),
+    BuiltinCommandTag,
     FileTag,
     SkillTag,
+    WorkspaceAgentTag,
   ],
   content: props.modelValue,
   autofocus: false,
@@ -86,6 +92,32 @@ function insertSkillTag(attrs: SkillTagAttributes) {
     .run();
 }
 
+function insertBuiltinCommandTag(attrs: BuiltinCommandTagAttributes) {
+  if (!editor.value) return;
+  clearBuiltinCommandTags();
+  editor.value
+    .chain()
+    .focus()
+    .insertContent([
+      { type: "builtinCommandTag", attrs },
+      { type: "text", text: " " },
+    ])
+    .run();
+}
+
+function insertWorkspaceAgentTag(attrs: WorkspaceAgentTagAttributes) {
+  if (!editor.value) return;
+  clearWorkspaceAgentTags();
+  editor.value
+    .chain()
+    .focus()
+    .insertContent([
+      { type: "workspaceAgentTag", attrs },
+      { type: "text", text: " " },
+    ])
+    .run();
+}
+
 function insertFileTag(attrs: FileTagAttributes) {
   if (!editor.value) return;
   editor.value
@@ -96,6 +128,22 @@ function insertFileTag(attrs: FileTagAttributes) {
       { type: "text", text: " " },
     ])
     .run();
+}
+
+function getWorkspaceAgentTags(): WorkspaceAgentTagAttributes[] {
+  if (!editor.value) return [];
+  const tags: WorkspaceAgentTagAttributes[] = [];
+  editor.value.state.doc.descendants((node) => {
+    if (node.type.name === "workspaceAgentTag") {
+      tags.push({
+        workspaceId: Number(node.attrs.workspaceId) || 0,
+        workspaceName: node.attrs.workspaceName,
+        agentName: node.attrs.agentName,
+        agentDescription: node.attrs.agentDescription,
+      });
+    }
+  });
+  return tags;
 }
 
 function getSkillTags(): SkillTagAttributes[] {
@@ -130,12 +178,75 @@ function getFileTags(): FileTagAttributes[] {
   return tags;
 }
 
+function getBuiltinCommandTags(): BuiltinCommandTagAttributes[] {
+  if (!editor.value) return [];
+  const tags: BuiltinCommandTagAttributes[] = [];
+  editor.value.state.doc.descendants((node) => {
+    if (node.type.name === "builtinCommandTag") {
+      tags.push({
+        id: node.attrs.id,
+        name: node.attrs.name,
+        description: node.attrs.description,
+      });
+    }
+  });
+  return tags;
+}
+
+function clearBuiltinCommandTags() {
+  if (!editor.value) return;
+
+  const ranges: Array<{ from: number; to: number }> = [];
+  editor.value.state.doc.descendants((node, pos) => {
+    if (node.type.name === "builtinCommandTag") {
+      ranges.push({ from: pos, to: pos + node.nodeSize });
+    }
+  });
+
+  if (ranges.length === 0) {
+    return;
+  }
+
+  let chain = editor.value.chain().focus();
+  for (const range of ranges.reverse()) {
+    chain = chain.deleteRange(range);
+  }
+  chain.run();
+}
+
+function clearWorkspaceAgentTags() {
+  if (!editor.value) return;
+
+  const ranges: Array<{ from: number; to: number }> = [];
+  editor.value.state.doc.descendants((node, pos) => {
+    if (node.type.name === "workspaceAgentTag") {
+      ranges.push({ from: pos, to: pos + node.nodeSize });
+    }
+  });
+
+  if (ranges.length === 0) {
+    return;
+  }
+
+  let chain = editor.value.chain().focus();
+  for (const range of ranges.reverse()) {
+    chain = chain.deleteRange(range);
+  }
+  chain.run();
+}
+
 function getTextWithoutFileTags(): string {
   if (!editor.value) return "";
   const parts: string[] = [];
   editor.value.state.doc.descendants((node) => {
     if (node.isText) {
       parts.push(node.text ?? "");
+      return;
+    }
+    if (node.type.name === "builtinCommandTag") {
+      return;
+    }
+    if (node.type.name === "workspaceAgentTag") {
       return;
     }
     if (node.type.name === "skillTag") {
@@ -145,13 +256,25 @@ function getTextWithoutFileTags(): string {
   return parts.join("");
 }
 
+function clear() {
+  if (!editor.value) return;
+  editor.value.commands.setContent("");
+}
+
 defineExpose({
   editor,
+  insertBuiltinCommandTag,
+  insertWorkspaceAgentTag,
   insertSkillTag,
   insertFileTag,
+  getBuiltinCommandTags,
+  getWorkspaceAgentTags,
   getSkillTags,
   getFileTags,
+  clearBuiltinCommandTags,
+  clearWorkspaceAgentTags,
   getTextWithoutFileTags,
+  clear,
 });
 </script>
 

@@ -34,3 +34,5 @@ export {
 } from "./skills";
 
 export { CoreAgent, type CoreAgentOptions } from "./core-agent";
+
+export { parseFrontmatter } from "./utils/frontmatter";

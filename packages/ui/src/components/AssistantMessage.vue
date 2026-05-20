@@ -41,12 +41,12 @@ const orderedParts = computed(() => {
   let idx = 0;
   for (const chunk of props.message.content) {
     if (chunk.type === "text" && chunk.text.trim() !== "") {
-      parts.push({ type: "text", key: `text-${idx}`, data: chunk.text });
+      parts.push({ type: "text", key: `text-${idx}`, data: chunk.text.trimEnd() });
     } else if (chunk.type === "thinking" && chunk.thinking.trim() !== "") {
       parts.push({
         type: "thinking",
         key: `thinking-${idx}`,
-        data: chunk.thinking,
+        data: chunk.thinking.trimEnd(),
       });
     } else if (chunk.type === "toolCall") {
       if (!props.hideToolCalls) {

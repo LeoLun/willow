@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { toast } from "vue-sonner";
 import MainTitle from "@/components/base/MainTitle.vue";
 import { useAgentMessages } from "@/composables/useAgentMessages";
 import { useDragResize } from "@/composables/useDragResize";
@@ -94,31 +95,41 @@ const messageCount = computed(() => {
 });
 
 async function handleSend(request: SendMessage) {
-  // 检查是否为 session 路由
-  if (isSessionRoute.value || isConversationRoute.value) {
-    const sessionId = activeSessionId.value;
-    if (!sessionId) {
+  console.log("[Chat] handleSend sessionId=", activeSessionId.value);
+  try {
+    if (isSessionRoute.value || isConversationRoute.value) {
+      const sessionId = activeSessionId.value;
+      if (!sessionId) {
+        console.warn("[Chat] handleSend no sessionId, aborting");
+        return;
+      }
+      console.log("[Chat] sendMessage to sessionId=", sessionId);
+      await electronAPI.sendMessage({
+        sessionId,
+        ...request,
+      });
+      sessionStore.bumpSessionToTop(sessionId);
       return;
     }
-    electronAPI.sendMessage({
-      sessionId,
-      ...request,
-    });
-    sessionStore.bumpSessionToTop(sessionId);
-  } else {
-    // 创建 session
+
     const workspaceId = Number(route.query.workspaceId);
+    console.log("[Chat] creating new session for workspaceId=", workspaceId);
     const { session } = await electronAPI.createSession({
-      workspaceId: workspaceId,
+      workspaceId,
     });
 
     sessionStore.fetchSessionList([workspaceId]);
 
-    router.push(`/${session.id}`);
-    electronAPI.sendMessage({
+    await router.push(`/${session.id}`);
+    console.log("[Chat] sendMessage to new sessionId=", session.id);
+    await electronAPI.sendMessage({
       sessionId: session.id,
       ...request,
     });
+  } catch (error) {
+    console.error("[Chat] handleSend error:", error);
+    const message = error instanceof Error ? error.message : "发送失败，请稍后重试";
+    toast.error(message);
   }
 }
 
@@ -255,6 +266,7 @@ watch(
             :is-streaming="state.isStreaming"
             :show-usage="isSessionRoute || isConversationRoute"
             :workspace-id="currentWorkspaceId"
+            :chat-scope="isConversationRoute ? 'conversation' : 'workspace'"
             @send="handleSend"
             @stop="handleStop"
           />

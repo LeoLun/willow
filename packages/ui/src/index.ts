@@ -16,6 +16,7 @@ export { default as ConsoleBlock } from "./components/ConsoleBlock.vue";
 export { default as MarkdownBlock } from "./components/MarkdownBlock.vue";
 export { default as CodeBlock } from "./components/CodeBlock.vue";
 export { default as AttachmentTile } from "./components/AttachmentTile.vue";
+export { default as WorkspaceAgentTag } from "./components/WorkspaceAgentTag.vue";
 
 // Tool renderer system
 export {
@@ -31,6 +32,7 @@ export { AutomationGetListRendererFactory } from "./renderers/AutomationGetListR
 export { AutomationGetRendererFactory } from "./renderers/AutomationGetRendererFactory";
 export { AutomationUpdateRendererFactory } from "./renderers/AutomationUpdateRendererFactory";
 export { TodoRendererFactory } from "./renderers/TodoRendererFactory";
+export { WorkspaceDelegateRendererFactory } from "./renderers/WorkspaceDelegateRendererFactory";
 
 // Message renderer registry
 export {
