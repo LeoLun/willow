@@ -25,6 +25,7 @@ export interface LoadSkillsResult {
   warnings: string[];
   userDir: string;
   projectDir: string;
+  builtinDir?: string;
 }
 
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build"]);
@@ -82,11 +83,16 @@ function collectSkillMdFiles(rootDir: string, out: string[] = []): string[] {
   return out;
 }
 
-function mergeByName(firstBatch: Skill[], secondBatch: Skill[], warnings: string[]): Skill[] {
+function mergeByName(
+  userBatch: Skill[],
+  projectBatch: Skill[],
+  builtinBatch: Skill[],
+  warnings: string[],
+): Skill[] {
   const map = new Map<string, Skill>();
   const realPaths = new Set<string>();
 
-  const add = (s: Skill) => {
+  const add = (s: Skill, silent = false) => {
     let real: string;
     try {
       real = realpathSync(s.filePath);
@@ -96,15 +102,18 @@ function mergeByName(firstBatch: Skill[], secondBatch: Skill[], warnings: string
     if (realPaths.has(real)) return;
     const existing = map.get(s.name);
     if (existing) {
-      warnings.push(`技能名称「${s.name}」冲突；保留 ${existing.filePath}，忽略 ${s.filePath}`);
+      if (!silent) {
+        warnings.push(`技能名称「${s.name}」冲突；保留 ${existing.filePath}，忽略 ${s.filePath}`);
+      }
       return;
     }
     map.set(s.name, s);
     realPaths.add(real);
   };
 
-  for (const s of firstBatch) add(s);
-  for (const s of secondBatch) add(s);
+  for (const s of userBatch) add(s);
+  for (const s of projectBatch) add(s);
+  for (const s of builtinBatch) add(s, true);
   return [...map.values()];
 }
 
@@ -112,6 +121,7 @@ export function loadSkills(options: {
   cwd: string;
   userData?: string;
   agentDir?: string;
+  builtinDir?: string;
 }): LoadSkillsResult {
   const cwd = options.cwd;
   let agentDir: string;
@@ -125,11 +135,11 @@ export function loadSkills(options: {
   }
   const userDir = join(agentDir, "skills");
   const projectDir = join(cwd, WILLOW_CONFIG_DIR, "skills");
-  console.log("projectDir", projectDir);
-  console.log("userDir", userDir);
-
   const userSkills: Skill[] = [];
   for (const f of collectSkillMdFiles(userDir)) {
+    if (f === join(userDir, "init", "SKILL.md")) {
+      continue;
+    }
     const r = loadSkillFromFile(f);
     warnings.push(...r.warnings);
     if (r.skill) userSkills.push(r.skill);
@@ -142,8 +152,23 @@ export function loadSkills(options: {
     if (r.skill) projectSkills.push(r.skill);
   }
 
-  const skills = mergeByName(userSkills, projectSkills, warnings);
-  return { skills, warnings, userDir, projectDir };
+  const builtinSkills: Skill[] = [];
+  if (options.builtinDir && existsSync(options.builtinDir)) {
+    for (const f of collectSkillMdFiles(options.builtinDir)) {
+      const r = loadSkillFromFile(f);
+      warnings.push(...r.warnings);
+      if (r.skill) builtinSkills.push(r.skill);
+    }
+  }
+
+  const skills = mergeByName(userSkills, projectSkills, builtinSkills, warnings);
+  return {
+    skills,
+    warnings,
+    userDir,
+    projectDir,
+    builtinDir: options.builtinDir,
+  };
 }
 
 export function formatSkillsForPrompt(skills: Skill[]): string {

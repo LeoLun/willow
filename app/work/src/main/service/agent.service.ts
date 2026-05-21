@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { createAutomationTools } from "@main/service/automation-tool.service";
 import { ConfigService } from "@main/service/config.service";
 import {
@@ -248,9 +249,14 @@ export class AgentService {
       extraTools.push(createWorkspaceDelegateTool(session.id, this.workspaceDelegateHandler));
     }
 
+    const builtinDir = app.isPackaged
+      ? join(process.resourcesPath, "builtin-skills")
+      : join(app.getAppPath(), "builtin-skills");
+
     const coreAgent = new CoreAgent(agent, {
       cwd,
       userData: app.getPath("userData"),
+      builtinDir,
       websearch: webSearchEnabled ? { getApiKey: () => tavilyService.getApiKey() } : undefined,
       todoStore,
       extraTools,

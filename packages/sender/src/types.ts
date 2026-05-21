@@ -20,7 +20,7 @@ export interface SenderSkillOption {
   description: string;
   filePath: string;
   scope: SenderSkillScope;
-  scopeLabel: "全局" | "工作空间";
+  scopeLabel: "全局" | "工作空间" | "内置";
 }
 
 export interface SenderSkillReference {

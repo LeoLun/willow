@@ -74,7 +74,6 @@ import { SystemService } from "./service/system.service";
 import { TavilyService } from "./service/tavily.service";
 import { TodoService } from "./service/todo.service";
 import { WorkspaceAgentService } from "./service/workspace-agent.service";
-import { WorkspaceInitService } from "./service/workspace-init.service";
 import { WorkspaceService } from "./service/workspace.service";
 import { FloatingBallWindow } from "./window/floating-ball.window";
 import { MainWindow } from "./window/main.window";
@@ -93,7 +92,6 @@ if (!app.isPackaged && process.platform === "darwin") {
     DbService,
     WorkspaceService,
     WorkspaceAgentService,
-    WorkspaceInitService,
     SystemService,
     SessionService,
     SkillService,

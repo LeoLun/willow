@@ -5,7 +5,6 @@ import { EventService } from "@main/service/event.service";
 import { SkillService } from "@main/service/skill.service";
 import { TodoService } from "@main/service/todo.service";
 import { WorkspaceAgentService } from "@main/service/workspace-agent.service";
-import { WorkspaceInitService } from "@main/service/workspace-init.service";
 import { WorkspaceService } from "@main/service/workspace.service";
 import {
   clipForTitlePrompt,
@@ -87,7 +86,6 @@ export class SessionService {
     private readonly skillService: SkillService,
     private readonly todoService: TodoService,
     private readonly workspaceAgentService: WorkspaceAgentService,
-    private readonly workspaceInitService: WorkspaceInitService,
     private readonly workspaceService: WorkspaceService,
   ) {
     this.agentService.registerWorkspaceDelegateHandler((params) =>
@@ -266,15 +264,6 @@ export class SessionService {
     const chatScope = workspace?.kind === "conversation" ? "conversation" : "workspace";
     console.log("[SessionService] chatScope=", chatScope, "workspaceId=", session.workspaceId);
 
-    if (data.selectedBuiltinCommand?.id === "init") {
-      if (chatScope !== "workspace") {
-        throw new Error("/init 只能在项目工作空间中使用");
-      }
-      this.sessionDao.update(sessionId, { lastActiveAt: new Date() });
-      this.eventService.sendEvent(SESSION_LIST_UPDATED, { workspaceId: session.workspaceId });
-      return this.executeWorkspaceInitCommand(session, data.message);
-    }
-
     const targetWorkspaceId = await this.resolveTargetWorkspaceId(
       session.workspaceId,
       chatScope,
@@ -300,64 +289,6 @@ export class SessionService {
       webSearchEnabled: data.webSearchEnabled,
       targetWorkspaceId,
     });
-  }
-
-  private async executeWorkspaceInitCommand(session: Session, message: string): Promise<string> {
-    const promptInput = message.trim() || "/init";
-    const priorMessageCount = this.sessionMessageDao.findBySessionId(session.id).length;
-    if (priorMessageCount === 0) {
-      void this.createSessionTitle(session.id, promptInput);
-    }
-
-    const result = await this.workspaceInitService.runInit(session.workspaceId);
-    const replyText = result.created
-      ? "已创建 AGENTS.md，并完成工作空间 Agent 元信息初始化。"
-      : "已改进 AGENTS.md，并刷新工作空间 Agent 元信息。";
-
-    const zeroUsage = {
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cacheWrite: 0,
-      totalTokens: 0,
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-    };
-
-    const messages = [
-      { role: "user", content: promptInput } as AgentMessage,
-      {
-        role: "assistant" as const,
-        content: [{ type: "text" as const, text: replyText }],
-        api: "" as string,
-        provider: "" as string,
-        model: "",
-        usage: zeroUsage,
-        stopReason: "stop" as const,
-        timestamp: Date.now(),
-      } as AgentMessage,
-    ];
-
-    const previousMessages = this.getSessionHistoryAgentMessages(session.id);
-    const nextMessages = [...previousMessages, ...messages];
-    this.persistAgentMessagesSnapshot(session.id, nextMessages);
-    this.activeSessionStreams.set(session.id, {
-      messages: nextMessages,
-      streamMessage: null,
-      isStreaming: false,
-      pendingToolCallIds: new Set<string>(),
-      toolApprovals: new Map<string, ToolApproval>(),
-    });
-    this.eventService.sendEvent("UPDATE_MESSAGE", {
-      sessionId: session.id,
-      groupId: "0",
-      chatScope: "workspace",
-      event: {
-        type: "agent_end",
-        messages: nextMessages,
-      },
-    });
-
-    return replyText;
   }
 
   private async executeAgentSession({

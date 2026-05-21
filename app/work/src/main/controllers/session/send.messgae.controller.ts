@@ -41,7 +41,12 @@ export class SendMessageController extends IPCBaseController<
     if (!request || !request.sessionId) {
       return new Error("sessionId is required");
     }
-    if (!request.message && !request.selectedBuiltinCommand && !request.selectedWorkspaceAgent) {
+    if (
+      !request.message &&
+      !request.selectedBuiltinCommand &&
+      !request.selectedWorkspaceAgent &&
+      (!request.selectedSkills || request.selectedSkills.length === 0)
+    ) {
       return new Error("message is required");
     }
     if (request.files && request.files.length > 0) {

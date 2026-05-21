@@ -58,16 +58,7 @@ const isWorkspaceAgentsLoading = ref(false);
 const workspaceAgentsErrorMessage = ref("");
 
 const builtinCommands = computed<SenderBuiltinCommandOption[]>(() => {
-  if (props.chatScope !== "workspace") {
-    return [];
-  }
-  return [
-    {
-      id: "init",
-      name: "/init",
-      description: "分析当前工作空间并创建或改进 AGENTS.md",
-    },
-  ];
+  return [];
 });
 
 const senderWorkspaceAgents = computed<SenderWorkspaceAgentOption[]>(() =>
@@ -228,6 +219,7 @@ function handleSend(request: SenderSendPayload) {
     message: request.message,
     modelId: request.modelId,
     selectedBuiltinCommand: request.selectedBuiltinCommand,
+    selectedSkills: request.selectedSkills?.map((s) => ({ name: s.name, filePath: s.filePath })),
     selectedFiles: request.selectedFiles,
     selectedWorkspaceAgent: request.selectedWorkspaceAgent,
     webSearchEnabled: request.webSearchEnabled,

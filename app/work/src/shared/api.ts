@@ -173,7 +173,7 @@ export interface SkillSummary {
   description: string;
   filePath: string;
   scope: SkillScope;
-  scopeLabel: "全局" | "工作空间";
+  scopeLabel: "全局" | "工作空间" | "内置";
 }
 
 export interface GetAvailableSkillsRequest {
@@ -208,6 +208,10 @@ export interface SendMessageRequest {
     id: string;
     name: string;
   };
+  selectedSkills?: {
+    name: string;
+    filePath: string;
+  }[];
   selectedFiles?: FileReference[];
   selectedWorkspaceAgent?: {
     workspaceId: number;

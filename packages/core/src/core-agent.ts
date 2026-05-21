@@ -14,6 +14,7 @@ export interface CoreAgentOptions {
   cwd: string;
   agentDir?: string;
   userData?: string;
+  builtinDir?: string;
   customInstructions?: string;
   projectContext?: string;
   compressedContext?: string;
@@ -45,6 +46,7 @@ export class CoreAgent {
       cwd: this.cwd,
       agentDir: options.agentDir,
       userData: options.userData,
+      builtinDir: options.builtinDir,
     });
 
     const promptOptions: SystemPromptOptions = {
