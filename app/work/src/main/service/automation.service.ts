@@ -4,6 +4,7 @@ import { ConfigService } from "@main/service/config.service";
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import { SessionService } from "@main/service/session.service";
 import { Injectable } from "@willow/poetry";
+import { powerMonitor } from "electron";
 import cron from "node-cron";
 import type { TaskContext } from "node-cron";
 import { AutomationSchedulerService } from "./automation-scheduler.service";
@@ -75,6 +76,7 @@ interface ExecuteAutomationRunOptions {
 @Injectable()
 export class AutomationService {
   private readonly runningAutomationIds = new Set<number>();
+  private isPowerMonitorSubscribed = false;
 
   constructor(
     private readonly automationDao: AutomationDao,
@@ -218,6 +220,14 @@ export class AutomationService {
     for (const automation of automations) {
       await this.registerAutomation(automation.id);
       await this.runLatestMissedOccurrence(automation.id);
+    }
+
+    if (!this.isPowerMonitorSubscribed) {
+      this.isPowerMonitorSubscribed = true;
+      powerMonitor.on("resume", () => {
+        console.log("System resumed. Restoring scheduled automations...");
+        void this.restoreSchedules();
+      });
     }
   }
 
