@@ -7,6 +7,11 @@ on:
         description: 'Release version (e.g., v1.0.0)'
         required: true
         type: string
+      upload_release:
+        description: 'Upload to GitHub Release'
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -64,6 +69,7 @@ jobs:
           ls -la app/work/out/make/zip/darwin/arm64/ || true
 
       - name: Create Release and Upload Assets
+        if: ${{ inputs.upload_release == true }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.version }}
