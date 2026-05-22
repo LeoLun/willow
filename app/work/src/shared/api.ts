@@ -593,3 +593,32 @@ export interface ResizeFloatingBallWindowResponse {
   x: number;
   y: number;
 }
+
+// ─── 自动更新 ───
+
+export interface CheckUpdateRequest {}
+
+export interface CheckUpdateResponse {
+  hasUpdate: boolean;
+  latestVersion: string;
+  updateType?: "full" | "incremental";
+  releaseNotes?: string;
+  publishDate?: string;
+  currentVersion?: string;
+}
+
+export interface StartDownloadRequest {}
+export interface StartDownloadResponse {
+  success: boolean;
+}
+
+export interface InstallUpdateRequest {}
+export interface InstallUpdateResponse {
+  success: boolean;
+}
+
+export interface UpdateStatusPayload {
+  status: "idle" | "checking" | "available" | "downloading" | "downloaded" | "error";
+  progress?: number; // 0 - 100
+  errorMsg?: string;
+}

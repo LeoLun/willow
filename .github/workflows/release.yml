@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build monorepo packages
+        run: pnpm build
+
+      - name: Build and Package Mac App (x64)
+        run: |
+          cd app/work
+          pnpm run make:mac:x64
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Build and Package Mac App (arm64)
+        run: |
+          cd app/work
+          pnpm run make:mac:arm64
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Extract app.asar for incremental update
+        run: |
+          cp app/work/out/*-darwin-arm64/Willow\ Work.app/Contents/Resources/app.asar app/work/out/app.asar || cp app/work/out/*-darwin-x64/Willow\ Work.app/Contents/Resources/app.asar app/work/out/app.asar
+          ls -la app/work/out/app.asar
+
+      - name: Check output files
+        run: |
+          ls -la app/work/out/make/dmg/darwin/x64/ || true
+          ls -la app/work/out/make/dmg/darwin/arm64/ || true
+          ls -la app/work/out/make/zip/darwin/x64/ || true
+          ls -la app/work/out/make/zip/darwin/arm64/ || true
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            app/work/out/make/dmg/darwin/x64/*.dmg
+            app/work/out/make/dmg/darwin/arm64/*.dmg
+            app/work/out/make/zip/darwin/x64/*.zip
+            app/work/out/make/zip/darwin/arm64/*.zip
+            app/work/out/app.asar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

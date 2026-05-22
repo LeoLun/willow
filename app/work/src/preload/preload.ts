@@ -77,6 +77,9 @@ import type {
   SetFloatingBallPositionRequest,
   ResizeFloatingBallWindowRequest,
   ResizeFloatingBallWindowResponse,
+  CheckUpdateResponse,
+  StartDownloadResponse,
+  InstallUpdateResponse,
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
@@ -127,6 +130,9 @@ import {
   SHOW_MAIN_WINDOW,
   SHOW_FLOATING_BALL_MENU,
   RESIZE_FLOATING_BALL_WINDOW,
+  CHECK_UPDATE,
+  START_DOWNLOAD,
+  INSTALL_UPDATE,
 } from "../shared/constants";
 
 const ipcObject: IRenderHook = {
@@ -687,6 +693,40 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("resize floating ball window failed");
+    }
+    return response.data;
+  },
+  checkUpdate: async () => {
+    const response = (await ipcRenderer.invoke(CHECK_UPDATE)) as ApiResponse<CheckUpdateResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("check update failed");
+    }
+    return response.data;
+  },
+  startDownload: async () => {
+    const response = (await ipcRenderer.invoke(
+      START_DOWNLOAD,
+    )) as ApiResponse<StartDownloadResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("start download failed");
+    }
+    return response.data;
+  },
+  installUpdate: async () => {
+    const response = (await ipcRenderer.invoke(
+      INSTALL_UPDATE,
+    )) as ApiResponse<InstallUpdateResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("install update failed");
     }
     return response.data;
   },

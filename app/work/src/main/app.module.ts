@@ -12,11 +12,14 @@ import { GetAutomationListController } from "./controllers/automation/get.automa
 import { RunAutomationNowController } from "./controllers/automation/run.automation.now.controller";
 import { UpdateAutomationController } from "./controllers/automation/update.automation.controller";
 import { AddTavilyKeyController } from "./controllers/config/add.tavily.key.controller";
+import { CheckUpdateController } from "./controllers/config/check.update.controller";
 import { DeleteTavilyKeyController } from "./controllers/config/delete.tavily.key.controller";
 import { GetModelListController } from "./controllers/config/get.model.list.controller";
 import { GetTavilyKeyListController } from "./controllers/config/get.tavily.key.list.controller";
+import { InstallUpdateController } from "./controllers/config/install.update.controller";
 import { SetDeepSeekApiKeyController } from "./controllers/config/set.deepseek.api.key.controller";
 import { SetDefaultModelController } from "./controllers/config/set.default.model.controller";
+import { StartDownloadController } from "./controllers/config/start.download.controller";
 import { UpdateTavilyKeyController } from "./controllers/config/update.tavily.key.controller";
 import { DialogController } from "./controllers/dialog.controller";
 import { EventController } from "./controllers/event.controller";
@@ -74,6 +77,7 @@ import { SkillService } from "./service/skill.service";
 import { SystemService } from "./service/system.service";
 import { TavilyService } from "./service/tavily.service";
 import { TodoService } from "./service/todo.service";
+import { UpdateService } from "./service/update.service";
 import { WorkspaceAgentService } from "./service/workspace-agent.service";
 import { WorkspaceService } from "./service/workspace.service";
 import { FloatingBallWindow } from "./window/floating-ball.window";
@@ -117,6 +121,7 @@ if (!app.isPackaged && process.platform === "darwin") {
     AutomationService,
     AiAppViewService,
     FloatingBallService,
+    UpdateService,
   ],
   controllers: [
     InitController,
@@ -165,6 +170,9 @@ if (!app.isPackaged && process.platform === "darwin") {
     ResizeFloatingBallWindowController,
     ShowMainWindowController,
     ShowFloatingBallMenuController,
+    CheckUpdateController,
+    StartDownloadController,
+    InstallUpdateController,
   ],
 })
 export class AppModule {
@@ -221,6 +229,9 @@ export class AppModule {
     private showMainWindowController: ShowMainWindowController,
     private showFloatingBallMenuController: ShowFloatingBallMenuController,
     private floatingBallService: FloatingBallService,
+    private checkUpdateController: CheckUpdateController,
+    private startDownloadController: StartDownloadController,
+    private installUpdateController: InstallUpdateController,
   ) {
     registerAutomationToolService(this.automationService);
   }

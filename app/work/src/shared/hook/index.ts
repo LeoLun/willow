@@ -6,7 +6,9 @@ import type { IEventApi } from "./event.hook";
 import type { IFloatingBallApi } from "./floating-ball.hook";
 import type { ISessionApi } from "./session.hook";
 import type { ISkillApi } from "./skill.hook";
+import type { IUpdateApi } from "./update.hook";
 import type { IWorkspaceApi } from "./workspace.hook";
+
 export interface IRenderHook
   extends
     IWorkspaceApi,
@@ -17,6 +19,8 @@ export interface IRenderHook
     IAutomationApi,
     IDialogRenderer,
     IAiAppApi,
-    IFloatingBallApi {}
+    IFloatingBallApi,
+    IUpdateApi {}
 
 export * from "./dialog.hook";
+export * from "./update.hook";
