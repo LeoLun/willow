@@ -246,9 +246,11 @@ export class UpdateService {
       } else {
         // Incremental Update: Replace app.asar and restart
         if (!app.isPackaged) {
-          console.log("[UpdateService] Dev mode: simulation relaunch");
-          app.relaunch();
-          app.exit(0);
+          console.log("[UpdateService] Dev mode: simulation relaunch via window reload");
+          const { BrowserWindow } = require("electron");
+          BrowserWindow.getAllWindows().forEach((win: any) => {
+            win.webContents.reloadIgnoringCache();
+          });
           return { success: true };
         }
 
