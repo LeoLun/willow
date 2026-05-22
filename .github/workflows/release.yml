@@ -69,6 +69,17 @@ jobs:
           ls -la app/work/out/make/zip/darwin/x64/ || true
           ls -la app/work/out/make/zip/darwin/arm64/ || true
 
+      - name: Upload Packaged Artifacts to Actions Run
+        uses: actions/upload-artifact@v7
+        with:
+          name: willow-build-${{ env.VERSION }}
+          path: |
+            app/work/out/make/dmg/darwin/x64/*.dmg
+            app/work/out/make/dmg/darwin/arm64/*.dmg
+            app/work/out/make/zip/darwin/x64/*.zip
+            app/work/out/make/zip/darwin/arm64/*.zip
+            app/work/out/app.asar
+
       - name: Create Release and Upload Assets
         if: ${{ inputs.upload_release == true }}
         uses: softprops/action-gh-release@v2
