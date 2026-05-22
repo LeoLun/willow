@@ -1,21 +1,19 @@
 <script setup lang="ts">
 import { Button } from "@willow/shadcn";
 import { Pencil, X } from "lucide-vue-next";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
-interface ToolApproval {
+interface AskUserApproval {
   toolCallId: string;
   toolName: string;
   arguments: unknown;
   title: string;
-  reason: string;
-  risk: "medium" | "high";
   status: "pending" | "approved" | "rejected";
 }
 
 const props = withDefaults(
   defineProps<{
-    approvals: ToolApproval[];
+    approval: AskUserApproval;
     compact?: boolean;
   }>(),
   {
@@ -24,18 +22,32 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  approve: [toolCallId: string];
-  reject: [toolCallId: string, reason?: string];
-  skip: [];
+  resolve: [decision: "approved" | "rejected", answer?: string];
   close: [];
 }>();
 
-const rejectReason = ref("");
+const customText = ref("");
 
-function handleReject() {
-  const id = props.approvals[0]?.toolCallId;
-  if (id) {
-    emit("reject", id, rejectReason.value || undefined);
+const options = computed<string[]>(() => {
+  const args = props.approval.arguments;
+  if (args && typeof args === "object" && "options" in args && Array.isArray(args.options)) {
+    return args.options.filter((opt): opt is string => typeof opt === "string");
+  }
+  return [];
+});
+
+function handleSubmit() {
+  const text = customText.value.trim();
+  if (text) {
+    emit("resolve", "approved", text);
+  } else {
+    emit("resolve", "rejected");
+  }
+}
+
+function handleKeydownEnter() {
+  if (customText.value.trim()) {
+    handleSubmit();
   }
 }
 </script>
@@ -49,11 +61,11 @@ function handleReject() {
     <!-- Header -->
     <div class="flex w-full items-center justify-between gap-4">
       <div
-        class="min-w-0 flex-1 truncate text-foreground"
-        :class="compact ? 'text-sm font-semibold' : 'text-base font-semibold'"
-        :title="approvals[0]?.title || '工具调用等待审批'"
+        class="min-w-0 flex-1 truncate font-semibold text-foreground"
+        :class="compact ? 'text-sm' : 'text-base'"
+        :title="approval.title || '问题反馈'"
       >
-        {{ approvals[0]?.title || "工具调用等待审批" }}
+        {{ approval.title || "问题反馈" }}
       </div>
       <Button
         variant="ghost"
@@ -68,11 +80,11 @@ function handleReject() {
     <!-- Choice List -->
     <div class="flex w-full flex-col" :class="compact ? 'pt-1.5' : 'pt-2'">
       <div
-        v-for="(approval, index) in approvals"
-        :key="approval.toolCallId"
+        v-for="(option, index) in options"
+        :key="index"
         class="flex cursor-pointer items-center hover:bg-muted/30"
         :class="compact ? 'gap-2 rounded-lg p-1.5' : 'gap-3 rounded-xl p-2'"
-        @click="emit('approve', approval.toolCallId)"
+        @click="emit('resolve', 'approved', option)"
       >
         <div
           class="flex shrink-0 items-center justify-center rounded-sm bg-muted"
@@ -82,20 +94,17 @@ function handleReject() {
             {{ index + 1 }}
           </span>
         </div>
-        <span class="shrink-0 text-foreground" :class="compact ? 'text-sm' : 'text-base'"
-          >允许</span
-        >
+        <span class="break-words text-foreground" :class="compact ? 'text-sm' : 'text-base'">{{
+          option
+        }}</span>
       </div>
     </div>
 
-    <!-- Footer -->
-    <div
-      class="flex w-full flex-row items-center font-normal"
-      :class="compact ? 'gap-2 pt-1.5' : 'gap-3 pt-2'"
-    >
+    <!-- Footer / Custom Input -->
+    <div class="flex w-full flex-row items-center" :class="compact ? 'gap-2 pt-1.5' : 'gap-3 pt-2'">
       <div
-        class="flex flex-1 items-center rounded-xl border bg-muted/20"
-        :class="compact ? 'gap-2 p-1.5' : 'gap-3 p-2'"
+        class="flex flex-1 items-center border bg-muted/20"
+        :class="compact ? 'gap-2 rounded-lg p-1.5' : 'gap-3 rounded-xl p-2'"
       >
         <div class="flex flex-1 items-center" :class="compact ? 'gap-2' : 'gap-3'">
           <div
@@ -105,21 +114,21 @@ function handleReject() {
             <Pencil :class="compact ? 'size-3.5' : 'size-4'" class="text-muted-foreground" />
           </div>
           <input
-            v-model="rejectReason"
+            v-model="customText"
             class="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
             :class="compact ? 'text-sm' : 'text-base'"
-            placeholder="否，请告诉 AI 怎么处理"
-            @keydown.enter="handleReject"
+            placeholder="输入其他"
+            @keydown.enter="handleKeydownEnter"
           />
         </div>
       </div>
       <div>
         <Button
-          v-if="rejectReason.length <= 0"
+          v-if="!customText.trim()"
           variant="outline"
           class="shrink-0"
           :class="compact ? 'h-7 rounded-lg px-3 text-xs' : 'rounded-[19px]'"
-          @click="emit('skip')"
+          @click="emit('resolve', 'rejected')"
         >
           跳过
         </Button>
@@ -127,7 +136,7 @@ function handleReject() {
           v-else
           class="shrink-0"
           :class="compact ? 'h-7 rounded-lg px-3 text-xs' : 'rounded-[19px]'"
-          @click="handleReject"
+          @click="handleSubmit"
         >
           提交
         </Button>

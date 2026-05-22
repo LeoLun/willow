@@ -97,3 +97,29 @@
 - AI 空闲（`isStreaming === false`）时，展示 "W" 字母
 - 动画尺寸适配 50x50 dp 球体（原组件为 24px `w-6`，需放大到约 `w-8` 即 32px）
 - 事件监听在 `FloatingBall.vue` 的 `onMounted` 中通过 `window.electronAPI.registerEvent` 设置，`onUnmounted` 中无需清理（窗口销毁时自动解除）
+
+### REQ-FB-011: LUI 面板与物理窗口动态尺寸
+
+- 引入 IPC 常量 `RESIZE_FLOATING_BALL_WINDOW`。
+- 主进程通过 `resizeWindow(width, height, focusable)` 方法，在需要展开 LUI（流式/审批/提问）时动态扩大窗口尺寸（如 420x180 或 420x280），在空闲或关闭时恢复 `80x80`。
+- 重调大小算法：根据悬浮球在屏幕中线的物理位置（左半屏或右半屏），自动向左或向右偏移，确保球体部分的物理锚点相对屏幕位置保持不动；并通过工作区（`workArea`）边缘裁切防止卡片溢出屏幕。
+- 窗口可聚焦状态管理：仅在遇到工具权限审批（`PermissionApprovalPanel`）或问答选择（`AskUserPanel`）需要用户键盘文本输入时，将 `focusable` 设为 `true` 并调用 `win.focus()` 聚焦；其他时间均保持 `focusable: false`。
+
+### REQ-FB-012: 最近一层流式输出提取
+
+- 悬浮球渲染层监听 `UPDATE_MESSAGE` 广播。
+- 提取最近的流式更新消息的最后一个非空 chunk（即 `content` 数组的末尾项）。
+- 状态提取映射规则：
+  - `thinking` (思考)：显示 AI 的思考文本（提供紧凑样式和流式更新）。
+  - `toolCall` (工具调用)：展示正在执行的工具中文语义化标题（如 "正在运行 Shell 脚本..."）。
+  - `text` (内容输出)：展示最近几行流式文本。
+- 流式结束后，若无新的审批或提问发生，设置 4 秒淡出收起计时器。
+
+### REQ-FB-013: 权限审批与提问集成
+
+- 在悬浮球内渲染 `@willow/ui` 的 `PermissionApprovalPanel` 和 `AskUserPanel`。
+- 当 `state.toolApprovals` 中存在 `status === 'pending'` 的审批请求时，自动挂起 LUI 卡片，展开到高度 `280`，并开启可聚焦状态。
+- 用户交互反馈：
+  - 工具批准：调用 `window.electronAPI.resolveToolApproval`，传入 `decision: 'approved'`。
+  - 工具拒绝 / AskUser 答复：允许使用键盘回车或点击提交，将文本或选项作为参数，调用 `resolveToolApproval` 提交，或在跳过时发送 `decision: 'rejected'`。
+

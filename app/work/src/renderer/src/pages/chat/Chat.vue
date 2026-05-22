@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SendMessage, Session, Workspace } from "@shared/api";
 import { Button } from "@willow/shadcn/components/ui/button";
-import { PermissionApprovalPanel } from "@willow/ui";
+import { PermissionApprovalPanel, AskUserPanel } from "@willow/ui";
 import { ChevronLeft, ChevronRight } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref, watch } from "vue";
@@ -159,8 +159,16 @@ async function handleToolApproval(
   });
 }
 
+const pendingAskUser = computed(() =>
+  Array.from(state.toolApprovals.values()).find(
+    (a) => a.toolName === "ask_user" && a.status === "pending",
+  ),
+);
+
 const pendingApprovals = computed(() =>
-  Array.from(state.toolApprovals.values()).filter((a) => a.status === "pending"),
+  Array.from(state.toolApprovals.values()).filter(
+    (a) => a.status === "pending" && a.toolName !== "ask_user",
+  ),
 );
 
 async function handleSkipApproval() {
@@ -251,8 +259,16 @@ watch(
         </div>
 
         <div class="relative w-full max-w-3xl min-w-0 pr-3">
+          <AskUserPanel
+            v-if="pendingAskUser"
+            :approval="pendingAskUser"
+            @resolve="
+              (decision, answer) => handleToolApproval(pendingAskUser.toolCallId, decision, answer)
+            "
+            @close="handleToolApproval(pendingAskUser.toolCallId, 'rejected')"
+          />
           <PermissionApprovalPanel
-            v-if="pendingApprovals.length > 0"
+            v-else-if="pendingApprovals.length > 0"
             :approvals="pendingApprovals"
             @approve="(id) => handleToolApproval(id, 'approved')"
             @reject="(id, reason) => handleToolApproval(id, 'rejected', reason)"

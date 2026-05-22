@@ -1,7 +1,9 @@
 @import "../../work/src/renderer/index.css";
 
 @source "./";
+@source "../../work/src";
 @source "../../../packages/shadcn/src";
+
 @source "../../../packages/ui/src";
 @source "../../../packages/sender/src";
 

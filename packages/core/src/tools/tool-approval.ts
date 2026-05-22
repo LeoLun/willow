@@ -17,7 +17,7 @@ type ToolApprovalListener = (approval: ToolApprovalRequest) => void;
 
 interface PendingToolApproval {
   approval: ToolApprovalRequest;
-  resolve: (decision: ToolApprovalDecision) => void;
+  resolve: (decision: ToolApprovalDecision, reason?: string) => void;
 }
 
 export class ToolApprovalCoordinator {
@@ -38,22 +38,22 @@ export class ToolApprovalCoordinator {
   async requestApproval(
     approval: Omit<ToolApprovalRequest, "status">,
     signal?: AbortSignal,
-  ): Promise<ToolApprovalDecision> {
+  ): Promise<{ decision: ToolApprovalDecision; reason?: string }> {
     const pendingApproval: ToolApprovalRequest = { ...approval, status: "pending" };
 
-    return new Promise<ToolApprovalDecision>((resolve) => {
+    return new Promise<{ decision: ToolApprovalDecision; reason?: string }>((resolve) => {
       const cleanupAbort = () => {
         signal?.removeEventListener("abort", onAbort);
       };
 
-      const finalize = (decision: ToolApprovalDecision) => {
+      const finalize = (decision: ToolApprovalDecision, reason?: string) => {
         cleanupAbort();
         this.pending.delete(approval.toolCallId);
         this.emitResolved({
           ...pendingApproval,
           status: decision,
         });
-        resolve(decision);
+        resolve({ decision, reason });
       };
 
       const onAbort = () => {
@@ -70,13 +70,13 @@ export class ToolApprovalCoordinator {
     });
   }
 
-  resolve(toolCallId: string, decision: ToolApprovalDecision): boolean {
+  resolve(toolCallId: string, decision: ToolApprovalDecision, reason?: string): boolean {
     const pendingApproval = this.pending.get(toolCallId);
     if (!pendingApproval) {
       return false;
     }
 
-    pendingApproval.resolve(decision);
+    pendingApproval.resolve(decision, reason);
     return true;
   }
 

@@ -3,6 +3,8 @@ import type {
   MoveFloatingBallWindowRequest,
   SetFloatingBallEnabledRequest,
   SetFloatingBallPositionRequest,
+  ResizeFloatingBallWindowRequest,
+  ResizeFloatingBallWindowResponse,
 } from "../api";
 
 export interface IFloatingBallApi {
@@ -12,4 +14,7 @@ export interface IFloatingBallApi {
   moveFloatingBallWindow(request: MoveFloatingBallWindowRequest): Promise<void>;
   showMainWindow(): Promise<void>;
   showFloatingBallMenu(): Promise<void>;
+  resizeFloatingBallWindow(
+    request: ResizeFloatingBallWindowRequest,
+  ): Promise<ResizeFloatingBallWindowResponse>;
 }

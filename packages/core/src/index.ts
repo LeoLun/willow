@@ -11,6 +11,7 @@ export {
   createWebFetchTool,
   createWebSearchTool,
   createWriteTool,
+  createAskUserTool,
   createAllTools,
   ToolApprovalCoordinator,
   type TodoItem,

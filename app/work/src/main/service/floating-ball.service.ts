@@ -49,16 +49,68 @@ export class FloatingBallService {
   }
 
   async setPosition(x: number, y: number) {
-    this.config.x = x;
-    this.config.y = y;
+    this.config.x = Math.round(x);
+    this.config.y = Math.round(y);
     await this.save();
   }
 
   moveWindow(x: number, y: number) {
     const instance = FloatingBallWindow.getInstance();
     if (instance) {
-      instance.setPosition(x, y);
+      instance.setPosition(Math.round(x), Math.round(y));
     }
+  }
+
+  resizeWindow(width: number, height: number, focusable?: boolean, isLeft?: boolean) {
+    const instance = FloatingBallWindow.getInstance();
+    if (!instance) return;
+
+    const win = instance.BrowserWindow;
+    if (!win || win.isDestroyed()) return;
+
+    // Set focusable state and focus if requested
+    if (typeof focusable === "boolean") {
+      win.setFocusable(focusable);
+      if (focusable) {
+        win.focus();
+      }
+    }
+
+    const { screen } = require("electron");
+    const oldBounds = win.getBounds();
+    const currentDisplay = screen.getDisplayMatching(oldBounds);
+    const workArea = currentDisplay.workArea;
+
+    const displayCenterX = workArea.x + workArea.width / 2;
+    const finalIsLeft =
+      typeof isLeft === "boolean" ? isLeft : oldBounds.x + oldBounds.width / 2 < displayCenterX;
+
+    let newX = finalIsLeft ? oldBounds.x : oldBounds.x + oldBounds.width - width;
+    let newY = oldBounds.y + oldBounds.height - height;
+
+    // Clamp newX to workArea bounds
+    if (newX < workArea.x) {
+      newX = workArea.x;
+    } else if (newX + width > workArea.x + workArea.width) {
+      newX = workArea.x + workArea.width - width;
+    }
+
+    // Clamp newY to workArea bounds
+    if (newY < workArea.y) {
+      newY = workArea.y;
+    } else if (newY + height > workArea.y + workArea.height) {
+      newY = workArea.y + workArea.height - height;
+    }
+
+    const rx = Math.round(newX);
+    const ry = Math.round(newY);
+    win.setBounds({
+      x: rx,
+      y: ry,
+      width: Math.round(width),
+      height: Math.round(height),
+    });
+    return { x: rx, y: ry };
   }
 
   showMainWindow() {

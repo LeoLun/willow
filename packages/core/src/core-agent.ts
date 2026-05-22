@@ -39,6 +39,7 @@ export class CoreAgent {
       websearch: options.websearch,
       todoStore: options.todoStore,
       extraTools: options.extraTools,
+      approvalCoordinator: this.approvalCoordinator,
     };
     const tools = createAllTools(this.cwd, toolOptions);
     this.tools = tools;
@@ -83,29 +84,22 @@ export class CoreAgent {
         signal,
       );
 
-      if (result === "approved") {
+      if (result.decision === "approved") {
         return undefined;
       }
 
-      const customReason = this.rejectionReasons.get(toolCall.id);
-      this.rejectionReasons.delete(toolCall.id);
       return {
         block: true,
-        reason: customReason ?? "用户拒绝了本次工具调用",
+        reason: result.reason ?? "用户拒绝了本次工具调用",
       };
     };
   }
-
-  private rejectionReasons = new Map<string, string>();
 
   resolveToolApproval(
     toolCallId: string,
     decision: "approved" | "rejected",
     reason?: string,
   ): boolean {
-    if (reason) {
-      this.rejectionReasons.set(toolCallId, reason);
-    }
-    return this.approvalCoordinator.resolve(toolCallId, decision);
+    return this.approvalCoordinator.resolve(toolCallId, decision, reason);
   }
 }

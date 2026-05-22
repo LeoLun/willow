@@ -22,6 +22,7 @@ import { DialogController } from "./controllers/dialog.controller";
 import { EventController } from "./controllers/event.controller";
 import { GetFloatingBallConfigController } from "./controllers/floating-ball/get.floating.ball.config.controller";
 import { MoveFloatingBallWindowController } from "./controllers/floating-ball/move.floating.ball.window.controller";
+import { ResizeFloatingBallWindowController } from "./controllers/floating-ball/resize.floating.ball.window.controller";
 import { SetFloatingBallEnabledController } from "./controllers/floating-ball/set.floating.ball.enabled.controller";
 import { SetFloatingBallPositionController } from "./controllers/floating-ball/set.floating.ball.position.controller";
 import { ShowFloatingBallMenuController } from "./controllers/floating-ball/show.floating.ball.menu.controller";
@@ -161,6 +162,7 @@ if (!app.isPackaged && process.platform === "darwin") {
     SetFloatingBallEnabledController,
     SetFloatingBallPositionController,
     MoveFloatingBallWindowController,
+    ResizeFloatingBallWindowController,
     ShowMainWindowController,
     ShowFloatingBallMenuController,
   ],
@@ -215,6 +217,7 @@ export class AppModule {
     private setFloatingBallEnabledController: SetFloatingBallEnabledController,
     private setFloatingBallPositionController: SetFloatingBallPositionController,
     private moveFloatingBallWindowController: MoveFloatingBallWindowController,
+    private resizeFloatingBallWindowController: ResizeFloatingBallWindowController,
     private showMainWindowController: ShowMainWindowController,
     private showFloatingBallMenuController: ShowFloatingBallMenuController,
     private floatingBallService: FloatingBallService,

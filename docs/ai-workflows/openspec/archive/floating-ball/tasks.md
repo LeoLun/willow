@@ -82,3 +82,14 @@
 - [x] 12.5 手动测试：基础交互功能回归（左键唤起、右键菜单、拖拽移动）
 - [x] 12.6 手动测试：右键菜单选择"关闭悬浮球"后悬浮球关闭，设置开关状态为关闭
 - [x] 12.7 手动测试：主窗口 hide 后右键悬浮球只弹出菜单，不触发主窗口 show
+
+## 13. LUI 面板与交互集成
+
+- [x] 13.1 定义 IPC 常量 `RESIZE_FLOATING_BALL_WINDOW` 及 TS 类型定义
+- [x] 13.2 实现 `ResizeFloatingBallWindowController` 控制器
+- [x] 13.3 在 `FloatingBallService` 中实现 `resizeWindow` 多屏幕自适应与边界约束及 Focusable 管理
+- [x] 13.4 配置 `vite.floating-ball.config.ts` 的别名配置
+- [x] 13.5 `FloatingBall.vue` 引入通知机制，流式处理与提问/审批面板渲染
+- [x] 13.6 实现状态联动，自动扩缩物理窗口尺寸与可聚焦模式
+- [x] 13.7 验证：进行完整功能回归与各种边界条件的测试
+

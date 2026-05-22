@@ -1,6 +1,7 @@
 import { AgentService, type AgentContextCompressionState } from "@main/service/agent.service";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import { SessionDao } from "@main/service/dao/session.dao.service";
+import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
 import { EventService } from "@main/service/event.service";
 import { SkillService } from "@main/service/skill.service";
 import { TodoService } from "@main/service/todo.service";
@@ -87,6 +88,7 @@ export class SessionService {
     private readonly todoService: TodoService,
     private readonly workspaceAgentService: WorkspaceAgentService,
     private readonly workspaceService: WorkspaceService,
+    private readonly workspaceDao: WorkspaceDao,
   ) {
     this.agentService.registerWorkspaceDelegateHandler((params) =>
       this.runWorkspaceDelegate(params),
@@ -600,9 +602,18 @@ export class SessionService {
 
     current.toolApprovals.set(approval.toolCallId, approval);
     this.activeSessionStreams.set(sessionId, current);
+
+    let chatScope: "conversation" | "workspace" = "conversation";
+    const session = this.sessionDao.findById(sessionId);
+    if (session) {
+      const workspace = this.workspaceDao.findById(session.workspaceId);
+      chatScope = workspace?.kind === "conversation" ? "conversation" : "workspace";
+    }
+
     this.eventService.sendEvent("UPDATE_MESSAGE", {
       sessionId,
       groupId: "0",
+      chatScope,
       event: {
         type: "tool_approval_update",
         approval,

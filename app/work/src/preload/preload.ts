@@ -75,6 +75,8 @@ import type {
   MoveFloatingBallWindowRequest,
   SetFloatingBallEnabledRequest,
   SetFloatingBallPositionRequest,
+  ResizeFloatingBallWindowRequest,
+  ResizeFloatingBallWindowResponse,
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
@@ -124,6 +126,7 @@ import {
   SET_FLOATING_BALL_POSITION,
   SHOW_MAIN_WINDOW,
   SHOW_FLOATING_BALL_MENU,
+  RESIZE_FLOATING_BALL_WINDOW,
 } from "../shared/constants";
 
 const ipcObject: IRenderHook = {
@@ -673,6 +676,19 @@ const ipcObject: IRenderHook = {
     if (response.code !== 0) {
       throw new Error(response.msg);
     }
+  },
+  resizeFloatingBallWindow: async (request: ResizeFloatingBallWindowRequest) => {
+    const response = (await ipcRenderer.invoke(
+      RESIZE_FLOATING_BALL_WINDOW,
+      request,
+    )) as ApiResponse<ResizeFloatingBallWindowResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("resize floating ball window failed");
+    }
+    return response.data;
   },
 };
 

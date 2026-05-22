@@ -581,3 +581,15 @@ export interface MoveFloatingBallWindowRequest {
   x: number;
   y: number;
 }
+
+export interface ResizeFloatingBallWindowRequest {
+  width: number;
+  height: number;
+  focusable?: boolean;
+  isLeft?: boolean;
+}
+
+export interface ResizeFloatingBallWindowResponse {
+  x: number;
+  y: number;
+}

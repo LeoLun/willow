@@ -63,7 +63,7 @@ export class FloatingBallWindow implements OnInit, OnDestroy {
 
   public setPosition(x: number, y: number) {
     if (this.win && !this.win.isDestroyed()) {
-      this.win.setPosition(x, y);
+      this.win.setPosition(Math.round(x), Math.round(y));
     }
   }
 }

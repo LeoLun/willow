@@ -8,7 +8,7 @@ export { default as AssistantMessage } from "./components/AssistantMessage.vue";
 export { default as ToolMessage } from "./components/ToolMessage.vue";
 export { default as ToolMessageDebug } from "./components/ToolMessageDebug.vue";
 export { default as PermissionApprovalPanel } from "./components/PermissionApprovalPanel.vue";
-export { default as ArkUserPanel } from "./components/ArkUserPanel.vue";
+export { default as AskUserPanel } from "./components/AskUserPanel.vue";
 export { default as ToolCallCard } from "./components/ToolCallCard.vue";
 export { default as ToolCallDetailRow } from "./components/ToolCallDetailRow.vue";
 export { default as ThinkingBlock } from "./components/ThinkingBlock.vue";

@@ -1,3 +1,4 @@
+import { createAskUserTool } from "./ask-user";
 import { createBashTool } from "./bash";
 import { createTool, type WillowTool, type ToolPermissionDecision } from "./create-tool";
 import { createEditTool } from "./edit";
@@ -26,6 +27,7 @@ export {
   createWebFetchTool,
   createWebSearchTool,
   createWriteTool,
+  createAskUserTool,
   ToolApprovalCoordinator,
 };
 
@@ -45,6 +47,7 @@ export interface CreateAllToolsOptions {
   websearch?: WebSearchOptions;
   todoStore?: TodoStore;
   extraTools?: WillowTool<any>[];
+  approvalCoordinator?: ToolApprovalCoordinator;
 }
 
 export function createAllTools(cwd: string, options?: CreateAllToolsOptions): WillowTool<any>[] {
@@ -58,6 +61,10 @@ export function createAllTools(cwd: string, options?: CreateAllToolsOptions): Wi
     createWebFetchTool() as WillowTool<any>,
     createWriteTool(cwd) as WillowTool<any>,
   ];
+
+  if (options?.approvalCoordinator) {
+    tools.push(createAskUserTool(options.approvalCoordinator) as WillowTool<any>);
+  }
 
   if (options?.websearch) {
     tools.push(createWebSearchTool(options.websearch.getApiKey) as WillowTool<any>);
