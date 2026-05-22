@@ -11,7 +11,7 @@ on:
         description: 'Upload to GitHub Release'
         required: true
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: write
