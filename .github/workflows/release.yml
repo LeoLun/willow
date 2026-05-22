@@ -1,10 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -63,6 +65,8 @@ jobs:
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.version }}
+          name: Release ${{ inputs.version }}
           files: |
             app/work/out/make/dmg/darwin/x64/*.dmg
             app/work/out/make/dmg/darwin/arm64/*.dmg
