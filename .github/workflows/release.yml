@@ -3,10 +3,6 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Release version (e.g., v1.0.0)'
-        required: true
-        type: string
       upload_release:
         description: 'Upload to GitHub Release'
         required: true
@@ -31,6 +27,11 @@ jobs:
         with:
           node-version: 24
           cache: 'pnpm'
+
+      - name: Read version from package.json
+        run: |
+          VERSION=$(node -p "require('./app/work/package.json').version")
+          echo "VERSION=v$VERSION" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -72,8 +73,8 @@ jobs:
         if: ${{ inputs.upload_release == true }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.version }}
-          name: Release ${{ inputs.version }}
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
           files: |
             app/work/out/make/dmg/darwin/x64/*.dmg
             app/work/out/make/dmg/darwin/arm64/*.dmg
