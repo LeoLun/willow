@@ -9,7 +9,6 @@ import AppearanceSetting from "./pages/setting/appearance/AppearanceSetting.vue"
 import ConfigurationSetting from "./pages/setting/configuration/ConfigurationSetting.vue";
 import FloatingBallSetting from "./pages/setting/floating-ball/FloatingBallSetting.vue";
 import Setting from "./pages/setting/Setting.vue";
-import Skills from "./pages/skills/Skills.vue";
 import WorkspaceHistory from "./pages/workspace-history/WorkspaceHistory.vue";
 
 const routes: RouteRecordRaw[] = [
@@ -28,7 +27,6 @@ const routes: RouteRecordRaw[] = [
     name: "workspaceHistory",
     component: WorkspaceHistory,
   },
-  { path: "/skills", name: "skills", component: Skills },
   {
     path: "/setting",
     component: Setting,

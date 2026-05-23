@@ -123,12 +123,6 @@ onBeforeMount(async () => {
             <span>自动化</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton class="cursor-pointer" @click="router.push('/skills')">
-            <LayoutGrid />
-            <span>技能</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
       </SidebarMenu>
 
       <SidebarGroupLabel class="mt-[20px]">对话</SidebarGroupLabel>
