@@ -169,7 +169,12 @@ export class UpdateService {
     } catch (error: any) {
       const msg = error instanceof Error ? error.message : "检查更新失败";
       this.broadcastStatus("error", 0, msg);
-      throw error;
+      const currentVersion = app.getVersion();
+      return {
+        hasUpdate: false,
+        latestVersion: currentVersion,
+        currentVersion,
+      };
     }
   }
 

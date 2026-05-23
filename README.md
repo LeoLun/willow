@@ -12,13 +12,13 @@
 
 ## 标准工作流
 
-| 阶段 | 工作流 | 用途 | 主要输出 |
-| --- | --- | --- | --- |
-| 1 | `workflow-spec` | 澄清需求、生成或续写 OpenSpec 变更 | `docs/ai-workflows/openspec/changes/<change>/` |
-| 2 | `workflow-worktree` | 建立隔离开发环境并确认基线 | worktree 路径、基线验证 |
-| 3 | `workflow-plan` | 将 OpenSpec 任务拆成可执行计划 | `docs/ai-workflows/plans/YYYY-MM-DD-<change>.md` |
-| 4 | `workflow-implement` | 按计划和 OpenSpec 执行实现与验证 | 代码改动、任务进度、验证结果 |
-| 5 | `workflow-close` | 最终审查、交付、归档 | 最终验证、风险说明、归档状态 |
+| 阶段 | 工作流               | 用途                               | 主要输出                                         |
+| ---- | -------------------- | ---------------------------------- | ------------------------------------------------ |
+| 1    | `workflow-spec`      | 澄清需求、生成或续写 OpenSpec 变更 | `docs/ai-workflows/openspec/changes/<change>/`   |
+| 2    | `workflow-worktree`  | 建立隔离开发环境并确认基线         | worktree 路径、基线验证                          |
+| 3    | `workflow-plan`      | 将 OpenSpec 任务拆成可执行计划     | `docs/ai-workflows/plans/YYYY-MM-DD-<change>.md` |
+| 4    | `workflow-implement` | 按计划和 OpenSpec 执行实现与验证   | 代码改动、任务进度、验证结果                     |
+| 5    | `workflow-close`     | 最终审查、交付、归档               | 最终验证、风险说明、归档状态                     |
 
 完整文档见 [docs/ai-workflows/README.md](./docs/ai-workflows/README.md)。
 
@@ -82,3 +82,36 @@
 3. 用 `workflow-plan` 把 `tasks.md` 拆成执行计划。
 4. 用 `workflow-implement` 逐步实现并验证。
 5. 用 `workflow-close` 做最终检查与归档。
+
+## macOS 安装包“已损坏”解决方法
+
+如果在 macOS 上下载并安装本应用后，打开时提示 **“‘Willow Work’ 已损坏，无法打开。你应该将它移到废纸篓”**，这是由于应用未进行 Apple 开发者签名和公证，被系统 Gatekeeper 拦截所致。
+
+请使用以下方法之一解决：
+
+### 1. 移除应用的隔离属性（推荐）
+
+将应用拖入“应用程序”文件夹（`/Applications`）后，在终端中运行以下命令：
+
+```bash
+xattr -cr /Applications/Willow\ Work.app
+```
+
+> **注**：如果应用存放在其他路径，请将命令中的路径替换为实际的 App 路径。
+
+### 2. 移除 DMG 文件的隔离属性
+
+你也可以在安装前，直接清除下载的 DMG 文件的隔离属性：
+
+```bash
+xattr -d com.apple.quarantine /path/to/Willow\ Work.dmg
+```
+
+### 3. 开启 macOS“任何来源”
+
+1. 打开终端，运行以下命令（需要输入 Mac 开机密码）：
+   ```bash
+   sudo spctl --master-disable
+   ```
+2. 前往 Mac 的 **“系统设置” -> “隐私与安全” -> “安全性”**。
+3. 在“允许从以下位置下载的应用程序”下，勾选新出现的 **“任何来源”**。

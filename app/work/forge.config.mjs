@@ -74,7 +74,7 @@ const config = {
           path: "/Applications",
         },
       ],
-      background: "./assets/dmg-background.png",
+      background: fileURLToPath(new URL("assets/dmg-background.png", import.meta.url)),
     }),
     new MakerRpm({}),
     new MakerDeb({}),

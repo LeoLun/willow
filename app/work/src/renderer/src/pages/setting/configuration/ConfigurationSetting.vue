@@ -385,7 +385,7 @@ function handleDeleteTavilyKey(tavilyKey: TavilyKeyConfig) {
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium">当前版本</span>
               <Badge variant="outline" class="font-mono text-xs">{{
-                currentVersion || "v0.9.0"
+                currentVersion || "v0.0.1"
               }}</Badge>
             </div>
             <p v-if="!hasUpdate && updateStatus === 'idle'" class="text-xs text-muted-foreground">
