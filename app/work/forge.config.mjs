@@ -62,19 +62,19 @@ const config = {
       },
       contents: (options) => [
         {
-          x: 176,
+          x: 152,
           y: 240,
           type: "file",
           path: options.appPath,
         },
         {
-          x: 464,
+          x: 487,
           y: 240,
           type: "link",
           path: "/Applications",
         },
       ],
-      "background-color": "#f5f1e8",
+      background: "./assets/dmg-background.png",
     }),
     new MakerRpm({}),
     new MakerDeb({}),
