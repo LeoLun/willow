@@ -1,6 +1,6 @@
 import { join } from "path";
 import { Window, WindowInstance, OnInit, OnDestroy, WindowMetadata } from "@willow/poetry";
-import { BrowserWindow } from "electron";
+import { app, BrowserWindow } from "electron";
 
 const option: WindowMetadata = {
   options: {
@@ -20,7 +20,7 @@ const option: WindowMetadata = {
       webSecurity: false,
     },
   },
-  openDevTools: true,
+  openDevTools: !app.isPackaged,
 };
 
 if (FLOATING_BALL_VITE_DEV_SERVER_URL) {

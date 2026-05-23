@@ -7,7 +7,8 @@ import { AppModule } from "./app.module";
 
 config();
 
-const legacyUserDataPath = join(app.getPath("appData"), "com.willow.work");
+const folderName = app.isPackaged ? "com.willow.work" : "com.willow.work-dev";
+const legacyUserDataPath = join(app.getPath("appData"), folderName);
 app.setPath("userData", legacyUserDataPath);
 
 protocol.registerSchemesAsPrivileged([

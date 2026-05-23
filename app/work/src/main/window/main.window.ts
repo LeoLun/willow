@@ -19,7 +19,7 @@ const option: WindowMetadata = {
       ? { icon: join(__dirname, "../../assets/icons/icon.png") }
       : {}),
   },
-  openDevTools: true,
+  openDevTools: !app.isPackaged,
 };
 
 if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
