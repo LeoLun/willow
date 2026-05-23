@@ -43,6 +43,7 @@ jobs:
         run: |
           cd app/work
           pnpm run make:mac:x64
+          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-x64.dmg || true
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -52,6 +53,7 @@ jobs:
         run: |
           cd app/work
           pnpm run make:mac:arm64
+          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg || true
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -64,8 +66,7 @@ jobs:
 
       - name: Check output files
         run: |
-          ls -la app/work/out/make/dmg/darwin/x64/ || true
-          ls -la app/work/out/make/dmg/darwin/arm64/ || true
+          ls -la app/work/out/make/ || true
           ls -la app/work/out/make/zip/darwin/x64/ || true
           ls -la app/work/out/make/zip/darwin/arm64/ || true
 
@@ -74,8 +75,7 @@ jobs:
         with:
           name: willow-build-${{ env.VERSION }}
           path: |
-            app/work/out/make/dmg/darwin/x64/*.dmg
-            app/work/out/make/dmg/darwin/arm64/*.dmg
+            app/work/out/make/*.dmg
             app/work/out/make/zip/darwin/x64/*.zip
             app/work/out/make/zip/darwin/arm64/*.zip
             app/work/out/app.asar
@@ -87,8 +87,7 @@ jobs:
           tag_name: ${{ env.VERSION }}
           name: Release ${{ env.VERSION }}
           files: |
-            app/work/out/make/dmg/darwin/x64/*.dmg
-            app/work/out/make/dmg/darwin/arm64/*.dmg
+            app/work/out/make/*.dmg
             app/work/out/make/zip/darwin/x64/*.zip
             app/work/out/make/zip/darwin/arm64/*.zip
             app/work/out/app.asar
