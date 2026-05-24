@@ -7,10 +7,14 @@ import {
   DialogFooter,
 } from "@willow/shadcn/components/ui/dialog";
 import { ref, onBeforeMount, computed } from "vue";
+import { useDarkMode } from "@/composables/useDarkMode";
 import { useConfigStore } from "@/stores/config";
 import guideAutomations from "../../../../assets/guide_automations.png";
+import guideAutomationsDark from "../../../../assets/guide_automations_dark.png";
 import guideModelConfig from "../../../../assets/guide_model_config.png";
+import guideModelConfigDark from "../../../../assets/guide_model_config_dark.png";
 import guideWorkspaces from "../../../../assets/guide_workspaces.png";
+import guideWorkspacesDark from "../../../../assets/guide_workspaces_dark.png";
 
 const emit = defineEmits<{
   close: [];
@@ -19,6 +23,7 @@ const emit = defineEmits<{
 }>();
 
 const configStore = useConfigStore();
+const { isDark } = useDarkMode();
 
 onBeforeMount(async () => {
   await configStore.fetchModelList();
@@ -41,18 +46,21 @@ const steps = [
     description:
       "Willow 支持极简的 DeepSeek 配置。前往设置填入你的 API Key，系统将自动激活内置的 V4 Pro 和 Flash 双模型。",
     image: guideModelConfig,
+    imageDark: guideModelConfigDark,
   },
   {
     title: "2. 绑定项目工作空间 (Workspaces)",
     description:
       "你可以将 Willow 绑定至本地开发目录或文件夹。工作空间专属 Agent 将深度理解代码库，并为你自动编写与修改代码。",
     image: guideWorkspaces,
+    imageDark: guideWorkspacesDark,
   },
   {
     title: "3. 后台自动化工作流 (Automations)",
     description:
       "针对重复性高、流程长的处理任务，你可以配置 Cron 定时或按需运行的 AI 自动化流，关闭界面后依然会在后台静默完成。",
     image: guideAutomations,
+    imageDark: guideAutomationsDark,
   },
 ];
 </script>
@@ -82,7 +90,7 @@ const steps = [
               class="flex max-h-[260px] w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/20 shadow-xs"
             >
               <img
-                :src="steps[currentStep].image"
+                :src="isDark ? steps[currentStep].imageDark : steps[currentStep].image"
                 :alt="steps[currentStep].title"
                 class="h-auto max-h-[260px] w-full animate-in object-cover object-top duration-300 select-none zoom-in-95 fade-in"
               />

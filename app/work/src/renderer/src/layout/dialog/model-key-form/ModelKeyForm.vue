@@ -6,8 +6,15 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@willow/shadcn/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@willow/shadcn/components/ui/dropdown-menu";
 import { Input } from "@willow/shadcn/components/ui/input";
 import { Label } from "@willow/shadcn/components/ui/label";
+import { Check, ChevronsUpDown } from "lucide-vue-next";
 import { ref } from "vue";
 import { useConfigStore } from "@/stores/config";
 
@@ -62,13 +69,28 @@ async function handleSubmit() {
     <!-- 模型下拉框 -->
     <div class="grid grid-cols-4 items-center gap-4">
       <Label class="text-right text-sm">模型</Label>
-      <select
-        v-model="modelType"
-        :disabled="isEdit"
-        class="col-span-3 flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <option value="deepseek">deepseek</option>
-      </select>
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button
+            type="button"
+            variant="outline"
+            :disabled="isEdit"
+            class="col-span-3 h-9 w-full justify-between px-3 text-sm font-normal"
+          >
+            <span class="truncate">{{ modelType }}</span>
+            <ChevronsUpDown class="size-4 shrink-0 opacity-60" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          class="w-[var(--reka-dropdown-menu-trigger-width)] min-w-[12rem]"
+        >
+          <DropdownMenuItem class="justify-between" @click="modelType = 'deepseek'">
+            <span>deepseek</span>
+            <Check v-if="modelType === 'deepseek'" class="size-4 text-primary" />
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
 
     <!-- 密钥输入框 -->
