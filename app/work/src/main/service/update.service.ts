@@ -249,6 +249,8 @@ export class UpdateService {
       });
     }
 
+    let fileStream: any = null;
+    let reader: any = null;
     try {
       const response = await fetch(this.downloadUrl);
       if (!response.ok) {
@@ -261,26 +263,49 @@ export class UpdateService {
       }
 
       let downloadedBytes = 0;
-      const fileStream = createWriteStream(this.tempFilePath);
+      fileStream = createWriteStream(this.tempFilePath);
 
-      const reader = response.body.getReader();
+      reader = response.body.getReader();
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
           break;
         }
         if (value) {
-          fileStream.write(Buffer.from(value));
-          downloadedBytes += value.length;
+          const chunk = Buffer.from(value);
+          const isWritable = fileStream.write(chunk);
+          if (!isWritable) {
+            await new Promise<void>((resolve) => fileStream.once("drain", resolve));
+          }
+          downloadedBytes += chunk.length;
           const progress = totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : 0;
           this.broadcastStatus("downloading", progress);
         }
       }
 
-      fileStream.end();
+      await new Promise<void>((resolve, reject) => {
+        fileStream.on("finish", resolve);
+        fileStream.on("error", reject);
+        fileStream.end();
+      });
+
       this.broadcastStatus("downloaded", 100);
       return { success: true };
     } catch (error: any) {
+      if (reader) {
+        try {
+          await reader.cancel();
+        } catch {}
+      }
+      if (fileStream) {
+        fileStream.destroy();
+      }
+      try {
+        if (existsSync(this.tempFilePath)) {
+          await fsPromises.unlink(this.tempFilePath);
+        }
+      } catch {}
+
       const msg = error instanceof Error ? error.message : "下载安装包失败";
       this.broadcastStatus("error", 0, msg);
       throw error;
@@ -310,13 +335,26 @@ export class UpdateService {
         const appAsarPath = join(process.resourcesPath, "app.asar");
         const oldAsarPath = join(process.resourcesPath, "app.asar.old");
 
+        const safeMove = async (src: string, dest: string) => {
+          try {
+            await fsPromises.rename(src, dest);
+          } catch (err: any) {
+            if (err.code === "EXDEV") {
+              await fsPromises.copyFile(src, dest);
+              await fsPromises.unlink(src);
+            } else {
+              throw err;
+            }
+          }
+        };
+
         // Backup current app.asar
         if (existsSync(appAsarPath)) {
-          await fsPromises.rename(appAsarPath, oldAsarPath);
+          await safeMove(appAsarPath, oldAsarPath);
         }
 
         // Copy downloaded temp app.asar to target path
-        await fsPromises.rename(this.tempFilePath, appAsarPath);
+        await safeMove(this.tempFilePath, appAsarPath);
 
         // Relaunch the application
         app.relaunch();
