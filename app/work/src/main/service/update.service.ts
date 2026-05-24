@@ -25,6 +25,9 @@ export class UpdateService {
   private updateType: "full" | "incremental" = "full";
   private isMock = false;
 
+  private lastCheckTime = 0;
+  private cachedCheckResult: CheckUpdateResponse | null = null;
+
   constructor(private eventService: EventService) {
     this.cleanupOldAsar();
   }
@@ -75,19 +78,56 @@ export class UpdateService {
     return hasAsar ? "incremental" : "full";
   }
 
-  async checkUpdate(): Promise<CheckUpdateResponse> {
+  async checkUpdate(force = false): Promise<CheckUpdateResponse> {
+    const now = Date.now();
+    // Cache for 10 minutes (600,000ms)
+    if (!force && this.cachedCheckResult && now - this.lastCheckTime < 10 * 60 * 1000) {
+      console.log("[UpdateService] Using cached update check result");
+      // Synchronize service state with cached values
+      if (this.cachedCheckResult.hasUpdate) {
+        this.status = "available";
+        if (this.cachedCheckResult.updateType) {
+          this.updateType = this.cachedCheckResult.updateType;
+        }
+      } else {
+        this.status = "idle";
+      }
+      return this.cachedCheckResult;
+    }
+
     this.broadcastStatus("checking");
 
     try {
-      const response = await fetch("https://api.github.com/repos/LeoLun/willow/releases/latest", {
-        headers: {
-          "User-Agent": "willow-updater",
-        },
-      });
+      const currentVersion = app.getVersion();
+      console.log("currentVersion", currentVersion);
+
+      let response: Response;
+      let usingFallback = false;
+
+      try {
+        response = await fetch("https://leolun.github.io/willow/latest.json", {
+          headers: {
+            "User-Agent": `willow-desktop/${currentVersion}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`GitHub Pages returned status ${response.status}`);
+        }
+      } catch (pagesError) {
+        console.warn(
+          "[UpdateService] GitHub Pages update check failed, falling back to GitHub API:",
+          pagesError,
+        );
+        usingFallback = true;
+        response = await fetch("https://api.github.com/repos/LeoLun/willow/releases/latest", {
+          headers: {
+            "User-Agent": `willow-desktop/${currentVersion}`,
+          },
+        });
+      }
 
       let release: any;
-      const currentVersion = app.getVersion();
-
+      console.log("response", response);
       if (!response.ok) {
         if (!app.isPackaged) {
           console.warn("[UpdateService] GitHub API error, enabling mock update for development");
@@ -107,6 +147,9 @@ export class UpdateService {
             ],
           };
         } else {
+          if (usingFallback && response.status === 403) {
+            throw new Error("检查更新请求过快，已被 GitHub 限制，请稍后再试（限流错误）");
+          }
           throw new Error(`Failed to fetch release: ${response.statusText}`);
         }
       } else {
@@ -115,6 +158,7 @@ export class UpdateService {
       }
 
       const latestTag = release.tag_name || "";
+      let result: CheckUpdateResponse;
 
       if (this.isNewerVersion(currentVersion, latestTag)) {
         const assets = release.assets || [];
@@ -150,7 +194,7 @@ export class UpdateService {
         this.downloadUrl = targetAsset.browser_download_url;
 
         this.broadcastStatus("available");
-        return {
+        result = {
           hasUpdate: true,
           latestVersion: latestTag,
           currentVersion,
@@ -160,12 +204,16 @@ export class UpdateService {
         };
       } else {
         this.broadcastStatus("idle");
-        return {
+        result = {
           hasUpdate: false,
           latestVersion: currentVersion,
           currentVersion,
         };
       }
+
+      this.cachedCheckResult = result;
+      this.lastCheckTime = now;
+      return result;
     } catch (error: any) {
       const msg = error instanceof Error ? error.message : "检查更新失败";
       this.broadcastStatus("error", 0, msg);

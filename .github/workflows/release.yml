@@ -95,3 +95,27 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate latest.json
+        if: ${{ inputs.upload_release == true }}
+        run: |
+          sleep 5
+          mkdir -p dist-pages
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/LeoLun/willow/releases/latest \
+               -o dist-pages/latest.json
+          node -e "const data = require('./dist-pages/latest.json'); if(!data.tag_name) throw new Error('Invalid JSON generated');"
+
+      - name: Deploy to GitHub Pages
+        if: ${{ inputs.upload_release == true }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dist-pages
+          publish_branch: gh-pages
+          destination_dir: .
+          keep_files: false
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_message: "docs: update latest.json to ${{ env.VERSION }}"

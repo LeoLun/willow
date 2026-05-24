@@ -49,7 +49,7 @@ async function handleCheckUpdate(silent = false) {
     updateStatus.value = "checking";
   }
   try {
-    const res = await electronAPI.checkUpdate();
+    const res = await electronAPI.checkUpdate({ force: !silent });
     hasUpdate.value = res.hasUpdate;
     latestVersion.value = res.latestVersion;
     currentVersion.value = res.currentVersion || "";
@@ -62,10 +62,12 @@ async function handleCheckUpdate(silent = false) {
       updateStatus.value = "idle";
     }
   } catch (e) {
-    updateStatus.value = "error";
     if (!silent) {
+      updateStatus.value = "error";
       console.error(e);
       updateError.value = e instanceof Error ? e.message : String(e);
+    } else {
+      updateStatus.value = "idle";
     }
   }
 }

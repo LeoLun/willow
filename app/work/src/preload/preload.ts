@@ -696,8 +696,11 @@ const ipcObject: IRenderHook = {
     }
     return response.data;
   },
-  checkUpdate: async () => {
-    const response = (await ipcRenderer.invoke(CHECK_UPDATE)) as ApiResponse<CheckUpdateResponse>;
+  checkUpdate: async (request?: { force?: boolean }) => {
+    const response = (await ipcRenderer.invoke(
+      CHECK_UPDATE,
+      request,
+    )) as ApiResponse<CheckUpdateResponse>;
     if (response.code !== 0) {
       throw new Error(response.msg);
     }

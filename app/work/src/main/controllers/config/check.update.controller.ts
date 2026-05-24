@@ -5,15 +5,22 @@ import { Injectable, IPC } from "@willow/poetry";
 import { IPCBaseController } from "../ipc.base.controller";
 
 @Injectable()
-export class CheckUpdateController extends IPCBaseController<void, CheckUpdateResponse> {
+export class CheckUpdateController extends IPCBaseController<
+  { force?: boolean } | undefined,
+  CheckUpdateResponse
+> {
   constructor(private readonly updateService: UpdateService) {
     super();
   }
 
   @IPC(CHECK_UPDATE)
-  async run(_event: Electron.IpcMainInvokeEvent): Promise<ApiResponse<CheckUpdateResponse>> {
+  async run(
+    _event: Electron.IpcMainInvokeEvent,
+    request?: { force?: boolean },
+  ): Promise<ApiResponse<CheckUpdateResponse>> {
     try {
-      const response = await this.updateService.checkUpdate();
+      const force = request?.force ?? false;
+      const response = await this.updateService.checkUpdate(force);
       return this.buildResponse(response);
     } catch (e) {
       return this.buildError(500, e instanceof Error ? e.message : String(e));

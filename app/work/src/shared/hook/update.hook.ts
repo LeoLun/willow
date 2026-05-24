@@ -1,7 +1,7 @@
 import type { CheckUpdateResponse, StartDownloadResponse, InstallUpdateResponse } from "../api";
 
 export interface IUpdateApi {
-  checkUpdate(): Promise<CheckUpdateResponse>;
+  checkUpdate(request?: { force?: boolean }): Promise<CheckUpdateResponse>;
   startDownload(): Promise<StartDownloadResponse>;
   installUpdate(): Promise<InstallUpdateResponse>;
 }
