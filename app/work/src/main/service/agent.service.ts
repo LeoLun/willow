@@ -240,6 +240,9 @@ export class AgentService {
       getApiKey: () => apiKey,
     });
     agent.state.model = resolvedModel as any;
+    if (resolvedModel.reasoning) {
+      agent.state.thinkingLevel = "high";
+    }
 
     const tavilyService = this.tavilyService;
     const todoStore = this.todoService.createStore(session.id);

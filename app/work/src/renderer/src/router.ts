@@ -15,7 +15,6 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/",
     component: Chat,
-    redirect: "/",
     children: [
       { path: "/", name: "workspace", component: Workspace },
       { path: "/conversation", name: "conversation", component: Session },
@@ -52,7 +51,7 @@ export const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  if (to.path === "/" && !to.query.workspaceId) {
+  if (to.matched.length === 0 || (to.path === "/" && !to.query.workspaceId)) {
     return { path: "/conversation" };
   }
 });

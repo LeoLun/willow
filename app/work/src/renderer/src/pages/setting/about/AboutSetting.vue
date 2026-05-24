@@ -57,8 +57,9 @@ async function handleCheckUpdate(silent = false) {
     releaseNotes.value = res.releaseNotes || "";
     publishDate.value = res.publishDate ? new Date(res.publishDate).toLocaleDateString() : "";
 
-    // 如果手动检查完且没有更新，将状态设为 idle
-    if (!silent) {
+    if (res.hasUpdate) {
+      updateStatus.value = "available";
+    } else {
       updateStatus.value = "idle";
     }
   } catch (e) {
