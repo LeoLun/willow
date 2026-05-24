@@ -35,7 +35,9 @@ export class WorkspaceService {
   }
 
   async getWorkspaceList() {
-    return this.workspaceDao.findByKind("project");
+    const list = this.workspaceDao.findByKind("project");
+    const conversation = await this.getOrCreateConversationWorkspace();
+    return [conversation, ...list];
   }
 
   async createWorkspace(name: string, path: string) {

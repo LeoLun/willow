@@ -23,7 +23,7 @@ import {
   SettingsIcon,
   SquareIcon,
 } from "lucide-vue-next";
-import { computed, ref, shallowRef, watch } from "vue";
+import { computed, ref, shallowRef, watch, onMounted, onUnmounted } from "vue";
 import { useTriggerManager } from "../composables/useTriggerManager";
 import type {
   SenderBuiltinCommandOption,
@@ -345,6 +345,7 @@ function handleEditorKeyDown(event: KeyboardEvent): boolean {
         triggerManager.navigateDown(maxIndex);
         return true;
       }
+      case "Tab":
       case "Enter": {
         event.preventDefault();
         const items = resourcePickerPanelRef.value?.visibleItems ?? [];
@@ -543,6 +544,29 @@ function handleSystemFileSelect() {
   triggerManager.close();
   emit("select-files", insertFiles);
 }
+
+function handleInsertPrompt(event: Event) {
+  const text = (event as CustomEvent<string>).detail;
+  if (typeof text === "string") {
+    editorText.value = text;
+    editorComponentRef.value?.editor?.commands.setContent(text);
+    editorComponentRef.value?.editor?.commands.focus();
+  }
+}
+
+function handleFocusPrompt() {
+  editorComponentRef.value?.editor?.commands.focus();
+}
+
+onMounted(() => {
+  window.addEventListener("insert-prompt", handleInsertPrompt);
+  window.addEventListener("focus-prompt", handleFocusPrompt);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("insert-prompt", handleInsertPrompt);
+  window.removeEventListener("focus-prompt", handleFocusPrompt);
+});
 </script>
 
 <template>

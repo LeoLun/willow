@@ -305,7 +305,9 @@ export interface GetSessionHistoryRequest {
   sessionId: number;
 }
 
-export interface GetConversationSessionRequest {}
+export interface GetConversationSessionRequest {
+  sessionId?: number;
+}
 
 export interface GetConversationSessionResponse {
   session: Session;

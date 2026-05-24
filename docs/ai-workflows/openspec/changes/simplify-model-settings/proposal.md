@@ -15,8 +15,8 @@
 
 - 更新 pi-ai 和 pi-agent-core 依赖版本
 - 新增 DeepSeek 模型配置常量
-- 简化设置页面的模型配置 UI
-- 简化 ModelForm 为 API Key 输入表单
+- 简化设置页面的模型配置 UI，API Key 密钥管理改为弹窗进行添加或修改
+- 移除旧版复杂的 ModelForm，新建用于添加/修改 API Key 密钥的弹窗组件 (ModelKeyForm)
 - 调整 ConfigService / ModelDao 逻辑以支持自动创建内置模型
 - 移除不必要的模型管理操作（编辑模型详情、删除单个模型）
 - 数据库 schema 可能保持不变，但 API 层面简化

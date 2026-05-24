@@ -136,8 +136,14 @@ export class SessionService {
     return session;
   }
 
-  async getOrCreateConversationSession() {
+  async getOrCreateConversationSession(sessionId?: number) {
     const workspace = await this.workspaceService.getOrCreateConversationWorkspace();
+    if (sessionId) {
+      const session = this.sessionDao.findById(sessionId);
+      if (session && session.workspaceId === workspace.id) {
+        return { session, workspace };
+      }
+    }
     const existing = this.sessionDao.findLatestByWorkspaceId(workspace.id);
     if (existing) {
       return { session: existing, workspace };

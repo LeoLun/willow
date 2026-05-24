@@ -34,9 +34,23 @@ const routeSessionId = computed(() => {
   const value = Number(route.params.sessionId);
   return Number.isNaN(value) ? 0 : value;
 });
-const isConversationRoute = computed(() => route.name === "conversation");
+const isConversationRoute = computed(() => {
+  if (route.name === "conversation") {
+    return true;
+  }
+  if (route.name === "workspace") {
+    const wsId = Number(route.query.workspaceId);
+    const ws = workspaceList.value.find((w) => w.id === wsId);
+    return ws?.kind === "conversation";
+  }
+  if (route.name === "session") {
+    const ws = workspaceList.value.find((w) => w.id === currentSession.value?.workspaceId);
+    return ws?.kind === "conversation";
+  }
+  return false;
+});
 const activeSessionId = computed(() =>
-  isConversationRoute.value ? (conversationSession.value?.id ?? 0) : routeSessionId.value,
+  route.name === "conversation" ? (conversationSession.value?.id ?? 0) : routeSessionId.value,
 );
 
 const { todos, restoreFromActiveStream } = useTodoProgress(activeSessionId);
@@ -52,13 +66,13 @@ const currentWorkspaceId = computed(() => {
     const value = Number(route.query.workspaceId);
     return Number.isNaN(value) ? 0 : value;
   }
-  if (isConversationRoute.value) {
+  if (route.name === "conversation") {
     return conversationWorkspace.value?.id ?? conversationSession.value?.workspaceId ?? 0;
   }
   return currentSession.value?.workspaceId ?? 0;
 });
 const currentSession = computed(() => {
-  if (isConversationRoute.value) {
+  if (route.name === "conversation") {
     return conversationSession.value ?? undefined;
   }
   let foundSession: Session | undefined;
@@ -75,7 +89,7 @@ const currentSession = computed(() => {
   return foundSession;
 });
 const currentWorkspace = computed(() => {
-  if (isConversationRoute.value) {
+  if (route.name === "conversation") {
     return conversationWorkspace.value;
   }
   return workspaceList.value.find((workspace) => workspace.id === currentWorkspaceId.value);
@@ -93,11 +107,14 @@ const messageCount = computed(() => {
   const streamMessageCount = state.streamMessage ? 1 : 0;
   return state.messages.length + streamMessageCount;
 });
+const showBottomSender = computed(() => {
+  return messageCount.value > 0 || state.isStreaming;
+});
 
 async function handleSend(request: SendMessage) {
   console.log("[Chat] handleSend sessionId=", activeSessionId.value);
   try {
-    if (isSessionRoute.value || isConversationRoute.value) {
+    if (isSessionRoute.value || (isConversationRoute.value && activeSessionId.value !== 0)) {
       const sessionId = activeSessionId.value;
       if (!sessionId) {
         console.warn("[Chat] handleSend no sessionId, aborting");
@@ -112,7 +129,7 @@ async function handleSend(request: SendMessage) {
       return;
     }
 
-    const workspaceId = Number(route.query.workspaceId);
+    const workspaceId = Number(route.query.workspaceId) || currentWorkspaceId.value;
     console.log("[Chat] creating new session for workspaceId=", workspaceId);
     const { session } = await electronAPI.createSession({
       workspaceId,
@@ -211,14 +228,15 @@ onBeforeMount(async () => {
 });
 
 watch(
-  isConversationRoute,
-  async (enabled) => {
+  () => [isConversationRoute.value, route.query.sessionId],
+  async ([enabled, qSessionId]) => {
     if (!enabled) {
       conversationSession.value = null;
       conversationWorkspace.value = null;
       return;
     }
-    const data = await electronAPI.getConversationSession();
+    const sessionId = qSessionId ? Number(qSessionId) : undefined;
+    const data = await electronAPI.getConversationSession(sessionId ? { sessionId } : undefined);
     conversationSession.value = data.session;
     conversationWorkspace.value = data.workspace;
   },
@@ -254,6 +272,10 @@ watch(
               :pending-tool-calls="state.pendingToolCalls"
               :tool-approvals="state.toolApprovals"
               :session-id-override="activeSessionId"
+              :workspace-id="currentWorkspaceId"
+              :chat-scope="isConversationRoute ? 'conversation' : 'workspace'"
+              @send="handleSend"
+              @stop="handleStop"
             />
           </RouterView>
         </div>
@@ -276,7 +298,7 @@ watch(
             @close="handleSkipApproval"
           />
           <SenderContainer
-            v-else
+            v-else-if="showBottomSender"
             :messages="state.messages"
             :stream-message="state.streamMessage"
             :is-streaming="state.isStreaming"

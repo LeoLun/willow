@@ -7,7 +7,6 @@ import Session from "./pages/chat/session/Session.vue";
 import Workspace from "./pages/chat/workspace/Workspace.vue";
 import AppearanceSetting from "./pages/setting/appearance/AppearanceSetting.vue";
 import ConfigurationSetting from "./pages/setting/configuration/ConfigurationSetting.vue";
-import FloatingBallSetting from "./pages/setting/floating-ball/FloatingBallSetting.vue";
 import Setting from "./pages/setting/Setting.vue";
 import WorkspaceHistory from "./pages/workspace-history/WorkspaceHistory.vue";
 
@@ -35,7 +34,6 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: "appearance", name: "settingAppearance", component: AppearanceSetting },
       { path: "configuration", name: "settingConfiguration", component: ConfigurationSetting },
-      { path: "floating-ball", name: "settingFloatingBall", component: FloatingBallSetting },
     ],
   },
   { path: "/auto", name: "auto", component: Auto },

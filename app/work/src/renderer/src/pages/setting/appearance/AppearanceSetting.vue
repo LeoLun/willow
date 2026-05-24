@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { Switch } from "@willow/shadcn/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@willow/shadcn/components/ui/toggle-group";
 import { Monitor, Moon, Sun } from "lucide-vue-next";
+import { onMounted, ref, watch } from "vue";
 import { useDarkMode } from "@/composables/useDarkMode";
 import type { ThemeMode } from "@/composables/useDarkMode";
 
@@ -17,6 +19,27 @@ function onThemeChange(value: string | string[]) {
     themeMode.value = value as ThemeMode;
   }
 }
+
+const floatingBallEnabled = ref(false);
+const floatingBallInitialized = ref(false);
+
+onMounted(async () => {
+  try {
+    const configResponse = await window.electronAPI.getFloatingBallConfig();
+    floatingBallEnabled.value = configResponse.config.enabled;
+    setTimeout(() => {
+      floatingBallInitialized.value = true;
+    }, 100);
+  } catch (error) {
+    console.error("[Renderer] Failed to get floating ball config:", error);
+  }
+});
+
+watch(floatingBallEnabled, async (newVal) => {
+  if (floatingBallInitialized.value) {
+    await window.electronAPI.setFloatingBallEnabled({ enabled: newVal });
+  }
+});
 </script>
 
 <template>
@@ -25,33 +48,44 @@ function onThemeChange(value: string | string[]) {
 
     <section class="space-y-3">
       <div class="space-y-1">
-        <h2 class="text-base font-medium">外观</h2>
-        <p class="text-sm text-muted-foreground">自定义应用的显示主题</p>
+        <h2 class="text-base font-medium">界面外观</h2>
+        <p class="text-sm text-muted-foreground">自定义应用的显示主题与快捷方式</p>
       </div>
 
-      <div class="flex items-center justify-between gap-4 rounded-lg border p-4">
-        <div class="space-y-1">
-          <span class="text-sm font-medium">主题模式</span>
-          <p class="text-xs text-muted-foreground">选择浅色、深色或跟随系统</p>
+      <div class="space-y-3">
+        <div class="flex items-center justify-between gap-4 rounded-lg border p-4">
+          <div class="space-y-1">
+            <span class="text-sm font-medium">主题模式</span>
+            <p class="text-xs text-muted-foreground">选择浅色、深色或跟随系统</p>
+          </div>
+
+          <ToggleGroup
+            type="single"
+            :model-value="themeMode"
+            variant="outline"
+            @update:model-value="onThemeChange"
+          >
+            <ToggleGroupItem
+              v-for="mode in themeModes"
+              :key="mode.value"
+              :value="mode.value"
+              :aria-label="mode.label"
+              class="gap-1.5 px-3"
+            >
+              <component :is="mode.icon" class="size-4" />
+              <span class="text-xs">{{ mode.label }}</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
 
-        <ToggleGroup
-          type="single"
-          :model-value="themeMode"
-          variant="outline"
-          @update:model-value="onThemeChange"
-        >
-          <ToggleGroupItem
-            v-for="mode in themeModes"
-            :key="mode.value"
-            :value="mode.value"
-            :aria-label="mode.label"
-            class="gap-1.5 px-3"
-          >
-            <component :is="mode.icon" class="size-4" />
-            <span class="text-xs">{{ mode.label }}</span>
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <div class="flex items-center justify-between gap-4 rounded-lg border p-4">
+          <div class="space-y-1">
+            <span class="text-sm font-medium">桌面悬浮球</span>
+            <p class="text-xs text-muted-foreground">启用常驻桌面的快捷工具悬浮球</p>
+          </div>
+
+          <Switch id="appearance-floating-ball-enabled" v-model="floatingBallEnabled" />
+        </div>
       </div>
     </section>
   </div>

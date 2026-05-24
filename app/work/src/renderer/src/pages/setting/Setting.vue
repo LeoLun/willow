@@ -20,12 +20,6 @@ const navItems = [
     routeName: "settingConfiguration",
     to: "/setting/configuration",
   },
-  {
-    label: "悬浮球",
-    icon: Circle,
-    routeName: "settingFloatingBall",
-    to: "/setting/floating-ball",
-  },
 ];
 
 const currentRouteName = computed(() => String(route.name ?? ""));

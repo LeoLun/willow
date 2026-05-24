@@ -41,6 +41,7 @@ import { DeleteSession } from "@/layout/dialog/delete-session";
 import { DeleteWorkspace } from "@/layout/dialog/delete-workspace";
 import { RenameSession } from "@/layout/dialog/rename-session";
 import { RenameWorkspace } from "@/layout/dialog/rename-workspace";
+import { electronAPI } from "@/lib/ipc";
 import { useSessionStore } from "@/stores/session";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -99,11 +100,52 @@ function handleCreateWorkspace() {
   });
 }
 
+async function handleCreateNewChat() {
+  const conversationWorkspace = workspaceStore.workspaceList.find((w) => w.kind === "conversation");
+  if (!conversationWorkspace) {
+    const workspaces = await workspaceStore.fetchWorkspaceList();
+    const ws = workspaces.find((w) => w.kind === "conversation");
+    if (ws) {
+      await router.push(`/?workspaceId=${ws.id}`);
+    } else {
+      await router.push("/conversation");
+    }
+    return;
+  }
+  await router.push(`/?workspaceId=${conversationWorkspace.id}`);
+}
+
+const isConversationActive = computed(() => {
+  if (route.name === "conversation") {
+    return true;
+  }
+  if (route.name === "workspace") {
+    const wsId = Number(route.query.workspaceId);
+    const ws = workspaceStore.workspaceList.find((w) => w.id === wsId);
+    return ws?.kind === "conversation";
+  }
+  if (route.name === "session") {
+    const sessId = Number(route.params.sessionId);
+    let foundSession: Session | undefined;
+    Object.values(sessionStore.sessionMap).some((sessions) => {
+      const session = sessions.find((item) => item.id === sessId);
+      if (session) {
+        foundSession = session;
+        return true;
+      }
+      return false;
+    });
+    if (foundSession) {
+      const ws = workspaceStore.workspaceList.find((w) => w.id === foundSession?.workspaceId);
+      return ws?.kind === "conversation";
+    }
+  }
+  return false;
+});
+
 onBeforeMount(async () => {
   const workspaces = await workspaceStore.fetchWorkspaceList();
-  await sessionStore.fetchSessionList(
-    workspaces.filter((workspace) => workspace.kind !== "conversation").map((w) => w.id),
-  );
+  await sessionStore.fetchSessionList(workspaces.map((w) => w.id));
 });
 </script>
 
@@ -112,7 +154,7 @@ onBeforeMount(async () => {
     <SidebarGroupContent>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton class="cursor-pointer" @click="router.push('/')">
+          <SidebarMenuButton class="cursor-pointer" @click="handleCreateNewChat">
             <SquarePen />
             <span>新会话</span>
           </SidebarMenuButton>
@@ -130,7 +172,7 @@ onBeforeMount(async () => {
         <SidebarMenuItem>
           <SidebarMenuButton
             class="cursor-pointer"
-            :is-active="route.name === 'conversation'"
+            :is-active="isConversationActive"
             @click="router.push('/conversation')"
           >
             <MessageSquare />

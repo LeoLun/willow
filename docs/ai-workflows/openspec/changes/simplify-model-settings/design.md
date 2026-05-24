@@ -50,17 +50,20 @@ export const DEEPSEEK_CONFIG = {
 
 ### 3. UI 变更
 
-**之前**：配置页面包含"模型配置"区域，每个模型一行，支持添加/编辑/删除/设为默认。
+**之前**：配置页面为内联的 API Key 输入框与保存/修改/取消/清除按钮。
 
-**之后**：配置页面改为"DeepSeek API Key"区域：
-- 一个密码输入框 + 保存按钮
-- 已配置状态下显示"已配置"状态和两个模型的名称
-- 可以修改或清除 API Key
-- 不再显示单独的模型列表
+**之后**：配置页面包含“模型配置”区域：
+- 未配置状态下：显示“添加模型”按钮。点击后弹出 `ModelKeyForm` 新增模型。
+- 已配置状态下：显示“已配置 API Key”状态、隐藏显示的 Key 遮罩、修改与清除按钮。点击“修改”按钮后，弹出 `ModelKeyForm` 修改模型。
 
-移除的对话框：
-- `ModelForm.vue`（复杂模型表单）→ 替换为简单的 `DeepSeekApiKeyForm.vue`
-- `DeleteModel.vue` → 不再需要
+新增的对话框组件：
+- `ModelKeyForm.vue`：
+  - 属性 `isEdit?: boolean`。
+  - 标题：根据 `isEdit` 为 `true` 还是 `false`，分别显示“修改模型”和“新增模型”。
+  - 模型下拉框 (Select/Dropdown)：默认选择且只有 `deepseek` 选项。新增时可选，修改时 (即 `isEdit` 为 `true`) 处于 disabled 禁用状态。
+  - 密钥输入框 (Input/Password)：放置在模型下拉框下方，标签为“密钥”，提示信息为“sk-...”。
+  - 操作按钮：“取消”和“保存”（或“添加”）。
+
 
 ### 4. 数据流
 

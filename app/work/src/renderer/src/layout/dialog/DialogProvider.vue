@@ -15,7 +15,7 @@ const { dialogState, closeDialog } = useDialog();
       }
     "
   >
-    <DialogContent>
+    <DialogContent :class="dialogState.contentClass">
       <component :is="dialogState.component" v-bind="dialogState.props" @close="closeDialog" />
     </DialogContent>
   </Dialog>

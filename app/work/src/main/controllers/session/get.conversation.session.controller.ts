@@ -20,9 +20,9 @@ export class GetConversationSessionController extends IPCBaseController<
   @IPC(GET_CONVERSATION_SESSION)
   async run(
     _event: Electron.IpcMainInvokeEvent,
-    _request?: GetConversationSessionRequest,
+    request?: GetConversationSessionRequest,
   ): Promise<ApiResponse<GetConversationSessionResponse>> {
-    const data = await this.sessionService.getOrCreateConversationSession();
+    const data = await this.sessionService.getOrCreateConversationSession(request?.sessionId);
     return this.buildResponse(data);
   }
 

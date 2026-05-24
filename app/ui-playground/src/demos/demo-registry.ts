@@ -12,6 +12,7 @@ import StreamingDemo from "./scenes/StreamingDemo.vue";
 import TodoToolDemo from "./scenes/TodoToolDemo.vue";
 import WebFetchToolDemo from "./scenes/WebFetchToolDemo.vue";
 import WebSearchToolDemo from "./scenes/WebSearchToolDemo.vue";
+import WelcomeHomeDemo from "./scenes/WelcomeHomeDemo.vue";
 import type { DemoDefinition } from "./types";
 
 export const demoRegistry: DemoDefinition[] = [
@@ -21,6 +22,13 @@ export const demoRegistry: DemoDefinition[] = [
     description: "直接验证 @willow/sender 的模型切换、技能选择、slash 搜索和发送事件。",
     group: "输入器",
     component: markRaw(SenderDemo),
+  },
+  {
+    id: "welcome-home",
+    title: "欢迎首页",
+    description: "模拟空会话数据状态下的欢迎首页展示及建议 Prompt 点击交互机制。",
+    group: "页面场景",
+    component: markRaw(WelcomeHomeDemo),
   },
   {
     id: "conversation",

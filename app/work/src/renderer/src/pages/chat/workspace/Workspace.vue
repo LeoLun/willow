@@ -1,28 +1,66 @@
 <script setup lang="ts">
-import { Button } from "@willow/shadcn/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@willow/shadcn/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-vue-next";
 import { computed, onBeforeMount } from "vue";
-import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
+import { useDialog } from "@/layout/dialog";
+import { CreateWorkspace } from "@/layout/dialog/create-workspace";
 import { useWorkspaceStore } from "@/stores/workspace";
-const route = useRoute();
+import SenderContainer from "../components/SenderContainer.vue";
+import WelcomeView from "../session/components/WelcomeView.vue";
+
+const props = withDefaults(
+  defineProps<{
+    messages?: any[];
+    isStreaming?: boolean;
+    workspaceId?: number;
+    chatScope?: "conversation" | "workspace";
+  }>(),
+  {
+    messages: () => [],
+    isStreaming: false,
+    workspaceId: 0,
+    chatScope: "workspace",
+  },
+);
+
+const emit = defineEmits<{
+  (e: "send", request: any): void;
+  (e: "stop"): void;
+}>();
+
 const router = useRouter();
-const workspaceId = computed(() => route.query.workspaceId);
 const workspaceStore = useWorkspaceStore();
+const { openDialog } = useDialog();
 
 const workspace = computed(() => {
   return workspaceStore.workspaceList.find(
-    (workspace) => workspace.id === Number(workspaceId.value),
+    (workspace) => workspace.id === Number(props.workspaceId),
   );
 });
+
+function handleCreateWorkspace() {
+  openDialog(CreateWorkspace, {
+    onCreated: () => workspaceStore.fetchWorkspaceList(),
+  });
+}
+
+function handleGoToSettings() {
+  router.push("/setting/configuration");
+}
+
+function handleSelectWorkspace(id: number) {
+  if (id === -1) {
+    const conversationWorkspace = workspaceStore.workspaceList.find(
+      (w) => w.kind === "conversation",
+    );
+    if (conversationWorkspace) {
+      void router.push(`/?workspaceId=${conversationWorkspace.id}`);
+    } else {
+      void router.push("/conversation");
+    }
+  } else {
+    void router.push(`/?workspaceId=${id}`);
+  }
+}
 
 onBeforeMount(async () => {
   await workspaceStore.fetchWorkspaceList();
@@ -30,24 +68,25 @@ onBeforeMount(async () => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col items-center justify-center">
-    <div class="mb-5 text-4xl font-bold">开始工作</div>
-    <DropdownMenu v-if="workspace">
-      <DropdownMenuTrigger>
-        <Button variant="ghost">
-          {{ workspace.name }}
-          <ChevronDown class="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="center">
-        <DropdownMenuItem
-          v-for="workspace in workspaceStore.workspaceList"
-          :key="workspace.id"
-          @click="router.push(`/?workspaceId=${workspace.id}`)"
-        >
-          {{ workspace.name }}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  </div>
+  <WelcomeView
+    :current-workspace-name="workspace?.name"
+    :chat-scope="props.chatScope"
+    :workspaces="workspaceStore.projectWorkspaceList"
+    @create-workspace="handleCreateWorkspace"
+    @go-to-settings="handleGoToSettings"
+    @select-workspace="handleSelectWorkspace"
+    class="w-full flex-1"
+  >
+    <template #sender>
+      <SenderContainer
+        :messages="props.messages"
+        :is-streaming="props.isStreaming"
+        :show-usage="false"
+        :workspace-id="props.workspaceId"
+        :chat-scope="props.chatScope"
+        @send="(req) => emit('send', req)"
+        @stop="() => emit('stop')"
+      />
+    </template>
+  </WelcomeView>
 </template>

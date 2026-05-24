@@ -30,6 +30,7 @@ import { computed, onBeforeMount, onMounted, onUnmounted, ref } from "vue";
 import { useEventBus } from "@/composables/useEventBus";
 import { useDialog } from "@/layout/dialog";
 import { DeleteTavilyKey } from "@/layout/dialog/delete-tavily-key";
+import { ModelKeyForm } from "@/layout/dialog/model-key-form";
 import { TavilyKeyForm } from "@/layout/dialog/tavily-key-form";
 import { electronAPI } from "@/lib/ipc";
 import { useConfigStore } from "@/stores/config";
@@ -38,8 +39,6 @@ const { openDialog } = useDialog();
 const configStore = useConfigStore();
 const { modelList, tavilyKeyList } = storeToRefs(configStore);
 
-const apiKeyInput = ref("");
-const isEditing = ref(false);
 const isSaving = ref(false);
 
 const builtinModels = computed(() => modelList.value.filter((m) => isBuiltinModel(m.modelId)));
@@ -134,35 +133,21 @@ function maskKey(key: string): string {
   return key.slice(0, 4) + "****" + key.slice(-4);
 }
 
-function handleStartEdit() {
-  apiKeyInput.value = "";
-  isEditing.value = true;
+function handleAddModel() {
+  openDialog(ModelKeyForm);
 }
 
-function handleCancelEdit() {
-  apiKeyInput.value = "";
-  isEditing.value = false;
-}
-
-async function handleSaveKey() {
-  if (!apiKeyInput.value.trim()) return;
-  isSaving.value = true;
-  try {
-    await configStore.setDeepSeekApiKey(apiKeyInput.value.trim());
-    apiKeyInput.value = "";
-    isEditing.value = false;
-  } catch (e) {
-    console.error(e);
-  } finally {
-    isSaving.value = false;
-  }
+function handleEditModel() {
+  openDialog(ModelKeyForm, {
+    isEdit: true,
+    initialApiKey: deepSeekApiKey.value || "",
+  });
 }
 
 async function handleClearKey() {
   isSaving.value = true;
   try {
     await configStore.setDeepSeekApiKey("");
-    isEditing.value = false;
   } catch (e) {
     console.error(e);
   } finally {
@@ -201,25 +186,16 @@ function handleDeleteTavilyKey(tavilyKey: TavilyKeyConfig) {
         </div>
       </div>
 
-      <!-- 未配置 / 编辑中 -->
-      <div v-if="!hasDeepSeekKey || isEditing" class="space-y-3 rounded-lg border p-4">
-        <div class="flex items-end gap-3">
-          <div class="flex-1 space-y-1">
-            <label class="text-sm font-medium">API Key</label>
-            <Input
-              v-model="apiKeyInput"
-              type="password"
-              placeholder="sk-..."
-              @keyup.enter="handleSaveKey"
-            />
-          </div>
-          <Button size="sm" :disabled="!apiKeyInput.trim() || isSaving" @click="handleSaveKey">
-            保存
-          </Button>
-          <Button v-if="hasDeepSeekKey" size="sm" variant="outline" @click="handleCancelEdit">
-            取消
-          </Button>
-        </div>
+      <!-- 未配置 -->
+      <div
+        v-if="!hasDeepSeekKey"
+        class="flex flex-col items-center justify-center gap-3 rounded-lg border p-6"
+      >
+        <p class="text-sm text-muted-foreground">未配置 DeepSeek 模型密钥</p>
+        <Button size="sm" @click="handleAddModel">
+          <Plus class="mr-1.5 size-4" />
+          添加模型
+        </Button>
       </div>
 
       <!-- 已配置 API Key -->
@@ -231,7 +207,7 @@ function handleDeleteTavilyKey(tavilyKey: TavilyKeyConfig) {
         </div>
         <p class="text-xs text-muted-foreground">可用模型：DeepSeek V4 Pro、DeepSeek V4 Flash</p>
         <div class="flex gap-2">
-          <Button variant="outline" size="sm" @click="handleStartEdit">
+          <Button variant="outline" size="sm" @click="handleEditModel">
             <Pencil class="mr-1 size-3.5" />
             修改
           </Button>

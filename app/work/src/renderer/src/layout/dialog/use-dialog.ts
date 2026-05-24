@@ -4,13 +4,23 @@ export interface DialogState {
   component: Component;
   props?: Record<string, unknown>;
   open: boolean;
+  contentClass?: string;
 }
 
 const dialogState = shallowRef<DialogState | null>(null);
 
 export function useDialog() {
-  function openDialog(component: Component, props?: Record<string, unknown>) {
-    dialogState.value = { component: markRaw(component), props: props ?? {}, open: true };
+  function openDialog(
+    component: Component,
+    props?: Record<string, unknown>,
+    options?: { contentClass?: string },
+  ) {
+    dialogState.value = {
+      component: markRaw(component),
+      props: props ?? {},
+      open: true,
+      contentClass: options?.contentClass,
+    };
   }
 
   function closeDialog() {
