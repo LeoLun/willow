@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Button } from "@willow/shadcn/components/ui/button";
-import { ArrowLeft, Settings2, Sun, Circle } from "lucide-vue-next";
+import { ArrowLeft, Settings2, Sun, Circle, Info } from "lucide-vue-next";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -19,6 +19,12 @@ const navItems = [
     icon: Settings2,
     routeName: "settingConfiguration",
     to: "/setting/configuration",
+  },
+  {
+    label: "关于",
+    icon: Info,
+    routeName: "settingAbout",
+    to: "/setting/about",
   },
 ];
 
@@ -45,7 +51,10 @@ function goBackToApp() {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 bg-background">
+  <div class="relative flex h-full min-h-0 bg-background">
+    <!-- 顶部拖拽区域 -->
+    <div class="drag-region absolute top-0 right-0 left-0 z-50 h-10"></div>
+
     <aside class="flex w-64 shrink-0 flex-col gap-2 border-r bg-muted/20 px-2 pt-10 pb-6">
       <Button
         variant="ghost"

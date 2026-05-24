@@ -5,6 +5,7 @@ import AutomationDetail from "./pages/auto/detail/AutomationDetail.vue";
 import Chat from "./pages/chat/Chat.vue";
 import Session from "./pages/chat/session/Session.vue";
 import Workspace from "./pages/chat/workspace/Workspace.vue";
+import AboutSetting from "./pages/setting/about/AboutSetting.vue";
 import AppearanceSetting from "./pages/setting/appearance/AppearanceSetting.vue";
 import ConfigurationSetting from "./pages/setting/configuration/ConfigurationSetting.vue";
 import Setting from "./pages/setting/Setting.vue";
@@ -34,6 +35,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: "appearance", name: "settingAppearance", component: AppearanceSetting },
       { path: "configuration", name: "settingConfiguration", component: ConfigurationSetting },
+      { path: "about", name: "settingAbout", component: AboutSetting },
     ],
   },
   { path: "/auto", name: "auto", component: Auto },
