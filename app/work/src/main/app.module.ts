@@ -35,6 +35,7 @@ import { CreateSessionController } from "./controllers/session/create.session.co
 import { DeleteSessionController } from "./controllers/session/delete.session.controller";
 import { GetAvailableSkillsController } from "./controllers/session/get.available.skills.controller";
 import { GetConversationSessionController } from "./controllers/session/get.conversation.session.controller";
+import { GetSessionController } from "./controllers/session/get.session.controller";
 import { GetSessionHistoryController } from "./controllers/session/get.session.history.controller";
 import { GetSessionListController } from "./controllers/session/get.session.list.controller";
 import { GetWorkspaceSessionsController } from "./controllers/session/get.workspace.sessions.controller";
@@ -144,6 +145,7 @@ if (!app.isPackaged && process.platform === "darwin") {
     CreateSessionController,
     SendMessageController,
     GetSessionListController,
+    GetSessionController,
     GetWorkspaceSessionsController,
     GetSessionHistoryController,
     GetConversationSessionController,
@@ -202,6 +204,7 @@ export class AppModule {
     private createSessionController: CreateSessionController,
     private sendMessageController: SendMessageController,
     private getSessionListController: GetSessionListController,
+    private getSessionController: GetSessionController,
     private getWorkspaceSessionsController: GetWorkspaceSessionsController,
     private getSessionHistoryController: GetSessionHistoryController,
     private getConversationSessionController: GetConversationSessionController,

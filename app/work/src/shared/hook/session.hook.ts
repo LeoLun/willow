@@ -13,6 +13,8 @@ import type {
   StopSessionStreamResponse,
   GetSessionListRequest,
   GetSessionListResponse,
+  GetSessionRequest,
+  GetSessionResponse,
   GetSessionHistoryRequest,
   GetSessionHistoryResponse,
   GetWorkspaceSessionsRequest,
@@ -29,6 +31,7 @@ export interface ISessionApi {
   resolveToolApproval(request: ResolveToolApprovalRequest): Promise<ResolveToolApprovalResponse>;
   stopSessionStream(request: StopSessionStreamRequest): Promise<StopSessionStreamResponse>;
   getSessionList(request: GetSessionListRequest): Promise<GetSessionListResponse>;
+  getSession(request: GetSessionRequest): Promise<GetSessionResponse>;
   getSessionHistory(request: GetSessionHistoryRequest): Promise<GetSessionHistoryResponse>;
   getWorkspaceSessions(request: GetWorkspaceSessionsRequest): Promise<GetWorkspaceSessionsResponse>;
   getConversationSession(

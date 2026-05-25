@@ -301,6 +301,15 @@ export interface GetWorkspaceSessionsResponse {
   pageSize: number;
 }
 
+export interface GetSessionRequest {
+  sessionId: number;
+}
+
+export interface GetSessionResponse {
+  session: Session;
+  workspace: Workspace;
+}
+
 export interface GetSessionHistoryRequest {
   sessionId: number;
 }

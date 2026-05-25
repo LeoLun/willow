@@ -26,6 +26,8 @@ const router = useRouter();
 const isSidebarOpen = ref(false);
 const conversationSession = ref<Session | null>(null);
 const conversationWorkspace = ref<Workspace | null>(null);
+const fetchedSession = ref<Session | null>(null);
+const fetchedWorkspace = ref<Workspace | null>(null);
 
 const CHAT_MAIN_MIN_WIDTH = 350;
 const RIGHT_SIDEBAR_MIN_WIDTH = 240;
@@ -86,13 +88,21 @@ const currentSession = computed(() => {
     return true;
   });
 
+  if (!foundSession && fetchedSession.value?.id === activeSessionId.value) {
+    return fetchedSession.value;
+  }
+
   return foundSession;
 });
 const currentWorkspace = computed(() => {
   if (route.name === "conversation") {
     return conversationWorkspace.value;
   }
-  return workspaceList.value.find((workspace) => workspace.id === currentWorkspaceId.value);
+  const ws = workspaceList.value.find((workspace) => workspace.id === currentWorkspaceId.value);
+  if (!ws && fetchedWorkspace.value?.id === currentWorkspaceId.value) {
+    return fetchedWorkspace.value;
+  }
+  return ws;
 });
 const pageTitle = computed(() => {
   if (isConversationRoute.value) {
@@ -239,6 +249,27 @@ watch(
     const data = await electronAPI.getConversationSession(sessionId ? { sessionId } : undefined);
     conversationSession.value = data.session;
     conversationWorkspace.value = data.workspace;
+  },
+  { immediate: true },
+);
+
+watch(
+  () => [isSessionRoute.value, activeSessionId.value, currentSession.value] as const,
+  async ([isSession, sessionId, session]) => {
+    if (!isSession || !sessionId || session) {
+      if (!isSession) {
+        fetchedSession.value = null;
+        fetchedWorkspace.value = null;
+      }
+      return;
+    }
+    try {
+      const data = await electronAPI.getSession({ sessionId });
+      fetchedSession.value = data.session;
+      fetchedWorkspace.value = data.workspace;
+    } catch (e) {
+      console.error("[Chat] getSession fallback failed", e);
+    }
   },
   { immediate: true },
 );

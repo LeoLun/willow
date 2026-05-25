@@ -95,6 +95,10 @@ export class SessionService {
     );
   }
 
+  async getSessionById(id: number) {
+    return this.sessionDao.findById(id);
+  }
+
   async getSessionList(workspaceId: number) {
     return this.sessionDao.findByWorkspaceId(workspaceId);
   }

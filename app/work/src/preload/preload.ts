@@ -38,6 +38,8 @@ import type {
   StopSessionStreamResponse,
   GetSessionListRequest,
   GetSessionListResponse,
+  GetSessionRequest,
+  GetSessionResponse,
   GetSessionHistoryRequest,
   GetSessionHistoryResponse,
   GetWorkspaceSessionsRequest,
@@ -102,6 +104,7 @@ import {
   RESOLVE_TOOL_APPROVAL,
   STOP_SESSION_STREAM,
   GET_SESSION_LIST,
+  GET_SESSION,
   GET_SESSION_HISTORY,
   GET_WORKSPACE_SESSIONS,
   GET_CONVERSATION_SESSION,
@@ -382,6 +385,19 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("get session list failed");
+    }
+    return response.data;
+  },
+  getSession: async (request: GetSessionRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_SESSION,
+      request,
+    )) as ApiResponse<GetSessionResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get session failed");
     }
     return response.data;
   },
