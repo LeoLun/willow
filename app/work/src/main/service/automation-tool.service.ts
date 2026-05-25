@@ -10,7 +10,7 @@ const automationTriggerSchema = Type.Object({
 });
 
 const automationCreateSchema = Type.Object({
-  workspaceId: Type.Number({ description: "工作空间 ID" }),
+  workspaceId: Type.Optional(Type.Number({ description: "工作空间 ID，不传则使用当前工作空间" })),
   title: Type.Optional(Type.String({ description: "自动化名称，不传则自动生成" })),
   prompt: Type.String({ description: "自动化执行时发送给 AI 的提示词" }),
   trigger: automationTriggerSchema,
@@ -54,7 +54,7 @@ export function registerAutomationToolService(service: AutomationService) {
   automationServiceRef = service;
 }
 
-export function createAutomationTools(): WillowTool<any>[] {
+export function createAutomationTools(defaultWorkspaceId?: number): WillowTool<any>[] {
   return [
     createTool({
       name: "automation_list",
@@ -94,7 +94,14 @@ export function createAutomationTools(): WillowTool<any>[] {
         permission: () => ({ mode: "allow" }),
       },
       execute: async (_toolCallId, params: Static<typeof automationCreateSchema>) => {
-        const automation = getAutomationService().createAutomation(params);
+        const workspaceId = params.workspaceId ?? defaultWorkspaceId;
+        if (!workspaceId) {
+          throw new Error("请指定目标工作空间 ID（当前为对话模式，无默认工作空间）");
+        }
+        const automation = getAutomationService().createAutomation({
+          ...params,
+          workspaceId,
+        });
         return toTextPayload({ automation });
       },
     }) as WillowTool<any>,

@@ -247,7 +247,8 @@ export class AgentService {
     const tavilyService = this.tavilyService;
     const todoStore = this.todoService.createStore(session.id);
 
-    const extraTools = [...createAutomationTools()];
+    const automationDefaultWorkspaceId = workspace?.kind === "project" ? workspace.id : undefined;
+    const extraTools = [...createAutomationTools(automationDefaultWorkspaceId)];
     if (this.workspaceDelegateHandler) {
       extraTools.push(createWorkspaceDelegateTool(session.id, this.workspaceDelegateHandler));
     }
