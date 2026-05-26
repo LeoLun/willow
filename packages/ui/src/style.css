@@ -1,6 +1,12 @@
 @import "github-markdown-css/github-markdown.css";
 @import "katex/dist/katex.min.css";
 
+@font-face {
+  font-family: "OpenMoji Color";
+  src: url("./assets/fonts/OpenMoji-Color.woff2") format("woff2");
+  font-display: swap;
+}
+
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -67,4 +73,12 @@
 .markdown-body .willow-code-block pre {
   margin: 0;
   padding: 0;
+}
+
+.willow-emoji {
+  font-family:
+    "OpenMoji Color", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji",
+    sans-serif;
+  display: inline-block;
+  font-size: 1em;
 }

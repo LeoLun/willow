@@ -224,10 +224,10 @@ export const markdownSample = `# UI Playground 检查清单
 
 这是一个用于调试 \`@willow/ui\` 的独立页面，它应该保持工具型、冷静、易扫描。
 
-## 关注点
+## 关注点 😀 👍🏽 👨‍👩‍👧‍👦
 
 - Markdown 排版是否稳定
-- 代码块与语法高亮是否正常
+- 代码块与语法高亮中的 emoji 保持原样不替换：\`😀\` 或 \` \`\`\`👨‍👩‍👧‍👦\`\`\` \`
 - 表格、引用和数学公式是否可读
 - 文件引用 [app.ts](/user/xxxx/app.ts)、技能引用 [$workflow-spec](skill/workflow-spec.md) 和普通链接 [OpenAI](https://openai.com) 是否各自按预期渲染
 

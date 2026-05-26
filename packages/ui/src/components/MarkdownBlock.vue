@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import emojiRegex from "emoji-regex";
 import katex from "katex";
 import { Marked } from "marked";
 import { computed } from "vue";
@@ -155,6 +156,28 @@ const renderedHtml = computed(() => {
   const marked = new Marked();
   marked.use({
     extensions: [
+      {
+        name: "emoji",
+        level: "inline",
+        start(src: string) {
+          const match = emojiRegex().exec(src);
+          return match ? match.index : -1;
+        },
+        tokenizer(src: string) {
+          const match = emojiRegex().exec(src);
+          if (match && match.index === 0) {
+            return {
+              type: "emoji",
+              raw: match[0],
+              emoji: match[0],
+            };
+          }
+          return undefined;
+        },
+        renderer(token: any) {
+          return `<span class="willow-emoji">${token.emoji}</span>`;
+        },
+      },
       {
         name: "workspaceAgentTag",
         level: "inline",
