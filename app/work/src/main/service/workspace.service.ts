@@ -1,4 +1,5 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, readdir, writeFile, rename, cp, rm } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import { SessionDao } from "@main/service/dao/session.dao.service";
@@ -57,17 +58,39 @@ export class WorkspaceService {
   }
 
   async getOrCreateConversationWorkspace() {
+    const newPath = join(app.getPath("userData"), "conversation");
     const existing = this.workspaceDao.findFirstByKind("conversation");
+
     if (existing) {
+      if (existing.path.includes(".willow")) {
+        console.log(
+          `[WorkspaceService] Migrating conversation workspace path from ${existing.path} to ${newPath}`,
+        );
+        await mkdir(newPath, { recursive: true });
+        if (existsSync(existing.path)) {
+          try {
+            await this.moveDirectory(existing.path, newPath);
+            console.log(
+              `[WorkspaceService] Successfully moved conversation workspace files to ${newPath}`,
+            );
+          } catch (err) {
+            console.error(`[WorkspaceService] Failed to move conversation workspace files:`, err);
+          }
+        }
+        const updated = this.workspaceDao.update(existing.id, { path: newPath });
+        if (updated) {
+          return updated;
+        }
+      }
+
       await mkdir(existing.path, { recursive: true });
       return existing;
     }
 
-    const conversationPath = join(app.getPath("home"), ".willow");
-    await mkdir(conversationPath, { recursive: true });
+    await mkdir(newPath, { recursive: true });
     return this.workspaceDao.insert({
       name: "对话",
-      path: conversationPath,
+      path: newPath,
       kind: "conversation",
     });
   }
@@ -185,5 +208,38 @@ export class WorkspaceService {
       }
       return left.name.localeCompare(right.name, "zh-Hans-CN");
     });
+  }
+
+  private async moveDirectory(src: string, dest: string): Promise<void> {
+    try {
+      const entries = await readdir(src, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name === "mcp.json" || entry.name === "skills") {
+          continue;
+        }
+        const entrySrc = join(src, entry.name);
+        const entryDest = join(dest, entry.name);
+        try {
+          await rename(entrySrc, entryDest);
+        } catch (err: any) {
+          console.warn(
+            `[WorkspaceService] Rename failed for ${entry.name}, falling back to cp + rm:`,
+            err,
+          );
+          try {
+            await cp(entrySrc, entryDest, { recursive: true });
+            await rm(entrySrc, { recursive: true, force: true });
+          } catch (fallbackErr) {
+            console.error(
+              `[WorkspaceService] Migration fallback cp + rm failed for ${entry.name}:`,
+              fallbackErr,
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[WorkspaceService] readdir failed for migration source ${src}:`, err);
+      throw err;
+    }
   }
 }
