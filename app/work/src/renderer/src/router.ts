@@ -28,7 +28,10 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/setting",
-    component: Setting,
+    components: {
+      default: Chat,
+      settings: Setting,
+    },
     redirect: "/setting/appearance",
     meta: { layout: "settings" },
     children: [

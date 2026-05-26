@@ -49,6 +49,7 @@
     "electron-squirrel-startup": "^1.0.1",
     "electron-store": "^11.0.2",
     "lucide-vue-next": "^0.473.0",
+    "monaco-editor": "^0.55.1",
     "node-cron": "^4.2.1",
     "pinia": "^3.0.4",
     "reka-ui": "^2.8.0",

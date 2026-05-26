@@ -690,3 +690,12 @@ export interface ToggleMcpServerRequest {
 export interface ToggleMcpServerResponse {
   servers: McpServerConfig[];
 }
+
+export interface ReadFileRequest {
+  workspaceId: number;
+  path: string;
+}
+
+export interface ReadFileResponse {
+  content: string;
+}

@@ -92,6 +92,8 @@ import type {
   DeleteMcpServerResponse,
   ToggleMcpServerRequest,
   ToggleMcpServerResponse,
+  ReadFileRequest,
+  ReadFileResponse,
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
@@ -151,6 +153,7 @@ import {
   UPDATE_MCP_SERVER,
   DELETE_MCP_SERVER,
   TOGGLE_MCP_SERVER,
+  READ_FILE,
 } from "../shared/constants";
 
 const ipcObject: IRenderHook = {
@@ -215,6 +218,19 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("get workspace files failed");
+    }
+    return response.data;
+  },
+  readFile: async (request: ReadFileRequest) => {
+    const response = (await ipcRenderer.invoke(
+      READ_FILE,
+      request,
+    )) as ApiResponse<ReadFileResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("read file failed");
     }
     return response.data;
   },

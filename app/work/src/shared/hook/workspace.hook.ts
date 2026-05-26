@@ -14,6 +14,8 @@ import type {
   RenameWorkspaceResponse,
   UpdateWorkspaceSettingsRequest,
   UpdateWorkspaceSettingsResponse,
+  ReadFileRequest,
+  ReadFileResponse,
 } from "../api";
 
 export interface IWorkspaceApi {
@@ -27,4 +29,5 @@ export interface IWorkspaceApi {
   updateWorkspaceSettings(
     request: UpdateWorkspaceSettingsRequest,
   ): Promise<UpdateWorkspaceSettingsResponse>;
+  readFile(request: ReadFileRequest): Promise<ReadFileResponse>;
 }

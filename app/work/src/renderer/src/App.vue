@@ -77,26 +77,33 @@ onUnmounted(() => {
 </script>
 <template>
   <TooltipProvider :delay-duration="0">
-    <div v-if="isSettingsLayout" class="h-screen w-screen overflow-hidden bg-background">
-      <RouterView />
-    </div>
+    <div class="relative h-screen w-screen overflow-hidden">
+      <!-- 主应用布局，始终保持挂载 -->
+      <SidebarProvider class="relative flex h-screen w-screen overflow-hidden bg-sidebar">
+        <LeftSidebar />
+        <SidebarTrigger class="absolute top-[7.5px] left-[70px] z-100" />
 
-    <SidebarProvider v-else class="relative flex h-screen w-screen overflow-hidden bg-sidebar">
-      <LeftSidebar />
-      <SidebarTrigger class="absolute top-[7.5px] left-[70px] z-100" />
+        <!-- 主区域 -->
+        <div
+          class="flex min-w-0 flex-1 flex-col [--left-sidebar-released-width:0px] peer-data-[collapsible=offcanvas]:[--left-sidebar-released-width:16rem]"
+        >
+          <Card class="relative flex-1 !flex-row gap-0 overflow-hidden !py-0">
+            <!-- 中间内容区域 -->
+            <div class="h-full min-w-0 flex-1 overflow-hidden">
+              <RouterView />
+            </div>
+          </Card>
+        </div>
+      </SidebarProvider>
 
-      <!-- 主区域 -->
+      <!-- 设置页面作为绝对定位覆盖层，覆盖在主页面之上 -->
       <div
-        class="flex min-w-0 flex-1 flex-col [--left-sidebar-released-width:0px] peer-data-[collapsible=offcanvas]:[--left-sidebar-released-width:16rem]"
+        v-if="isSettingsLayout"
+        class="absolute inset-0 z-[200] h-screen w-screen overflow-hidden bg-background"
       >
-        <Card class="relative flex-1 !flex-row gap-0 overflow-hidden !py-0">
-          <!-- 中间内容区域 -->
-          <div class="h-full min-w-0 flex-1 overflow-hidden">
-            <RouterView />
-          </div>
-        </Card>
+        <RouterView name="settings" />
       </div>
-    </SidebarProvider>
+    </div>
   </TooltipProvider>
   <DialogProvider />
   <Toaster position="top-center" />

@@ -29,30 +29,49 @@ const conversationWorkspace = ref<Workspace | null>(null);
 const fetchedSession = ref<Session | null>(null);
 const fetchedWorkspace = ref<Workspace | null>(null);
 
+// 缓存活跃的路由信息，当在设置页面时冻结更新，避免返回时触发重新获取数据和重新渲染
+const activeRouteName = ref(route.name);
+const activeRouteParams = ref({ ...route.params });
+const activeRouteQuery = ref({ ...route.query });
+
+watch(
+  () => route.path,
+  (newPath) => {
+    if (!newPath.startsWith("/setting")) {
+      activeRouteName.value = route.name;
+      activeRouteParams.value = { ...route.params };
+      activeRouteQuery.value = { ...route.query };
+    }
+  },
+  { immediate: true },
+);
+
 const CHAT_MAIN_MIN_WIDTH = 350;
 const RIGHT_SIDEBAR_MIN_WIDTH = 240;
 const RIGHT_SIDEBAR_DEFAULT_WIDTH = 320;
 const routeSessionId = computed(() => {
-  const value = Number(route.params.sessionId);
+  const value = Number(activeRouteParams.value.sessionId);
   return Number.isNaN(value) ? 0 : value;
 });
 const isConversationRoute = computed(() => {
-  if (route.name === "conversation") {
+  if (activeRouteName.value === "conversation") {
     return true;
   }
-  if (route.name === "workspace") {
-    const wsId = Number(route.query.workspaceId);
+  if (activeRouteName.value === "workspace") {
+    const wsId = Number(activeRouteQuery.value.workspaceId);
     const ws = workspaceList.value.find((w) => w.id === wsId);
     return ws?.kind === "conversation";
   }
-  if (route.name === "session") {
+  if (activeRouteName.value === "session") {
     const ws = workspaceList.value.find((w) => w.id === currentSession.value?.workspaceId);
     return ws?.kind === "conversation";
   }
   return false;
 });
 const activeSessionId = computed(() =>
-  route.name === "conversation" ? (conversationSession.value?.id ?? 0) : routeSessionId.value,
+  activeRouteName.value === "conversation"
+    ? (conversationSession.value?.id ?? 0)
+    : routeSessionId.value,
 );
 
 const { todos, restoreFromActiveStream } = useTodoProgress(activeSessionId);
@@ -61,20 +80,20 @@ const { state } = useAgentMessages(activeSessionId, {
     restoreFromActiveStream(activeStream.todos);
   },
 });
-const isSessionRoute = computed(() => route.name === "session");
-const isWorkspaceRoute = computed(() => route.name === "workspace");
+const isSessionRoute = computed(() => activeRouteName.value === "session");
+const isWorkspaceRoute = computed(() => activeRouteName.value === "workspace");
 const currentWorkspaceId = computed(() => {
   if (isWorkspaceRoute.value) {
-    const value = Number(route.query.workspaceId);
+    const value = Number(activeRouteQuery.value.workspaceId);
     return Number.isNaN(value) ? 0 : value;
   }
-  if (route.name === "conversation") {
+  if (activeRouteName.value === "conversation") {
     return conversationWorkspace.value?.id ?? conversationSession.value?.workspaceId ?? 0;
   }
   return currentSession.value?.workspaceId ?? 0;
 });
 const currentSession = computed(() => {
-  if (route.name === "conversation") {
+  if (activeRouteName.value === "conversation") {
     return conversationSession.value ?? undefined;
   }
   let foundSession: Session | undefined;
@@ -95,7 +114,7 @@ const currentSession = computed(() => {
   return foundSession;
 });
 const currentWorkspace = computed(() => {
-  if (route.name === "conversation") {
+  if (activeRouteName.value === "conversation") {
     return conversationWorkspace.value;
   }
   const ws = workspaceList.value.find((workspace) => workspace.id === currentWorkspaceId.value);
@@ -139,7 +158,7 @@ async function handleSend(request: SendMessage) {
       return;
     }
 
-    const workspaceId = Number(route.query.workspaceId) || currentWorkspaceId.value;
+    const workspaceId = Number(activeRouteQuery.value.workspaceId) || currentWorkspaceId.value;
     console.log("[Chat] creating new session for workspaceId=", workspaceId);
     const { session } = await electronAPI.createSession({
       workspaceId,
@@ -238,7 +257,7 @@ onBeforeMount(async () => {
 });
 
 watch(
-  () => [isConversationRoute.value, route.query.sessionId],
+  () => [isConversationRoute.value, activeRouteQuery.value.sessionId],
   async ([enabled, qSessionId]) => {
     if (!enabled) {
       conversationSession.value = null;

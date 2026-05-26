@@ -55,6 +55,7 @@ import { GetWorkspaceFilesController } from "./controllers/workspace/get.workspa
 import { GetWorkspaceInfoController } from "./controllers/workspace/get.workspace.info.controller";
 import { GetWorkspaceListController } from "./controllers/workspace/get.workspace.list.controller";
 import { GetWorkspaceSettingsController } from "./controllers/workspace/get.workspace.settings.controller";
+import { ReadFileController } from "./controllers/workspace/read.file.controller";
 import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controller";
 import { UpdateWorkspaceSettingsController } from "./controllers/workspace/update.workspace.settings.controller";
 import { AgentService } from "./service/agent.service";
@@ -149,6 +150,7 @@ if (!app.isPackaged && process.platform === "darwin") {
     GetWorkspaceSettingsController,
     RenameWorkspaceController,
     UpdateWorkspaceSettingsController,
+    ReadFileController,
     CreateSessionController,
     SendMessageController,
     GetSessionListController,
@@ -213,6 +215,7 @@ export class AppModule {
     private renameWorkspaceController: RenameWorkspaceController,
     private getWorkspaceSettingsController: GetWorkspaceSettingsController,
     private updateWorkspaceSettingsController: UpdateWorkspaceSettingsController,
+    private readFileController: ReadFileController,
     private createSessionController: CreateSessionController,
     private sendMessageController: SendMessageController,
     private getSessionListController: GetSessionListController,

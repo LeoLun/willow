@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile, rename, cp, rm } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { extname, join, resolve } from "node:path";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import { SessionDao } from "@main/service/dao/session.dao.service";
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
@@ -111,6 +111,27 @@ export class WorkspaceService {
       rootPath: workspace.path,
       files,
     };
+  }
+
+  async readWorkspaceFile(id: number, filePath: string): Promise<string> {
+    const workspace = this.workspaceDao.findById(id);
+    if (!workspace) {
+      throw new Error("workspace not found");
+    }
+
+    // Security check: resolve and verify the file path is under workspace path
+    const resolvedPath = resolve(filePath);
+    const resolvedWorkspacePath = resolve(workspace.path);
+
+    if (!resolvedPath.startsWith(resolvedWorkspacePath)) {
+      throw new Error("unauthorized path access");
+    }
+
+    if (!existsSync(resolvedPath)) {
+      throw new Error("file not found");
+    }
+
+    return readFile(resolvedPath, "utf8");
   }
 
   async getWorkspaceSettings(id: number): Promise<GetWorkspaceSettingsResponse> {

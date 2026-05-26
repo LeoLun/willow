@@ -9,6 +9,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const projectWorkspaceList = computed(() =>
     workspaceList.value.filter((workspace) => workspace.kind !== "conversation"),
   );
+  const expandedWorkspaceIds = ref<Record<number, boolean>>({});
 
   // ─── Actions ───
   async function fetchWorkspaceList() {
@@ -17,5 +18,22 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return workspaceList.value;
   }
 
-  return { workspaceList, projectWorkspaceList, fetchWorkspaceList };
+  function isWorkspaceExpanded(workspaceId: number) {
+    if (expandedWorkspaceIds.value[workspaceId] === undefined) {
+      return true; // Default to expanded
+    }
+    return expandedWorkspaceIds.value[workspaceId];
+  }
+
+  function setWorkspaceExpanded(workspaceId: number, expanded: boolean) {
+    expandedWorkspaceIds.value[workspaceId] = expanded;
+  }
+
+  return {
+    workspaceList,
+    projectWorkspaceList,
+    fetchWorkspaceList,
+    isWorkspaceExpanded,
+    setWorkspaceExpanded,
+  };
 });

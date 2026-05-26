@@ -15,6 +15,7 @@ import {
   FolderIcon,
   ImageIcon,
 } from "lucide-vue-next";
+import { inject } from "vue";
 
 defineOptions({
   name: "WorkspaceFileTree",
@@ -24,11 +25,20 @@ const props = withDefaults(
   defineProps<{
     items: WorkspaceFileNode[];
     level?: number;
+    workspaceId: number;
   }>(),
   {
     level: 0,
   },
 );
+
+const selectFile = inject<(path: string, name: string) => void>("selectFile");
+
+function handleOpenFile(item: WorkspaceFileNode) {
+  if (selectFile) {
+    selectFile(item.path, item.name);
+  }
+}
 
 function iconForFile(extension?: string) {
   switch (extension) {
@@ -76,21 +86,24 @@ function iconForFile(extension?: string) {
             v-if="item.children && item.children.length > 0"
             :items="item.children"
             :level="props.level + 1"
+            :workspace-id="props.workspaceId"
           />
         </CollapsibleContent>
       </Collapsible>
 
-      <div
+      <Button
         v-else
-        class="flex h-8 items-center gap-2 rounded-md px-2 py-1 text-sm"
+        variant="ghost"
+        class="h-8 w-full cursor-pointer justify-start gap-2 rounded-md px-2 py-1 text-sm font-normal"
         :style="{ paddingLeft: `${props.level * 12 + 24}px` }"
+        @click="handleOpenFile(item)"
       >
         <component
           :is="iconForFile(item.extension)"
           class="size-4 shrink-0 text-muted-foreground"
         />
         <span class="truncate">{{ item.name }}</span>
-      </div>
+      </Button>
     </template>
   </div>
 </template>

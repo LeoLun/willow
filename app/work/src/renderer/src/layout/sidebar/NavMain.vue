@@ -193,6 +193,8 @@ onBeforeMount(async () => {
           :key="workspace.id"
           as-child
           class="group/collapsible"
+          :open="workspaceStore.isWorkspaceExpanded(workspace.id)"
+          @update:open="(val) => workspaceStore.setWorkspaceExpanded(workspace.id, val)"
         >
           <SidebarMenuItem class="group/workspace">
             <div class="flex items-center">

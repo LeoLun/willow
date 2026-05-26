@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Session, TodoItem, Workspace } from "@shared/api";
 import { Button } from "@willow/shadcn/components/ui/button";
-import { Label } from "@willow/shadcn/components/ui/label";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -27,14 +26,16 @@ import {
   Plus,
   Pencil,
   Trash2,
+  RotateCw,
 } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
-import { computed, nextTick, onMounted, onUnmounted, ref, toRef, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, toRef, watch, provide } from "vue";
 import { useWorkspaceFiles } from "@/composables/useWorkspaceFiles";
 import { useWorkspaceSettings } from "@/composables/useWorkspaceSettings";
 import { DeleteMcpServer } from "@/layout/dialog/delete-mcp-server";
 import { McpServerForm } from "@/layout/dialog/mcp-server-form";
 import { electronAPI } from "@/lib/ipc";
+import InlineFileViewer from "@/pages/chat/session/components/InlineFileViewer.vue";
 import WorkspaceFileTree from "@/pages/chat/session/components/WorkspaceFileTree.vue";
 import { useMcpStore } from "@/stores/mcp";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -76,6 +77,7 @@ const {
   rootPath,
   isLoading: isFilesLoading,
   errorMessage: filesErrorMessage,
+  refresh: refreshFiles,
 } = useWorkspaceFiles(workspaceId);
 const {
   workspacePath,
@@ -99,36 +101,10 @@ watch(
   { immediate: true },
 );
 
-function handleAddWorkspaceMcp() {
-  openDialog(McpServerForm, {
-    workspaceId: workspaceId.value,
-    onSaved: () => mcpStore.fetchWorkspaceServers(workspaceId.value),
-  });
-}
-
-function handleEditWorkspaceMcp(server: any) {
-  openDialog(McpServerForm, {
-    mcpServer: server,
-    workspaceId: workspaceId.value,
-    onSaved: () => mcpStore.fetchWorkspaceServers(workspaceId.value),
-  });
-}
-
-function handleDeleteWorkspaceMcp(server: any) {
-  openDialog(DeleteMcpServer, {
-    mcpServer: server,
-    workspaceId: workspaceId.value,
-    onDeleted: () => mcpStore.fetchWorkspaceServers(workspaceId.value),
-  });
-}
-
-async function handleToggleWorkspaceMcp(server: any) {
-  await mcpStore.toggleServer(workspaceId.value, server.name, !server.disabled);
-}
-
 const completedCount = computed(
   () => props.todos.filter((todo) => todo.status === "completed").length,
 );
+
 const totalCount = computed(() => props.todos.length);
 const progress = computed(() => {
   if (!totalCount.value) {
@@ -284,6 +260,19 @@ watch(
   },
 );
 
+const selectedFilePath = ref<string | null>(null);
+const selectedFileName = ref<string | null>(null);
+
+provide("selectFile", (path: string, name: string) => {
+  selectedFilePath.value = path;
+  selectedFileName.value = name;
+});
+
+watch([workspaceId, activeTab], () => {
+  selectedFilePath.value = null;
+  selectedFileName.value = null;
+});
+
 onUnmounted(() => {
   resizeObserver?.disconnect();
   if (isAppVisible.value) {
@@ -308,8 +297,8 @@ onUnmounted(() => {
       }"
     >
       <div class="flex h-full flex-col">
-        <div class="border-b border-sidebar-border px-3 py-2">
-          <NavigationMenu orientation="horizontal" class="max-w-full">
+        <div class="drag-region flex items-center border-b border-sidebar-border px-3 py-2">
+          <NavigationMenu orientation="horizontal" class="no-drag-region w-fit">
             <NavigationMenuList class="flex-wrap justify-start">
               <NavigationMenuItem>
                 <NavigationMenuLink as-child :active="activeTab === 'primary'">
@@ -326,9 +315,27 @@ onUnmounted(() => {
                     <FolderOpenIcon class="size-3.5" />
                     文件
                     <span
-                      class="rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                      class="group/refresh relative inline-flex h-5 min-w-[20px] cursor-pointer items-center justify-center rounded bg-background px-1 text-[10px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      title="刷新文件"
+                      @click.stop="!isFilesLoading && refreshFiles()"
                     >
-                      {{ totalFileCount }}
+                      <span
+                        class="transition-opacity duration-150"
+                        :class="{ 'opacity-0': isFilesLoading }"
+                      >
+                        <span class="transition-opacity duration-150 group-hover/refresh:opacity-0">
+                          {{ totalFileCount }}
+                        </span>
+                      </span>
+                      <span
+                        class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150"
+                        :class="{
+                          'opacity-100': isFilesLoading,
+                          'group-hover/refresh:opacity-100': !isFilesLoading,
+                        }"
+                      >
+                        <RotateCw class="size-3" :class="{ 'animate-spin': isFilesLoading }" />
+                      </span>
                     </span>
                   </button>
                 </NavigationMenuLink>
@@ -346,7 +353,7 @@ onUnmounted(() => {
           </NavigationMenu>
         </div>
 
-        <ScrollArea v-if="activeTab === 'primary'" class="h-full">
+        <ScrollArea v-if="activeTab === 'primary'" class="min-h-0 flex-1">
           <div v-if="props.mode === 'workspace'" class="space-y-6 p-4">
             <div class="space-y-2">
               <h4 class="text-xs font-medium text-muted-foreground">工作空间信息</h4>
@@ -356,79 +363,6 @@ onUnmounted(() => {
                   <span class="truncate text-right">{{
                     props.workspace?.name || "未命名工作空间"
                   }}</span>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div class="space-y-3">
-              <div class="flex items-center justify-between gap-4">
-                <h4 class="text-xs font-medium text-muted-foreground">MCP 服务 (工作空间)</h4>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  class="h-6 gap-1 px-1.5 text-[10px]"
-                  @click="handleAddWorkspaceMcp"
-                >
-                  <Plus class="size-3" />
-                  添加
-                </Button>
-              </div>
-
-              <div
-                v-if="workspaceServers.length === 0"
-                class="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground"
-              >
-                暂无配置的工作空间 MCP 服务
-              </div>
-
-              <div v-else class="space-y-2">
-                <div
-                  v-for="server in workspaceServers"
-                  :key="server.name"
-                  class="group/item flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2 text-xs transition-colors hover:bg-muted/50"
-                >
-                  <div class="min-w-0 flex-1 space-y-0.5">
-                    <div class="flex items-center gap-1.5">
-                      <span class="truncate font-mono font-medium">{{ server.name }}</span>
-                      <span
-                        class="rounded border bg-background px-1 py-0.5 text-[9px] text-muted-foreground"
-                        >{{ server.type }}</span
-                      >
-                    </div>
-                    <p class="truncate text-[10px] text-muted-foreground">
-                      {{ server.type === "stdio" ? server.command : server.url }}
-                    </p>
-                  </div>
-
-                  <div class="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      class="text-[10px] text-muted-foreground hover:text-foreground"
-                      @click="handleToggleWorkspaceMcp(server)"
-                    >
-                      {{ server.disabled ? "启用" : "禁用" }}
-                    </button>
-                    <div
-                      class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/item:opacity-100"
-                    >
-                      <button
-                        type="button"
-                        class="p-1 text-muted-foreground hover:text-foreground"
-                        @click="handleEditWorkspaceMcp(server)"
-                      >
-                        <Pencil class="size-3" />
-                      </button>
-                      <button
-                        type="button"
-                        class="p-1 text-destructive/80 hover:text-destructive"
-                        @click="handleDeleteWorkspaceMcp(server)"
-                      >
-                        <Trash2 class="size-3" />
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -502,53 +436,70 @@ onUnmounted(() => {
           </div>
         </ScrollArea>
 
-        <ScrollArea v-else-if="activeTab === 'files'" class="h-full">
-          <div class="space-y-3 p-3">
-            <div class="space-y-1">
-              <div class="text-xs font-medium text-muted-foreground">工作空间文件</div>
-              <div class="flex items-center gap-2">
-                <div class="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                  {{ rootPath || props.workspace?.path || "未找到工作空间路径" }}
+        <div
+          v-else-if="activeTab === 'files'"
+          class="flex min-h-0 w-full flex-1 divide-x divide-sidebar-border"
+        >
+          <div class="flex h-full w-[200px] flex-shrink-0 flex-col border-r border-sidebar-border">
+            <div class="flex h-full flex-col space-y-3 p-3">
+              <div class="space-y-1">
+                <div class="text-xs font-medium text-muted-foreground">工作空间文件</div>
+                <div class="flex items-center gap-2">
+                  <div class="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                    {{ rootPath || props.workspace?.path || "未找到工作空间路径" }}
+                  </div>
+                  <Button
+                    v-if="rootPath || props.workspace?.path || workspacePath"
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7 shrink-0"
+                    title="打开当前工作空间文件夹"
+                    @click="handleOpenWorkspaceFolder"
+                  >
+                    <FolderOpen class="size-4" />
+                  </Button>
                 </div>
-                <Button
-                  v-if="rootPath || props.workspace?.path || workspacePath"
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  class="h-7 w-7 shrink-0"
-                  title="打开当前工作空间文件夹"
-                  @click="handleOpenWorkspaceFolder"
-                >
-                  <FolderOpen class="size-4" />
-                </Button>
               </div>
-            </div>
 
-            <div
-              v-if="isFilesLoading"
-              class="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground"
-            >
-              正在读取文件列表...
-            </div>
-            <div
-              v-else-if="filesErrorMessage"
-              class="rounded-lg border border-dashed border-destructive/30 px-3 py-6 text-center text-sm text-muted-foreground"
-            >
-              {{ filesErrorMessage }}
-            </div>
-            <div
-              v-else-if="files.length === 0"
-              class="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground"
-            >
-              当前工作空间没有可展示的文件
-            </div>
-            <div v-else class="rounded-lg bg-muted/40 p-2">
-              <WorkspaceFileTree :items="files" />
+              <div
+                v-if="isFilesLoading"
+                class="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground"
+              >
+                正在读取文件列表...
+              </div>
+              <div
+                v-else-if="filesErrorMessage"
+                class="rounded-lg border border-dashed border-destructive/30 px-3 py-6 text-center text-sm text-muted-foreground"
+              >
+                {{ filesErrorMessage }}
+              </div>
+              <div
+                v-else-if="files.length === 0"
+                class="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground"
+              >
+                当前工作空间没有可展示的文件
+              </div>
+              <ScrollArea class="min-h-0 flex-1" v-else>
+                <WorkspaceFileTree :items="files" :workspace-id="workspaceId" />
+              </ScrollArea>
             </div>
           </div>
-        </ScrollArea>
 
-        <div v-else-if="activeTab === 'app'" ref="viewAnchor" class="ai-app-anchor h-full w-full" />
+          <div class="h-full min-h-0 min-w-0 flex-1 bg-background">
+            <InlineFileViewer
+              :workspace-id="workspaceId"
+              :file-path="selectedFilePath"
+              :file-name="selectedFileName"
+            />
+          </div>
+        </div>
+
+        <div
+          v-else-if="activeTab === 'app'"
+          ref="viewAnchor"
+          class="ai-app-anchor min-h-0 w-full flex-1"
+        />
       </div>
     </Sidebar>
   </aside>
