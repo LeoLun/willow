@@ -8,6 +8,7 @@ import {
 import { ConversationContextCompressionService } from "@main/service/conversation-context-compression.service";
 import { SessionMessageDao } from "@main/service/dao/session-message.dao.service";
 import { WorkspaceDao } from "@main/service/dao/workspace.dao.service";
+import { McpServerService } from "@main/service/mcp-server.service";
 import { TavilyService } from "@main/service/tavily.service";
 import { TodoService } from "@main/service/todo.service";
 import { lastAssistantTextOnly } from "@main/utils/agent-message-text";
@@ -137,6 +138,7 @@ export class AgentService {
     private readonly todoService: TodoService,
     private readonly contextCompressionService: ContextCompressionService,
     private readonly conversationContextCompressionService: ConversationContextCompressionService,
+    private readonly mcpServerService: McpServerService,
   ) {}
 
   private resolveApiKey(config?: ModelConfig | null): string | undefined {
@@ -251,6 +253,38 @@ export class AgentService {
     const extraTools = [...createAutomationTools(automationDefaultWorkspaceId)];
     if (this.workspaceDelegateHandler) {
       extraTools.push(createWorkspaceDelegateTool(session.id, this.workspaceDelegateHandler));
+    }
+
+    // Load active MCP tools
+    const mcpServerService = this.mcpServerService;
+    try {
+      const mcpTools = await mcpServerService.getActiveTools(
+        targetWorkspaceId ?? session.workspaceId,
+      );
+      for (const mt of mcpTools) {
+        extraTools.push({
+          name: mt.name,
+          description: mt.description,
+          parameters: mt.inputSchema,
+          meta: {
+            label: mt.description || mt.name,
+            permission: () => ({ mode: "allow" }),
+          },
+          async execute(toolCallId: string, params: any, _signal: any, _onUpdate: any) {
+            const result = await mcpServerService.callActiveTool(
+              mt.clientKey,
+              mt.originalName,
+              params,
+            );
+            return {
+              content: result.content || [],
+              isError: result.isError ?? false,
+            };
+          },
+        } as any);
+      }
+    } catch (e) {
+      console.error("Failed to load active MCP tools:", e);
     }
 
     const builtinDir = app.isPackaged

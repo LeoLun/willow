@@ -126,12 +126,10 @@ export function loadSkills(options: {
   const cwd = options.cwd;
   let agentDir: string;
   const warnings: string[] = [];
-  if (options.userData) {
-    agentDir = join(options.userData, WILLOW_CONFIG_DIR);
-  } else if (options.agentDir) {
+  if (options.agentDir) {
     agentDir = options.agentDir;
   } else {
-    agentDir = join(homedir(), WILLOW_CONFIG_DIR);
+    agentDir = join(homedir(), ".willow");
   }
   const userDir = join(agentDir, "skills");
   const projectDir = join(cwd, WILLOW_CONFIG_DIR, "skills");

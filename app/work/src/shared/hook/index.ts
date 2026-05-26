@@ -4,6 +4,7 @@ import type { IConfigApi } from "./config.hook";
 import type { IDialogRenderer } from "./dialog.hook";
 import type { IEventApi } from "./event.hook";
 import type { IFloatingBallApi } from "./floating-ball.hook";
+import type { IMcpApi } from "./mcp.hook";
 import type { ISessionApi } from "./session.hook";
 import type { ISkillApi } from "./skill.hook";
 import type { IUpdateApi } from "./update.hook";
@@ -20,7 +21,8 @@ export interface IRenderHook
     IDialogRenderer,
     IAiAppApi,
     IFloatingBallApi,
-    IUpdateApi {}
+    IUpdateApi,
+    IMcpApi {}
 
 export * from "./dialog.hook";
 export * from "./update.hook";

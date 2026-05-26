@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ModelConfig, TavilyKeyConfig } from "@shared/api";
+import type { McpServerConfig } from "@shared/api";
 import { isBuiltinModel } from "@shared/model-config";
 import { Badge, Button } from "@willow/shadcn";
 import { Input } from "@willow/shadcn/components/ui/input";
@@ -9,14 +10,19 @@ import { Pencil, Plus, Star, Trash2, Key, Check } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref } from "vue";
 import { useDialog } from "@/layout/dialog";
+import { DeleteMcpServer } from "@/layout/dialog/delete-mcp-server";
 import { DeleteTavilyKey } from "@/layout/dialog/delete-tavily-key";
+import { McpServerForm } from "@/layout/dialog/mcp-server-form";
 import { ModelKeyForm } from "@/layout/dialog/model-key-form";
 import { TavilyKeyForm } from "@/layout/dialog/tavily-key-form";
 import { useConfigStore } from "@/stores/config";
+import { useMcpStore } from "@/stores/mcp";
 
 const { openDialog } = useDialog();
 const configStore = useConfigStore();
+const mcpStore = useMcpStore();
 const { modelList, tavilyKeyList } = storeToRefs(configStore);
+const { globalServers } = storeToRefs(mcpStore);
 
 const isSaving = ref(false);
 
@@ -33,6 +39,7 @@ const hasDeepSeekKey = computed(() => !!deepSeekApiKey.value);
 onBeforeMount(() => {
   configStore.fetchModelList();
   configStore.fetchTavilyKeyList();
+  mcpStore.fetchGlobalServers();
 });
 
 function maskKey(key: string): string {
@@ -76,6 +83,22 @@ function handleEditTavilyKey(tavilyKey: TavilyKeyConfig) {
 
 function handleDeleteTavilyKey(tavilyKey: TavilyKeyConfig) {
   openDialog(DeleteTavilyKey, { tavilyKey });
+}
+
+function handleAddMcp() {
+  openDialog(McpServerForm);
+}
+
+function handleEditMcp(server: McpServerConfig) {
+  openDialog(McpServerForm, { mcpServer: server });
+}
+
+function handleDeleteMcp(server: McpServerConfig) {
+  openDialog(DeleteMcpServer, { mcpServer: server });
+}
+
+async function handleToggleMcp(server: McpServerConfig) {
+  await mcpStore.toggleServer(undefined, server.name, !server.disabled);
 }
 </script>
 
@@ -237,6 +260,78 @@ function handleDeleteTavilyKey(tavilyKey: TavilyKeyConfig) {
               </TooltipTrigger>
               <TooltipContent>删除</TooltipContent>
             </Tooltip>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-4">
+        <div class="space-y-1">
+          <h2 class="text-base font-medium">MCP 服务 (全局)</h2>
+          <p class="text-sm text-muted-foreground">
+            管理全局 Model Context Protocol 服务，动态加载工具
+          </p>
+        </div>
+        <Button size="sm" class="gap-1.5" @click="handleAddMcp">
+          <Plus class="size-4" />
+          添加服务
+        </Button>
+      </div>
+
+      <div v-if="globalServers.length === 0" class="rounded-lg border p-8 text-center">
+        <p class="text-sm text-muted-foreground">暂无配置的全局 MCP 服务</p>
+      </div>
+
+      <div v-else class="space-y-3">
+        <div
+          v-for="server in globalServers"
+          :key="server.name"
+          class="group flex items-center justify-between gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50"
+        >
+          <div class="min-w-0 flex-1 space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-sm">{{ server.name }}</span>
+              <Badge variant="outline" class="text-[10px]">{{ server.type }}</Badge>
+              <Badge v-if="server.disabled" variant="secondary" class="text-[10px]">已禁用</Badge>
+            </div>
+            <p v-if="server.type === 'stdio'" class="truncate text-xs text-muted-foreground">
+              {{ server.command }} {{ (server.args || []).join(" ") }}
+            </p>
+            <p v-else class="truncate text-xs text-muted-foreground">
+              {{ server.url }}
+            </p>
+          </div>
+
+          <div class="flex shrink-0 items-center gap-1">
+            <Button variant="ghost" size="sm" class="h-7 text-xs" @click="handleToggleMcp(server)">
+              {{ server.disabled ? "启用" : "禁用" }}
+            </Button>
+            <div
+              class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+            >
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button variant="ghost" size="icon" class="size-8" @click="handleEditMcp(server)">
+                    <Pencil class="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>编辑</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 text-destructive hover:text-destructive"
+                    @click="handleDeleteMcp(server)"
+                  >
+                    <Trash2 class="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>删除</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </div>
       </div>

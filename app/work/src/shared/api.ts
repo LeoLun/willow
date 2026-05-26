@@ -633,3 +633,60 @@ export interface UpdateStatusPayload {
   progress?: number; // 0 - 100
   errorMsg?: string;
 }
+
+// ─── MCP Servers ───
+
+export interface McpServerConfig {
+  name: string;
+  type: "stdio" | "sse";
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  disabled?: boolean;
+}
+
+export interface GetMcpServersRequest {
+  workspaceId?: number;
+}
+
+export interface GetMcpServersResponse {
+  servers: McpServerConfig[];
+}
+
+export interface AddMcpServerRequest {
+  workspaceId?: number;
+  config: McpServerConfig;
+}
+
+export interface AddMcpServerResponse {
+  servers: McpServerConfig[];
+}
+
+export interface UpdateMcpServerRequest {
+  workspaceId?: number;
+  config: McpServerConfig;
+}
+
+export interface UpdateMcpServerResponse {
+  servers: McpServerConfig[];
+}
+
+export interface DeleteMcpServerRequest {
+  workspaceId?: number;
+  name: string;
+}
+
+export interface DeleteMcpServerResponse {
+  servers: McpServerConfig[];
+}
+
+export interface ToggleMcpServerRequest {
+  workspaceId?: number;
+  name: string;
+  disabled: boolean;
+}
+
+export interface ToggleMcpServerResponse {
+  servers: McpServerConfig[];
+}

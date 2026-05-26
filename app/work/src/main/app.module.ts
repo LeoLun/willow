@@ -31,6 +31,11 @@ import { SetFloatingBallPositionController } from "./controllers/floating-ball/s
 import { ShowFloatingBallMenuController } from "./controllers/floating-ball/show.floating.ball.menu.controller";
 import { ShowMainWindowController } from "./controllers/floating-ball/show.main.window.controller";
 import { InitController } from "./controllers/init.controller";
+import { AddMcpServerController } from "./controllers/mcp/add.mcp.server.controller";
+import { DeleteMcpServerController } from "./controllers/mcp/delete.mcp.server.controller";
+import { GetMcpServersController } from "./controllers/mcp/get.mcp.servers.controller";
+import { ToggleMcpServerController } from "./controllers/mcp/toggle.mcp.server.controller";
+import { UpdateMcpServerController } from "./controllers/mcp/update.mcp.server.controller";
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { DeleteSessionController } from "./controllers/session/delete.session.controller";
 import { GetAvailableSkillsController } from "./controllers/session/get.available.skills.controller";
@@ -73,6 +78,7 @@ import { WorkspaceDao } from "./service/dao/workspace.dao.service";
 import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
 import { FloatingBallService } from "./service/floating-ball.service";
+import { McpServerService } from "./service/mcp-server.service";
 import { SessionService } from "./service/session.service";
 import { SkillService } from "./service/skill.service";
 import { SystemService } from "./service/system.service";
@@ -123,6 +129,7 @@ if (!app.isPackaged && process.platform === "darwin") {
     AiAppViewService,
     FloatingBallService,
     UpdateService,
+    McpServerService,
   ],
   controllers: [
     InitController,
@@ -175,6 +182,11 @@ if (!app.isPackaged && process.platform === "darwin") {
     CheckUpdateController,
     StartDownloadController,
     InstallUpdateController,
+    GetMcpServersController,
+    AddMcpServerController,
+    UpdateMcpServerController,
+    DeleteMcpServerController,
+    ToggleMcpServerController,
   ],
 })
 export class AppModule {
@@ -235,6 +247,12 @@ export class AppModule {
     private checkUpdateController: CheckUpdateController,
     private startDownloadController: StartDownloadController,
     private installUpdateController: InstallUpdateController,
+    private mcpServerService: McpServerService,
+    private getMcpServersController: GetMcpServersController,
+    private addMcpServersController: AddMcpServerController,
+    private updateMcpServersController: UpdateMcpServerController,
+    private deleteMcpServersController: DeleteMcpServerController,
+    private toggleMcpServersController: ToggleMcpServerController,
   ) {
     registerAutomationToolService(this.automationService);
   }
@@ -251,6 +269,7 @@ export class AppModule {
   @On("before-quit")
   async onBeforeQuit() {
     console.log("onBeforeQuit");
+    this.mcpServerService.shutdown();
   }
 
   @On("window-all-closed")

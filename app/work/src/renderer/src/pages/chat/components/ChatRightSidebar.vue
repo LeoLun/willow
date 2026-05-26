@@ -24,12 +24,19 @@ import {
   Save,
   Settings2Icon,
   XCircleIcon,
+  Plus,
+  Pencil,
+  Trash2,
 } from "lucide-vue-next";
+import { storeToRefs } from "pinia";
 import { computed, nextTick, onMounted, onUnmounted, ref, toRef, watch } from "vue";
 import { useWorkspaceFiles } from "@/composables/useWorkspaceFiles";
 import { useWorkspaceSettings } from "@/composables/useWorkspaceSettings";
+import { DeleteMcpServer } from "@/layout/dialog/delete-mcp-server";
+import { McpServerForm } from "@/layout/dialog/mcp-server-form";
 import { electronAPI } from "@/lib/ipc";
 import WorkspaceFileTree from "@/pages/chat/session/components/WorkspaceFileTree.vue";
+import { useMcpStore } from "@/stores/mcp";
 import { useWorkspaceStore } from "@/stores/workspace";
 
 const props = withDefaults(
@@ -78,6 +85,46 @@ const {
   saveMessage,
   saveSettings,
 } = useWorkspaceSettings(toRef(workspaceId));
+
+const mcpStore = useMcpStore();
+const { workspaceServers } = storeToRefs(mcpStore);
+
+watch(
+  workspaceId,
+  (newId) => {
+    if (newId && props.mode === "workspace") {
+      mcpStore.fetchWorkspaceServers(newId);
+    }
+  },
+  { immediate: true },
+);
+
+function handleAddWorkspaceMcp() {
+  openDialog(McpServerForm, {
+    workspaceId: workspaceId.value,
+    onSaved: () => mcpStore.fetchWorkspaceServers(workspaceId.value),
+  });
+}
+
+function handleEditWorkspaceMcp(server: any) {
+  openDialog(McpServerForm, {
+    mcpServer: server,
+    workspaceId: workspaceId.value,
+    onSaved: () => mcpStore.fetchWorkspaceServers(workspaceId.value),
+  });
+}
+
+function handleDeleteWorkspaceMcp(server: any) {
+  openDialog(DeleteMcpServer, {
+    mcpServer: server,
+    workspaceId: workspaceId.value,
+    onDeleted: () => mcpStore.fetchWorkspaceServers(workspaceId.value),
+  });
+}
+
+async function handleToggleWorkspaceMcp(server: any) {
+  await mcpStore.toggleServer(workspaceId.value, server.name, !server.disabled);
+}
 
 const completedCount = computed(
   () => props.todos.filter((todo) => todo.status === "completed").length,
@@ -309,6 +356,79 @@ onUnmounted(() => {
                   <span class="truncate text-right">{{
                     props.workspace?.name || "未命名工作空间"
                   }}</span>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div class="space-y-3">
+              <div class="flex items-center justify-between gap-4">
+                <h4 class="text-xs font-medium text-muted-foreground">MCP 服务 (工作空间)</h4>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  class="h-6 gap-1 px-1.5 text-[10px]"
+                  @click="handleAddWorkspaceMcp"
+                >
+                  <Plus class="size-3" />
+                  添加
+                </Button>
+              </div>
+
+              <div
+                v-if="workspaceServers.length === 0"
+                class="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground"
+              >
+                暂无配置的工作空间 MCP 服务
+              </div>
+
+              <div v-else class="space-y-2">
+                <div
+                  v-for="server in workspaceServers"
+                  :key="server.name"
+                  class="group/item flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2 text-xs transition-colors hover:bg-muted/50"
+                >
+                  <div class="min-w-0 flex-1 space-y-0.5">
+                    <div class="flex items-center gap-1.5">
+                      <span class="truncate font-mono font-medium">{{ server.name }}</span>
+                      <span
+                        class="rounded border bg-background px-1 py-0.5 text-[9px] text-muted-foreground"
+                        >{{ server.type }}</span
+                      >
+                    </div>
+                    <p class="truncate text-[10px] text-muted-foreground">
+                      {{ server.type === "stdio" ? server.command : server.url }}
+                    </p>
+                  </div>
+
+                  <div class="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      class="text-[10px] text-muted-foreground hover:text-foreground"
+                      @click="handleToggleWorkspaceMcp(server)"
+                    >
+                      {{ server.disabled ? "启用" : "禁用" }}
+                    </button>
+                    <div
+                      class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/item:opacity-100"
+                    >
+                      <button
+                        type="button"
+                        class="p-1 text-muted-foreground hover:text-foreground"
+                        @click="handleEditWorkspaceMcp(server)"
+                      >
+                        <Pencil class="size-3" />
+                      </button>
+                      <button
+                        type="button"
+                        class="p-1 text-destructive/80 hover:text-destructive"
+                        @click="handleDeleteWorkspaceMcp(server)"
+                      >
+                        <Trash2 class="size-3" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -82,6 +82,16 @@ import type {
   CheckUpdateResponse,
   StartDownloadResponse,
   InstallUpdateResponse,
+  GetMcpServersRequest,
+  GetMcpServersResponse,
+  AddMcpServerRequest,
+  AddMcpServerResponse,
+  UpdateMcpServerRequest,
+  UpdateMcpServerResponse,
+  DeleteMcpServerRequest,
+  DeleteMcpServerResponse,
+  ToggleMcpServerRequest,
+  ToggleMcpServerResponse,
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
@@ -136,6 +146,11 @@ import {
   CHECK_UPDATE,
   START_DOWNLOAD,
   INSTALL_UPDATE,
+  GET_MCP_SERVERS,
+  ADD_MCP_SERVER,
+  UPDATE_MCP_SERVER,
+  DELETE_MCP_SERVER,
+  TOGGLE_MCP_SERVER,
 } from "../shared/constants";
 
 const ipcObject: IRenderHook = {
@@ -748,6 +763,56 @@ const ipcObject: IRenderHook = {
       throw new Error("install update failed");
     }
     return response.data;
+  },
+  getMcpServers: async (request: GetMcpServersRequest) => {
+    const response = (await ipcRenderer.invoke(
+      GET_MCP_SERVERS,
+      request,
+    )) as ApiResponse<GetMcpServersResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data!;
+  },
+  addMcpServer: async (request: AddMcpServerRequest) => {
+    const response = (await ipcRenderer.invoke(
+      ADD_MCP_SERVER,
+      request,
+    )) as ApiResponse<AddMcpServerResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data!;
+  },
+  updateMcpServer: async (request: UpdateMcpServerRequest) => {
+    const response = (await ipcRenderer.invoke(
+      UPDATE_MCP_SERVER,
+      request,
+    )) as ApiResponse<UpdateMcpServerResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data!;
+  },
+  deleteMcpServer: async (request: DeleteMcpServerRequest) => {
+    const response = (await ipcRenderer.invoke(
+      DELETE_MCP_SERVER,
+      request,
+    )) as ApiResponse<DeleteMcpServerResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data!;
+  },
+  toggleMcpServer: async (request: ToggleMcpServerRequest) => {
+    const response = (await ipcRenderer.invoke(
+      TOGGLE_MCP_SERVER,
+      request,
+    )) as ApiResponse<ToggleMcpServerResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    return response.data!;
   },
 };
 
