@@ -43,6 +43,11 @@ const config = {
         packagedNodeCronPath,
         { force: true, recursive: true },
       );
+
+      // Copy built floating_ball renderer files into package structure
+      const srcFloatingBall = join(process.cwd(), "src/renderer-floating-ball/.vite/renderer/floating_ball");
+      const destFloatingBall = join(buildPath, ".vite/renderer/floating_ball");
+      await cp(srcFloatingBall, destFloatingBall, { force: true, recursive: true });
     },
   },
   makers: [

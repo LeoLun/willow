@@ -6,10 +6,21 @@ export class PropertysExplorer {
     const instancePrototype = Object.getPrototypeOf(instance);
     const methodList: string[] = [];
     const propertyList: string[] = [];
+
+    // Scan prototype for methods
     for (const property of Object.getOwnPropertyNames(instancePrototype)) {
       if (isFunction(instancePrototype[property])) {
         methodList.push(property);
-      } else {
+      }
+    }
+
+    // Scan both prototype and instance for properties to find decorated properties
+    const allPropertyNames = new Set([
+      ...Object.getOwnPropertyNames(instancePrototype),
+      ...Object.getOwnPropertyNames(instance),
+    ]);
+    for (const property of allPropertyNames) {
+      if (!isFunction(instancePrototype[property]) && property !== "constructor") {
         propertyList.push(property);
       }
     }

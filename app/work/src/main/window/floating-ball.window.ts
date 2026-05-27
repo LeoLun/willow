@@ -26,7 +26,7 @@ const option: WindowMetadata = {
 if (FLOATING_BALL_VITE_DEV_SERVER_URL) {
   option.loadURL = FLOATING_BALL_VITE_DEV_SERVER_URL;
 } else {
-  option.loadFile = join(__dirname, `../renderer/${FLOATING_BALL_VITE_NAME}/index.html`);
+  option.loadFile = join(__dirname, `../renderer/floating_ball/index.html`);
 }
 
 @Window(option)

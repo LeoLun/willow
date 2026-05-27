@@ -21,6 +21,19 @@ export class FloatingBallService {
     } catch {
       // Ignored if file doesn't exist
     }
+    if (this.config.x < 0 || this.config.y < 0) {
+      try {
+        const { screen } = require("electron");
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const workArea = primaryDisplay.workArea;
+        // Default size of floating ball is 80x80. Place it in the bottom right corner.
+        this.config.x = Math.round(workArea.x + workArea.width - 80 - 40); // 40px margin from right
+        this.config.y = Math.round(workArea.y + workArea.height - 80 - 100); // 100px margin from bottom
+        await this.save();
+      } catch (e) {
+        console.error("Failed to calculate default position for floating ball", e);
+      }
+    }
     if (this.config.enabled) {
       this.spawnWindow();
     }
