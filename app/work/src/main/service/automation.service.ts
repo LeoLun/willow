@@ -511,7 +511,8 @@ export class AutomationService {
       return null;
     }
 
-    if (!this.configService.getModelByModelId(normalized)) {
+    const baseModelId = normalized.includes(":") ? normalized.split(":")[0] : normalized;
+    if (!this.configService.getModelByModelId(baseModelId)) {
       throw new Error("model not found");
     }
 

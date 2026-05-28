@@ -396,43 +396,6 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
-
-            <div v-if="props.todos.length > 0" class="space-y-2">
-              <Separator />
-              <h4 class="text-xs font-medium text-muted-foreground">
-                任务进度 ({{ completedCount }}/{{ totalCount }})
-              </h4>
-              <div class="space-y-2 rounded-lg bg-muted/50 p-3">
-                <div class="flex items-center justify-between text-xs">
-                  <span class="text-muted-foreground">完成进度</span>
-                  <span class="font-medium">{{ Math.round(progress) }}%</span>
-                </div>
-                <Progress :model-value="progress" class="h-2" />
-              </div>
-
-              <div class="space-y-1">
-                <div
-                  v-for="todo in props.todos"
-                  :key="todo.id"
-                  class="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent/60"
-                >
-                  <component
-                    :is="statusConfig[todo.status].icon"
-                    class="mt-0.5 size-4 shrink-0"
-                    :class="statusConfig[todo.status].className"
-                  />
-                  <span
-                    :class="{
-                      'text-muted-foreground line-through':
-                        todo.status === 'completed' || todo.status === 'cancelled',
-                      'font-medium': todo.status === 'in_progress',
-                    }"
-                  >
-                    {{ todo.content }}
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
         </ScrollArea>
 

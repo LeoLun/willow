@@ -200,9 +200,17 @@ export class AgentService {
     workspaceAgentsContext?: string,
   ): Promise<WillowCoreAgent> {
     let dbModel: ModelConfig | undefined;
+    let targetThinkingLevel: string | undefined;
 
-    if (modelId) {
-      dbModel = this.configService.getModelByModelId(modelId) ?? undefined;
+    let resolvedModelId = modelId;
+    if (resolvedModelId && resolvedModelId.includes(":")) {
+      const parts = resolvedModelId.split(":");
+      resolvedModelId = parts[0];
+      targetThinkingLevel = parts[1];
+    }
+
+    if (resolvedModelId) {
+      dbModel = this.configService.getModelByModelId(resolvedModelId) ?? undefined;
     }
     if (!dbModel) {
       dbModel = this.configService.getDefaultModel() ?? undefined;
@@ -242,7 +250,9 @@ export class AgentService {
       getApiKey: () => apiKey,
     });
     agent.state.model = resolvedModel as any;
-    if (resolvedModel.reasoning) {
+    if (targetThinkingLevel) {
+      agent.state.thinkingLevel = targetThinkingLevel as any;
+    } else if (resolvedModel.reasoning) {
       agent.state.thinkingLevel = "high";
     }
 

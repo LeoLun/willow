@@ -8,6 +8,7 @@ import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { toast } from "vue-sonner";
 import MainTitle from "@/components/base/MainTitle.vue";
+import TodoProgress from "@/components/base/TodoProgress.vue";
 import { useAgentMessages } from "@/composables/useAgentMessages";
 import { useDragResize } from "@/composables/useDragResize";
 import { useTodoProgress } from "@/composables/useTodoProgress";
@@ -331,6 +332,7 @@ watch(
         </div>
 
         <div class="relative w-full max-w-3xl min-w-0 pr-3">
+          <TodoProgress v-if="todos.length > 0" :todos="todos" class="mb-2" />
           <AskUserPanel
             v-if="pendingAskUser"
             :approval="pendingAskUser"

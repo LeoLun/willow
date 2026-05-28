@@ -127,15 +127,19 @@ const isResourcePanelVisible = computed(
     triggerManager.activeTriggerChar.value === RESOURCE_TRIGGER,
 );
 
+function getBaseModelId(modelId: string): string {
+  return modelId.includes(":") ? modelId.split(":")[0] : modelId;
+}
+
 const hasModels = computed(() => props.models.length > 0);
-const defaultModel = computed(
-  () => props.models.find((model) => model.modelId === props.defaultModelId) ?? null,
-);
-const selectedModel = computed(
-  () =>
-    props.models.find((model) => model.modelId === localSelectedModelId.value) ??
-    defaultModel.value,
-);
+const defaultModel = computed(() => {
+  const baseId = getBaseModelId(props.defaultModelId);
+  return props.models.find((model) => model.modelId === baseId) ?? null;
+});
+const selectedModel = computed(() => {
+  const baseId = getBaseModelId(localSelectedModelId.value);
+  return props.models.find((model) => model.modelId === baseId) ?? defaultModel.value;
+});
 const selectedBuiltinCommand = computed(
   () =>
     props.builtinCommands.find((command) => editorBuiltinCommandIds.value.has(command.id)) ?? null,
@@ -143,8 +147,18 @@ const selectedBuiltinCommand = computed(
 const contextWindow = computed(() => selectedModel.value?.contextWindow ?? 0);
 const selectedModelName = computed(() => {
   if (!hasModels.value) return "未配置模型";
-  const found = props.models.find((model) => model.modelId === localSelectedModelId.value);
-  return found?.name || localSelectedModelId.value || "选择模型";
+  const [baseId, level] = localSelectedModelId.value.split(":");
+  const found = props.models.find((model) => model.modelId === baseId);
+  if (!found) return localSelectedModelId.value || "选择模型";
+  if (level) {
+    const levelLabels: Record<string, string> = {
+      low: "Low",
+      medium: "Medium",
+      high: "High",
+    };
+    return `${found.name} (${levelLabels[level] || level})`;
+  }
+  return found.name;
 });
 const shouldShowUsage = computed(
   () => hasModels.value && contextWindow.value > 0 && props.showUsage,
@@ -162,11 +176,43 @@ const canSend = computed(
     editorWorkspaceAgentKeys.value.size > 0,
 );
 
+function addReasoningSuffixIfNeeded(modelId: string): string {
+  if (!modelId) return modelId;
+  if (modelId.includes(":")) return modelId;
+  const baseId = getBaseModelId(modelId);
+  const found = props.models.find((m) => m.modelId === baseId);
+  if (found?.reasoning) {
+    return `${baseId}:medium`;
+  }
+  return modelId;
+}
+
+function getInitialModelId(): string {
+  const lastSelected = localStorage.getItem("willow:last_selected_model_id");
+  if (lastSelected) {
+    const baseId = getBaseModelId(lastSelected);
+    if (props.models.some((m) => m.modelId === baseId)) {
+      return addReasoningSuffixIfNeeded(lastSelected);
+    }
+  }
+  return addReasoningSuffixIfNeeded(props.selectedModelId || props.defaultModelId);
+}
+
+watch(
+  () => props.models,
+  (newModels) => {
+    if (newModels.length > 0 && localSelectedModelId.value) {
+      localSelectedModelId.value = addReasoningSuffixIfNeeded(localSelectedModelId.value);
+    }
+  },
+  { immediate: true },
+);
+
 watch(
   () => props.defaultModelId,
   (modelId) => {
     if (modelId && !localSelectedModelId.value) {
-      localSelectedModelId.value = modelId;
+      localSelectedModelId.value = getInitialModelId();
     }
   },
   { immediate: true },
@@ -176,12 +222,12 @@ watch(
   () => props.selectedModelId,
   (modelId) => {
     if (modelId) {
-      localSelectedModelId.value = modelId;
+      localSelectedModelId.value = addReasoningSuffixIfNeeded(modelId);
       return;
     }
 
-    if (!localSelectedModelId.value && props.defaultModelId) {
-      localSelectedModelId.value = props.defaultModelId;
+    if (!localSelectedModelId.value) {
+      localSelectedModelId.value = getInitialModelId();
     }
   },
   { immediate: true },
@@ -387,6 +433,7 @@ function showModelTip() {
 
 function handleModelSelect(modelId: string) {
   localSelectedModelId.value = modelId;
+  localStorage.setItem("willow:last_selected_model_id", modelId);
   emit("update:selectedModelId", modelId);
 }
 
@@ -661,24 +708,43 @@ onUnmounted(() => {
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
             <Button variant="ghost" class="rounded-full text-xs">
-              <span class="max-w-[120px]">{{ selectedModelName }}</span>
-              <ChevronsUpDownIcon class="size-3" />
+              <span class="max-w-[180px] truncate">{{ selectedModelName }}</span>
+              <ChevronsUpDownIcon class="size-3 shrink-0" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" class="[--radius:0.95rem]">
             <template v-if="hasModels">
-              <DropdownMenuItem
-                v-for="model in models"
-                :key="model.modelId"
-                class="gap-2"
-                @click="handleModelSelect(model.modelId)"
-              >
-                <CheckIcon
-                  class="size-3"
-                  :class="localSelectedModelId === model.modelId ? 'opacity-100' : 'opacity-0'"
-                />
-                <span>{{ model.name }}</span>
-              </DropdownMenuItem>
+              <template v-for="model in models" :key="model.modelId">
+                <template v-if="model.reasoning">
+                  <DropdownMenuItem
+                    v-for="level in ['high', 'medium', 'low']"
+                    :key="model.modelId + ':' + level"
+                    class="gap-2"
+                    @click="handleModelSelect(model.modelId + ':' + level)"
+                  >
+                    <CheckIcon
+                      class="size-3"
+                      :class="
+                        localSelectedModelId === model.modelId + ':' + level
+                          ? 'opacity-100'
+                          : 'opacity-0'
+                      "
+                    />
+                    <span
+                      >{{ model.name }} ({{ level.charAt(0).toUpperCase() + level.slice(1) }})</span
+                    >
+                  </DropdownMenuItem>
+                </template>
+                <template v-else>
+                  <DropdownMenuItem class="gap-2" @click="handleModelSelect(model.modelId)">
+                    <CheckIcon
+                      class="size-3"
+                      :class="localSelectedModelId === model.modelId ? 'opacity-100' : 'opacity-0'"
+                    />
+                    <span>{{ model.name }}</span>
+                  </DropdownMenuItem>
+                </template>
+              </template>
               <DropdownMenuSeparator />
             </template>
             <template v-else>
