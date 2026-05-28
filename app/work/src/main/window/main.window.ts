@@ -1,11 +1,31 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "path";
 import { Window, WindowInstance, OnInit, On, OnDestroy, WindowMetadata } from "@willow/poetry";
 import { app, BrowserWindow } from "electron";
 
+const windowStatePath = join(app.getPath("userData"), "window-state.json");
+let savedBounds: {
+  width?: number;
+  height?: number;
+  x?: number;
+  y?: number;
+  isMaximized?: boolean;
+} = {};
+try {
+  if (existsSync(windowStatePath)) {
+    savedBounds = JSON.parse(readFileSync(windowStatePath, "utf-8"));
+  }
+} catch (e) {
+  console.error("Failed to load window state:", e);
+}
+
 const option: WindowMetadata = {
   options: {
-    height: 800,
-    width: 1200,
+    height: savedBounds.height || 800,
+    width: savedBounds.width || 1200,
+    ...(savedBounds.x !== undefined && savedBounds.y !== undefined
+      ? { x: savedBounds.x, y: savedBounds.y }
+      : {}),
     titleBarStyle: "hiddenInset",
     trafficLightPosition: {
       x: 10,
@@ -34,6 +54,7 @@ export class MainWindow implements OnInit, OnDestroy {
   public win!: BrowserWindow;
 
   private isQuitting = false;
+  private saveStateTimeout: NodeJS.Timeout | null = null;
 
   private readonly markQuitting = () => {
     this.isQuitting = true;
@@ -43,11 +64,63 @@ export class MainWindow implements OnInit, OnDestroy {
     console.log("OnInit");
     console.log("win", this.win);
     app.on("before-quit", this.markQuitting);
+
+    if (savedBounds.isMaximized && this.win) {
+      this.win.maximize();
+    }
   }
 
   onDestroy() {
     console.log("onDestroy");
     app.off("before-quit", this.markQuitting);
+    if (this.saveStateTimeout) {
+      clearTimeout(this.saveStateTimeout);
+    }
+  }
+
+  private saveState() {
+    if (this.saveStateTimeout) {
+      clearTimeout(this.saveStateTimeout);
+    }
+    this.saveStateTimeout = setTimeout(() => {
+      if (this.win && !this.win.isDestroyed()) {
+        try {
+          const isMaximized = this.win.isMaximized();
+          const state: any = { isMaximized };
+          if (!isMaximized) {
+            const bounds = this.win.getBounds();
+            state.x = bounds.x;
+            state.y = bounds.y;
+            state.width = bounds.width;
+            state.height = bounds.height;
+          } else {
+            let existing: any = {};
+            try {
+              if (existsSync(windowStatePath)) {
+                existing = JSON.parse(readFileSync(windowStatePath, "utf-8"));
+              }
+            } catch {}
+            state.x = existing.x;
+            state.y = existing.y;
+            state.width = existing.width;
+            state.height = existing.height;
+          }
+          writeFileSync(windowStatePath, JSON.stringify(state), "utf-8");
+        } catch (e) {
+          console.error("Failed to save window state:", e);
+        }
+      }
+    }, 500);
+  }
+
+  @On("resize")
+  onResize() {
+    this.saveState();
+  }
+
+  @On("move")
+  onMove() {
+    this.saveState();
   }
 
   @On("close")
