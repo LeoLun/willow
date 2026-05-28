@@ -5,7 +5,7 @@ Willow is a desktop workbench application built with Electron and Vue 3. It util
 ## Project Overview
 
 - **Purpose**: A desktop workbench designed for focused task execution and AI collaboration.
-- **Architecture**: 
+- **Architecture**:
   - **Monorepo**: Managed with `pnpm`.
   - **Core Framework**: Custom decorator-based DI and module system (`@willow/poetry`) used in the Electron main process.
   - **Main Application**: `app/work` (Electron + Vue 3).
@@ -18,6 +18,7 @@ Willow is a desktop workbench application built with Electron and Vue 3. It util
 ## Building and Running
 
 ### Root Commands
+
 - `pnpm dev`: Starts the main Electron application (`app/work`).
 - `pnpm dev:ui`: Starts the UI Playground (`app/ui-playground`).
 - `pnpm build`: Builds all packages and applications.
@@ -25,6 +26,7 @@ Willow is a desktop workbench application built with Electron and Vue 3. It util
 - `pnpm format`: Runs `oxfmt` to format the code.
 
 ### Main App (`app/work`) Commands
+
 - `pnpm run db:generate`: Generates Drizzle migrations.
 - `pnpm run db:push`: Pushes schema changes to the SQLite database.
 - `pnpm run rebuild:native`: Rebuilds native modules (e.g., `better-sqlite3`) for Electron.
@@ -50,12 +52,13 @@ Willow follows a strict AI-driven development process defined in `docs/ai-workfl
 - **Code Style**:
   - Vue: Use Composition API with `<script setup lang="ts">`.
   - Main Process: Adhere to the Controller/Service/Module pattern provided by `@willow/poetry`.
-- **Naming**: 
+- **Naming**:
   - OpenSpec changes: `kebab-case`.
   - Workflow documents: `YYYY-MM-DD-<topic>.md`.
 - **Testing**: Verification results must be recorded during the `workflow-implement` phase.
 
 ## Key Files
+
 - `DESIGN.md`: Visual and UI/UX guidelines.
 - `docs/ai-workflows/conventions.md`: Detailed development and workflow rules.
 - `app/work/package.json`: Main application dependencies and scripts.
