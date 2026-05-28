@@ -36,9 +36,9 @@ const activeRouteParams = ref({ ...route.params });
 const activeRouteQuery = ref({ ...route.query });
 
 watch(
-  () => route.path,
-  (newPath) => {
-    if (!newPath.startsWith("/setting")) {
+  () => route.fullPath,
+  () => {
+    if (!route.path.startsWith("/setting")) {
       activeRouteName.value = route.name;
       activeRouteParams.value = { ...route.params };
       activeRouteQuery.value = { ...route.query };

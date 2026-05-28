@@ -69,16 +69,25 @@ const sidebarStyle = computed(() => ({
     : "0px",
 }));
 const workspaceId = computed(() => props.workspace?.id ?? props.session?.workspaceId ?? 0);
-const activeTab = ref<"primary" | "files" | "app">(
-  props.mode === "workspace" ? "primary" : "primary",
+const stableWorkspaceId = ref(workspaceId.value);
+watch(
+  workspaceId,
+  (newId) => {
+    if (newId && newId !== 0) {
+      stableWorkspaceId.value = newId;
+    }
+  },
+  { immediate: true },
 );
+
+const activeTab = ref<"files" | "app">("files");
 const {
   files,
   rootPath,
   isLoading: isFilesLoading,
   errorMessage: filesErrorMessage,
   refresh: refreshFiles,
-} = useWorkspaceFiles(workspaceId);
+} = useWorkspaceFiles(stableWorkspaceId);
 const {
   workspacePath,
   soulContent,
@@ -86,13 +95,13 @@ const {
   errorMessage: settingsErrorMessage,
   saveMessage,
   saveSettings,
-} = useWorkspaceSettings(toRef(workspaceId));
+} = useWorkspaceSettings(stableWorkspaceId);
 
 const mcpStore = useMcpStore();
 const { workspaceServers } = storeToRefs(mcpStore);
 
 watch(
-  workspaceId,
+  stableWorkspaceId,
   (newId) => {
     if (newId && props.mode === "workspace") {
       mcpStore.fetchWorkspaceServers(newId);
@@ -112,27 +121,7 @@ const progress = computed(() => {
   }
   return (completedCount.value / totalCount.value) * 100;
 });
-const formattedCreatedAt = computed(() => {
-  if (!props.session?.createdAt) {
-    return "--";
-  }
-  return new Intl.DateTimeFormat("zh-CN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(props.session.createdAt));
-});
-const formattedUpdatedAt = computed(() => {
-  if (!props.session?.lastActiveAt) {
-    return "--";
-  }
-  return new Intl.DateTimeFormat("zh-CN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(props.session.lastActiveAt));
-});
 const totalFileCount = computed(() => countFiles(files.value));
-const primaryTabLabel = computed(() => (props.mode === "workspace" ? "设置" : "概要"));
-const primaryTabIcon = computed(() => (props.mode === "workspace" ? Settings2Icon : InfoIcon));
 
 const statusConfig = {
   completed: { icon: CheckCircle2Icon, className: "text-emerald-500" },
@@ -144,7 +133,7 @@ const statusConfig = {
 watch(
   () => props.mode,
   () => {
-    activeTab.value = "primary";
+    activeTab.value = "files";
   },
 );
 
@@ -268,10 +257,24 @@ provide("selectFile", (path: string, name: string) => {
   selectedFileName.value = name;
 });
 
-watch([workspaceId, activeTab], () => {
+watch([stableWorkspaceId, activeTab], () => {
   selectedFilePath.value = null;
   selectedFileName.value = null;
 });
+
+const isAppLoading = ref(false);
+async function refreshApp() {
+  if (!workspacePath.value) return;
+  try {
+    isAppLoading.value = true;
+    await electronAPI.loadAiApp({ workspaceRoot: workspacePath.value });
+    sendBounds();
+  } catch (err) {
+    console.error("Failed to reload AI app", err);
+  } finally {
+    isAppLoading.value = false;
+  }
+}
 
 onUnmounted(() => {
   resizeObserver?.disconnect();
@@ -300,15 +303,6 @@ onUnmounted(() => {
         <div class="drag-region flex items-center border-b border-sidebar-border px-3 py-2">
           <NavigationMenu orientation="horizontal" class="no-drag-region w-fit">
             <NavigationMenuList class="flex-wrap justify-start">
-              <NavigationMenuItem>
-                <NavigationMenuLink as-child :active="activeTab === 'primary'">
-                  <button type="button" class="h-8" @click="activeTab = 'primary'">
-                    <component :is="primaryTabIcon" class="size-3.5" />
-                    {{ primaryTabLabel }}
-                  </button>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-
               <NavigationMenuItem>
                 <NavigationMenuLink as-child :active="activeTab === 'files'">
                   <button type="button" class="h-8" @click="activeTab = 'files'">
@@ -346,6 +340,13 @@ onUnmounted(() => {
                   <button type="button" class="h-8" @click="activeTab = 'app'">
                     <FileText class="size-3.5" />
                     应用
+                    <span
+                      class="group/refresh relative ml-1 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      title="刷新应用"
+                      @click.stop="refreshApp"
+                    >
+                      <RotateCw class="size-3" :class="{ 'animate-spin': isAppLoading }" />
+                    </span>
                   </button>
                 </NavigationMenuLink>
               </NavigationMenuItem>
@@ -353,54 +354,8 @@ onUnmounted(() => {
           </NavigationMenu>
         </div>
 
-        <ScrollArea v-if="activeTab === 'primary'" class="min-h-0 flex-1">
-          <div v-if="props.mode === 'workspace'" class="space-y-6 p-4">
-            <div class="space-y-2">
-              <h4 class="text-xs font-medium text-muted-foreground">工作空间信息</h4>
-              <div class="space-y-1.5 rounded-lg bg-muted/50 p-3 text-sm">
-                <div class="flex justify-between gap-3">
-                  <span class="text-muted-foreground">名称</span>
-                  <span class="truncate text-right">{{
-                    props.workspace?.name || "未命名工作空间"
-                  }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="space-y-4 p-3">
-            <div class="space-y-2">
-              <h4 class="text-xs font-medium text-muted-foreground">会话信息</h4>
-              <div class="space-y-1.5 rounded-lg bg-muted/50 p-3 text-sm">
-                <div class="flex justify-between gap-3">
-                  <span class="text-muted-foreground">标题</span>
-                  <span class="truncate text-right">{{
-                    props.session?.title || "未命名会话"
-                  }}</span>
-                </div>
-                <div class="flex justify-between gap-3">
-                  <span class="text-muted-foreground">创建时间</span>
-                  <span class="text-right">{{ formattedCreatedAt }}</span>
-                </div>
-                <div class="flex justify-between gap-3">
-                  <span class="text-muted-foreground">最近活跃</span>
-                  <span class="text-right">{{ formattedUpdatedAt }}</span>
-                </div>
-                <div class="flex justify-between gap-3">
-                  <span class="text-muted-foreground">消息数量</span>
-                  <span class="text-right">{{ props.messageCount }} 条</span>
-                </div>
-                <div class="flex justify-between gap-3">
-                  <span class="text-muted-foreground">工作空间</span>
-                  <span class="truncate text-right">{{ props.workspace?.name || "--" }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ScrollArea>
-
         <div
-          v-else-if="activeTab === 'files'"
+          v-if="activeTab === 'files'"
           class="flex min-h-0 w-full flex-1 divide-x divide-sidebar-border"
         >
           <div class="flex h-full w-[200px] flex-shrink-0 flex-col border-r border-sidebar-border">
@@ -444,14 +399,14 @@ onUnmounted(() => {
                 当前工作空间没有可展示的文件
               </div>
               <ScrollArea class="min-h-0 flex-1" v-else>
-                <WorkspaceFileTree :items="files" :workspace-id="workspaceId" />
+                <WorkspaceFileTree :items="files" :workspace-id="stableWorkspaceId" />
               </ScrollArea>
             </div>
           </div>
 
           <div class="h-full min-h-0 min-w-0 flex-1 bg-background">
             <InlineFileViewer
-              :workspace-id="workspaceId"
+              :workspace-id="stableWorkspaceId"
               :file-path="selectedFilePath"
               :file-name="selectedFileName"
             />
