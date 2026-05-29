@@ -1,87 +1,14 @@
-# willow
+# Willow Work
 
-本项目已将 OpenSpec 与 Superpowers 合并为项目内统一的 `workflow-*` 工作流。后续所有 AI 协作都应遵循这套流程。
+Willow Work 是一款专为高效任务执行与 AI 协作设计的桌面工作台（Desktop Workbench）应用。它通过深度融合 OpenSpec 研发流程，提供极简、冷静、专注的工具化使用体验。
 
-## 核心原则
+## 核心功能
 
-- `docs/ai-workflows/openspec/*.md` 与 `docs/ai-workflows/openspec/changes/*/*.md` 是唯一需求真相源。
-- 已完成的历史变更归档在 `docs/ai-workflows/openspec/archive/`，用于追溯，不作为活跃 change 继续推进。
-- `workflow-*` 负责推进流程，不替代 OpenSpec 产物。
-- 新增流程文档统一写入 `docs/ai-workflows/`。
-- 仓库根目录的 `openspec/` 只是兼容 OpenSpec CLI 的符号链接，真实文件位于 `docs/ai-workflows/openspec/`。
-
-## 标准工作流
-
-| 阶段 | 工作流               | 用途                               | 主要输出                                         |
-| ---- | -------------------- | ---------------------------------- | ------------------------------------------------ |
-| 1    | `workflow-spec`      | 澄清需求、生成或续写 OpenSpec 变更 | `docs/ai-workflows/openspec/changes/<change>/`   |
-| 2    | `workflow-worktree`  | 建立隔离开发环境并确认基线         | worktree 路径、基线验证                          |
-| 3    | `workflow-plan`      | 将 OpenSpec 任务拆成可执行计划     | `docs/ai-workflows/plans/YYYY-MM-DD-<change>.md` |
-| 4    | `workflow-implement` | 按计划和 OpenSpec 执行实现与验证   | 代码改动、任务进度、验证结果                     |
-| 5    | `workflow-close`     | 最终审查、交付、归档               | 最终验证、风险说明、归档状态                     |
-
-完整文档见 [docs/ai-workflows/README.md](./docs/ai-workflows/README.md)。
-
-## 推荐使用方式
-
-### 新需求
-
-```text
-请使用 workflow-spec，为“<需求名称>”创建或继续一个 OpenSpec change，
-补齐 proposal、specs、design、tasks，并告诉我下一步该进入哪个阶段。
-```
-
-### 准备实现
-
-```text
-请使用 workflow-worktree，为 <change-name> 准备独立 worktree，
-确认基线是否干净。
-```
-
-```text
-请使用 workflow-plan，基于 <change-name> 的 OpenSpec 任务，
-输出一个可直接执行的计划到 docs/ai-workflows/plans/。
-```
-
-### 实现与收尾
-
-```text
-请使用 workflow-implement，按 docs/ai-workflows/plans/<date>-<change>.md 执行下一步实现，
-每步后给出验证结果。
-```
-
-```text
-请使用 workflow-close，为 <change-name> 做最终检查；
-如果实现与 OpenSpec 一致，就给出归档与合并建议。
-```
-
-## 目录约定
-
-- OpenSpec 真相源：`docs/ai-workflows/openspec/`
-- OpenSpec 兼容入口：`openspec/` -> `docs/ai-workflows/openspec/`
-- 工作流文档：`docs/ai-workflows/`
-- 阶段说明：`docs/ai-workflows/workflow-*.md`
-- 执行计划：`docs/ai-workflows/plans/`
-
-## 已废弃入口
-
-以下旧入口不再作为项目标准工作流使用：
-
-- `openspec-new-change`
-- `openspec-propose`
-- `openspec-continue-change`
-- `openspec-ff-change`
-- `openspec-apply-change`
-- `openspec-archive-change`
-- `superpowers` 工作流类技能名
-
-## 典型闭环
-
-1. 用 `workflow-spec` 把需求固化到 OpenSpec。
-2. 用 `workflow-worktree` 准备隔离环境。
-3. 用 `workflow-plan` 把 `tasks.md` 拆成执行计划。
-4. 用 `workflow-implement` 逐步实现并验证。
-5. 用 `workflow-close` 做最终检查与归档。
+- **AI 协同研发工作流**：内置基于 OpenSpec 规范的 `workflow-*` 标准研发周期管理，包含需求澄清（`workflow-spec`）、建库隔离（`workflow-worktree`）、任务拆解（`workflow-plan`）、开发执行（`workflow-implement`）与收尾归档（`workflow-close`）一键化协作工具。
+- **智能对话与上下文压缩**：支持高可读性的多轮对话记录，提供基于 Token 自动优化的上下文压缩（Context Compression）功能，极大减少大模型推理成本并提升长文本记忆精度。
+- **任务循环与自动化流**：直观展示 Agent 执行的思考链路（ThinkingBlock）和工具调用（ToolCallCard），支持长任务循环的可视化折叠、操作权限主动询问（AskUserPanel）等交互。
+- **工程化辅助与技能热重载**：支持 workspace 工作区一键初始化，以及 Agent 自定义技能的动态热重载（Hot Reload Skills），可在 UI 界面中直接调试、更新 Agent 执行逻辑。
+- **桌面级工作台 UI**：基于 Electron + Vue 3 + Tailwind CSS v4 与 `@willow/shadcn` 深度定制，支持暗色模式，高信息密度，专为桌面业务生产力设计。
 
 ## macOS 安装包“已损坏”解决方法
 
