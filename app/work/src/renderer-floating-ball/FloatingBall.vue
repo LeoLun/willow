@@ -459,14 +459,14 @@ function getFriendlyToolName(name: string): string {
     class="floating-ball-container dark flex h-screen w-screen flex-col-reverse overflow-hidden bg-transparent select-none"
     :class="[
       isLeftExpand ? 'items-start' : 'items-end',
-      pendingAskUser || pendingApproval ? 'p-[12px]' : 'p-[15px]',
+      pendingAskUser || pendingApproval ? 'p-[3.5px]' : 'p-[3.5px]',
     ]"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
   >
     <!-- The Ball -->
     <div
-      class="no-drag-region flex h-[50px] w-[50px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-neutral-200/80 bg-white text-neutral-800 shadow-[0_3px_12px_rgba(0,0,0,0.08)] transition-all active:scale-95"
+      class="no-drag-region flex h-[43px] w-[43px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-neutral-200/80 bg-white text-neutral-800 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all active:scale-95"
       @pointerdown="onPointerDown"
       @contextmenu="onContextMenu"
       @click.left="onClick"

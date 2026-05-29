@@ -4,8 +4,8 @@ import { app, BrowserWindow } from "electron";
 
 const option: WindowMetadata = {
   options: {
-    height: 80,
-    width: 80,
+    height: 50,
+    width: 50,
     frame: false,
     transparent: true,
     backgroundColor: "#00000000",
