@@ -74,7 +74,10 @@ async function loadFileContent() {
         domReadOnly: true,
         automaticLayout: true,
         minimap: { enabled: false },
-        wordWrap: "off",
+        wordWrap: "on",
+        scrollbar: {
+          horizontal: "hidden",
+        },
         fontSize: 13,
         fontFamily: 'Consolas, "Liberation Mono", Menlo, Courier, monospace',
         lineNumbers: "on",
