@@ -466,12 +466,12 @@ function getFriendlyToolName(name: string): string {
   >
     <!-- The Ball -->
     <div
-      class="no-drag-region flex h-[50px] w-[50px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/90 shadow-lg transition-all hover:scale-105 active:scale-95"
+      class="no-drag-region flex h-[50px] w-[50px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-neutral-200/80 bg-white text-neutral-800 shadow-[0_3px_12px_rgba(0,0,0,0.08)] transition-all active:scale-95"
       @pointerdown="onPointerDown"
       @contextmenu="onContextMenu"
       @click.left="onClick"
     >
-      <BallStreaming :streaming="isStreaming" />
+      <BallStreaming :streaming="isStreaming" :hovered="isHovered" />
     </div>
 
     <!-- The LUI Card -->

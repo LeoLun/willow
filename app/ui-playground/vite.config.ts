@@ -37,7 +37,7 @@ export default defineConfig({
       "@willow/shadcn": resolve(__dirname, "../../packages/shadcn/src"),
       "@willow/sender": resolve(__dirname, "../../packages/sender/src"),
       "@willow/ui": resolve(__dirname, "../../packages/ui/src"),
-      "@": resolve(__dirname, "src"),
+      "@": resolve(__dirname, "../work/src/renderer/src"),
     },
   },
 });
