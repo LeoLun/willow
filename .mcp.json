@@ -3,6 +3,11 @@
     "shadcnVue": {
       "command": "npx",
       "args": ["shadcn-vue@latest", "mcp"]
+    },
+    "codegraph": {
+      "type": "stdio",
+      "command": "codegraph",
+      "args": ["serve", "--mcp"]
     }
   }
 }
