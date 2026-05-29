@@ -4,7 +4,7 @@ packages:
 
 catalog:
   reflect-metadata: ^0.1.13
-  electron: ^33.2.1
+  electron: 39.1.0
   tsyringe: ^4.10.0
   "@typescript/native-preview": 7.0.0-dev.20260325.1
   inversify: ^6.2.1

@@ -24,7 +24,7 @@
     "lint": "oxlint src/",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "rebuild:native": "env HOME=$PWD/../.. electron-rebuild --force --which-module better-sqlite3 --module-dir ../.. --dist-url=https://npmmirror.com/mirrors/electron",
+    "rebuild:native": "env HOME=$PWD/../.. electron-rebuild --force --which-module better-sqlite3 --module-dir ../.. --dist-url=https://electronjs.org/headers",
     "postinstall": "pnpm run rebuild:native"
   },
   "dependencies": {

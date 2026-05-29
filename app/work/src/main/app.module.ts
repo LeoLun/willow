@@ -95,7 +95,7 @@ if (started) {
   app.quit();
 }
 
-if (!app.isPackaged && process.platform === "darwin") {
+if (!app.isPackaged && process.platform === "darwin" && app.dock) {
   app.dock.setIcon(join(__dirname, "../../assets/icons/icon.png"));
 }
 @Module({
