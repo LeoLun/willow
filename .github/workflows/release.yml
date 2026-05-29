@@ -61,7 +61,7 @@ jobs:
 
       - name: Extract app.asar for incremental update
         run: |
-          cp app/work/out/*-darwin-arm64/Willow\ Work.app/Contents/Resources/app.asar app/work/out/app.asar || cp app/work/out/*-darwin-x64/Willow\ Work.app/Contents/Resources/app.asar app/work/out/app.asar
+          cp "app/work/out/Willow Work-darwin-arm64/Willow Work.app/Contents/Resources/app.asar" app/work/out/app.asar || cp "app/work/out/Willow Work-darwin-x64/Willow Work.app/Contents/Resources/app.asar" app/work/out/app.asar
           ls -la app/work/out/app.asar
 
       - name: Check output files
