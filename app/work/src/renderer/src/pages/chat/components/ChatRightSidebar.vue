@@ -206,6 +206,12 @@ async function sendBoundsAfterLayout() {
 }
 
 async function showApp() {
+  console.log(
+    "ChatRightSidebar showApp called, shouldShowApp:",
+    shouldShowApp.value,
+    "workspacePath:",
+    workspacePath.value,
+  );
   if (!workspacePath.value) return;
   if (!shouldShowApp.value) return;
   await nextTick();
@@ -215,20 +221,24 @@ async function showApp() {
   }
   await electronAPI.loadAiApp({ workspaceRoot: workspacePath.value });
   if (!shouldShowApp.value) {
+    console.log("ChatRightSidebar showApp: cancelled after loadAiApp");
     await electronAPI.closeAiApp();
     return;
   }
   // 等待 sidebar transition (300ms) 完成后再发送 bounds
   await new Promise((resolve) => setTimeout(resolve, 350));
   if (!shouldShowApp.value) {
+    console.log("ChatRightSidebar showApp: cancelled after delay");
     await electronAPI.closeAiApp();
     return;
   }
   sendBounds();
   isAppVisible.value = true;
+  console.log("ChatRightSidebar showApp: visible set to true");
 }
 
 async function hideApp() {
+  console.log("ChatRightSidebar hideApp called");
   resizeObserver?.disconnect();
   await electronAPI.closeAiApp();
   isAppVisible.value = false;
@@ -236,18 +246,35 @@ async function hideApp() {
 }
 
 onMounted(() => {
+  console.log(
+    "ChatRightSidebar mounted, shouldShowApp:",
+    shouldShowApp.value,
+    "isSettingsOpen:",
+    isSettingsOpen.value,
+    "isDialogOpen:",
+    isDialogOpen.value,
+    "props.open:",
+    props.open,
+    "activeTab:",
+    activeTab.value,
+  );
   resizeObserver = new ResizeObserver(() => {
     sendBounds();
   });
 });
 
-watch(shouldShowApp, async (shouldShow) => {
-  if (shouldShow) {
-    await showApp();
-  } else {
-    await hideApp();
-  }
-});
+watch(
+  shouldShowApp,
+  async (shouldShow) => {
+    console.log("ChatRightSidebar shouldShowApp watcher fired, shouldShow:", shouldShow);
+    if (shouldShow) {
+      await showApp();
+    } else {
+      await hideApp();
+    }
+  },
+  { immediate: true },
+);
 
 // 切换工作空间时，主进程根据 rootChanged 自动决定是否重新加载
 watch(workspacePath, async (newPath, oldPath) => {
@@ -295,10 +322,9 @@ async function refreshApp() {
 }
 
 onUnmounted(() => {
+  console.log("ChatRightSidebar unmounted, calling closeAiApp unconditionally");
   resizeObserver?.disconnect();
-  if (isAppVisible.value) {
-    electronAPI.closeAiApp();
-  }
+  electronAPI.closeAiApp();
 });
 </script>
 

@@ -6,11 +6,11 @@ import { SidebarProvider, SidebarTrigger } from "@willow/shadcn/components/ui/si
 import { Toaster } from "@willow/shadcn/components/ui/sonner";
 import { TooltipProvider } from "@willow/shadcn/components/ui/tooltip";
 import { registryAllToolRenderers } from "@willow/ui";
-import { computed, onMounted, onUnmounted } from "vue";
+import { computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { useEventBus } from "@/composables/useEventBus";
-import { DialogProvider } from "@/layout/dialog";
+import { DialogProvider, useDialog } from "@/layout/dialog";
 import { electronAPI } from "@/lib/ipc";
 import { router } from "@/router";
 import { useSessionStore } from "@/stores/session";
@@ -52,6 +52,21 @@ const { addEventListener, removeEventListener } = useEventBus();
 const isSettingsLayout = computed(() =>
   route.matched.some((record) => record.meta.layout === "settings"),
 );
+
+const { dialogState } = useDialog();
+const isDialogOpen = computed(() => dialogState.value?.open ?? false);
+
+watch([isSettingsLayout, isDialogOpen], ([isSettings, isDialog]) => {
+  if (isSettings || isDialog) {
+    console.log(
+      "[App.vue] Settings or Dialog opened, closing AI app view. isSettings:",
+      isSettings,
+      "isDialog:",
+      isDialog,
+    );
+    electronAPI.closeAiApp();
+  }
+});
 
 function onSessionTitleUpdated(data: { session: Session }) {
   if (data?.session) {

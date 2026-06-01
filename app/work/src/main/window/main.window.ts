@@ -65,6 +65,10 @@ export class MainWindow implements OnInit, OnDestroy {
     console.log("win", this.win);
     app.on("before-quit", this.markQuitting);
 
+    this.win.webContents.on("console-message", (event, level, message, line, sourceId) => {
+      console.log(`[RENDERER] ${message} (at ${sourceId}:${line})`);
+    });
+
     if (savedBounds.isMaximized && this.win) {
       this.win.maximize();
     }
