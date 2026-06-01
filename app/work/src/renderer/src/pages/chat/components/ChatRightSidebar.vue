@@ -64,10 +64,11 @@ const props = withDefaults(
 const workspaceStore = useWorkspaceStore();
 const route = useRoute();
 const { dialogState } = useDialog();
-const isSettingsOpen = computed(() =>
-  route.matched.some((record) => record.meta.layout === "settings"),
-);
+const isSettingsOpen = computed(() => route.path.startsWith("/setting"));
 const isDialogOpen = computed(() => dialogState.value?.open ?? false);
+const shouldShowApp = computed(
+  () => activeTab.value === "app" && props.open && !isSettingsOpen.value && !isDialogOpen.value,
+);
 const sidebarStyle = computed(() => ({
   width: props.open
     ? `clamp(240px, calc(${props.width}px + var(--left-sidebar-released-width, 0px)), calc(100% - 350px - 4px))`
@@ -206,13 +207,23 @@ async function sendBoundsAfterLayout() {
 
 async function showApp() {
   if (!workspacePath.value) return;
+  if (!shouldShowApp.value) return;
   await nextTick();
+  if (!shouldShowApp.value) return;
   if (viewAnchor.value) {
     resizeObserver?.observe(viewAnchor.value);
   }
   await electronAPI.loadAiApp({ workspaceRoot: workspacePath.value });
+  if (!shouldShowApp.value) {
+    await electronAPI.closeAiApp();
+    return;
+  }
   // 等待 sidebar transition (300ms) 完成后再发送 bounds
   await new Promise((resolve) => setTimeout(resolve, 350));
+  if (!shouldShowApp.value) {
+    await electronAPI.closeAiApp();
+    return;
+  }
   sendBounds();
   isAppVisible.value = true;
 }
@@ -230,17 +241,13 @@ onMounted(() => {
   });
 });
 
-watch(
-  [activeTab, () => props.open, isSettingsOpen, isDialogOpen],
-  async ([newTab, isOpen, isSettings, isDialog]) => {
-    const shouldShow = newTab === "app" && isOpen && !isSettings && !isDialog;
-    if (shouldShow) {
-      await showApp();
-    } else if (isAppVisible.value) {
-      await hideApp();
-    }
-  },
-);
+watch(shouldShowApp, async (shouldShow) => {
+  if (shouldShow) {
+    await showApp();
+  } else {
+    await hideApp();
+  }
+});
 
 // 切换工作空间时，主进程根据 rootChanged 自动决定是否重新加载
 watch(workspacePath, async (newPath, oldPath) => {
