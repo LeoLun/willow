@@ -30,10 +30,12 @@ import {
 } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onMounted, onUnmounted, ref, toRef, watch, provide } from "vue";
+import { useRoute } from "vue-router";
 import { useWorkspaceFiles } from "@/composables/useWorkspaceFiles";
 import { useWorkspaceSettings } from "@/composables/useWorkspaceSettings";
 import { DeleteMcpServer } from "@/layout/dialog/delete-mcp-server";
 import { McpServerForm } from "@/layout/dialog/mcp-server-form";
+import { useDialog } from "@/layout/dialog/use-dialog";
 import { electronAPI } from "@/lib/ipc";
 import InlineFileViewer from "@/pages/chat/session/components/InlineFileViewer.vue";
 import WorkspaceFileTree from "@/pages/chat/session/components/WorkspaceFileTree.vue";
@@ -60,6 +62,12 @@ const props = withDefaults(
 );
 
 const workspaceStore = useWorkspaceStore();
+const route = useRoute();
+const { dialogState } = useDialog();
+const isSettingsOpen = computed(() =>
+  route.matched.some((record) => record.meta.layout === "settings"),
+);
+const isDialogOpen = computed(() => dialogState.value?.open ?? false);
 const sidebarStyle = computed(() => ({
   width: props.open
     ? `clamp(240px, calc(${props.width}px + var(--left-sidebar-released-width, 0px)), calc(100% - 350px - 4px))`
@@ -222,14 +230,17 @@ onMounted(() => {
   });
 });
 
-watch([activeTab, () => props.open], async ([newTab, isOpen]) => {
-  const shouldShow = newTab === "app" && isOpen;
-  if (shouldShow) {
-    await showApp();
-  } else if (isAppVisible.value) {
-    await hideApp();
-  }
-});
+watch(
+  [activeTab, () => props.open, isSettingsOpen, isDialogOpen],
+  async ([newTab, isOpen, isSettings, isDialog]) => {
+    const shouldShow = newTab === "app" && isOpen && !isSettings && !isDialog;
+    if (shouldShow) {
+      await showApp();
+    } else if (isAppVisible.value) {
+      await hideApp();
+    }
+  },
+);
 
 // 切换工作空间时，主进程根据 rootChanged 自动决定是否重新加载
 watch(workspacePath, async (newPath, oldPath) => {
