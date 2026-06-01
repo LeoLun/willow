@@ -707,8 +707,8 @@ onUnmounted(() => {
 
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
-            <Button variant="ghost" class="rounded-full text-xs">
-              <span class="max-w-[180px] truncate">{{ selectedModelName }}</span>
+            <Button variant="ghost" class="min-w-0 shrink rounded-full text-xs">
+              <span class="max-w-[180px] min-w-0 truncate">{{ selectedModelName }}</span>
               <ChevronsUpDownIcon class="size-3 shrink-0" />
             </Button>
           </DropdownMenuTrigger>

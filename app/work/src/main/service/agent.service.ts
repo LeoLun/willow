@@ -297,9 +297,7 @@ export class AgentService {
       console.error("Failed to load active MCP tools:", e);
     }
 
-    const builtinDir = app.isPackaged
-      ? join(process.resourcesPath, "builtin-skills")
-      : join(app.getAppPath(), "builtin-skills");
+    const builtinDir = join(app.getAppPath(), "builtin-skills");
 
     const coreAgent = new CoreAgent(agent, {
       cwd,

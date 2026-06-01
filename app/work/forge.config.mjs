@@ -24,7 +24,6 @@ const config = {
     appCategoryType: "public.app-category.productivity",
     executableName: "Willow Work",
     icon: "./assets/icons/icon",
-    extraResource: ["./src/main/db/migrations", "./builtin-skills", "./templates"],
   },
   rebuildConfig: {},
   hooks: {

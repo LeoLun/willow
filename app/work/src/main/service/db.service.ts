@@ -22,9 +22,7 @@ function getTableColumns(sqlite: Database.Database, tableName: string) {
 }
 
 function getMigrationsFolder() {
-  return app.isPackaged
-    ? join(process.resourcesPath, "migrations")
-    : join(app.getAppPath(), "src/main/db/migrations");
+  return join(app.getAppPath(), "src/main/db/migrations");
 }
 
 interface MigrationJournalEntry {

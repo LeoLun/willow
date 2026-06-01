@@ -72,9 +72,7 @@ export class SkillService {
   }
 
   private getBuiltinSkillsDir(): string {
-    return app.isPackaged
-      ? join(process.resourcesPath, "builtin-skills")
-      : join(app.getAppPath(), "builtin-skills");
+    return join(app.getAppPath(), "builtin-skills");
   }
 
   private resolveScope(

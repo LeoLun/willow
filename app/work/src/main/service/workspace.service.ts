@@ -54,9 +54,7 @@ export class WorkspaceService {
   }
 
   private getTemplatesDir(): string {
-    return app.isPackaged
-      ? join(process.resourcesPath, "templates")
-      : join(app.getAppPath(), "templates");
+    return join(app.getAppPath(), "templates");
   }
 
   async getWorkspaceTemplates(): Promise<WorkspaceTemplate[]> {
