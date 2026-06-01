@@ -3,6 +3,7 @@ import type { IRenderHook } from "../shared";
 import type {
   ApiResponse,
   GetWorkspaceListResponse,
+  GetWorkspaceTemplatesResponse,
   CreateWorkspaceRequest,
   CreateWorkspaceResponse,
   DeleteWorkspaceRequest,
@@ -97,6 +98,7 @@ import type {
 } from "../shared/api";
 import {
   GET_WORKSPACE_LIST,
+  GET_WORKSPACE_TEMPLATES,
   CREATE_WORKSPACE,
   DELETE_WORKSPACE,
   GET_WORKSPACE_INFO,
@@ -166,6 +168,18 @@ const ipcObject: IRenderHook = {
     }
     if (!response.data) {
       throw new Error("get workspace list failed");
+    }
+    return response.data;
+  },
+  getWorkspaceTemplates: async () => {
+    const response = (await ipcRenderer.invoke(
+      GET_WORKSPACE_TEMPLATES,
+    )) as ApiResponse<GetWorkspaceTemplatesResponse>;
+    if (response.code !== 0) {
+      throw new Error(response.msg);
+    }
+    if (!response.data) {
+      throw new Error("get workspace templates failed");
     }
     return response.data;
   },

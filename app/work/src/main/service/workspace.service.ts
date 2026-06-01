@@ -9,6 +9,7 @@ import type {
   GetWorkspaceSettingsResponse,
   UpdateWorkspaceSettingsResponse,
   WorkspaceFileNode,
+  WorkspaceTemplate,
 } from "@shared/api";
 import { Injectable } from "@willow/poetry";
 import { app } from "electron";
@@ -27,11 +28,14 @@ export class WorkspaceService {
     return Date.now();
   }
 
-  async createDefaultWorkspace(name: string) {
+  async createDefaultWorkspace(name: string, templateId?: string) {
     // 生成一个 ID
     const id = this.generateWorkspaceId();
     const workspacePath = join(app.getPath("userData"), "workspace", id.toString());
     await mkdir(workspacePath, { recursive: true });
+    if (templateId) {
+      await this.copyTemplateToWorkspace(templateId, workspacePath);
+    }
     return this.workspaceDao.insert({ name, path: workspacePath, id, kind: "project" });
   }
 
@@ -41,8 +45,99 @@ export class WorkspaceService {
     return [conversation, ...list];
   }
 
-  async createWorkspace(name: string, path: string) {
+  async createWorkspace(name: string, path: string, templateId?: string) {
+    await mkdir(path, { recursive: true });
+    if (templateId) {
+      await this.copyTemplateToWorkspace(templateId, path);
+    }
     return this.workspaceDao.insert({ name, path, kind: "project" });
+  }
+
+  private getTemplatesDir(): string {
+    return app.isPackaged
+      ? join(process.resourcesPath, "templates")
+      : join(app.getAppPath(), "templates");
+  }
+
+  async getWorkspaceTemplates(): Promise<WorkspaceTemplate[]> {
+    const templatesDir = this.getTemplatesDir();
+    if (!existsSync(templatesDir)) {
+      try {
+        await mkdir(templatesDir, { recursive: true });
+      } catch (err) {
+        console.error(
+          `[WorkspaceService] Failed to create templates directory: ${templatesDir}`,
+          err,
+        );
+        return [];
+      }
+    }
+
+    try {
+      const entries = await readdir(templatesDir, { withFileTypes: true });
+      const templates: WorkspaceTemplate[] = [];
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const templateFolder = join(templatesDir, entry.name);
+        const jsonPath = join(templateFolder, "template.json");
+        if (!existsSync(jsonPath)) continue;
+
+        try {
+          const content = await readFile(jsonPath, "utf8");
+          const metadata = JSON.parse(content);
+
+          const id = metadata.id || entry.name;
+          const name = metadata.name || id;
+          const description = metadata.description || "";
+          const zipFileName = metadata.zipFileName || "";
+
+          let previewUrl: string | undefined;
+          if (metadata.previewFileName) {
+            const previewPath = join(templateFolder, metadata.previewFileName);
+            if (existsSync(previewPath)) {
+              const ext = extname(metadata.previewFileName).replace(".", "").toLowerCase();
+              const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : `image/${ext}`;
+              const imgBuffer = await readFile(previewPath);
+              previewUrl = `data:${mime};base64,${imgBuffer.toString("base64")}`;
+            }
+          }
+
+          templates.push({
+            id,
+            name,
+            description,
+            zipFileName,
+            previewUrl,
+          });
+        } catch (jsonErr) {
+          console.error(
+            `[WorkspaceService] Failed to parse template.json in ${templateFolder}:`,
+            jsonErr,
+          );
+        }
+      }
+
+      return templates;
+    } catch (err) {
+      console.error(`[WorkspaceService] Failed to read templates directory: ${templatesDir}`, err);
+      return [];
+    }
+  }
+
+  private async copyTemplateToWorkspace(templateId: string, destPath: string) {
+    const templates = await this.getWorkspaceTemplates();
+    const template = templates.find((t) => t.id === templateId);
+    if (!template) {
+      throw new Error(`Template not found: ${templateId}`);
+    }
+    const templatesDir = this.getTemplatesDir();
+    const srcZip = join(templatesDir, templateId, template.zipFileName);
+    const destZip = join(destPath, template.zipFileName);
+    if (!existsSync(srcZip)) {
+      throw new Error(`Template zip file not found: ${srcZip}`);
+    }
+    await cp(srcZip, destZip);
   }
 
   async deleteWorkspace(id: number) {

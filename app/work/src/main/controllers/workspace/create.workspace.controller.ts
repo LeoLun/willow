@@ -1,5 +1,11 @@
+import { SessionService } from "@main/service/session.service";
 import { WorkspaceService } from "@main/service/workspace.service";
-import type { ApiResponse, CreateWorkspaceRequest, CreateWorkspaceResponse } from "@shared/api";
+import type {
+  ApiResponse,
+  CreateWorkspaceRequest,
+  CreateWorkspaceResponse,
+  Session,
+} from "@shared/api";
 import { CREATE_WORKSPACE } from "@shared/constants";
 import { Injectable, IPC } from "@willow/poetry";
 import { IPCBaseController } from "../ipc.base.controller";
@@ -9,7 +15,10 @@ export class CreateWorkspaceController extends IPCBaseController<
   CreateWorkspaceRequest,
   CreateWorkspaceResponse
 > {
-  constructor(private readonly workspaceService: WorkspaceService) {
+  constructor(
+    private readonly workspaceService: WorkspaceService,
+    private readonly sessionService: SessionService,
+  ) {
     super();
   }
 
@@ -24,9 +33,21 @@ export class CreateWorkspaceController extends IPCBaseController<
     }
 
     const workspace = request.path
-      ? await this.workspaceService.createWorkspace(request.name, request.path)
-      : await this.workspaceService.createDefaultWorkspace(request.name);
-    return this.buildResponse({ workspace });
+      ? await this.workspaceService.createWorkspace(request.name, request.path, request.templateId)
+      : await this.workspaceService.createDefaultWorkspace(request.name, request.templateId);
+
+    let session: Session | undefined;
+    let zipFileName: string | undefined;
+    if (request.templateId) {
+      const templates = await this.workspaceService.getWorkspaceTemplates();
+      const template = templates.find((t) => t.id === request.templateId);
+      if (template) {
+        zipFileName = template.zipFileName;
+      }
+      session = await this.sessionService.createSession(workspace.id);
+    }
+
+    return this.buildResponse({ workspace, session, zipFileName });
   }
 
   checkParams(request: CreateWorkspaceRequest): Error | undefined {

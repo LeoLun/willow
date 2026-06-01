@@ -16,9 +16,11 @@ import type {
   UpdateWorkspaceSettingsResponse,
   ReadFileRequest,
   ReadFileResponse,
+  GetWorkspaceTemplatesResponse,
 } from "../api";
 
 export interface IWorkspaceApi {
+  getWorkspaceTemplates(): Promise<GetWorkspaceTemplatesResponse>;
   getWorkspaceList(): Promise<GetWorkspaceListResponse>;
   createWorkspace(request: CreateWorkspaceRequest): Promise<CreateWorkspaceResponse>;
   deleteWorkspace(request: DeleteWorkspaceRequest): Promise<DeleteWorkspaceResponse>;

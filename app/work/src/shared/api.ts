@@ -84,6 +84,18 @@ export interface SelectFilesResponse {
   files: SelectedSystemFile[];
 }
 
+export interface WorkspaceTemplate {
+  id: string;
+  name: string;
+  description: string;
+  zipFileName: string;
+  previewUrl?: string;
+}
+
+export interface GetWorkspaceTemplatesResponse {
+  templates: WorkspaceTemplate[];
+}
+
 export interface GetWorkspaceListResponse {
   workspaces: Workspace[];
 }
@@ -91,10 +103,13 @@ export interface GetWorkspaceListResponse {
 export interface CreateWorkspaceRequest {
   name: string;
   path?: string;
+  templateId?: string;
 }
 
 export interface CreateWorkspaceResponse {
   workspace: Workspace;
+  session?: Session;
+  zipFileName?: string;
 }
 
 export interface DeleteWorkspaceRequest {
