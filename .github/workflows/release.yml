@@ -61,6 +61,15 @@ jobs:
 
       - name: Extract app.asar for incremental update
         run: |
+          echo "=== Debug: Listing workspace root ==="
+          ls -la
+          echo "=== Debug: Listing app/work ==="
+          ls -la app/work || true
+          echo "=== Debug: Locating any app.asar in workspace ==="
+          find . -name "app.asar" || true
+          echo "=== Debug: Locating any dmg in workspace ==="
+          find . -name "*.dmg" || true
+          echo "============================================="
           mkdir -p app/work/out
           find app/work -path "*/Contents/Resources/app.asar" -exec cp {} app/work/out/app.asar \; -quit
           if [ ! -f app/work/out/app.asar ]; then
