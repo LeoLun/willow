@@ -43,7 +43,16 @@ jobs:
         run: |
           cd app/work
           pnpm run make:mac:x64
-          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-x64.dmg
+          DMG_PATH="$(find out/make -type f -path "*/dmg/darwin/x64/*.dmg" -print -quit)"
+          if [ -z "$DMG_PATH" ] && [ -f "out/make/Willow Work.dmg" ]; then
+            DMG_PATH="out/make/Willow Work.dmg"
+          fi
+          if [ -z "$DMG_PATH" ]; then
+            echo "Error: x64 DMG was not found in the build output directory!"
+            find out/make -type f -name "*.dmg" -print || true
+            exit 1
+          fi
+          mv "$DMG_PATH" out/make/Willow-Work-${{ env.VERSION }}-x64.dmg
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -53,7 +62,16 @@ jobs:
         run: |
           cd app/work
           pnpm run make:mac:arm64
-          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg
+          DMG_PATH="$(find out/make -type f -path "*/dmg/darwin/arm64/*.dmg" -print -quit)"
+          if [ -z "$DMG_PATH" ] && [ -f "out/make/Willow Work.dmg" ]; then
+            DMG_PATH="out/make/Willow Work.dmg"
+          fi
+          if [ -z "$DMG_PATH" ]; then
+            echo "Error: arm64 DMG was not found in the build output directory!"
+            find out/make -type f -name "*.dmg" -print || true
+            exit 1
+          fi
+          mv "$DMG_PATH" out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -81,6 +99,8 @@ jobs:
       - name: Check output files
         run: |
           ls -la app/work/out/make/ || true
+          ls -la app/work/out/make/dmg/darwin/x64/ || true
+          ls -la app/work/out/make/dmg/darwin/arm64/ || true
           ls -la app/work/out/make/zip/darwin/x64/ || true
           ls -la app/work/out/make/zip/darwin/arm64/ || true
 
