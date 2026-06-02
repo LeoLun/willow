@@ -43,7 +43,7 @@ jobs:
         run: |
           cd app/work
           pnpm run make:mac:x64
-          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-x64.dmg || true
+          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-x64.dmg
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -53,7 +53,7 @@ jobs:
         run: |
           cd app/work
           pnpm run make:mac:arm64
-          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg || true
+          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
