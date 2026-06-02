@@ -44,7 +44,10 @@ jobs:
           cd app/work
           pnpm run make:mac:x64 -- --targets=zip,dmg
           mkdir -p out/make
-          APP_BUNDLE="out/Willow Work-darwin-x64/Willow Work.app"
+          APP_BUNDLE="$(find out -type d -name "Willow Work.app" -path "*darwin-x64*" -print -quit)"
+          if [ -z "$APP_BUNDLE" ]; then
+            APP_BUNDLE="$(find out -type d -name "*.app" -path "*x64*" -print -quit)"
+          fi
           FINAL_DMG="out/make/Willow-Work-${{ env.VERSION }}-x64.dmg"
           ZIP_DIR="out/make/zip/darwin/x64"
           FINAL_ZIP="$ZIP_DIR/Willow-Work-${{ env.VERSION }}-x64.zip"
@@ -53,8 +56,9 @@ jobs:
             DMG_PATH="out/make/Willow Work.dmg"
           fi
           if [ -z "$DMG_PATH" ]; then
-            if [ ! -d "$APP_BUNDLE" ]; then
+            if [ -z "$APP_BUNDLE" ] || [ ! -d "$APP_BUNDLE" ]; then
               echo "Error: x64 DMG and packaged app were not found in the build output directory!"
+              find out -maxdepth 6 -type d -print || true
               find out -maxdepth 6 -type f -print || true
               exit 1
             fi
@@ -63,7 +67,7 @@ jobs:
             mv "$DMG_PATH" "$FINAL_DMG"
           fi
           mkdir -p "$ZIP_DIR"
-          if [ -d "$APP_BUNDLE" ] && [ -z "$(find "$ZIP_DIR" -type f -name "*.zip" -print -quit)" ]; then
+          if [ -n "$APP_BUNDLE" ] && [ -d "$APP_BUNDLE" ] && [ -z "$(find "$ZIP_DIR" -type f -name "*.zip" -print -quit)" ]; then
             ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$FINAL_ZIP"
           fi
         env:
@@ -76,7 +80,10 @@ jobs:
           cd app/work
           pnpm run make:mac:arm64 -- --targets=zip,dmg
           mkdir -p out/make
-          APP_BUNDLE="out/Willow Work-darwin-arm64/Willow Work.app"
+          APP_BUNDLE="$(find out -type d -name "Willow Work.app" -path "*darwin-arm64*" -print -quit)"
+          if [ -z "$APP_BUNDLE" ]; then
+            APP_BUNDLE="$(find out -type d -name "*.app" -path "*arm64*" -print -quit)"
+          fi
           FINAL_DMG="out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg"
           ZIP_DIR="out/make/zip/darwin/arm64"
           FINAL_ZIP="$ZIP_DIR/Willow-Work-${{ env.VERSION }}-arm64.zip"
@@ -85,8 +92,9 @@ jobs:
             DMG_PATH="out/make/Willow Work.dmg"
           fi
           if [ -z "$DMG_PATH" ]; then
-            if [ ! -d "$APP_BUNDLE" ]; then
+            if [ -z "$APP_BUNDLE" ] || [ ! -d "$APP_BUNDLE" ]; then
               echo "Error: arm64 DMG and packaged app were not found in the build output directory!"
+              find out -maxdepth 6 -type d -print || true
               find out -maxdepth 6 -type f -print || true
               exit 1
             fi
@@ -95,7 +103,7 @@ jobs:
             mv "$DMG_PATH" "$FINAL_DMG"
           fi
           mkdir -p "$ZIP_DIR"
-          if [ -d "$APP_BUNDLE" ] && [ -z "$(find "$ZIP_DIR" -type f -name "*.zip" -print -quit)" ]; then
+          if [ -n "$APP_BUNDLE" ] && [ -d "$APP_BUNDLE" ] && [ -z "$(find "$ZIP_DIR" -type f -name "*.zip" -print -quit)" ]; then
             ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$FINAL_ZIP"
           fi
         env:
