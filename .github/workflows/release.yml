@@ -41,7 +41,9 @@ jobs:
 
       - name: Build and Package Mac App (x64)
         run: |
-          bash .github/scripts/package-macos.sh x64 "${{ env.VERSION }}"
+          cd app/work
+          pnpm run make:mac:x64
+          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-x64.dmg || true
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -49,7 +51,9 @@ jobs:
 
       - name: Build and Package Mac App (arm64)
         run: |
-          bash .github/scripts/package-macos.sh arm64 "${{ env.VERSION }}"
+          cd app/work
+          pnpm run make:mac:arm64
+          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg || true
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -57,17 +61,7 @@ jobs:
 
       - name: Extract app.asar for incremental update
         run: |
-          echo "=== Debug: Listing workspace root ==="
-          ls -la
-          echo "=== Debug: Listing app/work ==="
-          ls -la app/work || true
-          echo "=== Debug: Locating any app.asar in workspace ==="
-          find . -name "app.asar" || true
-          echo "=== Debug: Locating any dmg in workspace ==="
-          find . -name "*.dmg" || true
-          echo "============================================="
-          mkdir -p app/work/out
-          find app/work -path "*/Contents/Resources/app.asar" -exec cp {} app/work/out/app.asar \; -quit
+          find app/work/out -path "*/Contents/Resources/app.asar" -exec cp {} app/work/out/app.asar \; -quit
           if [ ! -f app/work/out/app.asar ]; then
             echo "Error: app.asar was not found in the build output directory!"
             exit 1
@@ -77,8 +71,6 @@ jobs:
       - name: Check output files
         run: |
           ls -la app/work/out/make/ || true
-          ls -la app/work/out/make/dmg/darwin/x64/ || true
-          ls -la app/work/out/make/dmg/darwin/arm64/ || true
           ls -la app/work/out/make/zip/darwin/x64/ || true
           ls -la app/work/out/make/zip/darwin/arm64/ || true
 
