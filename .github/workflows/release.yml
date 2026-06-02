@@ -61,7 +61,8 @@ jobs:
 
       - name: Extract app.asar for incremental update
         run: |
-          find app/work/out -path "*/Contents/Resources/app.asar" -exec cp {} app/work/out/app.asar \; -quit
+          mkdir -p app/work/out
+          find app/work -path "*/Contents/Resources/app.asar" -exec cp {} app/work/out/app.asar \; -quit
           if [ ! -f app/work/out/app.asar ]; then
             echo "Error: app.asar was not found in the build output directory!"
             exit 1
