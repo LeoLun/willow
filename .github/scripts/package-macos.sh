@@ -29,6 +29,11 @@ pnpm run rebuild:native
 pnpm exec electron-forge package --platform=darwin --arch="$ARCH"
 
 if [[ ! -d "$APP_BUNDLE" ]]; then
+  echo "Forge package did not produce the expected app bundle; running direct packager fallback..."
+  node "$REPO_ROOT/.github/scripts/direct-packager.mjs" "$ARCH"
+fi
+
+if [[ ! -d "$APP_BUNDLE" ]]; then
   echo "Expected app bundle was not found at: $APP_BUNDLE"
   echo "Searching for any packaged app for ${ARCH}..."
   FOUND_APP="$(find "$OUT_DIR" -type d -name "*.app" -path "*${ARCH}*" -print -quit || true)"
