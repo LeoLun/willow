@@ -41,35 +41,7 @@ jobs:
 
       - name: Build and Package Mac App (x64)
         run: |
-          cd app/work
-          pnpm run make:mac:x64 -- --targets=zip,dmg
-          mkdir -p out/make
-          APP_BUNDLE="$(find out -type d -name "Willow Work.app" -path "*darwin-x64*" -print -quit)"
-          if [ -z "$APP_BUNDLE" ]; then
-            APP_BUNDLE="$(find out -type d -name "*.app" -path "*x64*" -print -quit)"
-          fi
-          FINAL_DMG="out/make/Willow-Work-${{ env.VERSION }}-x64.dmg"
-          ZIP_DIR="out/make/zip/darwin/x64"
-          FINAL_ZIP="$ZIP_DIR/Willow-Work-${{ env.VERSION }}-x64.zip"
-          DMG_PATH="$(find out/make -type f -path "*/dmg/darwin/x64/*.dmg" -print -quit)"
-          if [ -z "$DMG_PATH" ] && [ -f "out/make/Willow Work.dmg" ]; then
-            DMG_PATH="out/make/Willow Work.dmg"
-          fi
-          if [ -z "$DMG_PATH" ]; then
-            if [ -z "$APP_BUNDLE" ] || [ ! -d "$APP_BUNDLE" ]; then
-              echo "Error: x64 DMG and packaged app were not found in the build output directory!"
-              find out -maxdepth 6 -type d -print || true
-              find out -maxdepth 6 -type f -print || true
-              exit 1
-            fi
-            hdiutil create -volname "Willow Work" -srcfolder "$APP_BUNDLE" -ov -format UDZO "$FINAL_DMG"
-          else
-            mv "$DMG_PATH" "$FINAL_DMG"
-          fi
-          mkdir -p "$ZIP_DIR"
-          if [ -n "$APP_BUNDLE" ] && [ -d "$APP_BUNDLE" ] && [ -z "$(find "$ZIP_DIR" -type f -name "*.zip" -print -quit)" ]; then
-            ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$FINAL_ZIP"
-          fi
+          bash .github/scripts/package-macos.sh x64 "${{ env.VERSION }}"
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -77,35 +49,7 @@ jobs:
 
       - name: Build and Package Mac App (arm64)
         run: |
-          cd app/work
-          pnpm run make:mac:arm64 -- --targets=zip,dmg
-          mkdir -p out/make
-          APP_BUNDLE="$(find out -type d -name "Willow Work.app" -path "*darwin-arm64*" -print -quit)"
-          if [ -z "$APP_BUNDLE" ]; then
-            APP_BUNDLE="$(find out -type d -name "*.app" -path "*arm64*" -print -quit)"
-          fi
-          FINAL_DMG="out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg"
-          ZIP_DIR="out/make/zip/darwin/arm64"
-          FINAL_ZIP="$ZIP_DIR/Willow-Work-${{ env.VERSION }}-arm64.zip"
-          DMG_PATH="$(find out/make -type f -path "*/dmg/darwin/arm64/*.dmg" -print -quit)"
-          if [ -z "$DMG_PATH" ] && [ -f "out/make/Willow Work.dmg" ]; then
-            DMG_PATH="out/make/Willow Work.dmg"
-          fi
-          if [ -z "$DMG_PATH" ]; then
-            if [ -z "$APP_BUNDLE" ] || [ ! -d "$APP_BUNDLE" ]; then
-              echo "Error: arm64 DMG and packaged app were not found in the build output directory!"
-              find out -maxdepth 6 -type d -print || true
-              find out -maxdepth 6 -type f -print || true
-              exit 1
-            fi
-            hdiutil create -volname "Willow Work" -srcfolder "$APP_BUNDLE" -ov -format UDZO "$FINAL_DMG"
-          else
-            mv "$DMG_PATH" "$FINAL_DMG"
-          fi
-          mkdir -p "$ZIP_DIR"
-          if [ -n "$APP_BUNDLE" ] && [ -d "$APP_BUNDLE" ] && [ -z "$(find "$ZIP_DIR" -type f -name "*.zip" -print -quit)" ]; then
-            ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$FINAL_ZIP"
-          fi
+          bash .github/scripts/package-macos.sh arm64 "${{ env.VERSION }}"
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
