@@ -50,6 +50,23 @@ const config = {
       );
       const destFloatingBall = join(buildPath, ".vite/renderer/floating_ball");
       await cp(srcFloatingBall, destFloatingBall, { force: true, recursive: true });
+
+      // Copy migrations, builtin-skills, and templates into package structure
+      await cp(
+        join(process.cwd(), "src/main/db/migrations"),
+        join(buildPath, "src/main/db/migrations"),
+        { force: true, recursive: true },
+      );
+      await cp(
+        join(process.cwd(), "builtin-skills"),
+        join(buildPath, "builtin-skills"),
+        { force: true, recursive: true },
+      );
+      await cp(
+        join(process.cwd(), "templates"),
+        join(buildPath, "templates"),
+        { force: true, recursive: true },
+      );
     },
   },
   makers: [
