@@ -57,16 +57,14 @@ const config = {
         join(buildPath, "src/main/db/migrations"),
         { force: true, recursive: true },
       );
-      await cp(
-        join(process.cwd(), "builtin-skills"),
-        join(buildPath, "builtin-skills"),
-        { force: true, recursive: true },
-      );
-      await cp(
-        join(process.cwd(), "templates"),
-        join(buildPath, "templates"),
-        { force: true, recursive: true },
-      );
+      await cp(join(process.cwd(), "builtin-skills"), join(buildPath, "builtin-skills"), {
+        force: true,
+        recursive: true,
+      });
+      await cp(join(process.cwd(), "templates"), join(buildPath, "templates"), {
+        force: true,
+        recursive: true,
+      });
     },
   },
   makers: [

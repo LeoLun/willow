@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { On, WindowFactoryResolver, Module } from "@willow/poetry";
-import { app, dialog as electronDialog } from "electron";
+import { app, dialog as electronDialog, screen } from "electron";
 import started from "electron-squirrel-startup";
 import { AiAppBoundsController } from "./controllers/ai-app/ai.app.bounds.controller";
 import { AiAppCloseController } from "./controllers/ai-app/ai.app.close.controller";
@@ -292,6 +292,10 @@ export class AppModule {
       return;
     }
 
+    if (this.isMouseOverFloatingBall()) {
+      return;
+    }
+
     this.showMainWindow();
   }
 
@@ -331,5 +335,23 @@ export class AppModule {
 
     mainWindow.win.show();
     mainWindow.win.focus();
+  }
+
+  private isMouseOverFloatingBall(): boolean {
+    const instance = FloatingBallWindow.getInstance();
+    if (instance) {
+      const win = instance.BrowserWindow;
+      if (win && !win.isDestroyed() && win.isVisible()) {
+        const mousePoint = screen.getCursorScreenPoint();
+        const bounds = win.getBounds();
+        return (
+          mousePoint.x >= bounds.x &&
+          mousePoint.x <= bounds.x + bounds.width &&
+          mousePoint.y >= bounds.y &&
+          mousePoint.y <= bounds.y + bounds.height
+        );
+      }
+    }
+    return false;
   }
 }
