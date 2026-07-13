@@ -1,5 +1,7 @@
-npx lint-staged
+pnpm exec lint-staged
 
-echo "🔍 Running tsgo type check..."
-npx tsgo --noEmit -p tsconfig.json
-npx tsgo --noEmit -p app/work/tsconfig.json
+echo "🔍 Running oxlint check..."
+pnpm lint
+
+echo "🔍 Running TypeScript checks..."
+pnpm typecheck

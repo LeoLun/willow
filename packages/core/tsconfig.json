@@ -1,9 +1,7 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "composite": true,
-    "rootDir": ".",
-    "types": ["vitest/globals"]
+    "rootDir": "."
   },
-  "include": ["src", "test", "vite.config.ts"]
+  "include": ["src", "test", "vitest.config.ts"]
 }

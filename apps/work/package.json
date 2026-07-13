@@ -22,6 +22,9 @@
     "premake:mac:x64": "pnpm run rebuild:native",
     "publish": "electron-forge publish",
     "lint": "oxlint src/",
+    "typecheck": "pnpm run typecheck:tsc && pnpm run typecheck:renderer",
+    "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
+    "typecheck:renderer": "vue-tsc -p tsconfig.renderer.json --noEmit",
     "rebuild:native": "env HOME=$PWD/../.. electron-rebuild --force --module-dir ../.. --dist-url=https://electronjs.org/headers",
     "postinstall": "pnpm run rebuild:native"
   },
@@ -56,17 +59,17 @@
     "@rollup/plugin-swc": "^0.4.0",
     "@tailwindcss/vite": "^4.2.2",
     "@types/electron-squirrel-startup": "^1.0.2",
-    "@typescript/native-preview": "catalog:",
     "@vitejs/plugin-vue": "^6.0.5",
     "@willow/poetry": "workspace:*",
     "electron": "catalog:",
-    "esbuild-plugin-tsc": "^0.4.0",
     "inversify": "catalog:",
     "reflect-metadata": "catalog:",
     "shadcn-vue": "^2.4.3",
     "ts-node": "^10.0.0",
+    "typescript": "catalog:",
     "vite": "^8.0.0",
-    "vue": "^3.5.31"
+    "vue": "^3.5.31",
+    "vue-tsc": "^3.3.7"
   },
   "productName": "Willow"
 }
