@@ -1,108 +1,44 @@
-# Willow AGENTS.md
+# Repository Guidelines
 
-名称：Willow 工作空间 Agent
-描述：当任务明显属于 Willow 仓库的桌面应用、renderer、共享包、OpenSpec 工作流或工程配置范围时触发；触发后在该工作空间内分析、修改并验证结果。这是对话功能调用此工作空间的主要触发机制。
+## Project Structure & Module Organization
 
-For renderer, `shadcn-vue`, and page design work, always consult the repository root `DESIGN.md` after reading the relevant OpenSpec artifacts.
+Willow is a pnpm workspace. `apps/work/` contains the Electron desktop app: `src/main/` owns the main process, `src/preload/` exposes bridges, `src/renderer/` contains the Vue 3 UI, and `src/shared/` holds cross-process contracts. App artwork lives in `apps/work/assets/`. Under `packages/`, `core` provides agent/session logic, `poetry` provides Electron decorators and managers, and `shadcn` provides reusable Vue components. Core tests live in `packages/core/test/`; supporting material lives in `docs/`.
 
-## Repository Guidelines
+## Build, Test, and Development Commands
 
-### Project Structure And Module Organization
+- `pnpm install --frozen-lockfile` installs locked dependencies; use plain `pnpm install` when updating the lockfile.
+- `pnpm dev` rebuilds native modules and starts the Electron app through Forge.
+- `pnpm lint` runs Oxlint across `apps/` and `packages/`.
+- `pnpm typecheck` runs each workspace package's TypeScript or `vue-tsc` checks.
+- `pnpm format` formats supported files with Oxfmt; `pnpm format:check` verifies formatting without writing.
+- `pnpm --filter @willow/core test` runs the Vitest suite once.
+- `pnpm --filter ./apps/work package` creates an unpacked app; replace `package` with `make` to build platform installers.
 
-This repository is a `pnpm` workspace with app packages and shared packages:
+## Coding Style & Naming Conventions
 
-- `app/work/`: Electron desktop app.
-- `packages/core/src/`: shared business/domain utilities published as `@willow/core`.
-- `packages/poetry/src/`: reusable Electron framework layer (decorators, dependency injection, IPC binding, window/module management).
-- `packages/shadcn/src/`: local `shadcn-vue` component package published as `@willow/shadcn`.
+Write strict TypeScript and ESM. Oxfmt enforces 2-space indentation, 100-column lines, double quotes, semicolons, trailing commas, and sorted imports. Vue files should use Composition API with `<script setup lang="ts">`. Name components in `PascalCase` (`DialogProvider.vue`), composables with a `use` prefix (`useDarkMode.ts`), and services/controllers in kebab-case (`event.service.ts`). Prefer workspace imports such as `@willow/core` and configured aliases such as `@/` over long relative paths.
 
-Inside `app/work/src/`, code is split by process:
+## Testing Guidelines
 
-- `main/`: Electron services, controllers, database access, and app bootstrap.
-- `preload/`: `contextBridge` exposure.
-- `renderer/`: desktop app shell entry and Vue renderer assets.
-- `shared/`: IPC constants, hooks, and shared types.
+Vitest runs in a Node environment for `packages/core`. Add tests as `packages/core/test/<feature>.test.ts`, group behavior with `describe`, and keep tests deterministic by cleaning temporary files in hooks. No coverage threshold is configured; cover new branches and regressions meaningfully. For renderer changes, also run `pnpm dev` and manually verify the affected Electron flow.
 
-Database schema and migrations live in `app/work/src/main/db/`.
+## Commit & Pull Request Guidelines
 
-### Build, Test, And Development Commands
+History follows concise Conventional Commit prefixes such as `feat:`, `fix:`, `refactor:`, and `chore:`; summaries may be English or Simplified Chinese. Keep each commit focused. Pull requests should describe the change, list affected workspaces, link relevant issues, and report lint, typecheck, and test results. Include screenshots or recordings for renderer changes and call out native dependency, packaging, or configuration impacts.
 
-Install dependencies first:
+## Security & Configuration
 
-```bash
-pnpm install
-```
+Never commit credentials or local `.env` files. Keep cross-process APIs narrow: define shared IPC contracts in `apps/work/src/shared/` and expose only required functionality through preload.
 
-Key workspace commands:
+<!-- CODEGRAPH_START -->
 
-- `pnpm build`: build all workspace packages.
-- `pnpm dev`: run the Electron app in development mode (`app/work`).
-- `pnpm dev:ui`: run the UI playground (`app/ui-playground`).
-- `pnpm dev:p`: watch-build `packages/poetry`.
-- `pnpm lint`: run `oxlint` for `app/` and `packages/`.
-- `pnpm format`: format with `oxfmt`.
-- `pnpm format:check`: check formatting with `oxfmt --check`.
+## CodeGraph
 
-App-specific commands:
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
 
-- `cd app/work && pnpm package`: package the desktop app.
-- `cd app/work && pnpm make`: generate platform installers.
-- `cd app/work && pnpm lint`: lint only the Electron app sources.
-- `cd app/work && pnpm db:generate`: generate Drizzle migrations.
-- `cd app/work && pnpm db:push`: push schema changes.
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
 
-### Coding Style And Naming Conventions
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
 
-- Language: TypeScript with `strict` mode enabled.
-- Vue SFCs must use `<script setup lang="ts">`.
-- Prefer Composition API and setup-style stores for Vue and Pinia code.
-- Indentation: 2 spaces.
-- Imports order: Node built-ins, third-party deps, alias imports, relative imports.
-- Prefer double quotes for imports; follow surrounding semicolon style.
-
-Naming:
-
-- Vue components: `PascalCase` (for example `ChatInput.vue`)
-- Files: `kebab-case` (for example `workspace.service.ts`)
-- Functions and composables: `camelCase`; composables start with `use`
-- Pinia stores: setup-style `defineStore("name", () => {})`
-- IPC constants and channels: `UPPER_SNAKE_CASE`
-
-### UI And Renderer Notes
-
-- Treat `app/work` renderer as a desktop productivity surface, not a marketing page.
-- Reuse the existing token system from `app/work/src/renderer/index.css`; do not invent a parallel theme layer.
-- Prefer `@willow/shadcn` and `@willow/ui` before creating one-off UI primitives.
-- Use `app/ui-playground` to validate new renderer patterns or shared UI changes when a fast isolated preview helps.
-- For `shadcn-vue` usage or page design updates, read the relevant OpenSpec artifacts first, then `DESIGN.md`.
-
-### Testing Guidelines
-
-There is no formal repository-wide test runner configured yet.
-
-- `packages/poetry` includes Jest as a dev dependency, but no active root test script is wired up.
-- `app/work` currently relies on linting, build validation, and manual verification.
-- When adding tests, place them near source files and use `*.test.ts`.
-
-Before submitting changes, run the relevant checks for the area you touched:
-
-- `pnpm lint`
-- `pnpm build` when the change can affect package build output
-- manual verification with `pnpm dev` or `pnpm dev:ui` for renderer/UI work
-
-### Commit And Pull Request Guidelines
-
-- Use concise Conventional Commit prefixes consistent with history.
-- Prefer Simplified Chinese for user-visible changes and commit summaries when it matches existing history.
-
-PRs should include:
-
-- scope summary and impacted packages
-- screenshots for renderer or UI updates
-- explicit notes for migrations, environment variable changes, or build-impacting changes
-
-### Security And Configuration Tips
-
-- Never commit `.env` files or any secrets.
-- Store app tokens only in local `.env`.
-- Use `workspace:*` for local package references and `catalog:` for shared dependency versions.
+<!-- CODEGRAPH_END -->
