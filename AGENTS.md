@@ -5,22 +5,6 @@
 
 For renderer, `shadcn-vue`, and page design work, always consult the repository root `DESIGN.md` after reading the relevant OpenSpec artifacts.
 
-## Workflow Contract
-
-- Only use these workflow skills for project process orchestration: `workflow-spec`, `workflow-worktree`, `workflow-plan`, `workflow-implement`, `workflow-close`.
-- Do not use legacy `openspec-*` or `superpowers` workflow skill names in this repository.
-- All new workflow-side documents must be written under `docs/ai-workflows/`.
-- The canonical OpenSpec storage location is `docs/ai-workflows/openspec/`.
-- The repository root `DESIGN.md` is the long-lived renderer design standard. It does not replace feature-level OpenSpec behavior or requirements.
-- The repository root `openspec/` path is a compatibility symlink for tools that still expect the default OpenSpec directory.
-- Standard sequence:
-  1. `workflow-spec`: define or update the OpenSpec change.
-  2. `workflow-worktree`: prepare an isolated implementation workspace.
-  3. `workflow-plan`: write an execution plan to `docs/ai-workflows/plans/`.
-  4. `workflow-implement`: implement strictly against OpenSpec and the plan.
-  5. `workflow-close`: run final verification, review, and archive when ready.
-- If implementation reveals a missing requirement or design conflict, return to `workflow-spec` before continuing code changes.
-
 ## Repository Guidelines
 
 ### Project Structure And Module Organization
@@ -28,11 +12,9 @@ For renderer, `shadcn-vue`, and page design work, always consult the repository 
 This repository is a `pnpm` workspace with app packages and shared packages:
 
 - `app/work/`: Electron desktop app.
-- `app/ui-playground/`: isolated Vite playground for renderer and UI experiments.
 - `packages/core/src/`: shared business/domain utilities published as `@willow/core`.
 - `packages/poetry/src/`: reusable Electron framework layer (decorators, dependency injection, IPC binding, window/module management).
 - `packages/shadcn/src/`: local `shadcn-vue` component package published as `@willow/shadcn`.
-- `packages/ui/src/`: shared higher-level UI package published as `@willow/ui`.
 
 Inside `app/work/src/`, code is split by process:
 

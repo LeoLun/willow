@@ -1,12 +1,12 @@
 packages:
   - "packages/**"
-  - "app/**"
+  - "apps/**"
 
 catalog:
   reflect-metadata: ^0.1.13
   electron: 39.1.0
   tsyringe: ^4.10.0
-  "@typescript/native-preview": 7.0.0-dev.20260325.1
+  "@typescript/native-preview": 7.0.0-dev.20260707.2
   inversify: ^6.2.1
-  "@mariozechner/pi-ai": ^0.73.1
-  "@mariozechner/pi-agent-core": ^0.73.1
+  "@earendil-works/pi-ai": ^0.80.6
+  "@earendil-works/pi-agent-core": ^0.80.6

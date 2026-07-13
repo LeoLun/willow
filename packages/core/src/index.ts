@@ -1,39 +1,21 @@
-export {
-  createBashTool,
-  createTool,
-  createEditTool,
-  createFindTool,
-  createGrepTool,
-  createLsTool,
-  createReadTool,
-  createTodoReadTool,
-  createTodoWriteTool,
-  createWebFetchTool,
-  createWebSearchTool,
-  createWriteTool,
-  createAskUserTool,
-  createAllTools,
-  ToolApprovalCoordinator,
-  type TodoItem,
-  type TodoStore,
-  type WillowTool,
-  type WebSearchOptions,
-  type ToolPermissionDecision,
-  type ToolApprovalRequest,
-  type ToolApprovalDecision,
-  type ToolApprovalStatus,
-} from "./tools/index";
+import type { Agent, AgentOptions } from "./types";
 
-export { buildSystemPrompt, type SystemPromptOptions } from "./system-prompt";
+export { AgentCore } from "./core.js";
+export type { Credential, CredentialStore } from "@earendil-works/pi-ai";
 
-export {
-  loadSkills,
-  formatSkillsForPrompt,
-  type Skill,
-  type LoadSkillsResult,
-  type SkillFrontmatter,
-} from "./skills";
+export type {
+  Agent,
+  AgentCoreOptions,
+  AgentHarnessOptions,
+  AgentOptions,
+  SessionManagerOption,
+} from "./types";
 
-export { CoreAgent, type CoreAgentOptions } from "./core-agent";
-
-export { parseFrontmatter } from "./utils/frontmatter";
+export function createAgent(options: AgentOptions): Agent {
+  return {
+    name: options.name,
+    run(input) {
+      return `${options.name}: ${input}`;
+    },
+  };
+}
