@@ -24,7 +24,7 @@
     "lint": "oxlint src/",
     "typecheck": "pnpm run typecheck:tsc && pnpm run typecheck:renderer",
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
-    "typecheck:renderer": "vue-tsc -p tsconfig.renderer.json --noEmit",
+    "typecheck:renderer": "vue-tsc -p src/renderer/tsconfig.json --noEmit",
     "rebuild:native": "env HOME=$PWD/../.. electron-rebuild --force --module-dir ../.. --dist-url=https://electronjs.org/headers",
     "postinstall": "pnpm run rebuild:native"
   },

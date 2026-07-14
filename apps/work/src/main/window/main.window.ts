@@ -28,8 +28,8 @@ const option: WindowMetadata = {
       : {}),
     titleBarStyle: "hiddenInset",
     trafficLightPosition: {
-      x: 10,
-      y: 12,
+      x: 20,
+      y: 20,
     },
     webPreferences: {
       preload: join(__dirname, "preload.js"),

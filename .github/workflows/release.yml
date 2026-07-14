@@ -30,7 +30,7 @@ jobs:
 
       - name: Read version from package.json
         run: |
-          VERSION=$(node -p "require('./app/work/package.json').version")
+          VERSION=$(node -p "require('./apps/work/package.json').version")
           echo "VERSION=v$VERSION" >> $GITHUB_ENV
 
       - name: Install dependencies
@@ -41,7 +41,7 @@ jobs:
 
       - name: Build and Package Mac App (x64)
         run: |
-          cd app/work
+          cd apps/work
           pnpm run make:mac:x64
           mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-x64.dmg || true
         env:
@@ -51,7 +51,7 @@ jobs:
 
       - name: Build and Package Mac App (arm64)
         run: |
-          cd app/work
+          cd apps/work
           pnpm run make:mac:arm64
           mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg || true
         env:
@@ -61,28 +61,28 @@ jobs:
 
       - name: Extract app.asar for incremental update
         run: |
-          find app/work/out -path "*/Contents/Resources/app.asar" -exec cp {} app/work/out/app.asar \; -quit
-          if [ ! -f app/work/out/app.asar ]; then
+          find apps/work/out -path "*/Contents/Resources/app.asar" -exec cp {} apps/work/out/app.asar \; -quit
+          if [ ! -f apps/work/out/app.asar ]; then
             echo "Error: app.asar was not found in the build output directory!"
             exit 1
           fi
-          ls -la app/work/out/app.asar
+          ls -la apps/work/out/app.asar
 
       - name: Check output files
         run: |
-          ls -la app/work/out/make/ || true
-          ls -la app/work/out/make/zip/darwin/x64/ || true
-          ls -la app/work/out/make/zip/darwin/arm64/ || true
+          ls -la apps/work/out/make/ || true
+          ls -la apps/work/out/make/zip/darwin/x64/ || true
+          ls -la apps/work/out/make/zip/darwin/arm64/ || true
 
       - name: Upload Packaged Artifacts to Actions Run
         uses: actions/upload-artifact@v7
         with:
           name: willow-build-${{ env.VERSION }}
           path: |
-            app/work/out/make/*.dmg
-            app/work/out/make/zip/darwin/x64/*.zip
-            app/work/out/make/zip/darwin/arm64/*.zip
-            app/work/out/app.asar
+            apps/work/out/make/*.dmg
+            apps/work/out/make/zip/darwin/x64/*.zip
+            apps/work/out/make/zip/darwin/arm64/*.zip
+            apps/work/out/app.asar
 
       - name: Create Release and Upload Assets
         if: ${{ inputs.upload_release == true }}
@@ -91,10 +91,10 @@ jobs:
           tag_name: ${{ env.VERSION }}
           name: Release ${{ env.VERSION }}
           files: |
-            app/work/out/make/*.dmg
-            app/work/out/make/zip/darwin/x64/*.zip
-            app/work/out/make/zip/darwin/arm64/*.zip
-            app/work/out/app.asar
+            apps/work/out/make/*.dmg
+            apps/work/out/make/zip/darwin/x64/*.zip
+            apps/work/out/make/zip/darwin/arm64/*.zip
+            apps/work/out/app.asar
           draft: false
           prerelease: false
         env:

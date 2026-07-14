@@ -35,5 +35,5 @@ jobs:
 
       - name: Run Type Check
         run: |
-          cd app/work
+          cd apps/work
           npx tsc --noEmit
