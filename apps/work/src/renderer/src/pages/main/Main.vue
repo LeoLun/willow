@@ -5,11 +5,7 @@ import TopBar from "@/components/layout/TopBar.vue";
 </script>
 
 <template>
-  <SidebarProvider
-    :default-open="true"
-    class="min-h-screen bg-zinc-100/80 dark:bg-zinc-950"
-    style="--sidebar-width: 18.5rem"
-  >
+  <SidebarProvider :default-open="true" class="min-h-screen" style="--sidebar-width: 256px">
     <AppSidebar />
     <SidebarInset class="min-w-0 overflow-hidden">
       <TopBar />

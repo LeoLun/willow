@@ -46,29 +46,29 @@ const props = withDefaults(defineProps<ButtonGroupProps>(), {
 }
 
 [data-shape="circular"] :deep(> [data-slot="button"]) {
-  width: 56px;
-  min-width: 56px;
-  height: calc(var(--spacing) * 12);
+  width: 40px;
+  min-width: 40px;
+  height: 36px;
   padding: 0;
   border-radius: 9999px;
 }
 
 [data-shape="circular"] :deep(> [data-slot="button"] svg) {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
 }
 
 [data-shape="capsule"] :deep(> [data-slot="button"]) {
-  width: 60px;
-  min-width: 60px;
-  height: calc(var(--spacing) * 9);
+  width: 48px;
+  min-width: 48px;
+  height: 26px;
   padding: 0;
   border-radius: 9999px;
 }
 
 [data-shape="capsule"] :deep(> [data-slot="button"] svg) {
-  width: 20px;
-  height: 20px;
+  width: 14px;
+  height: 14px;
 }
 
 :global(.dark) [data-slot="button-group"] :deep(> [data-slot="button"]:hover) {
