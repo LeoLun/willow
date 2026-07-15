@@ -13,9 +13,18 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  SidebarMenuBadge,
   useSidebar,
 } from "@willow/shadcn/components/ui/sidebar";
-import { ChevronDown, Clock3, Folder, Share2, PanelLeft } from "lucide-vue-next";
+import {
+  ChevronDown,
+  Clock3,
+  Folder,
+  FolderOpen,
+  PanelLeft,
+  LoaderCircle,
+  Dot,
+} from "lucide-vue-next";
 import type { Component } from "vue";
 import { baseShadowStyles } from "@/components/ui/base-shadow";
 import { Button } from "@/components/ui/button";
@@ -29,12 +38,14 @@ interface QuickAccessItem {
 interface SidebarItem {
   id: string;
   label: string;
+  state?: "loading" | "done";
 }
 
 interface SidebarProject {
   id: string;
   label: string;
   icon: Component;
+  activeIcon: Component;
   items: SidebarItem[];
 }
 
@@ -49,8 +60,8 @@ const { state, toggleSidebar } = useSidebar();
 
 const quickAccess: QuickAccessItem[] = [
   { id: "text-edit", label: "新建任务", icon: Folder },
-  { id: "recents", label: "Recents", icon: Clock3 },
-  { id: "shared", label: "Shared", icon: Share2 },
+  { id: "recents", label: "自动化", icon: Clock3 },
+  // { id: "shared", label: "Shared", icon: Share2 },
 ];
 
 const sections: SidebarSection[] = [
@@ -62,9 +73,10 @@ const sections: SidebarSection[] = [
         id: "project-1",
         label: "项目 1",
         icon: Folder,
+        activeIcon: FolderOpen,
         items: [
-          { id: "project-1-item-1", label: "item1" },
-          { id: "project-1-item-2", label: "item2" },
+          { id: "project-1-item-1", label: "item1", state: "loading" },
+          { id: "project-1-item-2", label: "item2", state: "done" },
           { id: "project-1-item-3", label: "item3" },
         ],
       },
@@ -78,6 +90,7 @@ const sections: SidebarSection[] = [
         id: "project-2",
         label: "项目 2",
         icon: Folder,
+        activeIcon: FolderOpen,
         items: [
           { id: "project-2-item-1", label: "item1" },
           { id: "project-2-item-2", label: "item2" },
@@ -154,7 +167,7 @@ const sections: SidebarSection[] = [
                   <SidebarMenuButton
                     class="h-8 items-center rounded-lg px-2.5 text-[13px] leading-4 text-sidebar-foreground/85"
                   >
-                    <component :is="project.icon" />
+                    <component :is="open ? project.activeIcon : project.icon" />
                     <span>{{ project.label }}</span>
                     <ChevronDown
                       class="ml-auto size-4 transition-transform duration-200 dark:text-white/25"
@@ -174,6 +187,21 @@ const sections: SidebarSection[] = [
                       >
                         <span>{{ item.label }}</span>
                       </SidebarMenuSubButton>
+                      <SidebarMenuBadge
+                        v-if="item.state"
+                        class="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+                      >
+                        <LoaderCircle
+                          v-if="item.state === 'loading'"
+                          class="h-full w-full animate-spin"
+                        />
+                        <div
+                          v-else-if="item.state === 'done'"
+                          class="flex h-full w-full items-center justify-center"
+                        >
+                          <div class="size-1.5 rounded-full bg-sidebar-foreground/85"></div>
+                        </div>
+                      </SidebarMenuBadge>
                     </SidebarMenuSubItem>
                   </SidebarMenuSub>
                 </CollapsibleContent>
