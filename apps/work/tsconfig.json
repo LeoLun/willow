@@ -12,6 +12,7 @@
     "sourceMap": true,
     "resolvePackageJsonExports": true,
     "resolveJsonModule": true,
+    "types": ["vite/client"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "paths": {

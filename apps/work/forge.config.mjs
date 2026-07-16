@@ -29,6 +29,16 @@ const config = {
   hooks: {
     async packageAfterCopy(_forgeConfig, buildPath) {
       const packagedNodeModulesPath = join(buildPath, "node_modules");
+      await mkdir(packagedNodeModulesPath, { recursive: true });
+      await cp(betterSqlite3Source, join(packagedNodeModulesPath, "better-sqlite3"), {
+        force: true,
+        recursive: true,
+      });
+      await cp(
+        join(process.cwd(), "src/main/db/migrations"),
+        join(buildPath, "src/main/db/migrations"),
+        { force: true, recursive: true },
+      );
     },
   },
   makers: [
@@ -60,9 +70,7 @@ const config = {
           path: "/Applications",
         },
       ],
-      background: fileURLToPath(
-        new URL("assets/dmg-background.png", import.meta.url),
-      ),
+      background: fileURLToPath(new URL("assets/dmg-background.png", import.meta.url)),
     }),
     new MakerRpm({}),
     new MakerDeb({}),

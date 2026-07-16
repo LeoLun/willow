@@ -3,6 +3,11 @@ import { On, WindowFactoryResolver, Module } from "@willow/poetry";
 import { app } from "electron";
 import started from "electron-squirrel-startup";
 import { EventController } from "./controllers/event.controller";
+import { CredentialService } from "./service/credential.service";
+import { CredentialDao } from "./service/dao/credential.dao.server";
+import { SessionDao } from "./service/dao/session.dao.server";
+import { WorkspaceDao } from "./service/dao/workspace.dao.server";
+import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
 import { MainWindow } from "./window/main.window";
 
@@ -16,7 +21,7 @@ if (started) {
 @Module({
   imports: [],
   windows: [MainWindow],
-  providers: [EventService],
+  providers: [DbService, WorkspaceDao, SessionDao, CredentialDao, CredentialService, EventService],
   controllers: [EventController],
 })
 export class AppModule {
@@ -24,6 +29,7 @@ export class AppModule {
 
   constructor(
     private windowFactoryResolver: WindowFactoryResolver,
+    private dbService: DbService,
     private eventController: EventController,
     private eventService: EventService,
   ) {}
@@ -39,7 +45,7 @@ export class AppModule {
 
   @On("before-quit")
   async onBeforeQuit() {
-    console.log("onBeforeQuit");
+    this.dbService.close();
   }
 
   @On("window-all-closed")
@@ -64,14 +70,19 @@ export class AppModule {
       return true;
     }
 
-    this.initSucceeded = true;
-    this.createWindow();
-    return true;
+    try {
+      this.dbService.init();
+      this.createWindow();
+      this.initSucceeded = true;
+      return true;
+    } catch (error) {
+      this.initSucceeded = false;
+      throw error;
+    }
   }
 
   private showMainWindow() {
-    const mainWindow =
-      this.windowFactoryResolver.resolveWindowFactory(MainWindow);
+    const mainWindow = this.windowFactoryResolver.resolveWindowFactory(MainWindow);
 
     if (!mainWindow.win || mainWindow.win.isDestroyed()) {
       this.createWindow();

@@ -14,6 +14,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarMenuBadge,
+  SidebarFooter,
   useSidebar,
 } from "@willow/shadcn/components/ui/sidebar";
 import {
@@ -23,12 +24,14 @@ import {
   FolderOpen,
   PanelLeft,
   LoaderCircle,
-  Dot,
+  Settings,
+  Sun,
+  Moon,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 import { baseShadowStyles } from "@/components/ui/base-shadow";
 import { Button } from "@/components/ui/button";
-
+import { useDarkMode } from "@/composables/useDarkMode";
 interface QuickAccessItem {
   id: string;
   label: string;
@@ -57,6 +60,8 @@ interface SidebarSection {
 
 const selectedItem = defineModel<string>({ default: "text-edit" });
 const { state, toggleSidebar } = useSidebar();
+
+const { themeMode } = useDarkMode();
 
 const quickAccess: QuickAccessItem[] = [
   { id: "text-edit", label: "新建任务", icon: Folder },
@@ -121,7 +126,7 @@ const sections: SidebarSection[] = [
   >
     <SidebarHeader class="h-12 flex-row items-center justify-end px-3 pl-[76px]"> </SidebarHeader>
 
-    <SidebarContent class="gap-0 px-1 pb-3">
+    <SidebarHeader class="h-20">
       <SidebarGroup class="px-2 py-0">
         <SidebarGroupContent>
           <SidebarMenu class="gap-0.5">
@@ -144,7 +149,9 @@ const sections: SidebarSection[] = [
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
+    </SidebarHeader>
 
+    <SidebarContent class="gap-0 px-1 pb-3">
       <SidebarGroup v-for="section in sections" :key="section.id" class="px-2 py-1">
         <SidebarGroupLabel
           class="mt-3 h-6 px-2 text-[11px] leading-3.5 font-semibold text-sidebar-foreground/50"
@@ -211,5 +218,18 @@ const sections: SidebarSection[] = [
         </SidebarGroupContent>
       </SidebarGroup>
     </SidebarContent>
+    <SidebarFooter class="flex h-12 flex-row items-center justify-end gap-2 px-2">
+      <Button variant="borderless" shape="capsule" class="flex-1 justify-start">
+        <Settings />
+        设置
+      </Button>
+      <Button
+        variant="borderless"
+        shape="capsule"
+        @click="themeMode = themeMode === 'dark' ? 'light' : 'dark'"
+      >
+        <component :is="themeMode === 'dark' ? Sun : Moon" />
+      </Button>
+    </SidebarFooter>
   </Sidebar>
 </template>
