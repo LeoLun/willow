@@ -33,7 +33,6 @@ const option: WindowMetadata = {
     },
     webPreferences: {
       preload: join(__dirname, "preload.js"),
-      webSecurity: false,
     },
     ...(MAIN_WINDOW_VITE_DEV_SERVER_URL
       ? { icon: join(__dirname, "../../assets/icons/icon.png") }

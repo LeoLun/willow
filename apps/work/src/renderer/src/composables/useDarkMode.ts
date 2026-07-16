@@ -1,4 +1,4 @@
-import { ref, watch, onMounted } from "vue";
+import { onMounted, ref, watch } from "vue";
 
 export type ThemeMode = "system" | "light" | "dark";
 
@@ -6,6 +6,7 @@ const themeMode = ref<ThemeMode>("system");
 const isDark = ref(false);
 
 let mediaQuery: MediaQueryList | null = null;
+let initialized = false;
 
 function getSystemDark(): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -32,6 +33,9 @@ function onSystemChange() {
 
 export function useDarkMode() {
   onMounted(() => {
+    if (initialized) return;
+    initialized = true;
+
     const saved = localStorage.getItem("theme") as ThemeMode | null;
     if (saved === "dark" || saved === "light" || saved === "system") {
       themeMode.value = saved;
@@ -40,11 +44,11 @@ export function useDarkMode() {
 
     mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     mediaQuery.addEventListener("change", onSystemChange);
-  });
 
-  watch(themeMode, () => {
-    applyTheme();
-    localStorage.setItem("theme", themeMode.value);
+    watch(themeMode, () => {
+      applyTheme();
+      localStorage.setItem("theme", themeMode.value);
+    });
   });
 
   return { themeMode, isDark };

@@ -8,10 +8,10 @@ export const buttonGroupVariants = cva(
   [
     "no-drag-region relative isolate inline-flex w-fit items-center overflow-hidden rounded-full",
     "border border-white/80 bg-white/58 backdrop-blur-[24px] backdrop-saturate-150",
-    baseShadowStyles.glass,
+    baseShadowStyles.glassControl,
     "before:pointer-events-none before:absolute before:inset-px before:rounded-[inherit]",
     "before:border before:border-white/45 before:content-['']",
-    "dark:border-white/24 dark:bg-white/16",
+    "dark:border-white/12 dark:bg-background dark:before:hidden",
   ],
   {
     variants: {

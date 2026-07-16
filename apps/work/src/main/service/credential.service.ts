@@ -1,4 +1,4 @@
-import type { CredentialStore } from "@earendil-works/pi-ai";
+import type { CredentialStore, Credential } from "@earendil-works/pi-ai";
 import { Injectable } from "@willow/poetry";
 import { ElectronCredentialStore } from "../auth/credential-store";
 import { CredentialDao } from "./dao/credential.dao.server";
@@ -16,5 +16,19 @@ export class CredentialService {
 
   getCredentialStore(): CredentialStore {
     return this.credentialStore;
+  }
+
+  setCredential(providerId: string, credential: Credential) {
+    return this.credentialStore.modify(providerId, (_current: Credential | undefined) => {
+      return Promise.resolve(credential);
+    });
+  }
+
+  getCredential(providerId: string) {
+    return this.credentialStore.read(providerId);
+  }
+
+  deleteCredential(providerId: string) {
+    return this.credentialStore.delete(providerId);
   }
 }

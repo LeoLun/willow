@@ -72,10 +72,10 @@ const props = withDefaults(defineProps<ButtonGroupProps>(), {
 }
 
 :global(.dark) [data-slot="button-group"] :deep(> [data-slot="button"]:hover) {
-  background: rgb(255 255 255 / 10%);
+  background: rgb(255 255 255 / 14%);
 }
 
 :global(.dark) [data-slot="button-group"] :deep(> [data-slot="button"][data-state="on"]) {
-  background: rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 12%);
 }
 </style>

@@ -1,0 +1,28 @@
+import "reflect-metadata";
+import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
+import { describe, expect, it } from "vitest";
+import { ProviderCatalogService } from "../src/main/service/provider-catalog.service";
+
+describe("ProviderCatalogService", () => {
+  it("maps every interactive API-key provider and its models", () => {
+    const expected = builtinProviders().filter(
+      (provider) =>
+        provider.auth.apiKey?.login !== undefined &&
+        provider.id !== "cloudflare-ai-gateway" &&
+        provider.id !== "cloudflare-workers-ai",
+    );
+    const catalog = new ProviderCatalogService().getCatalog();
+
+    expect(catalog.map((provider) => provider.id)).toEqual(expected.map((provider) => provider.id));
+    expect(catalog).not.toContainEqual(expect.objectContaining({ id: "openai-codex" }));
+    expect(catalog).not.toContainEqual(expect.objectContaining({ id: "amazon-bedrock" }));
+    expect(catalog).not.toContainEqual(expect.objectContaining({ id: "cloudflare-ai-gateway" }));
+
+    const openai = catalog.find((provider) => provider.id === "openai");
+    expect(openai).toMatchObject({ name: "OpenAI" });
+    expect(openai?.models.length).toBeGreaterThan(0);
+    expect(openai?.models[0]).toEqual(
+      expect.objectContaining({ id: expect.any(String), name: expect.any(String) }),
+    );
+  });
+});

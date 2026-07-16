@@ -31,7 +31,8 @@ import {
 import type { Component } from "vue";
 import { baseShadowStyles } from "@/components/ui/base-shadow";
 import { Button } from "@/components/ui/button";
-import { useDarkMode } from "@/composables/useDarkMode";
+import { useDialog } from "@/layout/dialog";
+import SettingDialog from "@/layout/setting/Setting.vue";
 interface QuickAccessItem {
   id: string;
   label: string;
@@ -61,7 +62,14 @@ interface SidebarSection {
 const selectedItem = defineModel<string>({ default: "text-edit" });
 const { state, toggleSidebar } = useSidebar();
 
-const { themeMode } = useDarkMode();
+const { openDialog } = useDialog();
+
+function openSettingDialog() {
+  openDialog(SettingDialog, undefined, {
+    contentClass:
+      "h-[min(680px,calc(100vh-2rem))] max-w-4xl gap-0 overflow-hidden p-0 sm:max-w-4xl",
+  });
+}
 
 const quickAccess: QuickAccessItem[] = [
   { id: "text-edit", label: "新建任务", icon: Folder },
@@ -109,7 +117,7 @@ const sections: SidebarSection[] = [
 
 <template>
   <Button
-    class="no-drag-region absolute top-[12px] z-100 transition-[left] duration-200 ease-linear will-change-[left]"
+    class="no-drag-region absolute top-[12px] z-50 transition-[left] duration-200 ease-linear will-change-[left]"
     :class="state === 'collapsed' ? 'left-[90px]' : 'left-[194px]'"
     :variant="state === 'collapsed' ? 'default' : 'borderless'"
     shape="capsule"
@@ -219,16 +227,14 @@ const sections: SidebarSection[] = [
       </SidebarGroup>
     </SidebarContent>
     <SidebarFooter class="flex h-12 flex-row items-center justify-end gap-2 px-2">
-      <Button variant="borderless" shape="capsule" class="flex-1 justify-start">
-        <Settings />
-        设置
-      </Button>
       <Button
         variant="borderless"
         shape="capsule"
-        @click="themeMode = themeMode === 'dark' ? 'light' : 'dark'"
+        class="flex-1 justify-start"
+        @click="openSettingDialog"
       >
-        <component :is="themeMode === 'dark' ? Sun : Moon" />
+        <Settings />
+        设置
       </Button>
     </SidebarFooter>
   </Sidebar>

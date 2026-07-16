@@ -2,7 +2,11 @@
 
 ## Project Structure & Module Organization
 
-Willow is a pnpm workspace. `apps/work/` contains the Electron desktop app: `src/main/` owns the main process, `src/preload/` exposes bridges, `src/renderer/` contains the Vue 3 UI, and `src/shared/` holds cross-process contracts. App artwork lives in `apps/work/assets/`. Under `packages/`, `core` provides agent/session logic, `poetry` provides Electron decorators and managers, and `shadcn` provides reusable Vue components. Core tests live in `packages/core/test/`; supporting material lives in `docs/`.
+Willow is a pnpm workspace. `apps/work/` contains the Electron desktop app. Under `packages/`, `core` provides agent/session logic, `poetry` provides Electron decorators and managers, and `shadcn` provides reusable Vue components. Core tests live in `packages/core/test/`; supporting material lives in `docs/`.
+
+## Scoped Instructions
+
+Before planning or modifying code under `apps/work/`, you must first read `apps/work/AGENTS.md` in full. Its app-specific instructions supplement and may narrow these repository-wide rules.
 
 ## Build, Test, and Development Commands
 
@@ -12,11 +16,10 @@ Willow is a pnpm workspace. `apps/work/` contains the Electron desktop app: `src
 - `pnpm typecheck` runs each workspace package's TypeScript or `vue-tsc` checks.
 - `pnpm format` formats supported files with Oxfmt; `pnpm format:check` verifies formatting without writing.
 - `pnpm --filter @willow/core test` runs the Vitest suite once.
-- `pnpm --filter ./apps/work package` creates an unpacked app; replace `package` with `make` to build platform installers.
 
 ## Coding Style & Naming Conventions
 
-Write strict TypeScript and ESM. Oxfmt enforces 2-space indentation, 100-column lines, double quotes, semicolons, trailing commas, and sorted imports. Vue files should use Composition API with `<script setup lang="ts">`. Name components in `PascalCase` (`DialogProvider.vue`), composables with a `use` prefix (`useDarkMode.ts`), and services/controllers in kebab-case (`event.service.ts`). Prefer workspace imports such as `@willow/core` and configured aliases such as `@/` over long relative paths.
+Write strict TypeScript and ESM. Oxfmt enforces 2-space indentation, 100-column lines, double quotes, semicolons, trailing commas, and sorted imports. Prefer workspace imports such as `@willow/core` over long relative paths.
 
 ## Testing Guidelines
 
@@ -24,11 +27,11 @@ Vitest runs in a Node environment for `packages/core`. Add tests as `packages/co
 
 ## Commit & Pull Request Guidelines
 
-History follows concise Conventional Commit prefixes such as `feat:`, `fix:`, `refactor:`, and `chore:`; summaries may be English or Simplified Chinese. Keep each commit focused. Pull requests should describe the change, list affected workspaces, link relevant issues, and report lint, typecheck, and test results. Include screenshots or recordings for renderer changes and call out native dependency, packaging, or configuration impacts.
+History follows concise Conventional Commit prefixes such as `feat:`, `fix:`, `refactor:`, and `chore:`; summaries may be English or Simplified Chinese. Keep each commit focused. Pull requests should describe the change, list affected workspaces, link relevant issues, and report lint, typecheck, and test results.
 
 ## Security & Configuration
 
-Never commit credentials or local `.env` files. Keep cross-process APIs narrow: define shared IPC contracts in `apps/work/src/shared/` and expose only required functionality through preload.
+Never commit credentials or local `.env` files.
 
 <!-- CODEGRAPH_START -->
 

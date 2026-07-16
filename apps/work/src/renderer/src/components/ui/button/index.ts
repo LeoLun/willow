@@ -21,10 +21,10 @@ export const buttonVariants = cva(
       variant: {
         default: [
           "border-white/80 bg-white/58 text-[#1a1a1a]",
-          baseShadowStyles.glass,
+          baseShadowStyles.glassControl,
           "hover:bg-white/70 active:bg-[#e6e6e6] data-[state=on]:bg-[#e6e6e6]",
-          "dark:border-white/24 dark:bg-white/16 dark:text-white/90",
-          "dark:hover:bg-white/22 dark:active:bg-white/18 dark:data-[state=on]:bg-white/18",
+          "dark:border-white/12 dark:bg-background dark:text-white/90 dark:before:hidden",
+          "dark:hover:bg-white/12 dark:active:bg-white/9 dark:data-[state=on]:bg-white/9",
         ],
         accent: [
           "border-[#0068d8] bg-[#007aff] text-white",

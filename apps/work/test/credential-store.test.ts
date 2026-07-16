@@ -215,14 +215,15 @@ describe("ElectronCredentialStore", () => {
     await expect(openai).resolves.toEqual(apiKey("sk-openai"));
   });
 
-  it("CredentialService creates and reuses a DAO-backed store", async () => {
+  it("CredentialService delegates credential operations to its DAO-backed store", async () => {
     const service = new CredentialService(credentialDao);
     const store = service.getCredentialStore();
+    const credential = apiKey("sk-service");
 
     expect(service.getCredentialStore()).toBe(store);
-    await expect(store.modify("openai", async () => apiKey("sk-service"))).resolves.toEqual(
-      apiKey("sk-service"),
-    );
-    await expect(store.read("openai")).resolves.toEqual(apiKey("sk-service"));
+    await expect(service.setCredential("openai", credential)).resolves.toEqual(credential);
+    await expect(service.getCredential("openai")).resolves.toEqual(credential);
+    await expect(service.deleteCredential("openai")).resolves.toBeUndefined();
+    await expect(service.getCredential("openai")).resolves.toBeUndefined();
   });
 });
