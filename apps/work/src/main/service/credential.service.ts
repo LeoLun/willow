@@ -10,7 +10,7 @@ import { CredentialDao } from "./dao/credential.dao.server";
 export class CredentialService {
   private readonly credentialStore: CredentialStore;
 
-  constructor(credentialDao: CredentialDao) {
+  constructor(private readonly credentialDao: CredentialDao) {
     this.credentialStore = new ElectronCredentialStore(credentialDao);
   }
 
@@ -26,6 +26,10 @@ export class CredentialService {
 
   getCredential(providerId: string) {
     return this.credentialStore.read(providerId);
+  }
+
+  getConfiguredProviderIds(): string[] {
+    return this.credentialDao.findProviderIds();
   }
 
   deleteCredential(providerId: string) {

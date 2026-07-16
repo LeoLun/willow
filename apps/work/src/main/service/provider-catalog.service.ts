@@ -16,6 +16,7 @@ export class ProviderCatalogService {
     return this.providers.map((provider) => ({
       id: provider.id,
       name: provider.name,
+      apiKeyLabel: provider.auth.apiKey?.name ?? `${provider.name} API key`,
       models: provider.getModels().map((model) => ({ id: model.id, name: model.name })),
     }));
   }

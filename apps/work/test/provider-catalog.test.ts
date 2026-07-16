@@ -19,7 +19,8 @@ describe("ProviderCatalogService", () => {
     expect(catalog).not.toContainEqual(expect.objectContaining({ id: "cloudflare-ai-gateway" }));
 
     const openai = catalog.find((provider) => provider.id === "openai");
-    expect(openai).toMatchObject({ name: "OpenAI" });
+    expect(openai).toMatchObject({ name: "OpenAI", apiKeyLabel: "OpenAI API key" });
+    expect(catalog.every((provider) => provider.apiKeyLabel.length > 0)).toBe(true);
     expect(openai?.models.length).toBeGreaterThan(0);
     expect(openai?.models[0]).toEqual(
       expect.objectContaining({ id: expect.any(String), name: expect.any(String) }),

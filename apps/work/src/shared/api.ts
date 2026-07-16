@@ -24,6 +24,7 @@ export interface ProviderModelInfo {
 export interface ProviderInfo {
   id: string;
   name: string;
+  apiKeyLabel: string;
   models: ProviderModelInfo[];
 }
 
@@ -41,6 +42,12 @@ export interface GetCredentialResponse {
   configured: boolean;
 }
 
+export interface GetConfiguredProvidersRequest {}
+
+export interface GetConfiguredProvidersResponse {
+  providerIds: string[];
+}
+
 export interface SetCredentialRequest {
   providerId: string;
   apiKey: string;
@@ -53,3 +60,21 @@ export interface DeleteCredentialRequest {
 }
 
 export interface DeleteCredentialResponse {}
+
+export interface ModelConfig {
+  providerId: string;
+  modelId: string;
+}
+
+export interface UserConfigInfo {
+  largeModel?: ModelConfig;
+  smallModel?: ModelConfig;
+}
+
+export interface GetUserConfigRequest {}
+
+export type GetUserConfigResponse = UserConfigInfo;
+
+export type SetUserConfigRequest = UserConfigInfo;
+
+export type SetUserConfigResponse = UserConfigInfo;

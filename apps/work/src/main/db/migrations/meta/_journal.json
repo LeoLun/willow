@@ -15,6 +15,13 @@
       "when": 1784122994142,
       "tag": "0001_naive_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784194273397,
+      "tag": "0002_striped_frank_castle",
+      "breakpoints": true
     }
   ]
 }

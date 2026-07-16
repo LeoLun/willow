@@ -29,6 +29,7 @@ const apiKey = (key: string): Credential => ({ type: "api_key", key });
 
 const storedCredentials = new Map<string, Buffer>();
 const credentialDao = {
+  findProviderIds: vi.fn(() => Array.from(storedCredentials.keys())),
   findByProviderId: vi.fn((providerId: string) => {
     const encryptedData = storedCredentials.get(providerId);
     return encryptedData ? { providerId, encryptedData } : undefined;
@@ -221,7 +222,9 @@ describe("ElectronCredentialStore", () => {
     const credential = apiKey("sk-service");
 
     expect(service.getCredentialStore()).toBe(store);
+    expect(service.getConfiguredProviderIds()).toEqual([]);
     await expect(service.setCredential("openai", credential)).resolves.toEqual(credential);
+    expect(service.getConfiguredProviderIds()).toEqual(["openai"]);
     await expect(service.getCredential("openai")).resolves.toEqual(credential);
     await expect(service.deleteCredential("openai")).resolves.toBeUndefined();
     await expect(service.getCredential("openai")).resolves.toBeUndefined();

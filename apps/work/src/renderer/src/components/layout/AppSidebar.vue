@@ -29,10 +29,10 @@ import {
   Moon,
 } from "lucide-vue-next";
 import type { Component } from "vue";
+import { useDialog } from "@/components/dialog";
+import SettingDialog from "@/components/dialog/setting/Setting.vue";
 import { baseShadowStyles } from "@/components/ui/base-shadow";
 import { Button } from "@/components/ui/button";
-import { useDialog } from "@/layout/dialog";
-import SettingDialog from "@/layout/setting/Setting.vue";
 interface QuickAccessItem {
   id: string;
   label: string;

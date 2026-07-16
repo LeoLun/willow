@@ -12,6 +12,7 @@ const providers: ProviderInfo[] = [
   {
     id: "openai",
     name: "OpenAI",
+    apiKeyLabel: "OpenAI API key",
     models: [
       { id: "gpt-1", name: "GPT 1" },
       { id: "gpt-2", name: "GPT 2" },
@@ -20,6 +21,7 @@ const providers: ProviderInfo[] = [
   {
     id: "empty",
     name: "Empty",
+    apiKeyLabel: "Empty API key",
     models: [],
   },
 ];

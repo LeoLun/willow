@@ -17,6 +17,15 @@ export class CredentialDao {
       .get();
   }
 
+  findProviderIds(): string[] {
+    return this.dbService
+      .getDb()
+      .select({ providerId: credentials.providerId })
+      .from(credentials)
+      .all()
+      .map(({ providerId }) => providerId);
+  }
+
   upsert(providerId: string, encryptedData: Buffer): StoredCredential {
     return this.dbService
       .getDb()

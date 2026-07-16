@@ -20,6 +20,7 @@ vi.mock("electron", () => ({
 
 import { CredentialDao } from "../src/main/service/dao/credential.dao.server";
 import { SessionDao } from "../src/main/service/dao/session.dao.server";
+import { UserConfigDao } from "../src/main/service/dao/user-config.dao.server";
 import { WorkspaceDao } from "../src/main/service/dao/workspace.dao.server";
 import { DbService } from "../src/main/service/db.service";
 
@@ -29,6 +30,7 @@ describe("DAO layer", () => {
   let dbService: DbService;
   let credentialDao: CredentialDao;
   let sessionDao: SessionDao;
+  let userConfigDao: UserConfigDao;
   let workspaceDao: WorkspaceDao;
 
   beforeEach(async () => {
@@ -40,11 +42,13 @@ describe("DAO layer", () => {
     container.bind(CredentialDao).toSelf();
     container.bind(WorkspaceDao).toSelf();
     container.bind(SessionDao).toSelf();
+    container.bind(UserConfigDao).toSelf();
 
     dbService = container.get(DbService);
     credentialDao = container.get(CredentialDao);
     workspaceDao = container.get(WorkspaceDao);
     sessionDao = container.get(SessionDao);
+    userConfigDao = container.get(UserConfigDao);
   });
 
   afterEach(async () => {
@@ -76,9 +80,47 @@ describe("DAO layer", () => {
       providerId: "openai",
       encryptedData: updatedEncryptedData,
     });
+    credentialDao.upsert("anthropic", Buffer.from("encrypted-anthropic"));
+    expect(credentialDao.findProviderIds()).toHaveLength(2);
+    expect(credentialDao.findProviderIds()).toEqual(
+      expect.arrayContaining(["openai", "anthropic"]),
+    );
     expect(credentialDao.findByProviderId("openai")?.encryptedData).toEqual(updatedEncryptedData);
     expect(credentialDao.deleteByProviderId("openai")).toBe(true);
     expect(credentialDao.deleteByProviderId("openai")).toBe(false);
+  });
+
+  it("stores one user model configuration and updates it", () => {
+    expect(userConfigDao.find()).toBeUndefined();
+
+    expect(
+      userConfigDao.upsert({
+        largeModelProviderId: "openai",
+        largeModelId: "gpt-large",
+        smallModelProviderId: null,
+        smallModelId: null,
+      }),
+    ).toEqual({
+      id: 1,
+      largeModelProviderId: "openai",
+      largeModelId: "gpt-large",
+      smallModelProviderId: null,
+      smallModelId: null,
+    });
+
+    userConfigDao.upsert({
+      largeModelProviderId: "anthropic",
+      largeModelId: "claude-large",
+      smallModelProviderId: "openai",
+      smallModelId: "gpt-small",
+    });
+    expect(userConfigDao.find()).toEqual({
+      id: 1,
+      largeModelProviderId: "anthropic",
+      largeModelId: "claude-large",
+      smallModelProviderId: "openai",
+      smallModelId: "gpt-small",
+    });
   });
 
   it("provides workspace CRUD and unique-path lookup", () => {
