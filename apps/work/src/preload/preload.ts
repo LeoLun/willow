@@ -18,6 +18,8 @@ import type {
   RegisterEventResponse,
   SetCredentialRequest,
   SetCredentialResponse,
+  SetThemeRequest,
+  SetThemeResponse,
   SetUserConfigRequest,
   SetUserConfigResponse,
 } from "../shared/api";
@@ -31,6 +33,7 @@ import {
   GET_USER_CONFIG,
   REGISTER_EVENT,
   SET_CREDENTIAL,
+  SET_THEME,
   SET_USER_CONFIG,
 } from "../shared/constants";
 
@@ -64,6 +67,8 @@ const ipcObject: IRenderHook = {
   },
   getAppInfo: (request: GetAppInfoRequest = {}) =>
     invoke<GetAppInfoRequest, GetAppInfoResponse>(GET_APP_INFO, request),
+  setTheme: (request: SetThemeRequest) =>
+    invoke<SetThemeRequest, SetThemeResponse>(SET_THEME, request),
   getProviderCatalog: (request: GetProviderCatalogRequest = {}) =>
     invoke<GetProviderCatalogRequest, GetProviderCatalogResponse>(GET_PROVIDER_CATALOG, request),
   getConfiguredProviders: (request: GetConfiguredProvidersRequest = {}) =>

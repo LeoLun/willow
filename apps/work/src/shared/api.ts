@@ -16,6 +16,14 @@ export interface GetAppInfoResponse {
   version: string;
 }
 
+export type ThemeMode = "system" | "light" | "dark";
+
+export interface SetThemeRequest {
+  mode: ThemeMode;
+}
+
+export interface SetThemeResponse {}
+
 export interface ProviderModelInfo {
   id: string;
   name: string;

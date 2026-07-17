@@ -9,6 +9,7 @@ import { GetCredentialController } from "./controllers/credential/get.credential
 import { SetCredentialController } from "./controllers/credential/set.credential.controller";
 import { EventController } from "./controllers/event.controller";
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
+import { SetThemeController } from "./controllers/theme/set.theme.controller";
 import { GetUserConfigController } from "./controllers/user-config/get.user-config.controller";
 import { SetUserConfigController } from "./controllers/user-config/set.user-config.controller";
 import { CredentialService } from "./service/credential.service";
@@ -46,6 +47,7 @@ if (started) {
   controllers: [
     EventController,
     GetAppInfoController,
+    SetThemeController,
     GetProviderCatalogController,
     GetConfiguredProvidersController,
     GetCredentialController,

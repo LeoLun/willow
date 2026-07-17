@@ -1,6 +1,6 @@
+import type { ThemeMode } from "@shared/api";
 import { onMounted, ref, watch } from "vue";
-
-export type ThemeMode = "system" | "light" | "dark";
+import { electronAPI } from "@/lib/ipc";
 
 const themeMode = ref<ThemeMode>("system");
 const isDark = ref(false);
@@ -25,6 +25,12 @@ function applyTheme() {
   }
 }
 
+function syncNativeTheme() {
+  void electronAPI.setTheme({ mode: themeMode.value }).catch((error: unknown) => {
+    console.error("Failed to sync native theme", error);
+  });
+}
+
 function onSystemChange() {
   if (themeMode.value === "system") {
     applyTheme();
@@ -41,12 +47,14 @@ export function useDarkMode() {
       themeMode.value = saved;
     }
     applyTheme();
+    syncNativeTheme();
 
     mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     mediaQuery.addEventListener("change", onSystemChange);
 
     watch(themeMode, () => {
       applyTheme();
+      syncNativeTheme();
       localStorage.setItem("theme", themeMode.value);
     });
   });

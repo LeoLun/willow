@@ -20,3 +20,19 @@ export {
   CardHeader,
   CardTitle,
 } from "./components/ui/card";
+
+export {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+  InputGroupTextarea,
+} from "./components/ui/input-group";
+export type { InputGroupVariants, InputGroupButtonVariants } from "./components/ui/input-group";
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "./components/ui/dropdown-menu";
