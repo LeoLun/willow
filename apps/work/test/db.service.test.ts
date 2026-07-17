@@ -67,7 +67,7 @@ describe("DbService", () => {
       .get();
     const session = db
       .insert(sessions)
-      .values({ workspaceId: workspace.id, agentSessionPath: "/sessions/one.jsonl" })
+      .values({ workspaceId: workspace.id, agentSessionId: "one" })
       .returning()
       .get();
 

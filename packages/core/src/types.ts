@@ -1,5 +1,5 @@
-import type { CredentialStore, Model } from "@earendil-works/pi-ai";
-import type { ExecutionEnv, JsonlSessionMetadata, Skill } from "@earendil-works/pi-agent-core";
+import type { SessionMetadata, SessionRepo, Skill } from "@earendil-works/pi-agent-core";
+import type { Model, MutableModels } from "@earendil-works/pi-ai";
 
 export interface AgentOptions {
   name: string;
@@ -12,18 +12,14 @@ export interface Agent {
 
 export type AgentCoreOptions = {
   cwd: string;
+  models: MutableModels;
+  sessionRepo: SessionRepo;
   agentDir?: string;
-  credentials?: CredentialStore;
 };
 
 export type AgentHarnessOptions = {
   model: Model<any>;
-  metadata?: JsonlSessionMetadata;
-};
-
-export type SessionManagerOption = {
-  env: ExecutionEnv;
-  sessionsRoot: string;
+  metadata?: SessionMetadata;
 };
 
 export type AgentsFile = { path: string; content: string };

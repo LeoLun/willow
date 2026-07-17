@@ -12,6 +12,7 @@ import { GetProviderCatalogController } from "./controllers/provider/get-catalog
 import { SetThemeController } from "./controllers/theme/set.theme.controller";
 import { GetUserConfigController } from "./controllers/user-config/get.user-config.controller";
 import { SetUserConfigController } from "./controllers/user-config/set.user-config.controller";
+import { AgentService } from "./service/agent.service";
 import { CredentialService } from "./service/credential.service";
 import { CredentialDao } from "./service/dao/credential.dao.server";
 import { SessionDao } from "./service/dao/session.dao.server";
@@ -20,6 +21,8 @@ import { WorkspaceDao } from "./service/dao/workspace.dao.server";
 import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
 import { ProviderCatalogService } from "./service/provider-catalog.service";
+import { SessionManagerFactory } from "./service/session-manager.factory";
+import { SessionService } from "./service/session.service";
 import { UserConfigService } from "./service/user-config.service";
 import { configureMainWindowBounds, MainWindow } from "./window/main.window";
 
@@ -39,6 +42,9 @@ if (started) {
     SessionDao,
     CredentialDao,
     UserConfigDao,
+    SessionManagerFactory,
+    AgentService,
+    SessionService,
     CredentialService,
     EventService,
     ProviderCatalogService,

@@ -1,6 +1,6 @@
 import type { CredentialStore, Credential } from "@earendil-works/pi-ai";
 import { Injectable } from "@willow/poetry";
-import { ElectronCredentialStore } from "../auth/credential-store";
+import { ElectronCredentialStore } from "../utils/credential-store";
 import { CredentialDao } from "./dao/credential.dao.server";
 
 /**

@@ -59,7 +59,7 @@ describe("DAO layer", () => {
 
   it("resolves injectable DAOs with a shared DbService", () => {
     const workspace = workspaceDao.create({ name: "Willow", path: "/workspace/willow" });
-    const session = sessionDao.create({ workspaceId: workspace.id });
+    const session = sessionDao.create({ workspaceId: workspace.id, agentSessionId: "shared" });
     const credential = credentialDao.upsert("openai", Buffer.from("encrypted"));
 
     expect(workspaceDao.findById(workspace.id)).toEqual(workspace);
@@ -145,10 +145,18 @@ describe("DAO layer", () => {
     const secondWorkspace = workspaceDao.create({ name: "Second", path: "/workspace/second" });
     const first = sessionDao.create({
       workspaceId: firstWorkspace.id,
-      agentSessionPath: "/sessions/first.jsonl",
+      agentSessionId: "first",
     });
-    const second = sessionDao.create({ workspaceId: firstWorkspace.id, title: "Second" });
-    sessionDao.create({ workspaceId: secondWorkspace.id, title: "Other workspace" });
+    const second = sessionDao.create({
+      workspaceId: firstWorkspace.id,
+      title: "Second",
+      agentSessionId: "second",
+    });
+    sessionDao.create({
+      workspaceId: secondWorkspace.id,
+      title: "Other workspace",
+      agentSessionId: "other",
+    });
 
     vi.useFakeTimers({ now: Date.now() + 2_000 });
     sessionDao.update(first.id, { title: "First updated" });
@@ -160,7 +168,7 @@ describe("DAO layer", () => {
       first.id,
       second.id,
     ]);
-    expect(sessionDao.findByAgentSessionPath("/sessions/first.jsonl")?.title).toBe("First updated");
+    expect(sessionDao.findByAgentSessionId("first")?.title).toBe("First updated");
     expect(sessionDao.update(first.id, {})).toEqual(sessionDao.findById(first.id));
     expect(sessionDao.update(999_999, { title: "Missing" })).toBeUndefined();
     expect(sessionDao.delete(second.id)).toBe(true);
@@ -169,9 +177,11 @@ describe("DAO layer", () => {
 
   it("enforces session foreign keys and cascades workspace deletion", () => {
     const workspace = workspaceDao.create({ name: "Willow", path: "/workspace/willow" });
-    sessionDao.create({ workspaceId: workspace.id });
+    sessionDao.create({ workspaceId: workspace.id, agentSessionId: "cascade" });
 
-    expect(() => sessionDao.create({ workspaceId: 999_999 })).toThrow();
+    expect(() =>
+      sessionDao.create({ workspaceId: 999_999, agentSessionId: "missing-workspace" }),
+    ).toThrow();
     expect(workspaceDao.delete(workspace.id)).toBe(true);
     expect(sessionDao.findByWorkspaceId(workspace.id)).toEqual([]);
   });
