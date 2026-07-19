@@ -84,6 +84,45 @@ describe("SessionService", () => {
     expect((await sessionService.getSessionList(workspaceId))[0]?.title).toBe("Renamed");
   });
 
+  it("gets scoped metadata and returns messages from only the active branch", async () => {
+    const metadata = await sessionService.createSession(workspaceId, { id: "messages" });
+    const session = await sessionManagerFactory.create(workspaceId).open(metadata);
+    const firstId = await session.appendMessage({
+      role: "user",
+      content: "Question",
+      timestamp: 1,
+    });
+    await session.appendMessage({
+      role: "assistant",
+      content: [],
+      api: "openai-completions",
+      provider: "openai",
+      model: "model",
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      stopReason: "stop",
+      timestamp: 2,
+    });
+    await session.moveTo(firstId);
+    await session.appendCustomEntry("ui-only", { ignored: true });
+    await session.appendMessage({ role: "user", content: "Revised", timestamp: 3 });
+
+    expect(sessionService.getSession(workspaceId, "messages")).toEqual(metadata);
+    expect(await sessionService.getMessageList(workspaceId, "messages")).toEqual([
+      expect.objectContaining({ role: "user", content: "Question" }),
+      expect.objectContaining({ role: "user", content: "Revised" }),
+    ]);
+    expect(() => sessionService.getSession(otherWorkspaceId, "messages")).toThrow(
+      "Session not found",
+    );
+  });
+
   it("delegates fork and deletion to the workspace session manager", async () => {
     const sourceMetadata = await sessionService.createSession(workspaceId, { id: "source" });
     const source = await sessionManagerFactory.create(workspaceId).open(sourceMetadata);

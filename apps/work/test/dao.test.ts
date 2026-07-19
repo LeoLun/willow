@@ -131,7 +131,12 @@ describe("DAO layer", () => {
     workspaceDao.update(first.id, { name: "First updated" });
     vi.useRealTimers();
 
-    expect(workspaceDao.findAll().map(({ id }) => id)).toEqual([first.id, second.id]);
+    expect(workspaceDao.findAll(false).map(({ id }) => id)).toEqual([first.id, second.id]);
+    expect(first.pinned).toBe(false);
+    expect(workspaceDao.findAll(true)).toEqual([]);
+    expect(workspaceDao.update(first.id, { pinned: true })?.pinned).toBe(true);
+    expect(workspaceDao.findAll(true).map(({ id }) => id)).toEqual([first.id]);
+    expect(workspaceDao.findAll(false).map(({ id }) => id)).toEqual([second.id]);
     expect(workspaceDao.findByPath(first.path)?.name).toBe("First updated");
     expect(workspaceDao.update(first.id, {})).toEqual(workspaceDao.findById(first.id));
     expect(workspaceDao.update(999_999, { name: "Missing" })).toBeUndefined();

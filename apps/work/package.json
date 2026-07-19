@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": ".vite/build/main.js",
   "scripts": {
-    "dev": "electron-forge start",
+    "dev": "node scripts/dev.mjs",
     "predev": "pnpm run rebuild:native",
     "package": "electron-forge package",
     "prepackage": "pnpm run rebuild:native",

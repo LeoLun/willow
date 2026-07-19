@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { IRenderHook } from "../shared";
 import type {
   ApiResponse,
+  CreateWorkspaceRequest,
+  CreateWorkspaceResponse,
+  DeleteWorkspaceRequest,
+  DeleteWorkspaceResponse,
   DeleteCredentialRequest,
   DeleteCredentialResponse,
   GetAppInfoRequest,
@@ -10,31 +14,54 @@ import type {
   GetConfiguredProvidersResponse,
   GetCredentialRequest,
   GetCredentialResponse,
+  GetMessageListRequest,
+  GetMessageListResponse,
   GetProviderCatalogRequest,
   GetProviderCatalogResponse,
   GetUserConfigRequest,
   GetUserConfigResponse,
+  GetWorkspaceListRequest,
+  GetWorkspaceListResponse,
   RegisterEventRequest,
   RegisterEventResponse,
+  RenameWorkspaceRequest,
+  RenameWorkspaceResponse,
+  SendMessageRequest,
+  SendMessageResponse,
   SetCredentialRequest,
   SetCredentialResponse,
   SetThemeRequest,
   SetThemeResponse,
   SetUserConfigRequest,
   SetUserConfigResponse,
+  SelectWorkspaceDirectoryRequest,
+  SelectWorkspaceDirectoryResponse,
+  SetWorkspacePinnedRequest,
+  SetWorkspacePinnedResponse,
+  StopMessageRequest,
+  StopMessageResponse,
 } from "../shared/api";
 import {
   DELETE_CREDENTIAL,
+  CREATE_WORKSPACE,
+  DELETE_WORKSPACE,
   EVENT_BUS,
   GET_APP_INFO,
   GET_CONFIGURED_PROVIDERS,
   GET_CREDENTIAL,
+  GET_MESSAGE_LIST,
   GET_PROVIDER_CATALOG,
   GET_USER_CONFIG,
+  GET_WORKSPACE_LIST,
   REGISTER_EVENT,
+  RENAME_WORKSPACE,
+  SEND_MESSAGE,
   SET_CREDENTIAL,
   SET_THEME,
   SET_USER_CONFIG,
+  SELECT_WORKSPACE_DIRECTORY,
+  SET_WORKSPACE_PINNED,
+  STOP_MESSAGE,
 } from "../shared/constants";
 
 async function invoke<TRequest, TResponse>(event: string, request: TRequest): Promise<TResponse> {
@@ -86,6 +113,27 @@ const ipcObject: IRenderHook = {
     invoke<GetUserConfigRequest, GetUserConfigResponse>(GET_USER_CONFIG, request),
   setUserConfig: (request: SetUserConfigRequest) =>
     invoke<SetUserConfigRequest, SetUserConfigResponse>(SET_USER_CONFIG, request),
+  sendMessage: (request: SendMessageRequest) =>
+    invoke<SendMessageRequest, SendMessageResponse>(SEND_MESSAGE, request),
+  stopMessage: (request: StopMessageRequest) =>
+    invoke<StopMessageRequest, StopMessageResponse>(STOP_MESSAGE, request),
+  getMessageList: (request: GetMessageListRequest) =>
+    invoke<GetMessageListRequest, GetMessageListResponse>(GET_MESSAGE_LIST, request),
+  getWorkspaceList: (request: GetWorkspaceListRequest) =>
+    invoke<GetWorkspaceListRequest, GetWorkspaceListResponse>(GET_WORKSPACE_LIST, request),
+  createWorkspace: (request: CreateWorkspaceRequest) =>
+    invoke<CreateWorkspaceRequest, CreateWorkspaceResponse>(CREATE_WORKSPACE, request),
+  selectWorkspaceDirectory: (request: SelectWorkspaceDirectoryRequest = {}) =>
+    invoke<SelectWorkspaceDirectoryRequest, SelectWorkspaceDirectoryResponse>(
+      SELECT_WORKSPACE_DIRECTORY,
+      request,
+    ),
+  setWorkspacePinned: (request: SetWorkspacePinnedRequest) =>
+    invoke<SetWorkspacePinnedRequest, SetWorkspacePinnedResponse>(SET_WORKSPACE_PINNED, request),
+  renameWorkspace: (request: RenameWorkspaceRequest) =>
+    invoke<RenameWorkspaceRequest, RenameWorkspaceResponse>(RENAME_WORKSPACE, request),
+  deleteWorkspace: (request: DeleteWorkspaceRequest) =>
+    invoke<DeleteWorkspaceRequest, DeleteWorkspaceResponse>(DELETE_WORKSPACE, request),
   onEventBus: (callback: (event: string, data: any) => void) => {
     ipcRenderer.on(
       EVENT_BUS,

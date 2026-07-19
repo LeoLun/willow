@@ -5,17 +5,18 @@ import { workspaces } from "../../db/schema";
 import { DbService } from "../db.service";
 
 export type CreateWorkspaceInput = Pick<NewWorkspace, "name" | "path">;
-export type UpdateWorkspaceInput = Partial<CreateWorkspaceInput>;
+export type UpdateWorkspaceInput = Partial<Pick<NewWorkspace, "name" | "path" | "pinned">>;
 
 @Injectable()
 export class WorkspaceDao {
   constructor(private readonly dbService: DbService) {}
 
-  findAll(): Workspace[] {
+  findAll(pinned: boolean): Workspace[] {
     return this.dbService
       .getDb()
       .select()
       .from(workspaces)
+      .where(eq(workspaces.pinned, pinned))
       .orderBy(desc(workspaces.updatedAt))
       .all();
   }

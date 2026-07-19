@@ -24,6 +24,11 @@ const config = {
     appCategoryType: "public.app-category.productivity",
     executableName: "Willow",
     icon: "./assets/icons/icon",
+    extendInfo: {
+      CFBundleAllowMixedLocalizations: true,
+      CFBundleDevelopmentRegion: "zh_CN",
+      CFBundleLocalizations: ["zh_CN"],
+    },
   },
   rebuildConfig: {},
   hooks: {

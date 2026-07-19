@@ -50,6 +50,7 @@ describe("DbService", () => {
       .get();
 
     expect(workspace.createdAt).toBeInstanceOf(Date);
+    expect(workspace.pinned).toBe(false);
     service.close();
 
     service = new DbService();

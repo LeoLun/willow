@@ -1,4 +1,8 @@
-import { SessionError, type SessionForkOptions } from "@earendil-works/pi-agent-core";
+import {
+  SessionError,
+  type AgentMessage,
+  type SessionForkOptions,
+} from "@earendil-works/pi-agent-core";
 import { Injectable } from "@willow/poetry";
 import {
   toSqliteSessionMetadata,
@@ -22,6 +26,21 @@ export class SessionService {
 
   getSessionList(workspaceId: number): Promise<SqliteSessionMetadata[]> {
     return this.sessionManagerFactory.create(workspaceId).list();
+  }
+
+  getSession(workspaceId: number, agentSessionId: string): SqliteSessionMetadata {
+    const stored = this.sessionDao.findByAgentSessionIdAndWorkspaceId(agentSessionId, workspaceId);
+    if (!stored) {
+      throw new SessionError("not_found", `Session not found: ${agentSessionId}`);
+    }
+    return toSqliteSessionMetadata(stored);
+  }
+
+  async getMessageList(workspaceId: number, agentSessionId: string): Promise<AgentMessage[]> {
+    const metadata = this.getSession(workspaceId, agentSessionId);
+    const session = await this.sessionManagerFactory.create(workspaceId).open(metadata);
+    const branch = await session.getBranch();
+    return branch.flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
   }
 
   async createSession(

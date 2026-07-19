@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { MessageEventPayload, ModelConfig, UserConfigInfo } from "@shared/api";
+import { MESSAGE_EVENT } from "@shared/constants";
 import {
   InputGroup,
   InputGroupTextarea,
@@ -12,14 +14,93 @@ import {
   Separator,
 } from "@willow/shadcn";
 import { SquareDashed, PlusIcon, ArrowUpIcon } from "lucide-vue-next";
-import { ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { useRoute } from "vue-router";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { useEventBus } from "@/composables/useEventBus";
+import { electronAPI } from "@/lib/ipc";
 
+const route = useRoute();
+const { addEventListener, removeEventListener } = useEventBus();
 const message = ref("");
+const sending = ref(false);
+const userConfig = shallowRef<UserConfigInfo>({});
+const selectedModelKind = ref<"largeModel" | "smallModel">("largeModel");
 
-function sendMessage() {
-  console.log(message.value);
+const workspaceId = computed(() => {
+  const value = Number(route.query.workspaceId);
+  return Number.isInteger(value) && value > 0 ? value : undefined;
+});
+const sessionId = computed(() => {
+  const value = route.query.sessionId;
+  return typeof value === "string" && value.trim() !== "" ? value : undefined;
+});
+const selectedModel = computed<ModelConfig | undefined>(
+  () => userConfig.value[selectedModelKind.value],
+);
+const selectedModelLabel = computed(
+  () =>
+    selectedModel.value?.modelId ??
+    (selectedModelKind.value === "largeModel" ? "大模型" : "小模型"),
+);
+const canSend = computed(
+  () =>
+    message.value.trim() !== "" &&
+    !sending.value &&
+    workspaceId.value !== undefined &&
+    sessionId.value !== undefined &&
+    selectedModel.value !== undefined,
+);
+
+function selectModel(kind: "largeModel" | "smallModel") {
+  if (userConfig.value[kind]) {
+    selectedModelKind.value = kind;
+  }
+}
+
+function printMessageEvent(payload: MessageEventPayload) {
+  console.log("[MESSAGE_EVENT]", payload);
+}
+
+onMounted(async () => {
+  addEventListener(MESSAGE_EVENT, printMessageEvent);
+  try {
+    userConfig.value = await electronAPI.getUserConfig();
+  } catch (error) {
+    console.error("读取模型配置失败:", error);
+  }
+});
+
+onBeforeUnmount(() => {
+  removeEventListener(MESSAGE_EVENT, printMessageEvent);
+});
+
+async function sendMessage() {
+  const content = message.value.trim();
+  const model = selectedModel.value;
+  const currentWorkspaceId = workspaceId.value;
+  const currentSessionId = sessionId.value;
+  if (!content || !model || !currentWorkspaceId || !currentSessionId || sending.value) {
+    console.error("发送消息失败: 缺少工作区、会话或模型配置");
+    return;
+  }
+
+  sending.value = true;
+  try {
+    const response = await electronAPI.sendMessage({
+      workspaceId: currentWorkspaceId,
+      sessionId: currentSessionId,
+      content,
+      model,
+    });
+    console.log("[SEND_MESSAGE]", response.message);
+    message.value = "";
+  } catch (error) {
+    console.error("发送消息失败:", error);
+  } finally {
+    sending.value = false;
+  }
 }
 </script>
 
@@ -76,21 +157,31 @@ function sendMessage() {
         </InputGroupButton>
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
-            <InputGroupButton variant="ghost"> Auto </InputGroupButton>
+            <InputGroupButton variant="ghost">{{ selectedModelLabel }}</InputGroupButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" class="[--radius:0.95rem]">
-            <DropdownMenuItem>Auto</DropdownMenuItem>
-            <DropdownMenuItem>Agent</DropdownMenuItem>
-            <DropdownMenuItem>Manual</DropdownMenuItem>
+            <DropdownMenuItem
+              :disabled="!userConfig.largeModel"
+              @select="selectModel('largeModel')"
+            >
+              大模型<span v-if="userConfig.largeModel"> · {{ userConfig.largeModel.modelId }}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              :disabled="!userConfig.smallModel"
+              @select="selectModel('smallModel')"
+            >
+              小模型<span v-if="userConfig.smallModel"> · {{ userConfig.smallModel.modelId }}</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <InputGroupText class="ml-auto"> 52% used </InputGroupText>
         <Separator orientation="vertical" class="!h-4" />
+        <div>{{ canSend }}</div>
         <InputGroupButton
           variant="default"
           class="rounded-full"
           size="icon-xs"
-          :disabled="!message"
+          :disabled="!canSend"
           @click="sendMessage"
         >
           <ArrowUpIcon class="size-4" />

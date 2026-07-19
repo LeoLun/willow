@@ -8,10 +8,20 @@ import { GetConfiguredProvidersController } from "./controllers/credential/get-c
 import { GetCredentialController } from "./controllers/credential/get.credential.controller";
 import { SetCredentialController } from "./controllers/credential/set.credential.controller";
 import { EventController } from "./controllers/event.controller";
+import { GetMessageListController } from "./controllers/message/get-list.message.controller";
+import { SendMessageController } from "./controllers/message/send.message.controller";
+import { StopMessageController } from "./controllers/message/stop.message.controller";
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
 import { SetThemeController } from "./controllers/theme/set.theme.controller";
 import { GetUserConfigController } from "./controllers/user-config/get.user-config.controller";
 import { SetUserConfigController } from "./controllers/user-config/set.user-config.controller";
+import { CreateWorkspaceController } from "./controllers/workspace/create.workspace.controller";
+import { DeleteWorkspaceController } from "./controllers/workspace/delete.workspace.controller";
+import { GetWorkspaceDetailController } from "./controllers/workspace/get-detail.workspace.controller";
+import { GetWorkspaceListController } from "./controllers/workspace/get-list.workspace.controller";
+import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controller";
+import { SelectWorkspaceDirectoryController } from "./controllers/workspace/select-directory.workspace.controller";
+import { SetWorkspacePinnedController } from "./controllers/workspace/set-pinned.workspace.controller";
 import { AgentService } from "./service/agent.service";
 import { CredentialService } from "./service/credential.service";
 import { CredentialDao } from "./service/dao/credential.dao.server";
@@ -20,10 +30,12 @@ import { UserConfigDao } from "./service/dao/user-config.dao.server";
 import { WorkspaceDao } from "./service/dao/workspace.dao.server";
 import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
+import { MessageService } from "./service/message.service";
 import { ProviderCatalogService } from "./service/provider-catalog.service";
 import { SessionManagerFactory } from "./service/session-manager.factory";
 import { SessionService } from "./service/session.service";
 import { UserConfigService } from "./service/user-config.service";
+import { WorkspaceService } from "./service/workspace.service";
 import { configureMainWindowBounds, MainWindow } from "./window/main.window";
 
 if (started) {
@@ -47,8 +59,10 @@ if (started) {
     SessionService,
     CredentialService,
     EventService,
+    MessageService,
     ProviderCatalogService,
     UserConfigService,
+    WorkspaceService,
   ],
   controllers: [
     EventController,
@@ -61,6 +75,16 @@ if (started) {
     DeleteCredentialController,
     GetUserConfigController,
     SetUserConfigController,
+    SendMessageController,
+    StopMessageController,
+    GetMessageListController,
+    GetWorkspaceListController,
+    CreateWorkspaceController,
+    SelectWorkspaceDirectoryController,
+    SetWorkspacePinnedController,
+    RenameWorkspaceController,
+    GetWorkspaceDetailController,
+    DeleteWorkspaceController,
   ],
 })
 export class AppModule {
