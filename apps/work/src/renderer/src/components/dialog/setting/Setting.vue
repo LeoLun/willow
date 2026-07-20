@@ -324,71 +324,73 @@ onMounted(async () => {
             </Button>
           </div>
 
-          <section
-            class="flex items-center justify-between gap-8 rounded-xl border bg-muted/20 p-5"
-            aria-labelledby="large-model-heading"
-          >
-            <div>
-              <h3 id="large-model-heading" class="font-semibold">大模型</h3>
-              <p class="mt-1 text-sm text-muted-foreground">用于日常对话和运行工作。</p>
-            </div>
-            <div class="w-[250px] min-w-0">
-              <Select
-                :model-value="encodeModel(userConfig.largeModel)"
-                :disabled="savingUserConfig || configuredModelProviders.length === 0"
-                @update:model-value="updateModelConfig('largeModel', $event)"
-              >
-                <SelectTrigger id="large-model-select" class="w-full">
-                  <SelectValue placeholder="选择已配置提供商的模型" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup v-for="provider in configuredModelProviders" :key="provider.id">
-                    <SelectLabel>{{ provider.name }}</SelectLabel>
-                    <SelectItem
-                      v-for="model in provider.models"
-                      :key="`${provider.id}:${model.id}`"
-                      :value="encodeModel({ providerId: provider.id, modelId: model.id })!"
-                    >
-                      {{ model.name }}
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          </section>
+          <div class="divide-y rounded-xl border bg-muted/20">
+            <section
+              class="flex items-center justify-between gap-8 p-5"
+              aria-labelledby="large-model-heading"
+            >
+              <div>
+                <h3 id="large-model-heading" class="font-semibold">大模型</h3>
+                <p class="mt-1 text-sm text-muted-foreground">用于日常对话和运行工作。</p>
+              </div>
+              <div class="w-[250px] min-w-0">
+                <Select
+                  :model-value="encodeModel(userConfig.largeModel)"
+                  :disabled="savingUserConfig || configuredModelProviders.length === 0"
+                  @update:model-value="updateModelConfig('largeModel', $event)"
+                >
+                  <SelectTrigger id="large-model-select" class="w-full">
+                    <SelectValue placeholder="选择已配置提供商的模型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup v-for="provider in configuredModelProviders" :key="provider.id">
+                      <SelectLabel>{{ provider.name }}</SelectLabel>
+                      <SelectItem
+                        v-for="model in provider.models"
+                        :key="`${provider.id}:${model.id}`"
+                        :value="encodeModel({ providerId: provider.id, modelId: model.id })!"
+                      >
+                        {{ model.name }}
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            </section>
 
-          <section
-            class="flex items-center justify-between gap-8 rounded-xl border bg-muted/20 p-5"
-            aria-labelledby="small-model-heading"
-          >
-            <div>
-              <h3 id="small-model-heading" class="font-semibold">小模型</h3>
-              <p class="mt-1 text-sm text-muted-foreground">用于构建记忆和生成标题等。</p>
-            </div>
-            <div class="w-[250px] min-w-0">
-              <Select
-                :model-value="encodeModel(userConfig.smallModel)"
-                :disabled="savingUserConfig || configuredModelProviders.length === 0"
-                @update:model-value="updateModelConfig('smallModel', $event)"
-              >
-                <SelectTrigger id="small-model-select" class="w-full">
-                  <SelectValue placeholder="选择已配置提供商的模型" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup v-for="provider in configuredModelProviders" :key="provider.id">
-                    <SelectLabel>{{ provider.name }}</SelectLabel>
-                    <SelectItem
-                      v-for="model in provider.models"
-                      :key="`${provider.id}:${model.id}`"
-                      :value="encodeModel({ providerId: provider.id, modelId: model.id })!"
-                    >
-                      {{ model.name }}
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          </section>
+            <section
+              class="flex items-center justify-between gap-8 p-5"
+              aria-labelledby="small-model-heading"
+            >
+              <div>
+                <h3 id="small-model-heading" class="font-semibold">小模型</h3>
+                <p class="mt-1 text-sm text-muted-foreground">用于构建记忆和生成标题等。</p>
+              </div>
+              <div class="w-[250px] min-w-0">
+                <Select
+                  :model-value="encodeModel(userConfig.smallModel)"
+                  :disabled="savingUserConfig || configuredModelProviders.length === 0"
+                  @update:model-value="updateModelConfig('smallModel', $event)"
+                >
+                  <SelectTrigger id="small-model-select" class="w-full">
+                    <SelectValue placeholder="选择已配置提供商的模型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup v-for="provider in configuredModelProviders" :key="provider.id">
+                      <SelectLabel>{{ provider.name }}</SelectLabel>
+                      <SelectItem
+                        v-for="model in provider.models"
+                        :key="`${provider.id}:${model.id}`"
+                        :value="encodeModel({ providerId: provider.id, modelId: model.id })!"
+                      >
+                        {{ model.name }}
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            </section>
+          </div>
 
           <p v-if="configuredModelProviders.length === 0" class="text-sm text-muted-foreground">
             请先在“提供商”中连接至少一个提供商。

@@ -91,7 +91,7 @@ const quickAccess: QuickAccessItem[] = [
 function openSettingDialog() {
   openDialog(SettingDialog, undefined, {
     contentClass:
-      "h-[min(680px,calc(100vh-2rem))] max-w-4xl gap-0 overflow-hidden p-0 sm:max-w-4xl",
+      "h-[min(700px,calc(100vh-2rem))] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[min(950px,calc(100vw-2rem))]",
   });
 }
 
