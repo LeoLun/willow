@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { MessageEventPayload, ModelConfig, UserConfigInfo } from "@shared/api";
-import { MESSAGE_EVENT } from "@shared/constants";
+import type { ModelConfig, UserConfigInfo } from "@shared/api";
 import {
   InputGroup,
   InputGroupTextarea,
@@ -14,15 +13,16 @@ import {
   Separator,
 } from "@willow/shadcn";
 import { SquareDashed, PlusIcon, ArrowUpIcon } from "lucide-vue-next";
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
-import { useRoute } from "vue-router";
+import { computed, onMounted, ref, shallowRef } from "vue";
+import { isNavigationFailure, useRoute, useRouter } from "vue-router";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { useEventBus } from "@/composables/useEventBus";
 import { electronAPI } from "@/lib/ipc";
+import { usePendingChatStore } from "@/stores/pending-chat.store";
 
 const route = useRoute();
-const { addEventListener, removeEventListener } = useEventBus();
+const router = useRouter();
+const pendingChatStore = usePendingChatStore();
 const message = ref("");
 const sending = ref(false);
 const userConfig = shallowRef<UserConfigInfo>({});
@@ -32,10 +32,7 @@ const workspaceId = computed(() => {
   const value = Number(route.query.workspaceId);
   return Number.isInteger(value) && value > 0 ? value : undefined;
 });
-const sessionId = computed(() => {
-  const value = route.query.sessionId;
-  return typeof value === "string" && value.trim() !== "" ? value : undefined;
-});
+
 const selectedModel = computed<ModelConfig | undefined>(
   () => userConfig.value[selectedModelKind.value],
 );
@@ -49,7 +46,6 @@ const canSend = computed(
     message.value.trim() !== "" &&
     !sending.value &&
     workspaceId.value !== undefined &&
-    sessionId.value !== undefined &&
     selectedModel.value !== undefined,
 );
 
@@ -59,12 +55,7 @@ function selectModel(kind: "largeModel" | "smallModel") {
   }
 }
 
-function printMessageEvent(payload: MessageEventPayload) {
-  console.log("[MESSAGE_EVENT]", payload);
-}
-
 onMounted(async () => {
-  addEventListener(MESSAGE_EVENT, printMessageEvent);
   try {
     userConfig.value = await electronAPI.getUserConfig();
   } catch (error) {
@@ -72,32 +63,39 @@ onMounted(async () => {
   }
 });
 
-onBeforeUnmount(() => {
-  removeEventListener(MESSAGE_EVENT, printMessageEvent);
-});
-
 async function sendMessage() {
   const content = message.value.trim();
   const model = selectedModel.value;
   const currentWorkspaceId = workspaceId.value;
-  const currentSessionId = sessionId.value;
-  if (!content || !model || !currentWorkspaceId || !currentSessionId || sending.value) {
-    console.error("发送消息失败: 缺少工作区、会话或模型配置");
+  if (!content || !model || !currentWorkspaceId || sending.value) {
+    console.error("创建会话失败: 缺少工作区或模型配置");
     return;
   }
 
   sending.value = true;
+  let createdSessionId: string | undefined;
   try {
-    const response = await electronAPI.sendMessage({
+    const response = await electronAPI.createSession({ workspaceId: currentWorkspaceId });
+    createdSessionId = response.sessionId;
+    pendingChatStore.stage({
+      sessionId: createdSessionId,
       workspaceId: currentWorkspaceId,
-      sessionId: currentSessionId,
       content,
       model,
     });
-    console.log("[SEND_MESSAGE]", response.message);
+
+    const navigationFailure = await router.push({
+      name: "chat",
+      params: { sessionId: createdSessionId },
+      query: { workspaceId: String(currentWorkspaceId) },
+    });
+    if (isNavigationFailure(navigationFailure)) {
+      throw navigationFailure;
+    }
     message.value = "";
   } catch (error) {
-    console.error("发送消息失败:", error);
+    if (createdSessionId) pendingChatStore.clear(createdSessionId);
+    console.error("创建会话或打开聊天失败:", error);
   } finally {
     sending.value = false;
   }

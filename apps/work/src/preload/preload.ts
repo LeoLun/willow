@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { IRenderHook } from "../shared";
 import type {
   ApiResponse,
+  CreateSessionRequest,
+  CreateSessionResponse,
   CreateWorkspaceRequest,
   CreateWorkspaceResponse,
   DeleteWorkspaceRequest,
@@ -42,6 +44,7 @@ import type {
   StopMessageResponse,
 } from "../shared/api";
 import {
+  CREATE_SESSION,
   DELETE_CREDENTIAL,
   CREATE_WORKSPACE,
   DELETE_WORKSPACE,
@@ -113,6 +116,8 @@ const ipcObject: IRenderHook = {
     invoke<GetUserConfigRequest, GetUserConfigResponse>(GET_USER_CONFIG, request),
   setUserConfig: (request: SetUserConfigRequest) =>
     invoke<SetUserConfigRequest, SetUserConfigResponse>(SET_USER_CONFIG, request),
+  createSession: (request: CreateSessionRequest) =>
+    invoke<CreateSessionRequest, CreateSessionResponse>(CREATE_SESSION, request),
   sendMessage: (request: SendMessageRequest) =>
     invoke<SendMessageRequest, SendMessageResponse>(SEND_MESSAGE, request),
   stopMessage: (request: StopMessageRequest) =>

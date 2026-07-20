@@ -12,6 +12,7 @@ import { GetMessageListController } from "./controllers/message/get-list.message
 import { SendMessageController } from "./controllers/message/send.message.controller";
 import { StopMessageController } from "./controllers/message/stop.message.controller";
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
+import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { SetThemeController } from "./controllers/theme/set.theme.controller";
 import { GetUserConfigController } from "./controllers/user-config/get.user-config.controller";
 import { SetUserConfigController } from "./controllers/user-config/set.user-config.controller";
@@ -75,6 +76,7 @@ if (started) {
     DeleteCredentialController,
     GetUserConfigController,
     SetUserConfigController,
+    CreateSessionController,
     SendMessageController,
     StopMessageController,
     GetMessageListController,

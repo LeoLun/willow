@@ -154,6 +154,14 @@ export type SetUserConfigRequest = UserConfigInfo;
 
 export type SetUserConfigResponse = UserConfigInfo;
 
+export interface CreateSessionRequest {
+  workspaceId: number;
+}
+
+export interface CreateSessionResponse {
+  sessionId: string;
+}
+
 export type MessageStreamEvent = Extract<
   AgentEvent,
   { type: "message_start" | "message_update" | "message_end" }
