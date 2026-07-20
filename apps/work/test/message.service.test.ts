@@ -7,7 +7,7 @@ import type { WorkspaceDao } from "../src/main/service/dao/workspace.dao.server"
 import type { EventService } from "../src/main/service/event.service";
 import { MessageService } from "../src/main/service/message.service";
 import type { SessionService } from "../src/main/service/session.service";
-import type { UserConfigService } from "../src/main/service/user-config.service";
+import type { TitleService } from "../src/main/service/title.service";
 import { MESSAGE_EVENT } from "../src/shared/constants";
 
 const model = { id: "model" } as Model<any>;
@@ -71,27 +71,23 @@ function createHarness(prompt = vi.fn(async () => assistantMessage)) {
 describe("MessageService", () => {
   const getSession = vi.fn<SessionService["getSession"]>();
   const getMessageList = vi.fn<SessionService["getMessageList"]>();
-  const updateSessionTitle = vi.fn<SessionService["updateSessionTitle"]>();
   const getModel = vi.fn<AgentService["getModel"]>();
   const getAgentHarness = vi.fn<AgentService["getAgentHarness"]>();
-  const getSimpleAgent = vi.fn<AgentService["getSimpleAgent"]>();
   const sendEvent = vi.fn<EventService["sendEvent"]>();
   const findById = vi.fn<WorkspaceDao["findById"]>();
-  const getConfig = vi.fn<UserConfigService["getConfig"]>();
+  const startTitleCreation = vi.fn<TitleService["startTitleCreation"]>();
 
   const sessionService = {
     getSession,
     getMessageList,
-    updateSessionTitle,
   } as unknown as SessionService;
   const agentService = {
     getModel,
     getAgentHarness,
-    getSimpleAgent,
   } as unknown as AgentService;
   const eventService = { sendEvent } as unknown as EventService;
   const workspaceDao = { findById } as unknown as WorkspaceDao;
-  const userConfigService = { getConfig } as unknown as UserConfigService;
+  const titleService = { startTitleCreation } as unknown as TitleService;
 
   let service: MessageService;
 
@@ -101,19 +97,19 @@ describe("MessageService", () => {
       agentService,
       eventService,
       workspaceDao,
-      userConfigService,
+      titleService,
     );
-    findById.mockReturnValue({ id: 1, name: "Willow", path: "/workspace/willow" } as never);
+    findById.mockReturnValue({
+      id: 1,
+      name: "Willow",
+      path: "/workspace/willow",
+    } as never);
     getSession.mockReturnValue({
       id: "session",
       databaseId: 1,
       workspaceId: 1,
       title: "Existing title",
       createdAt: new Date(0).toISOString(),
-    });
-    getConfig.mockReturnValue({
-      largeModel: { providerId: "openai", modelId: "large" },
-      smallModel: { providerId: "openai", modelId: "small" },
     });
     getModel.mockReturnValue(model);
   });
@@ -152,7 +148,7 @@ describe("MessageService", () => {
     expect(sendEvent).toHaveBeenNthCalledWith(1, MESSAGE_EVENT, {
       type: "status",
       sessionId: "session",
-      status: "running",
+      status: "started",
     });
     expect(sendEvent).toHaveBeenLastCalledWith(MESSAGE_EVENT, {
       type: "status",
@@ -189,7 +185,9 @@ describe("MessageService", () => {
     });
     expect(sendEvent).not.toHaveBeenCalledWith(
       MESSAGE_EVENT,
-      expect.objectContaining({ event: expect.objectContaining({ type: "settled" }) }),
+      expect.objectContaining({
+        event: expect.objectContaining({ type: "settled" }),
+      }),
     );
     expect(harness.unsubscribe).toHaveBeenCalledOnce();
   });
@@ -299,85 +297,7 @@ describe("MessageService", () => {
     expect(getMessageList).toHaveBeenCalledWith(1, "session");
   });
 
-  it("generates, normalizes, and persists a title with the small model", async () => {
-    getSession.mockReturnValue({
-      id: "session",
-      databaseId: 1,
-      workspaceId: 1,
-      title: "",
-      createdAt: new Date(0).toISOString(),
-    });
-    const titleHarness = createHarness(
-      vi.fn(async () => ({
-        ...assistantMessage,
-        content: [{ type: "text", text: `**“${"长".repeat(60)}”**` }],
-      })),
-    );
-    getSimpleAgent.mockResolvedValue(titleHarness.harness);
-    updateSessionTitle.mockResolvedValue({} as never);
-
-    const title = await service.createTitle({
-      workspaceId: 1,
-      sessionId: "session",
-      content: "A user request",
-    });
-
-    expect([...title]).toHaveLength(50);
-    expect(title).toBe("长".repeat(50));
-    expect(getSimpleAgent).toHaveBeenCalledWith(
-      expect.objectContaining({ cwd: "/workspace/willow", model }),
-    );
-    expect(updateSessionTitle).toHaveBeenCalledWith(1, "session", title);
-    expect(titleHarness.cleanup).toHaveBeenCalledOnce();
-    expect(sendEvent).toHaveBeenCalledWith(MESSAGE_EVENT, {
-      type: "title_updated",
-      sessionId: "session",
-      title,
-    });
-  });
-
-  it("falls back to the first message when the small model is unavailable", async () => {
-    getSession.mockReturnValue({
-      id: "session",
-      databaseId: 1,
-      workspaceId: 1,
-      title: "",
-      createdAt: new Date(0).toISOString(),
-    });
-    getConfig.mockReturnValue({ largeModel: { providerId: "openai", modelId: "large" } });
-    updateSessionTitle.mockResolvedValue({} as never);
-
-    await expect(
-      service.createTitle({
-        workspaceId: 1,
-        sessionId: "session",
-        content: "  First\n  user   message  ",
-      }),
-    ).resolves.toBe("First user message");
-    expect(getSimpleAgent).not.toHaveBeenCalled();
-    expect(updateSessionTitle).toHaveBeenCalledWith(1, "session", "First user message");
-  });
-
-  it("falls back when title generation fails and cleans up the lightweight agent", async () => {
-    getSession.mockReturnValue({
-      id: "session",
-      databaseId: 1,
-      workspaceId: 1,
-      title: "",
-      createdAt: new Date(0).toISOString(),
-    });
-    const titleHarness = createHarness(vi.fn(async () => Promise.reject(new Error("failed"))));
-    getSimpleAgent.mockResolvedValue(titleHarness.harness);
-    updateSessionTitle.mockResolvedValue({} as never);
-
-    await expect(
-      service.createTitle({ workspaceId: 1, sessionId: "session", content: "Fallback title" }),
-    ).resolves.toBe("Fallback title");
-    expect(titleHarness.cleanup).toHaveBeenCalledOnce();
-    expect(updateSessionTitle).toHaveBeenCalledWith(1, "session", "Fallback title");
-  });
-
-  it("does not block sends on title generation and deduplicates pending title work", async () => {
+  it("starts title creation for an untitled session", async () => {
     getSession.mockReturnValue({
       id: "session",
       databaseId: 1,
@@ -386,11 +306,7 @@ describe("MessageService", () => {
       createdAt: new Date(0).toISOString(),
     });
     const mainHarness = createHarness();
-    const titleRun = deferred<AssistantMessage>();
-    const titleHarness = createHarness(vi.fn(() => titleRun.promise));
     getAgentHarness.mockResolvedValue(mainHarness.harness);
-    getSimpleAgent.mockResolvedValue(titleHarness.harness);
-    updateSessionTitle.mockResolvedValue({} as never);
 
     await service.sendMessage({
       workspaceId: 1,
@@ -398,20 +314,12 @@ describe("MessageService", () => {
       content: "First",
       model: modelConfig,
     });
-    await service.sendMessage({
+
+    expect(startTitleCreation).toHaveBeenCalledWith({
       workspaceId: 1,
       sessionId: "session",
-      content: "Second",
-      model: modelConfig,
+      content: "First",
     });
-
-    expect(getSimpleAgent).toHaveBeenCalledOnce();
-    expect(updateSessionTitle).not.toHaveBeenCalled();
-
-    titleRun.resolve({ ...assistantMessage, content: [{ type: "text", text: "Generated" }] });
-    await vi.waitFor(() =>
-      expect(updateSessionTitle).toHaveBeenCalledWith(1, "session", "Generated"),
-    );
   });
 
   it("validates prerequisites before creating a harness", async () => {

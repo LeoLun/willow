@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WorkspaceInfo } from "@shared/api";
+import type { SessionInfo, WorkspaceInfo } from "@shared/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +25,7 @@ import {
   Ellipsis,
   Folder,
   LoaderCircle,
+  MessageSquare,
   PanelLeft,
   Pencil,
   Pin,
@@ -35,7 +36,7 @@ import {
   Trash2,
 } from "lucide-vue-next";
 import type { Component } from "vue";
-import { computed, onMounted, ref, shallowRef } from "vue";
+import { computed, watch } from "vue";
 import { useRoute, useRouter, type LocationQueryRaw } from "vue-router";
 import { useDialog } from "@/components/dialog";
 import SettingDialog from "@/components/dialog/setting/Setting.vue";
@@ -44,7 +45,7 @@ import DeleteWorkspaceDialog from "@/components/dialog/workspace/DeleteWorkspace
 import RenameWorkspaceDialog from "@/components/dialog/workspace/RenameWorkspaceDialog.vue";
 import { baseShadowStyles } from "@/components/ui/base-shadow";
 import { Button } from "@/components/ui/button";
-import { electronAPI } from "@/lib/ipc";
+import { useWorkspace } from "@/composables/useWorkspace";
 
 interface QuickAccessItem {
   id: string;
@@ -58,15 +59,24 @@ const { openDialog } = useDialog();
 const route = useRoute();
 const router = useRouter();
 
-const pinnedWorkspaces = shallowRef<WorkspaceInfo[]>([]);
-const unpinnedWorkspaces = shallowRef<WorkspaceInfo[]>([]);
-const loading = ref(false);
-const workspaceError = ref("");
-const updatingWorkspaceId = ref<number>();
+const {
+  pinnedWorkspaces,
+  unpinnedWorkspaces,
+  loading,
+  workspaceError,
+  updatingWorkspaceId,
+  loadWorkspaces,
+  loadWorkspaceSessions,
+  setWorkspacePinned,
+} = useWorkspace();
 
 const selectedWorkspaceId = computed(() => {
   const value = Number(route.query.workspaceId);
   return Number.isInteger(value) && value > 0 ? value : undefined;
+});
+const selectedSessionId = computed(() => {
+  const value = route.params.sessionId;
+  return typeof value === "string" && value.trim() !== "" ? value : undefined;
 });
 const isInitialLoading = computed(
   () =>
@@ -77,29 +87,6 @@ const quickAccess: QuickAccessItem[] = [
   { id: "text-edit", label: "新建任务", icon: Folder },
   { id: "recents", label: "自动化", icon: Clock3 },
 ];
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
-
-async function loadWorkspaces() {
-  if (loading.value) return;
-
-  loading.value = true;
-  workspaceError.value = "";
-  try {
-    const [pinnedResponse, unpinnedResponse] = await Promise.all([
-      electronAPI.getWorkspaceList({ pinned: true }),
-      electronAPI.getWorkspaceList({ pinned: false }),
-    ]);
-    pinnedWorkspaces.value = pinnedResponse.workspaces;
-    unpinnedWorkspaces.value = unpinnedResponse.workspaces;
-  } catch (error) {
-    workspaceError.value = getErrorMessage(error, "读取工作空间失败，请重试。");
-  } finally {
-    loading.value = false;
-  }
-}
 
 function openSettingDialog() {
   openDialog(SettingDialog, undefined, {
@@ -158,6 +145,15 @@ async function selectWorkspace(workspace: WorkspaceInfo) {
   await router.push({ name: "home", query });
 }
 
+async function selectSession(session: SessionInfo) {
+  selectedItem.value = "";
+  await router.push({
+    name: "chat",
+    params: { sessionId: session.id },
+    query: { workspaceId: String(session.workspaceId) },
+  });
+}
+
 async function selectQuickAccess(itemId: string) {
   selectedItem.value = itemId;
   const query: LocationQueryRaw = { ...route.query };
@@ -166,25 +162,11 @@ async function selectQuickAccess(itemId: string) {
   await router.push({ name: "home", query });
 }
 
-async function setWorkspacePinned(workspace: WorkspaceInfo) {
-  if (updatingWorkspaceId.value !== undefined) return;
-
-  updatingWorkspaceId.value = workspace.id;
-  workspaceError.value = "";
-  try {
-    await electronAPI.setWorkspacePinned({
-      workspaceId: workspace.id,
-      pinned: !workspace.pinned,
-    });
-    await loadWorkspaces();
-  } catch (error) {
-    workspaceError.value = getErrorMessage(error, "更新置顶状态失败，请重试。");
-  } finally {
-    updatingWorkspaceId.value = undefined;
+watch(selectedSessionId, (sessionId, previousSessionId) => {
+  if (sessionId && sessionId !== previousSessionId && selectedWorkspaceId.value) {
+    void loadWorkspaceSessions(selectedWorkspaceId.value);
   }
-}
-
-onMounted(() => void loadWorkspaces());
+});
 </script>
 
 <template>
@@ -325,6 +307,21 @@ onMounted(() => void loadWorkspaces());
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <SidebarMenu
+                  v-if="selectedWorkspaceId === workspace.id && workspace.sessions.length > 0"
+                  class="mt-0.5 gap-0.5 pl-4"
+                >
+                  <SidebarMenuItem v-for="session in workspace.sessions" :key="session.id">
+                    <SidebarMenuButton
+                      :is-active="selectedSessionId === session.id"
+                      class="h-7 items-center rounded-lg px-2.5 text-xs text-sidebar-foreground/70 data-[active=true]:bg-sidebar-foreground/10"
+                      @click="selectSession(session)"
+                    >
+                      <MessageSquare aria-hidden="true" />
+                      <span class="truncate">{{ session.title.trim() || "新对话" }}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
@@ -397,6 +394,21 @@ onMounted(() => void loadWorkspaces());
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <SidebarMenu
+                  v-if="selectedWorkspaceId === workspace.id && workspace.sessions.length > 0"
+                  class="mt-0.5 gap-0.5 pl-4"
+                >
+                  <SidebarMenuItem v-for="session in workspace.sessions" :key="session.id">
+                    <SidebarMenuButton
+                      :is-active="selectedSessionId === session.id"
+                      class="h-7 items-center rounded-lg px-2.5 text-xs text-sidebar-foreground/70 data-[active=true]:bg-sidebar-foreground/10"
+                      @click="selectSession(session)"
+                    >
+                      <MessageSquare aria-hidden="true" />
+                      <span class="truncate">{{ session.title.trim() || "新对话" }}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>

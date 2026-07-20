@@ -7,7 +7,7 @@ import { AgentService } from "./agent.service";
 import { WorkspaceDao } from "./dao/workspace.dao.server";
 import { EventService } from "./event.service";
 import { SessionService } from "./session.service";
-import { UserConfigService } from "./user-config.service";
+import { TitleService } from "./title.service";
 
 export type SendMessageInput = {
   workspaceId: number;
@@ -16,17 +16,11 @@ export type SendMessageInput = {
   model: ModelConfig;
 };
 
-export type CreateTitleInput = Omit<SendMessageInput, "model">;
-
 type ActiveTask = {
   harness: AgentHarness;
   unsubscribe: () => void;
   stopped: boolean;
 };
-
-const TITLE_MAX_LENGTH = 50;
-const TITLE_SYSTEM_PROMPT =
-  "Generate a concise title for the user's message. Return only the title without quotes or Markdown.";
 
 /**
  * 用于管理 Message 的服务
@@ -35,14 +29,12 @@ const TITLE_SYSTEM_PROMPT =
 export class MessageService {
   private readonly activeTasks = new Map<string, ActiveTask>();
   private readonly busySessions = new Set<string>();
-  private readonly pendingTitles = new Map<string, Promise<void>>();
-
   constructor(
     private readonly sessionService: SessionService,
     private readonly agentService: AgentService,
     private readonly eventService: EventService,
     private readonly workspaceDao: WorkspaceDao,
-    private readonly userConfigService: UserConfigService,
+    private readonly titleService: TitleService,
   ) {}
 
   async sendMessage(input: SendMessageInput): Promise<AssistantMessage> {
@@ -85,10 +77,14 @@ export class MessageService {
     });
     const task: ActiveTask = { harness, unsubscribe, stopped: false };
     this.activeTasks.set(key, task);
-    this.emit({ type: "status", sessionId: input.sessionId, status: "running" });
+    this.emit({
+      type: "status",
+      sessionId: input.sessionId,
+      status: "started",
+    });
 
     if (session.title.trim() === "") {
-      this.startTitleCreation({
+      this.titleService.startTitleCreation({
         workspaceId: input.workspaceId,
         sessionId: input.sessionId,
         content,
@@ -98,7 +94,11 @@ export class MessageService {
     try {
       const response = await harness.prompt(content);
       if (!task.stopped) {
-        this.emit({ type: "status", sessionId: input.sessionId, status: "completed" });
+        this.emit({
+          type: "status",
+          sessionId: input.sessionId,
+          status: "completed",
+        });
       }
       return response;
     } catch (error) {
@@ -133,68 +133,6 @@ export class MessageService {
     return this.sessionService.getMessageList(workspaceId, sessionId);
   }
 
-  async createTitle(input: CreateTitleInput): Promise<string> {
-    const content = this.validateContent(input.content);
-    const workspace = this.workspaceDao.findById(input.workspaceId);
-    if (!workspace) {
-      throw new Error(`Workspace not found: ${input.workspaceId}`);
-    }
-
-    const session = this.sessionService.getSession(input.workspaceId, input.sessionId);
-    if (session.title.trim() !== "") return session.title;
-
-    const fallbackTitle = this.normalizeTitle(content);
-    let title = fallbackTitle;
-    const smallModelConfig = this.userConfigService.getConfig().smallModel;
-
-    if (smallModelConfig) {
-      let harness: AgentHarness | undefined;
-      try {
-        const model = this.agentService.getModel(
-          smallModelConfig.providerId,
-          smallModelConfig.modelId,
-        );
-        harness = await this.agentService.getSimpleAgent({
-          cwd: workspace.path,
-          model,
-          systemPrompt: TITLE_SYSTEM_PROMPT,
-        });
-        const response = await harness.prompt(content);
-        const generated = response.content
-          .filter((block) => block.type === "text")
-          .map((block) => block.text)
-          .join(" ");
-        title = this.normalizeTitle(generated) || fallbackTitle;
-      } catch {
-        title = fallbackTitle;
-      } finally {
-        await harness?.env.cleanup();
-      }
-    }
-
-    const current = this.sessionService.getSession(input.workspaceId, input.sessionId);
-    if (current.title.trim() !== "") return current.title;
-
-    await this.sessionService.updateSessionTitle(input.workspaceId, input.sessionId, title);
-    this.emit({ type: "title_updated", sessionId: input.sessionId, title });
-    return title;
-  }
-
-  private startTitleCreation(input: CreateTitleInput): void {
-    const key = this.taskKey(input.workspaceId, input.sessionId);
-    if (this.pendingTitles.has(key)) return;
-
-    const pending = this.createTitle(input)
-      .then(() => undefined)
-      .catch(() => undefined)
-      .finally(() => {
-        if (this.pendingTitles.get(key) === pending) {
-          this.pendingTitles.delete(key);
-        }
-      });
-    this.pendingTitles.set(key, pending);
-  }
-
   private emit(payload: MessageEventPayload): void {
     this.eventService.sendEvent(MESSAGE_EVENT, payload);
   }
@@ -212,15 +150,6 @@ export class MessageService {
       throw new Error("Message content must be a non-empty string");
     }
     return content.trim();
-  }
-
-  private normalizeTitle(value: string): string {
-    const normalized = value
-      .replace(/[`*_#]+/g, "")
-      .replace(/^(["'“‘])|(["'”’])$/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    return [...normalized].slice(0, TITLE_MAX_LENGTH).join("");
   }
 
   private taskKey(workspaceId: number, sessionId: string): string {

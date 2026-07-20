@@ -13,6 +13,7 @@ import { SendMessageController } from "./controllers/message/send.message.contro
 import { StopMessageController } from "./controllers/message/stop.message.controller";
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
 import { CreateSessionController } from "./controllers/session/create.session.controller";
+import { GetSessionListController } from "./controllers/session/get-list.session.controller";
 import { SetThemeController } from "./controllers/theme/set.theme.controller";
 import { GetUserConfigController } from "./controllers/user-config/get.user-config.controller";
 import { SetUserConfigController } from "./controllers/user-config/set.user-config.controller";
@@ -35,6 +36,7 @@ import { MessageService } from "./service/message.service";
 import { ProviderCatalogService } from "./service/provider-catalog.service";
 import { SessionManagerFactory } from "./service/session-manager.factory";
 import { SessionService } from "./service/session.service";
+import { TitleService } from "./service/title.service";
 import { UserConfigService } from "./service/user-config.service";
 import { WorkspaceService } from "./service/workspace.service";
 import { configureMainWindowBounds, MainWindow } from "./window/main.window";
@@ -58,6 +60,7 @@ if (started) {
     SessionManagerFactory,
     AgentService,
     SessionService,
+    TitleService,
     CredentialService,
     EventService,
     MessageService,
@@ -77,6 +80,7 @@ if (started) {
     GetUserConfigController,
     SetUserConfigController,
     CreateSessionController,
+    GetSessionListController,
     SendMessageController,
     StopMessageController,
     GetMessageListController,

@@ -20,6 +20,8 @@ import type {
   GetMessageListResponse,
   GetProviderCatalogRequest,
   GetProviderCatalogResponse,
+  GetSessionListRequest,
+  GetSessionListResponse,
   GetUserConfigRequest,
   GetUserConfigResponse,
   GetWorkspaceListRequest,
@@ -54,6 +56,7 @@ import {
   GET_CREDENTIAL,
   GET_MESSAGE_LIST,
   GET_PROVIDER_CATALOG,
+  GET_SESSION_LIST,
   GET_USER_CONFIG,
   GET_WORKSPACE_LIST,
   REGISTER_EVENT,
@@ -118,6 +121,8 @@ const ipcObject: IRenderHook = {
     invoke<SetUserConfigRequest, SetUserConfigResponse>(SET_USER_CONFIG, request),
   createSession: (request: CreateSessionRequest) =>
     invoke<CreateSessionRequest, CreateSessionResponse>(CREATE_SESSION, request),
+  getSessionList: (request: GetSessionListRequest) =>
+    invoke<GetSessionListRequest, GetSessionListResponse>(GET_SESSION_LIST, request),
   sendMessage: (request: SendMessageRequest) =>
     invoke<SendMessageRequest, SendMessageResponse>(SEND_MESSAGE, request),
   stopMessage: (request: StopMessageRequest) =>

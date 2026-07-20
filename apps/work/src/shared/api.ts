@@ -162,6 +162,24 @@ export interface CreateSessionResponse {
   sessionId: string;
 }
 
+export type SessionStatus = "started" | "completed" | "stopped" | "failed";
+
+export interface SessionInfo {
+  id: string;
+  workspaceId: number;
+  title: string;
+  createdAt: string;
+  status: SessionStatus;
+}
+
+export interface GetSessionListRequest {
+  workspaceId: number;
+}
+
+export interface GetSessionListResponse {
+  sessions: SessionInfo[];
+}
+
 export type MessageStreamEvent = Extract<
   AgentEvent,
   { type: "message_start" | "message_update" | "message_end" }
@@ -176,7 +194,7 @@ export type MessageEventPayload =
   | {
       type: "status";
       sessionId: string;
-      status: "running" | "completed" | "stopped" | "failed";
+      status: SessionStatus;
       error?: string;
     }
   | {
