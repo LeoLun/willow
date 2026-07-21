@@ -7,7 +7,7 @@ export { default as Button } from "./Button.vue";
 export const buttonVariants = cva(
   [
     "no-drag-region relative isolate inline-flex shrink-0 select-none items-center justify-center",
-    "overflow-hidden whitespace-nowrap border text-[13px] font-medium leading-none",
+    "overflow-hidden whitespace-nowrap border text-sm font-medium leading-none",
     "backdrop-blur-[24px] backdrop-saturate-150",
     "transition-[background-color,border-color,box-shadow,color,transform] duration-150",
     "outline-none before:pointer-events-none before:absolute before:inset-px before:rounded-[inherit]",
@@ -60,8 +60,8 @@ export const buttonVariants = cva(
         ],
       },
       shape: {
-        circular: "size-12 rounded-full p-1.5 [&_svg]:size-[18px]",
-        capsule: "h-8 min-w-12 gap-1.5 rounded-full px-3 [&_svg]:size-[14px]",
+        circular: "size-12 rounded-full p-1.5 [&_svg]:size-5",
+        capsule: "h-8 min-w-12 gap-1.5 rounded-full px-3 [&_svg]:size-4.5",
       },
     },
     defaultVariants: {

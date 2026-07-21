@@ -22,7 +22,9 @@ Requirements:
 
 * Output only the title, on a single line
 * Maximum ${TITLE_MAX_LENGTH} characters
-* Use the same language as the user message
+* The title must use the same language as the user input
+* If the input is Chinese, output Chinese; if it is English, output English
+* For mixed-language input, use the dominant language
 * Focus on the main question, task, or intent
 * Write naturally and grammatically
 * Preserve exact technical terms, numbers, filenames, and HTTP codes
@@ -36,8 +38,9 @@ Requirements:
 Examples:
 “debug 500 errors in production” → Debugging production 500 errors
 “why is app.js failing” → app.js failure investigation
-“how do I connect postgres to my API” → Postgres API connection
-“@src/auth.ts add refresh token support” → Auth refresh token support
+“如何连接 Postgres” → Postgres 连接方法
+“修复 app.js 报错” → app.js 报错修复
+“@src/auth.ts 添加刷新令牌” → 添加刷新令牌支持
 “@App.tsx add dark mode toggle” → Dark mode toggle in App`;
 
 @Injectable()

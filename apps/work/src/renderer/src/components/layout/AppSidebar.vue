@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { SessionInfo, WorkspaceInfo } from "@shared/api";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@willow/shadcn/components/ui/collapsible";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -24,8 +29,8 @@ import {
   Clock3,
   Ellipsis,
   Folder,
+  FolderOpen,
   LoaderCircle,
-  MessageSquare,
   PanelLeft,
   Pencil,
   Pin,
@@ -36,7 +41,7 @@ import {
   Trash2,
 } from "lucide-vue-next";
 import type { Component } from "vue";
-import { computed, watch } from "vue";
+import { computed, shallowRef, watch } from "vue";
 import { useRoute, useRouter, type LocationQueryRaw } from "vue-router";
 import { useDialog } from "@/components/dialog";
 import SettingDialog from "@/components/dialog/setting/Setting.vue";
@@ -53,7 +58,30 @@ interface QuickAccessItem {
   icon: Component;
 }
 
+const WORKSPACE_OPEN_STATE_STORAGE_KEY = "willow:workspace-session-open-state";
+const SESSION_DISPLAY_LIMIT = 5;
+
+function loadWorkspaceOpenState(): Record<string, boolean> {
+  try {
+    const value = localStorage.getItem(WORKSPACE_OPEN_STATE_STORAGE_KEY);
+    if (!value) return {};
+
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, boolean] => {
+        return typeof entry[1] === "boolean";
+      }),
+    );
+  } catch {
+    return {};
+  }
+}
+
 const selectedItem = defineModel<string>({ default: "text-edit" });
+const workspaceOpenState = shallowRef(loadWorkspaceOpenState());
+const expandedSessionLists = shallowRef<Record<string, boolean>>({});
 const { state, toggleSidebar } = useSidebar();
 const { openDialog } = useDialog();
 const route = useRoute();
@@ -82,11 +110,64 @@ const isInitialLoading = computed(
   () =>
     loading.value && pinnedWorkspaces.value.length === 0 && unpinnedWorkspaces.value.length === 0,
 );
+const workspaceGroups = computed(() => [
+  ...(pinnedWorkspaces.value.length > 0
+    ? [
+        {
+          id: "pinned",
+          label: "置顶",
+          workspaces: pinnedWorkspaces.value,
+          showCreateAction: false,
+        },
+      ]
+    : []),
+  {
+    id: "projects",
+    label: "项目",
+    workspaces: unpinnedWorkspaces.value,
+    showCreateAction: true,
+  },
+]);
 
 const quickAccess: QuickAccessItem[] = [
-  { id: "text-edit", label: "新建任务", icon: Folder },
-  { id: "recents", label: "自动化", icon: Clock3 },
+  { id: "task", label: "新建任务", icon: Folder },
+  { id: "auto", label: "自动化", icon: Clock3 },
 ];
+
+function isWorkspaceOpen(workspaceId: number) {
+  return workspaceOpenState.value[String(workspaceId)] ?? true;
+}
+
+function setWorkspaceOpen(workspaceId: number, open: boolean) {
+  workspaceOpenState.value = {
+    ...workspaceOpenState.value,
+    [workspaceId]: open,
+  };
+
+  try {
+    localStorage.setItem(
+      WORKSPACE_OPEN_STATE_STORAGE_KEY,
+      JSON.stringify(workspaceOpenState.value),
+    );
+  } catch {
+    // Keep the in-memory state when localStorage is unavailable or full.
+  }
+}
+
+function isSessionListExpanded(workspaceId: number) {
+  return expandedSessionLists.value[String(workspaceId)] ?? false;
+}
+
+function getVisibleSessions(workspaceId: number, sessions: SessionInfo[]) {
+  return isSessionListExpanded(workspaceId) ? sessions : sessions.slice(0, SESSION_DISPLAY_LIMIT);
+}
+
+function toggleSessionList(workspaceId: number) {
+  expandedSessionLists.value = {
+    ...expandedSessionLists.value,
+    [workspaceId]: !isSessionListExpanded(workspaceId),
+  };
+}
 
 function openSettingDialog() {
   openDialog(SettingDialog, undefined, {
@@ -156,10 +237,21 @@ async function selectSession(session: SessionInfo) {
 
 async function selectQuickAccess(itemId: string) {
   selectedItem.value = itemId;
-  const query: LocationQueryRaw = { ...route.query };
-  delete query.workspaceId;
-  delete query.sessionId;
-  await router.push({ name: "home", query });
+  if (itemId === "auto") {
+    await router.push({ name: "auto" });
+    return;
+  }
+  if (itemId === "task") {
+    const query: LocationQueryRaw = { ...route.query };
+    delete query.workspaceId;
+    delete query.sessionId;
+    await router.push({ name: "home", query });
+    return;
+  }
+}
+
+function toggleWorkspacePinned(workspace: WorkspaceInfo) {
+  void setWorkspacePinned(workspace);
 }
 
 watch(selectedSessionId, (sessionId, previousSessionId) => {
@@ -196,7 +288,7 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
             <SidebarMenuItem v-for="item in quickAccess" :key="item.id">
               <SidebarMenuButton
                 :is-active="selectedWorkspaceId === undefined && selectedItem === item.id"
-                class="h-8 items-center rounded-lg px-2.5 text-[13px] leading-4 font-medium text-sidebar-foreground/85 data-[active=true]:bg-sidebar-foreground/10"
+                class="h-8 items-center rounded-lg px-2.5 text-sm leading-4 font-medium text-sidebar-foreground/85 data-[active=true]:bg-sidebar-foreground/10"
                 @click="selectQuickAccess(item.id)"
               >
                 <component
@@ -225,7 +317,7 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
     <SidebarContent class="gap-0 px-1 pb-3">
       <div
         v-if="isInitialLoading"
-        class="flex items-center gap-2 px-4 py-5 text-xs text-sidebar-foreground/60"
+        class="flex items-center gap-2 px-4 py-5 text-sm text-sidebar-foreground/60"
       >
         <LoaderCircle class="size-4 animate-spin" aria-hidden="true" />
         正在加载工作空间…
@@ -234,7 +326,7 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
       <div v-else>
         <div
           v-if="workspaceError"
-          class="mx-3 mt-2 flex items-center justify-between gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive"
+          class="mx-3 mt-2 flex items-center justify-between gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
           role="alert"
         >
           <span>{{ workspaceError }}</span>
@@ -249,90 +341,13 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
           </button>
         </div>
 
-        <SidebarGroup v-if="pinnedWorkspaces.length > 0" class="px-2 py-1">
-          <SidebarGroupLabel
-            class="mt-3 h-6 px-2 text-[11px] leading-3.5 font-semibold text-sidebar-foreground/50"
-          >
-            置顶
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu class="gap-0.5">
-              <SidebarMenuItem v-for="workspace in pinnedWorkspaces" :key="workspace.id">
-                <SidebarMenuButton
-                  :is-active="selectedWorkspaceId === workspace.id"
-                  class="h-8 items-center rounded-lg px-2.5 pr-14 text-[13px] leading-4 text-sidebar-foreground/85 data-[active=true]:bg-sidebar-foreground/10"
-                  @click="selectWorkspace(workspace)"
-                >
-                  <Folder />
-                  <span class="truncate">{{ workspace.name }}</span>
-                </SidebarMenuButton>
-                <SidebarMenuAction
-                  show-on-hover
-                  class="right-7"
-                  :disabled="updatingWorkspaceId !== undefined"
-                  :aria-label="`取消置顶 ${workspace.name}`"
-                  :title="`取消置顶 ${workspace.name}`"
-                  @click.stop="setWorkspacePinned(workspace)"
-                >
-                  <LoaderCircle
-                    v-if="updatingWorkspaceId === workspace.id"
-                    class="animate-spin"
-                    aria-hidden="true"
-                  />
-                  <PinOff v-else aria-hidden="true" />
-                </SidebarMenuAction>
-                <DropdownMenu>
-                  <DropdownMenuTrigger as-child>
-                    <SidebarMenuAction
-                      show-on-hover
-                      :disabled="updatingWorkspaceId !== undefined"
-                      :aria-label="`更多工作空间操作：${workspace.name}`"
-                      :title="`更多操作：${workspace.name}`"
-                      @click.stop
-                    >
-                      <Ellipsis aria-hidden="true" />
-                    </SidebarMenuAction>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="right" align="start">
-                    <DropdownMenuItem @select="openRenameWorkspaceDialog(workspace)">
-                      <Pencil aria-hidden="true" />
-                      重命名
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      @select="openDeleteWorkspaceDialog(workspace)"
-                    >
-                      <Trash2 aria-hidden="true" />
-                      删除
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <SidebarMenu
-                  v-if="selectedWorkspaceId === workspace.id && workspace.sessions.length > 0"
-                  class="mt-0.5 gap-0.5 pl-4"
-                >
-                  <SidebarMenuItem v-for="session in workspace.sessions" :key="session.id">
-                    <SidebarMenuButton
-                      :is-active="selectedSessionId === session.id"
-                      class="h-7 items-center rounded-lg px-2.5 text-xs text-sidebar-foreground/70 data-[active=true]:bg-sidebar-foreground/10"
-                      @click="selectSession(session)"
-                    >
-                      <MessageSquare aria-hidden="true" />
-                      <span class="truncate">{{ session.title.trim() || "新对话" }}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup class="px-2 py-1">
+        <SidebarGroup v-for="group in workspaceGroups" :key="group.id" class="px-2 py-1">
           <SidebarGroupLabel
             class="mt-3 flex h-6 items-center justify-between px-2 text-[11px] leading-3.5 font-semibold text-sidebar-foreground/50"
           >
-            <span>项目</span>
+            <span>{{ group.label }}</span>
             <button
+              v-if="group.showCreateAction"
               type="button"
               class="no-drag-region flex size-6 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
               aria-label="添加工作空间"
@@ -344,72 +359,97 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu class="gap-0.5">
-              <SidebarMenuItem v-for="workspace in unpinnedWorkspaces" :key="workspace.id">
-                <SidebarMenuButton
-                  :is-active="selectedWorkspaceId === workspace.id"
-                  class="h-8 items-center rounded-lg px-2.5 pr-14 text-[13px] leading-4 text-sidebar-foreground/85 data-[active=true]:bg-sidebar-foreground/10"
-                  @click="selectWorkspace(workspace)"
-                >
-                  <Folder />
-                  <span class="truncate">{{ workspace.name }}</span>
-                </SidebarMenuButton>
-                <SidebarMenuAction
-                  show-on-hover
-                  class="right-7"
-                  :disabled="updatingWorkspaceId !== undefined"
-                  :aria-label="`置顶 ${workspace.name}`"
-                  :title="`置顶 ${workspace.name}`"
-                  @click.stop="setWorkspacePinned(workspace)"
-                >
-                  <LoaderCircle
-                    v-if="updatingWorkspaceId === workspace.id"
-                    class="animate-spin"
-                    aria-hidden="true"
-                  />
-                  <Pin v-else aria-hidden="true" />
-                </SidebarMenuAction>
-                <DropdownMenu>
-                  <DropdownMenuTrigger as-child>
-                    <SidebarMenuAction
-                      show-on-hover
-                      :disabled="updatingWorkspaceId !== undefined"
-                      :aria-label="`更多工作空间操作：${workspace.name}`"
-                      :title="`更多操作：${workspace.name}`"
-                      @click.stop
-                    >
-                      <Ellipsis aria-hidden="true" />
-                    </SidebarMenuAction>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="right" align="start">
-                    <DropdownMenuItem @select="openRenameWorkspaceDialog(workspace)">
-                      <Pencil aria-hidden="true" />
-                      重命名
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      @select="openDeleteWorkspaceDialog(workspace)"
-                    >
-                      <Trash2 aria-hidden="true" />
-                      删除
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <SidebarMenu
-                  v-if="selectedWorkspaceId === workspace.id && workspace.sessions.length > 0"
-                  class="mt-0.5 gap-0.5 pl-4"
-                >
-                  <SidebarMenuItem v-for="session in workspace.sessions" :key="session.id">
+              <Collapsible
+                v-for="workspace in group.workspaces"
+                :key="workspace.id"
+                v-slot="{ open }"
+                as-child
+                :open="isWorkspaceOpen(workspace.id)"
+                @update:open="setWorkspaceOpen(workspace.id, $event)"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger as-child>
                     <SidebarMenuButton
-                      :is-active="selectedSessionId === session.id"
-                      class="h-7 items-center rounded-lg px-2.5 text-xs text-sidebar-foreground/70 data-[active=true]:bg-sidebar-foreground/10"
-                      @click="selectSession(session)"
+                      class="h-8 items-center rounded-lg px-2.5 pr-14 text-sm leading-4"
                     >
-                      <MessageSquare aria-hidden="true" />
-                      <span class="truncate">{{ session.title.trim() || "新对话" }}</span>
+                      <FolderOpen v-if="open" />
+                      <Folder v-else />
+                      <span class="truncate">{{ workspace.name }}</span>
                     </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarMenuItem>
+                  </CollapsibleTrigger>
+                  <SidebarMenuAction
+                    show-on-hover
+                    class="right-7"
+                    :aria-label="`新建会话：${workspace.name}`"
+                    :title="`新建会话：${workspace.name}`"
+                    @click.stop="selectWorkspace(workspace)"
+                  >
+                    <Plus aria-hidden="true" />
+                  </SidebarMenuAction>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                      <SidebarMenuAction
+                        show-on-hover
+                        :disabled="updatingWorkspaceId !== undefined"
+                        :aria-label="`更多工作空间操作：${workspace.name}`"
+                        :title="`更多操作：${workspace.name}`"
+                        @click.stop
+                      >
+                        <Ellipsis aria-hidden="true" />
+                      </SidebarMenuAction>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="right" align="start">
+                      <DropdownMenuItem @select="toggleWorkspacePinned(workspace)">
+                        <PinOff v-if="workspace.pinned" aria-hidden="true" />
+                        <Pin v-else aria-hidden="true" />
+                        {{ workspace.pinned ? "取消置顶" : "置顶" }}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem @select="openRenameWorkspaceDialog(workspace)">
+                        <Pencil aria-hidden="true" />
+                        重命名
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        @select="openDeleteWorkspaceDialog(workspace)"
+                      >
+                        <Trash2 aria-hidden="true" />
+                        删除
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <CollapsibleContent as-child>
+                    <SidebarMenu class="mt-1 gap-1">
+                      <SidebarMenuItem v-if="workspace.sessions.length === 0">
+                        <p class="h-7 px-2.5 pl-4 text-sm leading-7 text-sidebar-foreground/50">
+                          无任务
+                        </p>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem
+                        v-for="session in getVisibleSessions(workspace.id, workspace.sessions)"
+                        :key="session.id"
+                      >
+                        <SidebarMenuButton
+                          :is-active="selectedSessionId === session.id"
+                          class="h-7 items-center rounded-lg px-2.5 pl-4 text-sm data-[active=true]:bg-sidebar-foreground/10"
+                          @click="selectSession(session)"
+                        >
+                          <span class="truncate">{{ session.title.trim() || "新对话" }}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem v-if="workspace.sessions.length > SESSION_DISPLAY_LIMIT">
+                        <SidebarMenuButton
+                          class="h-7 items-center rounded-lg px-2.5 pl-4 text-sm text-sidebar-foreground/60"
+                          @click.stop="toggleSessionList(workspace.id)"
+                        >
+                          <span>
+                            {{ isSessionListExpanded(workspace.id) ? "折叠显示" : "展开全部" }}
+                          </span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </SidebarMenu>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
