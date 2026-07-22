@@ -68,8 +68,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex min-h-full flex-col items-center justify-center gap-2 text-center">
-    <p class="text-sm font-medium text-foreground">Chat</p>
-    <p class="text-sm text-muted-foreground">{{ statusMessage }}</p>
+  <div class="flex min-h-full flex-col gap-2 p-8">
+    <div class="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+      <p class="text-sm font-medium text-foreground">Chat</p>
+      <p class="text-sm text-muted-foreground">{{ statusMessage }}</p>
+    </div>
+    <slot />
   </div>
 </template>

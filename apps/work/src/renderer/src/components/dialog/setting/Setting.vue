@@ -239,7 +239,7 @@ onMounted(async () => {
     <DialogDescription class="sr-only">配置应用外观、AI 提供商、模型和应用信息。</DialogDescription>
 
     <aside class="border-r bg-muted/35 p-3 pt-5">
-      <div class="px-3 pb-4 text-lg font-semibold">设置</div>
+      <div class="px-3 pb-4 text-base font-semibold">设置</div>
       <nav class="space-y-1" role="tablist" aria-label="设置分类" aria-orientation="vertical">
         <button
           v-for="tab in tabs"
@@ -249,7 +249,7 @@ onMounted(async () => {
           role="tab"
           :aria-selected="activeTab === tab.id"
           :aria-controls="`setting-panel-${tab.id}`"
-          class="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-selected:bg-accent aria-selected:font-medium aria-selected:text-foreground"
+          class="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-selected:bg-accent aria-selected:font-medium aria-selected:text-foreground"
           @click="changeTab(tab.id)"
         >
           <component :is="tab.icon" class="size-4" />
@@ -265,10 +265,10 @@ onMounted(async () => {
         role="tabpanel"
         aria-labelledby="setting-tab-general"
       >
-        <h2 class="text-xl font-semibold">常规</h2>
-        <p class="mt-1 text-sm text-muted-foreground">调整 Willow 的外观。</p>
+        <h2 class="text-base font-semibold">常规</h2>
+        <p class="mt-1 text-xs text-muted-foreground">调整 Willow 的外观。</p>
 
-        <div class="mt-8">
+        <div class="mt-4">
           <Label class="mb-3 block">外观</Label>
           <ToggleGroup
             type="single"
@@ -282,11 +282,11 @@ onMounted(async () => {
               v-for="option in themeOptions"
               :key="option.id"
               :value="option.id"
-              class="h-24 flex-col items-start justify-between rounded-xl border bg-background p-4 text-left data-[state=on]:border-primary data-[state=on]:bg-primary/5"
+              class="h-24 flex-col items-start justify-between rounded-xl border bg-background p-3 text-left data-[state=on]:border-primary data-[state=on]:bg-primary/5"
             >
               <component :is="option.icon" class="size-5" />
               <span>
-                <span class="block font-medium">{{ option.label }}</span>
+                <span class="block text-sm font-medium">{{ option.label }}</span>
                 <span class="mt-1 block text-xs font-normal text-muted-foreground">
                   {{ option.description }}
                 </span>
@@ -302,19 +302,19 @@ onMounted(async () => {
         role="tabpanel"
         aria-labelledby="setting-tab-models"
       >
-        <h2 class="text-xl font-semibold">模型</h2>
-        <p class="mt-1 text-sm text-muted-foreground">选择 Willow 在不同任务中使用的模型。</p>
+        <h2 class="text-base font-semibold">模型</h2>
+        <p class="mt-1 text-xs text-muted-foreground">选择 Willow 在不同任务中使用的模型。</p>
 
         <div
           v-if="loadingProviders || loadingUserConfig"
-          class="mt-8 text-sm text-muted-foreground"
+          class="mt-4 text-xs text-muted-foreground"
         >
           正在读取模型配置…
         </div>
-        <div v-else class="mt-8 space-y-4">
+        <div v-else class="mt-4 space-y-4">
           <div
             v-if="userConfigError"
-            class="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+            class="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-xs text-destructive"
             role="alert"
           >
             <CircleAlert class="size-4" />
@@ -326,12 +326,12 @@ onMounted(async () => {
 
           <div class="divide-y rounded-xl border bg-muted/20">
             <section
-              class="flex items-center justify-between gap-8 p-5"
+              class="flex items-center justify-between gap-8 p-3"
               aria-labelledby="large-model-heading"
             >
               <div>
-                <h3 id="large-model-heading" class="font-semibold">大模型</h3>
-                <p class="mt-1 text-sm text-muted-foreground">用于日常对话和运行工作。</p>
+                <h3 id="large-model-heading" class="text-sm font-semibold">大模型</h3>
+                <p class="mt-1 text-xs text-muted-foreground">用于日常对话和运行工作。</p>
               </div>
               <div class="w-[250px] min-w-0">
                 <Select
@@ -359,12 +359,12 @@ onMounted(async () => {
             </section>
 
             <section
-              class="flex items-center justify-between gap-8 p-5"
+              class="flex items-center justify-between gap-8 p-3"
               aria-labelledby="small-model-heading"
             >
               <div>
-                <h3 id="small-model-heading" class="font-semibold">小模型</h3>
-                <p class="mt-1 text-sm text-muted-foreground">用于构建记忆和生成标题等。</p>
+                <h3 id="small-model-heading" class="text-sm font-semibold">小模型</h3>
+                <p class="mt-1 text-xs text-muted-foreground">用于构建记忆和生成标题等。</p>
               </div>
               <div class="w-[250px] min-w-0">
                 <Select
@@ -392,7 +392,7 @@ onMounted(async () => {
             </section>
           </div>
 
-          <p v-if="configuredModelProviders.length === 0" class="text-sm text-muted-foreground">
+          <p v-if="configuredModelProviders.length === 0" class="text-xs text-muted-foreground">
             请先在“提供商”中连接至少一个提供商。
           </p>
         </div>
@@ -405,22 +405,22 @@ onMounted(async () => {
         aria-labelledby="setting-tab-providers"
         class="flex h-full min-h-0 flex-col"
       >
-        <h2 class="text-xl font-semibold">提供商</h2>
-        <p class="mt-1 text-sm text-muted-foreground">连接用于 Willow 的 AI 提供商。</p>
+        <h2 class="text-base font-semibold">提供商</h2>
+        <p class="mt-1 text-xs text-muted-foreground">连接用于 Willow 的 AI 提供商。</p>
 
-        <div v-if="loadingProviders" class="mt-8 text-sm text-muted-foreground">
+        <div v-if="loadingProviders" class="mt-4 text-xs text-muted-foreground">
           正在读取提供商…
         </div>
-        <div v-else-if="providerLoadError" class="mt-8 rounded-xl border p-5">
-          <div class="flex items-center gap-2 text-sm text-destructive">
+        <div v-else-if="providerLoadError" class="mt-4 rounded-xl border p-5">
+          <div class="flex items-center gap-2 text-xs text-destructive">
             <CircleAlert class="size-4" />
             无法读取提供商信息，请重试。
           </div>
           <Button variant="secondary" class="mt-4" @click="loadProviders">重试</Button>
         </div>
-        <div v-else class="mt-8 flex min-h-0 flex-1 flex-col gap-10">
+        <div v-else class="mt-4 flex min-h-0 flex-1 flex-col gap-10">
           <section class="shrink-0" aria-labelledby="connected-providers-heading">
-            <h3 id="connected-providers-heading" class="text-base font-semibold">已连接的提供商</h3>
+            <h3 id="connected-providers-heading" class="text-sm font-semibold">已连接的提供商</h3>
             <div
               v-if="connectedProviders.length"
               class="mt-4 divide-y rounded-xl border bg-muted/20"
@@ -428,17 +428,17 @@ onMounted(async () => {
               <div
                 v-for="provider in connectedProviders"
                 :key="provider.id"
-                class="flex min-h-20 items-center gap-3 px-5 py-4"
+                class="flex items-center gap-2 px-3 py-3"
               >
                 <ProviderMark :provider-id="provider.id" :name="provider.name" />
                 <div class="min-w-0 flex-1">
-                  <div class="flex flex-wrap items-center gap-2">
+                  <div class="flex flex-wrap items-center gap-2 text-sm">
                     <span class="font-medium">{{ provider.name }}</span>
                     <Badge variant="outline" class="text-muted-foreground">API 密钥</Badge>
                   </div>
                   <p
                     v-if="providerActionErrors[provider.id]"
-                    class="mt-1 text-sm text-destructive"
+                    class="mt-1 text-xs text-destructive"
                     role="alert"
                   >
                     {{ providerActionErrors[provider.id] }}
@@ -456,7 +456,7 @@ onMounted(async () => {
             </div>
             <div
               v-else
-              class="mt-4 flex min-h-20 items-center rounded-xl border bg-muted/20 px-5 py-4 text-sm text-muted-foreground"
+              class="mt-4 flex min-h-20 items-center rounded-xl border bg-muted/20 px-5 py-4 text-xs text-muted-foreground"
             >
               没有已连接的提供商。
             </div>
@@ -466,14 +466,14 @@ onMounted(async () => {
             class="flex min-h-0 flex-1 flex-col"
             aria-labelledby="available-providers-heading"
           >
-            <h3 id="available-providers-heading" class="text-base font-semibold">可用提供商</h3>
+            <h3 id="available-providers-heading" class="text-sm font-semibold">可用提供商</h3>
             <div class="relative mt-4">
               <Search
                 class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
               />
               <Input
                 v-model="searchQuery"
-                class="h-10 pr-10 pl-9"
+                class="h-10 rounded-xl pr-10 pl-9"
                 placeholder="搜索提供商"
                 aria-label="搜索可用提供商"
               />
@@ -490,17 +490,17 @@ onMounted(async () => {
 
             <div
               v-if="availableProviders.length"
-              class="mt-4 min-h-0 flex-1 divide-y overflow-y-auto overscroll-contain rounded-xl border bg-muted/20"
+              class="mt-4 min-h-0 flex-1 divide-y overflow-y-auto overscroll-contain rounded-xl border bg-muted/20 text-sm"
             >
               <div
                 v-for="provider in availableProviders"
                 :key="provider.id"
-                class="flex min-h-20 items-center gap-3 px-5 py-4"
+                class="flex items-center gap-2 px-3 py-3"
               >
                 <ProviderMark :provider-id="provider.id" :name="provider.name" />
                 <div class="min-w-0 flex-1">
                   <div class="font-medium">{{ provider.name }}</div>
-                  <p class="mt-1 truncate text-sm text-muted-foreground">
+                  <p class="mt-1 truncate text-xs text-muted-foreground">
                     使用 {{ provider.apiKeyLabel }} 连接
                   </p>
                 </div>
@@ -512,7 +512,7 @@ onMounted(async () => {
             </div>
             <div
               v-else
-              class="mt-4 rounded-xl border bg-muted/20 px-5 py-6 text-sm text-muted-foreground"
+              class="mt-4 rounded-xl border bg-muted/20 px-5 py-6 text-xs text-muted-foreground"
             >
               <template v-if="unfilteredAvailableProviders.length === 0">
                 所有可用提供商都已连接。
@@ -537,7 +537,7 @@ onMounted(async () => {
             W
           </div>
           <h2 class="mt-4 text-2xl font-semibold">{{ appInfo?.name ?? "Willow" }}</h2>
-          <p class="mt-1 text-sm text-muted-foreground">
+          <p class="mt-1 text-xs text-muted-foreground">
             {{ appInfo ? `版本 ${appInfo.version}` : "正在读取版本…" }}
           </p>
         </div>

@@ -398,7 +398,7 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
                         <Ellipsis aria-hidden="true" />
                       </SidebarMenuAction>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent side="right" align="start">
+                    <DropdownMenuContent side="bottom" align="start">
                       <DropdownMenuItem @select="toggleWorkspacePinned(workspace)">
                         <PinOff v-if="workspace.pinned" aria-hidden="true" />
                         <Pin v-else aria-hidden="true" />
@@ -437,14 +437,12 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                       <SidebarMenuItem v-if="workspace.sessions.length > SESSION_DISPLAY_LIMIT">
-                        <SidebarMenuButton
-                          class="h-7 items-center rounded-lg px-2.5 pl-4 text-sm text-sidebar-foreground/60"
+                        <span
+                          class="h-7 cursor-pointer items-center rounded-lg px-2.5 pl-4 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground"
                           @click.stop="toggleSessionList(workspace.id)"
                         >
-                          <span>
-                            {{ isSessionListExpanded(workspace.id) ? "折叠显示" : "展开全部" }}
-                          </span>
-                        </SidebarMenuButton>
+                          {{ isSessionListExpanded(workspace.id) ? "折叠显示" : "展开全部" }}
+                        </span>
                       </SidebarMenuItem>
                     </SidebarMenu>
                   </CollapsibleContent>

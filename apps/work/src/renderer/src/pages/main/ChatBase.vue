@@ -166,69 +166,70 @@ async function sendMessage() {
 </script>
 
 <template>
-  <div class="flex min-h-full flex-col gap-2 p-8">
-    <div class="min-h-0 flex-1">
-      <RouterView />
-    </div>
-    <InputGroup>
-      <InputGroupTextarea v-model="message" placeholder="Ask, Search or Chat..." />
-      <InputGroupAddon align="block-end">
-        <InputGroupButton variant="outline" class="rounded-full" size="icon-xs">
-          <PlusIcon class="size-4" />
-        </InputGroupButton>
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <InputGroupButton variant="ghost">{{ selectedModelLabel }}</InputGroupButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" class="w-64 [--radius:0.95rem]">
-            <DropdownMenuLabel v-if="loadingModels" class="text-muted-foreground">
-              正在读取模型…
-            </DropdownMenuLabel>
-            <DropdownMenuLabel v-else-if="modelLoadError" class="text-destructive">
-              无法读取模型列表
-            </DropdownMenuLabel>
-            <DropdownMenuLabel v-else-if="providers.length === 0" class="text-muted-foreground">
-              请先连接模型提供商
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              v-else
-              :model-value="selectedModelValue"
-              @update:model-value="selectModel"
-            >
-              <template v-for="(provider, providerIndex) in providers" :key="provider.id">
-                <DropdownMenuSeparator v-if="providerIndex > 0" />
-                <DropdownMenuLabel class="text-muted-foreground">
-                  {{ provider.name }}
-                </DropdownMenuLabel>
-                <DropdownMenuRadioItem
-                  v-for="model in provider.models"
-                  :key="`${provider.id}:${model.id}`"
-                  :value="JSON.stringify([provider.id, model.id])"
-                  class="pr-8 pl-2 [&>span:first-child]:right-2 [&>span:first-child]:left-auto"
-                >
-                  {{ model.name }}
-                  <template #indicator-icon>
-                    <CheckIcon class="size-4" />
-                  </template>
-                </DropdownMenuRadioItem>
-              </template>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <InputGroupText class="ml-auto">52% used</InputGroupText>
-        <Separator orientation="vertical" class="!h-4" />
-        <InputGroupButton
-          variant="default"
-          class="rounded-full"
-          size="icon-xs"
-          :disabled="!canSend"
-          @click="sendMessage"
-        >
-          <ArrowUpIcon class="size-4" />
-          <span class="sr-only">Send</span>
-        </InputGroupButton>
-      </InputGroupAddon>
-    </InputGroup>
-    <p v-if="sendError" class="text-sm text-destructive" role="alert">{{ sendError }}</p>
-  </div>
+  <RouterView v-slot="{ Component }">
+    <component :is="Component">
+      <InputGroup>
+        <InputGroupTextarea v-model="message" placeholder="Ask, Search or Chat..." />
+        <InputGroupAddon align="block-end">
+          <InputGroupButton variant="outline" class="rounded-full" size="icon-xs">
+            <PlusIcon class="size-4" />
+          </InputGroupButton>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <InputGroupButton variant="ghost">{{ selectedModelLabel }}</InputGroupButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start" class="w-64 [--radius:0.95rem]">
+              <DropdownMenuLabel v-if="loadingModels" class="text-muted-foreground">
+                正在读取模型…
+              </DropdownMenuLabel>
+              <DropdownMenuLabel v-else-if="modelLoadError" class="text-destructive">
+                无法读取模型列表
+              </DropdownMenuLabel>
+              <DropdownMenuLabel v-else-if="providers.length === 0" class="text-muted-foreground">
+                请先连接模型提供商
+              </DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                v-else
+                :model-value="selectedModelValue"
+                @update:model-value="selectModel"
+              >
+                <template v-for="(provider, providerIndex) in providers" :key="provider.id">
+                  <DropdownMenuSeparator v-if="providerIndex > 0" />
+                  <DropdownMenuLabel class="text-muted-foreground">
+                    {{ provider.name }}
+                  </DropdownMenuLabel>
+                  <DropdownMenuRadioItem
+                    v-for="model in provider.models"
+                    :key="`${provider.id}:${model.id}`"
+                    :value="JSON.stringify([provider.id, model.id])"
+                    class="pr-8 pl-2 [&>span:first-child]:right-2 [&>span:first-child]:left-auto"
+                  >
+                    {{ model.name }}
+                    <template #indicator-icon>
+                      <CheckIcon class="size-4" />
+                    </template>
+                  </DropdownMenuRadioItem>
+                </template>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <InputGroupText class="ml-auto">52% used</InputGroupText>
+          <Separator orientation="vertical" class="!h-4" />
+          <InputGroupButton
+            variant="default"
+            class="rounded-full"
+            size="icon-xs"
+            :disabled="!canSend"
+            @click="sendMessage"
+          >
+            <ArrowUpIcon class="size-4" />
+            <span class="sr-only">Send</span>
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
+      <p v-if="sendError" class="mt-2 text-sm text-destructive" role="alert">
+        {{ sendError }}
+      </p>
+    </component>
+  </RouterView>
 </template>
