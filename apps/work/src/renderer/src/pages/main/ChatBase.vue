@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ModelConfig, ProviderInfo } from "@shared/api";
+import type { ModelConfig, ProviderInfo, ThinkingLevel } from "@shared/api";
 import { computed, nextTick, onMounted, ref, shallowRef } from "vue";
 import { isNavigationFailure, useRoute, useRouter } from "vue-router";
 import {
@@ -23,18 +23,14 @@ const modelLoadError = ref(false);
 const providers = shallowRef<ProviderInfo[]>([]);
 const selectedModel = shallowRef<ModelConfig>();
 const approvalMode = ref("request-approval");
-const reasoningEffort = ref("medium");
+const reasoningEffort = ref<string>();
 
 const approvalOptions: ComposerOption[] = [
   { value: "request-approval", label: "请求批准" },
   { value: "delegate-approval", label: "替我审批" },
   { value: "full-access", label: "完全访问权限" },
 ];
-const reasoningOptions: ComposerOption[] = [
-  { value: "low", label: "低" },
-  { value: "medium", label: "中" },
-  { value: "high", label: "高" },
-];
+const thinkingLevelOrder: ThinkingLevel[] = ["minimal", "low", "medium", "high", "xhigh", "max"];
 
 const workspaceId = computed(() => {
   const value = Number(route.query.workspaceId);
@@ -48,13 +44,19 @@ const sessionId = computed(() => {
 
 const modelOptions = computed<ComposerModelOption[]>(() =>
   providers.value.flatMap((provider) =>
-    provider.models.map((providerModel) => ({
-      value: { providerId: provider.id, modelId: providerModel.id },
-      label: providerModel.name,
-      group: provider.name,
-      reasoningEfforts: reasoningOptions,
-      defaultReasoningEffort: "medium",
-    })),
+    provider.models.map((providerModel) => {
+      const reasoningEfforts = providerModel.thinkingLevels.map((level) => ({
+        value: level,
+        label: level,
+      }));
+      return {
+        value: { providerId: provider.id, modelId: providerModel.id },
+        label: providerModel.name,
+        group: provider.name,
+        reasoningEfforts,
+        defaultReasoningEffort: getDefaultThinkingLevel(providerModel.thinkingLevels),
+      };
+    }),
   ),
 );
 const composerDisabled = computed(
@@ -66,6 +68,18 @@ const composerDisabled = computed(
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function getDefaultThinkingLevel(levels: ThinkingLevel[]): ThinkingLevel | undefined {
+  const mediumIndex = thinkingLevelOrder.indexOf("medium");
+  for (let distance = 0; distance < thinkingLevelOrder.length; distance += 1) {
+    const higher = thinkingLevelOrder[mediumIndex + distance];
+    if (higher && levels.includes(higher)) return higher;
+
+    const lower = thinkingLevelOrder[mediumIndex - distance];
+    if (lower && levels.includes(lower)) return lower;
+  }
+  return undefined;
 }
 
 onMounted(async () => {

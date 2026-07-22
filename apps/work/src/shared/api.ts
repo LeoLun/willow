@@ -1,5 +1,5 @@
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage, ModelThinkingLevel } from "@earendil-works/pi-ai";
 
 export interface ApiResponse<K> {
   code: number;
@@ -27,9 +27,12 @@ export interface SetThemeRequest {
 
 export interface SetThemeResponse {}
 
+export type ThinkingLevel = Exclude<ModelThinkingLevel, "off">;
+
 export interface ProviderModelInfo {
   id: string;
   name: string;
+  thinkingLevels: ThinkingLevel[];
 }
 
 export interface ProviderInfo {

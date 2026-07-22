@@ -7,6 +7,7 @@ import {
   defaultComposerTokenRules,
   parseComposerContent,
   PromptComposer,
+  type ComposerModelOption,
   serializeComposerSegments,
   type ComposerSubmitPayload,
   type ComposerTokenRule,
@@ -18,9 +19,19 @@ import {
 
 const mountedApps: ReturnType<typeof createApp>[] = [];
 
-function mountComposer(options: { content?: string; withPanels?: boolean } = {}) {
+function mountComposer(
+  options: {
+    content?: string;
+    withPanels?: boolean;
+    model?: ModelConfig;
+    models?: ComposerModelOption[];
+    reasoningEffort?: string;
+  } = {},
+) {
   const content = ref(options.content ?? "");
-  const model = ref<ModelConfig>({ providerId: "provider", modelId: "model" });
+  const model = ref<ModelConfig>(options.model ?? { providerId: "provider", modelId: "model" });
+  const models = ref(options.models ?? []);
+  const reasoningEffort = ref<string | undefined>(options.reasoningEffort);
   const submissions: ComposerSubmitPayload[] = [];
   const panelKeydown = vi.fn();
   const container = document.createElement("div");
@@ -34,12 +45,17 @@ function mountComposer(options: { content?: string; withPanels?: boolean } = {})
           {
             content: content.value,
             model: model.value,
+            models: models.value,
+            reasoningEffort: reasoningEffort.value,
             tokenRules: [...defaultComposerTokenRules],
             "onUpdate:content": (value: string) => {
               content.value = value;
             },
             "onUpdate:model": (value: ModelConfig | undefined) => {
               model.value = value ?? model.value;
+            },
+            "onUpdate:reasoningEffort": (value: string | undefined) => {
+              reasoningEffort.value = value;
             },
             onSubmit: (payload: ComposerSubmitPayload) => submissions.push(payload),
             onPanelKeydown: panelKeydown,
@@ -70,7 +86,7 @@ function mountComposer(options: { content?: string; withPanels?: boolean } = {})
   });
   app.mount(container);
   mountedApps.push(app);
-  return { container, content, submissions, panelKeydown };
+  return { container, content, model, models, reasoningEffort, submissions, panelKeydown };
 }
 
 function setCaret(editor: HTMLElement, offset: number): void {
@@ -123,6 +139,74 @@ describe("prompt composer token parser", () => {
 });
 
 describe("PromptComposer", () => {
+  const reasoningModels: ComposerModelOption[] = [
+    {
+      value: { providerId: "provider", modelId: "deepseek-v4-pro" },
+      label: "DeepSeek V4 Pro",
+      reasoningEfforts: [
+        { value: "high", label: "高" },
+        { value: "max", label: "最大" },
+      ],
+      defaultReasoningEffort: "high",
+    },
+    {
+      value: { providerId: "provider", modelId: "standard" },
+      label: "Standard",
+      reasoningEfforts: [
+        { value: "low", label: "低" },
+        { value: "high", label: "高" },
+      ],
+      defaultReasoningEffort: "low",
+    },
+    {
+      value: { providerId: "provider", modelId: "no-reasoning" },
+      label: "No reasoning",
+      reasoningEfforts: [],
+    },
+  ];
+
+  it("normalizes reasoning effort for the initially selected model", async () => {
+    const mounted = mountComposer({
+      model: reasoningModels[0].value,
+      models: reasoningModels,
+      reasoningEffort: "medium",
+    });
+    await nextTick();
+
+    expect(mounted.reasoningEffort.value).toBe("high");
+  });
+
+  it("normalizes unsupported efforts and preserves supported efforts on model changes", async () => {
+    const mounted = mountComposer({
+      model: reasoningModels[0].value,
+      models: reasoningModels,
+      reasoningEffort: "high",
+    });
+
+    mounted.model.value = reasoningModels[1].value;
+    await nextTick();
+    expect(mounted.reasoningEffort.value).toBe("high");
+
+    mounted.model.value = reasoningModels[0].value;
+    await nextTick();
+    mounted.reasoningEffort.value = "max";
+    mounted.model.value = reasoningModels[1].value;
+    await nextTick();
+    expect(mounted.reasoningEffort.value).toBe("low");
+  });
+
+  it("clears reasoning effort when the selected model has no reasoning levels", async () => {
+    const mounted = mountComposer({
+      model: reasoningModels[0].value,
+      models: reasoningModels,
+      reasoningEffort: "high",
+    });
+
+    mounted.model.value = reasoningModels[2].value;
+    await nextTick();
+    expect(mounted.reasoningEffort.value).toBeUndefined();
+  });
+
   it("renders tokens while preserving their source representation", () => {
     const mounted = mountComposer({ content: "Open [work.vue](src/work.vue)" });
     const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;

@@ -110,7 +110,8 @@ const canSubmit = computed(
     !props.submitting &&
     (props.approvalOptions.length === 0 || approvalMode.value !== undefined) &&
     model.value !== undefined &&
-    (reasoningOptions.value.length === 0 || reasoningEffort.value !== undefined),
+    (reasoningOptions.value.length === 0 ||
+      reasoningOptions.value.some((option) => option.value === reasoningEffort.value)),
 );
 const activePanelSlot = computed(() => {
   if (trigger.value?.type === "mention") return slots["mention-panel"];
@@ -369,6 +370,11 @@ function selectModel(value: unknown): void {
   const selected = props.models.find((option) => modelValueKey(option.value) === value);
   if (!selected) return;
   model.value = selected.value;
+  normalizeReasoningEffort(selected);
+}
+
+function normalizeReasoningEffort(selected: ComposerModelOption | undefined): void {
+  if (!selected) return;
   const isSupported = selected.reasoningEfforts.some(
     (option) => option.value === reasoningEffort.value,
   );
@@ -376,6 +382,8 @@ function selectModel(value: unknown): void {
     reasoningEffort.value = selected.defaultReasoningEffort ?? selected.reasoningEfforts[0]?.value;
   }
 }
+
+watch(selectedModel, normalizeReasoningEffort, { immediate: true });
 
 onMounted(() => {
   lastSelection = { start: content.value.length, end: content.value.length };
@@ -485,6 +493,7 @@ watch(content, (value) => {
               :key="option.value"
               :value="option.value"
               :disabled="option.disabled"
+              class="text-sm"
             >
               {{ option.label }}
             </DropdownMenuRadioItem>
@@ -511,12 +520,13 @@ watch(content, (value) => {
             >
               <template v-for="(option, index) in props.models" :key="modelValueKey(option.value)">
                 <DropdownMenuSeparator v-if="showModelGroup(index) && index > 0" />
-                <DropdownMenuLabel v-if="showModelGroup(index)" class="text-muted-foreground">
+                <DropdownMenuLabel v-if="showModelGroup(index)" class="text-xs">
                   {{ option.group }}
                 </DropdownMenuLabel>
                 <DropdownMenuRadioItem
                   :value="modelValueKey(option.value)"
                   :disabled="option.disabled"
+                  class="text-sm"
                 >
                   {{ option.label }}
                 </DropdownMenuRadioItem>
@@ -529,7 +539,7 @@ watch(content, (value) => {
           <DropdownMenuTrigger as-child>
             <button
               type="button"
-              class="inline-flex h-8 items-center gap-1 rounded-xl px-2 text-sm text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+              class="inline-flex h-8 items-center gap-1 rounded-xl px-2 text-sm hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
               :disabled="props.disabled"
             >
               <span>{{ reasoningLabel }}</span>

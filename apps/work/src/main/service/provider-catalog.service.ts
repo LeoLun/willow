@@ -1,6 +1,6 @@
-import type { Provider } from "@earendil-works/pi-ai";
+import { getSupportedThinkingLevels, type Provider } from "@earendil-works/pi-ai";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
-import type { ProviderInfo } from "@shared/api";
+import type { ProviderInfo, ThinkingLevel } from "@shared/api";
 import { Injectable } from "@willow/poetry";
 
 const MULTI_FIELD_API_KEY_PROVIDERS = new Set(["cloudflare-ai-gateway", "cloudflare-workers-ai"]);
@@ -17,7 +17,13 @@ export class ProviderCatalogService {
       id: provider.id,
       name: provider.name,
       apiKeyLabel: provider.auth.apiKey?.name ?? `${provider.name} API key`,
-      models: provider.getModels().map((model) => ({ id: model.id, name: model.name })),
+      models: provider.getModels().map((model) => ({
+        id: model.id,
+        name: model.name,
+        thinkingLevels: getSupportedThinkingLevels(model).filter(
+          (level): level is ThinkingLevel => level !== "off",
+        ),
+      })),
     }));
   }
 
