@@ -21,6 +21,7 @@ export interface ComposerTokenRule {
 export interface ComposerOption {
   value: string;
   label: string;
+  icon?: Component;
   disabled?: boolean;
 }
 

@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@willow/shadcn/components/ui/dropdown-menu";
-import { ArrowUpIcon, ChevronDownIcon, PlusIcon } from "lucide-vue-next";
+import { ArrowUpIcon, CheckIcon, ChevronDownIcon, PlusIcon } from "lucide-vue-next";
 import {
   computed,
   h,
@@ -93,10 +93,10 @@ const selectedModel = computed(() =>
   ),
 );
 const reasoningOptions = computed(() => selectedModel.value?.reasoningEfforts ?? []);
-const approvalLabel = computed(
-  () =>
-    props.approvalOptions.find((option) => option.value === approvalMode.value)?.label ?? "审批",
+const selectedApproval = computed(() =>
+  props.approvalOptions.find((option) => option.value === approvalMode.value),
 );
+const approvalLabel = computed(() => selectedApproval.value?.label ?? "审批");
 const modelLabel = computed(() => selectedModel.value?.label ?? "选择模型");
 const reasoningLabel = computed(
   () =>
@@ -464,7 +464,7 @@ watch(content, (value) => {
       />
     </div>
 
-    <div class="flex min-w-0 items-center gap-1 px-3 pb-3">
+    <div class="flex min-w-0 items-center gap-1 px-3 pb-1.5">
       <button
         type="button"
         class="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
@@ -482,6 +482,12 @@ watch(content, (value) => {
             class="inline-flex h-8 min-w-0 items-center gap-1 rounded-xl px-2 text-sm text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
             :disabled="props.disabled"
           >
+            <component
+              :is="selectedApproval.icon"
+              v-if="selectedApproval?.icon"
+              class="size-4 shrink-0"
+              aria-hidden="true"
+            />
             <span class="truncate">{{ approvalLabel }}</span>
             <ChevronDownIcon class="size-3.5 shrink-0" />
           </button>
@@ -493,9 +499,13 @@ watch(content, (value) => {
               :key="option.value"
               :value="option.value"
               :disabled="option.disabled"
-              class="text-sm"
+              class="pr-8 pl-2 text-sm [&>span:first-child]:right-2 [&>span:first-child]:left-auto"
             >
-              {{ option.label }}
+              <component :is="option.icon" v-if="option.icon" class="size-4" aria-hidden="true" />
+              <span>{{ option.label }}</span>
+              <template #indicator-icon>
+                <CheckIcon class="size-4" />
+              </template>
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
@@ -513,22 +523,30 @@ watch(content, (value) => {
               <ChevronDownIcon class="size-3.5 shrink-0" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="bottom" align="end" class="w-64">
+          <DropdownMenuContent side="bottom" align="end" class="w-48">
             <DropdownMenuRadioGroup
               :model-value="model ? modelValueKey(model) : undefined"
               @update:model-value="selectModel"
             >
               <template v-for="(option, index) in props.models" :key="modelValueKey(option.value)">
                 <DropdownMenuSeparator v-if="showModelGroup(index) && index > 0" />
-                <DropdownMenuLabel v-if="showModelGroup(index)" class="text-xs">
+                <DropdownMenuLabel
+                  v-if="showModelGroup(index)"
+                  class="text-xs text-muted-foreground"
+                >
                   {{ option.group }}
                 </DropdownMenuLabel>
                 <DropdownMenuRadioItem
                   :value="modelValueKey(option.value)"
                   :disabled="option.disabled"
-                  class="text-sm"
+                  class="pr-8 pl-2 text-sm [&>span:first-child]:right-2 [&>span:first-child]:left-auto"
                 >
-                  {{ option.label }}
+                  <span class="min-w-0 flex-1 truncate" :title="option.label">
+                    {{ option.label }}
+                  </span>
+                  <template #indicator-icon>
+                    <CheckIcon class="size-4" />
+                  </template>
                 </DropdownMenuRadioItem>
               </template>
             </DropdownMenuRadioGroup>
@@ -546,15 +564,19 @@ watch(content, (value) => {
               <ChevronDownIcon class="size-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="bottom" align="end">
+          <DropdownMenuContent side="bottom" align="end" class="w-26 min-w-0">
             <DropdownMenuRadioGroup v-model="reasoningEffort">
               <DropdownMenuRadioItem
                 v-for="option in reasoningOptions"
                 :key="option.value"
                 :value="option.value"
                 :disabled="option.disabled"
+                class="pr-8 pl-2 [&>span:first-child]:right-2 [&>span:first-child]:left-auto"
               >
                 {{ option.label }}
+                <template #indicator-icon>
+                  <CheckIcon class="size-4" />
+                </template>
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>

@@ -5,6 +5,7 @@ import Chat from "./pages/main/chat/Chat.vue";
 import ChatBase from "./pages/main/ChatBase.vue";
 import Home from "./pages/main/home/Home.vue";
 import Main from "./pages/main/Main.vue";
+import Skill from "./pages/main/skill/Skill.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -20,6 +21,7 @@ const routes: RouteRecordRaw[] = [
         ],
       },
       { path: "/auto", name: "auto", component: Auto },
+      { path: "/skill", name: "skill", component: Skill },
     ],
   },
 ];

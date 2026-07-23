@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ModelConfig, ProviderInfo, ThinkingLevel } from "@shared/api";
+import { ShieldCheckIcon, ShieldQuestionIcon, UserCheckIcon } from "lucide-vue-next";
 import { computed, nextTick, onMounted, ref, shallowRef } from "vue";
 import { isNavigationFailure, useRoute, useRouter } from "vue-router";
 import {
@@ -26,9 +27,9 @@ const approvalMode = ref("request-approval");
 const reasoningEffort = ref<string>();
 
 const approvalOptions: ComposerOption[] = [
-  { value: "request-approval", label: "请求批准" },
-  { value: "delegate-approval", label: "替我审批" },
-  { value: "full-access", label: "完全访问权限" },
+  { value: "request-approval", label: "请求批准", icon: ShieldQuestionIcon },
+  { value: "delegate-approval", label: "替我审批", icon: UserCheckIcon },
+  { value: "full-access", label: "完全访问权限", icon: ShieldCheckIcon },
 ];
 const thinkingLevelOrder: ThinkingLevel[] = ["minimal", "low", "medium", "high", "xhigh", "max"];
 

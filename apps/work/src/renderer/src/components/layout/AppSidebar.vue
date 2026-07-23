@@ -26,6 +26,7 @@ import {
   useSidebar,
 } from "@willow/shadcn/components/ui/sidebar";
 import {
+  Blocks,
   Clock3,
   Ellipsis,
   Folder,
@@ -132,6 +133,7 @@ const workspaceGroups = computed(() => [
 const quickAccess: QuickAccessItem[] = [
   { id: "task", label: "新建任务", icon: Folder },
   { id: "auto", label: "自动化", icon: Clock3 },
+  { id: "skill", label: "技能", icon: Blocks },
 ];
 
 function isWorkspaceOpen(workspaceId: number) {
@@ -241,6 +243,10 @@ async function selectQuickAccess(itemId: string) {
     await router.push({ name: "auto" });
     return;
   }
+  if (itemId === "skill") {
+    await router.push({ name: "skill" });
+    return;
+  }
   if (itemId === "task") {
     const query: LocationQueryRaw = { ...route.query };
     delete query.workspaceId;
@@ -281,7 +287,7 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
   >
     <SidebarHeader class="h-12 flex-row items-center justify-end px-3 pl-[76px]" />
 
-    <SidebarHeader class="h-20">
+    <SidebarHeader class="shrink-0">
       <SidebarGroup class="px-2 py-0">
         <SidebarGroupContent>
           <SidebarMenu class="gap-0.5">
