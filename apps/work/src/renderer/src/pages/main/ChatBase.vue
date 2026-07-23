@@ -165,51 +165,53 @@ async function sendMessage(payload: ComposerSubmitPayload) {
 </script>
 
 <template>
-  <RouterView v-slot="{ Component }">
-    <component :is="Component">
-      <PromptComposer
-        v-model:content="message"
-        v-model:approval-mode="approvalMode"
-        v-model:model="selectedModel"
-        v-model:reasoning-effort="reasoningEffort"
-        :approval-options="approvalOptions"
-        :models="modelOptions"
-        :token-rules="[...defaultComposerTokenRules]"
-        :disabled="composerDisabled"
-        :submitting="sending"
-        @submit="sendMessage"
-      >
-        <template #mention-panel="{ query, insert }">
-          <button
-            v-if="'work.vue'.includes(query.toLowerCase())"
-            type="button"
-            class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-            @click="insert('[work.vue](xxxxx/work.vue)')"
-          >
-            插入 Vue 文件示例
-          </button>
-          <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的引用</p>
-        </template>
-        <template #slash-panel="{ query, insert }">
-          <button
-            v-if="'skill'.includes(query.toLowerCase())"
-            type="button"
-            class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-            @click="insert('[!skill](xxxx/skill.md)')"
-          >
-            插入 skill 示例
-          </button>
-          <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的操作</p>
-        </template>
-      </PromptComposer>
-      <p v-if="loadingModels" class="mt-2 text-sm text-muted-foreground">正在读取模型…</p>
-      <p v-else-if="modelLoadError" class="mt-2 text-sm text-destructive">无法读取模型列表</p>
-      <p v-else-if="providers.length === 0" class="mt-2 text-sm text-muted-foreground">
-        请先连接模型提供商
-      </p>
-      <p v-if="sendError" class="mt-2 text-sm text-destructive" role="alert">
-        {{ sendError }}
-      </p>
-    </component>
-  </RouterView>
+  <div class="h-full min-h-0 overflow-hidden">
+    <RouterView v-slot="{ Component }">
+      <component :is="Component">
+        <PromptComposer
+          v-model:content="message"
+          v-model:approval-mode="approvalMode"
+          v-model:model="selectedModel"
+          v-model:reasoning-effort="reasoningEffort"
+          :approval-options="approvalOptions"
+          :models="modelOptions"
+          :token-rules="[...defaultComposerTokenRules]"
+          :disabled="composerDisabled"
+          :submitting="sending"
+          @submit="sendMessage"
+        >
+          <template #mention-panel="{ query, insert }">
+            <button
+              v-if="'work.vue'.includes(query.toLowerCase())"
+              type="button"
+              class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+              @click="insert('[work.vue](xxxxx/work.vue)')"
+            >
+              插入 Vue 文件示例
+            </button>
+            <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的引用</p>
+          </template>
+          <template #slash-panel="{ query, insert }">
+            <button
+              v-if="'skill'.includes(query.toLowerCase())"
+              type="button"
+              class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+              @click="insert('[!skill](xxxx/skill.md)')"
+            >
+              插入 skill 示例
+            </button>
+            <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的操作</p>
+          </template>
+        </PromptComposer>
+        <p v-if="loadingModels" class="mt-2 text-sm text-muted-foreground">正在读取模型…</p>
+        <p v-else-if="modelLoadError" class="mt-2 text-sm text-destructive">无法读取模型列表</p>
+        <p v-else-if="providers.length === 0" class="mt-2 text-sm text-muted-foreground">
+          请先连接模型提供商
+        </p>
+        <p v-if="sendError" class="mt-2 text-sm text-destructive" role="alert">
+          {{ sendError }}
+        </p>
+      </component>
+    </RouterView>
+  </div>
 </template>
