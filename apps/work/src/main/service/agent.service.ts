@@ -1,15 +1,17 @@
 import {
   AgentHarness,
   InMemorySessionRepo,
+  type AgentHarnessEvent,
   type SessionMetadata,
 } from "@earendil-works/pi-agent-core";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
-import type { Model, MutableModels } from "@earendil-works/pi-ai";
+import type { AssistantMessage, Model, MutableModels } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { AgentCore, type AgentCoreOptions } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import { CredentialService } from "./credential.service";
 import { SessionManagerFactory } from "./session-manager.factory";
+import { StatisticsService } from "./statistics.service";
 
 type AgentServiceOptions = Omit<AgentCoreOptions, "models" | "sessionRepo"> & {
   workspaceId: number;
@@ -21,6 +23,14 @@ type SimpleAgentOptions = {
   cwd: string;
   model: Model<any>;
   systemPrompt: string;
+  workspaceId: number;
+  sessionId: string;
+};
+
+type StatisticsInterceptorOptions = {
+  source: "chat" | "title";
+  workspaceId: number;
+  sessionId: string;
 };
 
 /**
@@ -33,6 +43,7 @@ export class AgentService {
   constructor(
     private readonly credentialService: CredentialService,
     private readonly sessionManagerFactory: SessionManagerFactory,
+    private readonly statisticsService: StatisticsService,
   ) {
     const credentialStore = this.credentialService.getCredentialStore();
     this.models = builtinModels({ credentials: credentialStore });
@@ -52,7 +63,7 @@ export class AgentService {
 
   async getSimpleAgent(options: SimpleAgentOptions) {
     const session = await new InMemorySessionRepo().create();
-    return new AgentHarness({
+    const harness = new AgentHarness({
       models: this.models,
       env: new NodeExecutionEnv({ cwd: options.cwd }),
       session,
@@ -61,12 +72,69 @@ export class AgentService {
       tools: [],
       thinkingLevel: "off",
     });
+    return this.interceptStatistics(harness, {
+      source: "title",
+      workspaceId: options.workspaceId,
+      sessionId: options.sessionId,
+    });
   }
 
   // 获取完整的AgentHarness，用于执行复杂任务，会记录上下文到数据库
   async getAgentHarness({ workspaceId, model, metadata, ...options }: AgentServiceOptions) {
     const sessionRepo = this.sessionManagerFactory.create(workspaceId);
     const core = new AgentCore({ ...options, models: this.models, sessionRepo });
-    return core.getAgentHarness({ model, metadata });
+    const harness = await core.getAgentHarness({ model, metadata });
+    return this.interceptStatistics(harness, {
+      source: "chat",
+      workspaceId,
+      sessionId: metadata.id,
+    });
+  }
+
+  private interceptStatistics(
+    harness: AgentHarness,
+    options: StatisticsInterceptorOptions,
+  ): AgentHarness {
+    let runId: number | undefined;
+    harness.subscribe((event) => {
+      if (event.type === "agent_start") {
+        runId = this.recordStatistics(() => this.statisticsService.startRun(options));
+        return;
+      }
+      if (
+        event.type === "message_end" &&
+        runId !== undefined &&
+        event.message.role === "assistant"
+      ) {
+        this.recordMessageUsage(runId, event);
+        return;
+      }
+      if (event.type === "agent_end") {
+        runId = undefined;
+      }
+    });
+    return harness;
+  }
+
+  private recordMessageUsage(
+    runId: number,
+    event: Extract<AgentHarnessEvent, { type: "message_end" }>,
+  ): void {
+    const message = event.message as AssistantMessage;
+    const modelId = message.responseModel ?? message.model;
+    const providerName = this.models.getProvider(message.provider)?.name ?? message.provider;
+    const modelName = this.models.getModel(message.provider, modelId)?.name ?? modelId;
+    this.recordStatistics(() =>
+      this.statisticsService.recordUsage({ runId, message, providerName, modelName }),
+    );
+  }
+
+  private recordStatistics<T>(operation: () => T): T | undefined {
+    try {
+      return operation();
+    } catch (error) {
+      console.error("Failed to record agent statistics:", error);
+      return undefined;
+    }
   }
 }

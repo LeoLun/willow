@@ -62,6 +62,54 @@ export interface GetConfiguredProvidersResponse {
   providerIds: string[];
 }
 
+export type StatisticsGranularity = "daily" | "weekly" | "all";
+
+export interface GetStatisticsRequest {
+  granularity: StatisticsGranularity;
+}
+
+export interface StatisticsSummary {
+  totalTokens: number;
+  cacheReadTokens: number;
+  totalTasks: number;
+  totalCost: number;
+}
+
+export interface StatisticsActivityModelUsage {
+  providerId: string;
+  modelId: string;
+  modelName: string;
+  tokens: number;
+}
+
+export interface StatisticsActivityBucket {
+  key: string;
+  label: string;
+  startAt: string;
+  endAt: string;
+  totalTokens: number;
+  models: StatisticsActivityModelUsage[];
+}
+
+export interface StatisticsModelUsage {
+  providerId: string;
+  providerName: string;
+  modelId: string;
+  modelName: string;
+  totalTokens: number;
+  cacheReadTokens: number;
+  cacheRatio: number;
+  totalCost: number;
+  share: number;
+}
+
+export interface GetStatisticsResponse {
+  granularity: StatisticsGranularity;
+  summary: StatisticsSummary;
+  activityBuckets: StatisticsActivityBucket[];
+  modelUsage: StatisticsModelUsage[];
+}
+
 export interface SetCredentialRequest {
   providerId: string;
   apiKey: string;

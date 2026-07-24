@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Container } from "inversify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { statisticsRuns } from "../src/main/db/schema";
 
 const electronMocks = vi.hoisted(() => ({
   userDataPath: "",
@@ -20,6 +21,7 @@ vi.mock("electron", () => ({
 
 import { CredentialDao } from "../src/main/service/dao/credential.dao.server";
 import { SessionDao } from "../src/main/service/dao/session.dao.server";
+import { StatisticsDao } from "../src/main/service/dao/statistics.dao.server";
 import { UserConfigDao } from "../src/main/service/dao/user-config.dao.server";
 import { WorkspaceDao } from "../src/main/service/dao/workspace.dao.server";
 import { DbService } from "../src/main/service/db.service";
@@ -30,6 +32,7 @@ describe("DAO layer", () => {
   let dbService: DbService;
   let credentialDao: CredentialDao;
   let sessionDao: SessionDao;
+  let statisticsDao: StatisticsDao;
   let userConfigDao: UserConfigDao;
   let workspaceDao: WorkspaceDao;
 
@@ -42,12 +45,14 @@ describe("DAO layer", () => {
     container.bind(CredentialDao).toSelf();
     container.bind(WorkspaceDao).toSelf();
     container.bind(SessionDao).toSelf();
+    container.bind(StatisticsDao).toSelf();
     container.bind(UserConfigDao).toSelf();
 
     dbService = container.get(DbService);
     credentialDao = container.get(CredentialDao);
     workspaceDao = container.get(WorkspaceDao);
     sessionDao = container.get(SessionDao);
+    statisticsDao = container.get(StatisticsDao);
     userConfigDao = container.get(UserConfigDao);
   });
 
@@ -189,5 +194,55 @@ describe("DAO layer", () => {
     ).toThrow();
     expect(workspaceDao.delete(workspace.id)).toBe(true);
     expect(sessionDao.findByWorkspaceId(workspace.id)).toEqual([]);
+  });
+
+  it("persists statistics runs and ordered usage with run cascades", () => {
+    const firstRun = statisticsDao.createRun({
+      source: "chat",
+      workspaceId: 1,
+      sessionId: "chat-session",
+      startedAt: new Date("2026-07-24T00:00:00.000Z"),
+    });
+    const secondRun = statisticsDao.createRun({
+      source: "title",
+      workspaceId: 1,
+      sessionId: "title-session",
+      startedAt: new Date("2026-07-24T01:00:00.000Z"),
+    });
+    const usageInput = {
+      providerId: "openai",
+      providerName: "OpenAI",
+      modelId: "gpt",
+      modelName: "GPT",
+      inputTokens: 10,
+      outputTokens: 5,
+      cacheReadTokens: 2,
+      cacheWriteTokens: 1,
+      totalTokens: 18,
+      inputCost: 0.1,
+      outputCost: 0.2,
+      cacheReadCost: 0.01,
+      cacheWriteCost: 0.02,
+      totalCost: 0.33,
+    };
+    statisticsDao.createUsage({
+      ...usageInput,
+      runId: secondRun.id,
+      occurredAt: new Date("2026-07-24T02:00:00.000Z"),
+    });
+    statisticsDao.createUsage({
+      ...usageInput,
+      runId: firstRun.id,
+      occurredAt: new Date("2026-07-24T01:00:00.000Z"),
+    });
+
+    expect(statisticsDao.findAllRuns().map(({ source }) => source)).toEqual(["chat", "title"]);
+    expect(statisticsDao.findAllUsage().map(({ runId }) => runId)).toEqual([
+      firstRun.id,
+      secondRun.id,
+    ]);
+
+    dbService.getDb().delete(statisticsRuns).run();
+    expect(statisticsDao.findAllUsage()).toEqual([]);
   });
 });

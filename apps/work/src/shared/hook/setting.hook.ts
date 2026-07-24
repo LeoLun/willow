@@ -9,6 +9,8 @@ import type {
   GetCredentialResponse,
   GetProviderCatalogRequest,
   GetProviderCatalogResponse,
+  GetStatisticsRequest,
+  GetStatisticsResponse,
   GetUserConfigRequest,
   GetUserConfigResponse,
   SetCredentialRequest,
@@ -26,6 +28,7 @@ export interface ISettingApi {
   getConfiguredProviders(
     request?: GetConfiguredProvidersRequest,
   ): Promise<GetConfiguredProvidersResponse>;
+  getStatistics(request: GetStatisticsRequest): Promise<GetStatisticsResponse>;
   getCredential(request: GetCredentialRequest): Promise<GetCredentialResponse>;
   setCredential(request: SetCredentialRequest): Promise<SetCredentialResponse>;
   deleteCredential(request: DeleteCredentialRequest): Promise<DeleteCredentialResponse>;

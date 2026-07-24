@@ -20,6 +20,8 @@ import type {
   GetMessageListResponse,
   GetProviderCatalogRequest,
   GetProviderCatalogResponse,
+  GetStatisticsRequest,
+  GetStatisticsResponse,
   GetSessionListRequest,
   GetSessionListResponse,
   GetUserConfigRequest,
@@ -56,6 +58,7 @@ import {
   GET_CREDENTIAL,
   GET_MESSAGE_LIST,
   GET_PROVIDER_CATALOG,
+  GET_STATISTICS,
   GET_SESSION_LIST,
   GET_USER_CONFIG,
   GET_WORKSPACE_LIST,
@@ -109,6 +112,8 @@ const ipcObject: IRenderHook = {
       GET_CONFIGURED_PROVIDERS,
       request,
     ),
+  getStatistics: (request: GetStatisticsRequest) =>
+    invoke<GetStatisticsRequest, GetStatisticsResponse>(GET_STATISTICS, request),
   getCredential: (request: GetCredentialRequest) =>
     invoke<GetCredentialRequest, GetCredentialResponse>(GET_CREDENTIAL, request),
   setCredential: (request: SetCredentialRequest) =>

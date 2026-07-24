@@ -94,6 +94,8 @@ export class TitleService {
         harness = await this.agentService.getSimpleAgent({
           cwd: workspace.path,
           model,
+          workspaceId: input.workspaceId,
+          sessionId: input.sessionId,
           systemPrompt: TITLE_SYSTEM_PROMPT,
         });
         const response = await harness.prompt(content);
