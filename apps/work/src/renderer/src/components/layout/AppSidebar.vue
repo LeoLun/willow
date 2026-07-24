@@ -288,7 +288,7 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
     <SidebarHeader class="h-12 flex-row items-center justify-end px-3 pl-[76px]" />
 
     <SidebarHeader class="shrink-0">
-      <SidebarGroup class="px-2 py-0">
+      <SidebarGroup class="p-0">
         <SidebarGroupContent>
           <SidebarMenu class="gap-0.5">
             <SidebarMenuItem v-for="item in quickAccess" :key="item.id">
@@ -320,7 +320,7 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
       </SidebarGroup>
     </SidebarHeader>
 
-    <SidebarContent class="gap-0 px-1 pb-3">
+    <SidebarContent class="gap-0 pb-3">
       <div
         v-if="isInitialLoading"
         class="flex items-center gap-2 px-4 py-5 text-sm text-sidebar-foreground/60"
@@ -439,7 +439,20 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
                           class="h-7 items-center rounded-lg px-2.5 pl-4 text-sm data-[active=true]:bg-sidebar-foreground/10"
                           @click="selectSession(session)"
                         >
-                          <span class="truncate">{{ session.title.trim() || "新对话" }}</span>
+                          <span class="min-w-0 flex-1 truncate">
+                            {{ session.title.trim() || "新对话" }}
+                          </span>
+                          <span
+                            v-if="session.status === 'started'"
+                            class="absolute right-3 ml-auto shrink-0"
+                            role="status"
+                            aria-label="执行中"
+                          >
+                            <LoaderCircle
+                              class="size-3.5 animate-spin text-sidebar-foreground/60"
+                              aria-hidden="true"
+                            />
+                          </span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                       <SidebarMenuItem v-if="workspace.sessions.length > SESSION_DISPLAY_LIMIT">

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { SidebarInset, SidebarProvider } from "@willow/shadcn/components/ui/sidebar";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
-import TopBar from "@/components/layout/TopBar.vue";
+import { useMessageListener } from "@/composables/useMessage";
+
+useMessageListener();
 </script>
 
 <template>
@@ -12,7 +14,6 @@ import TopBar from "@/components/layout/TopBar.vue";
   >
     <AppSidebar />
     <SidebarInset class="h-full min-h-0 min-w-0 overflow-hidden">
-      <TopBar />
       <div class="min-h-0 flex-1 overflow-hidden">
         <RouterView />
       </div>

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
   getSessionList: vi.fn(),
   getWorkspaceList: vi.fn(),
+  isSessionRunning: vi.fn(),
   removeEventListener: vi.fn(),
   setWorkspacePinned: vi.fn(),
 }));
@@ -25,6 +26,12 @@ vi.mock("@/composables/useEventBus", () => ({
   useEventBus: () => ({
     addEventListener: mocks.addEventListener,
     removeEventListener: mocks.removeEventListener,
+  }),
+}));
+
+vi.mock("@/composables/useMessage", () => ({
+  useMessageStatus: () => ({
+    isSessionRunning: mocks.isSessionRunning,
   }),
 }));
 
@@ -59,6 +66,7 @@ function mockWorkspaceLoad() {
           workspaceId,
           title: `Session ${workspaceId}`,
           createdAt: "2026-07-20T00:00:00.000Z",
+          status: "completed",
         },
       ],
     }),
@@ -86,6 +94,7 @@ function mountComposable() {
 describe("useWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.isSessionRunning.mockReturnValue(false);
   });
 
   it("loads workspaces with their sessions and updates titles from events", async () => {
@@ -105,9 +114,11 @@ describe("useWorkspace", () => {
       ([event]) => event === MESSAGE_EVENT,
     )?.[1] as ((payload: MessageEventPayload) => void) | undefined;
     titleListener?.({ type: "title_updated", sessionId: "session-1", title: "Renamed" });
+    titleListener?.({ type: "status", sessionId: "session-1", status: "failed" });
     await nextTick();
 
     expect(mounted.workspace.pinnedWorkspaces.value[0]?.sessions[0]?.title).toBe("Renamed");
+    expect(mounted.workspace.pinnedWorkspaces.value[0]?.sessions[0]?.status).toBe("failed");
     mounted.app.unmount();
     expect(mocks.removeEventListener).toHaveBeenCalledWith(MESSAGE_EVENT, titleListener);
   });
@@ -125,6 +136,7 @@ describe("useWorkspace", () => {
           workspaceId: 1,
           title: "New session",
           createdAt: "2026-07-20T01:00:00.000Z",
+          status: "completed",
         },
       ],
     });
@@ -135,6 +147,32 @@ describe("useWorkspace", () => {
     await mounted.workspace.setWorkspacePinned(unpinnedWorkspace);
     expect(mocks.setWorkspacePinned).toHaveBeenCalledWith({ workspaceId: 2, pinned: true });
     expect(mocks.getWorkspaceList).toHaveBeenCalledTimes(4);
+    mounted.app.unmount();
+  });
+
+  it("preserves executing session status when loading and refreshing sessions", async () => {
+    mocks.isSessionRunning.mockImplementation((sessionId: string) => sessionId === "session-1");
+    mockWorkspaceLoad();
+    const mounted = mountComposable();
+
+    await vi.waitFor(() => expect(mounted.workspace.loading.value).toBe(false));
+    expect(mounted.workspace.pinnedWorkspaces.value[0]?.sessions[0]?.status).toBe("started");
+    expect(mounted.workspace.unpinnedWorkspaces.value[0]?.sessions[0]?.status).toBe("completed");
+
+    mocks.getSessionList.mockResolvedValueOnce({
+      sessions: [
+        {
+          id: "session-1",
+          workspaceId: 1,
+          title: "Running session",
+          createdAt: "2026-07-20T01:00:00.000Z",
+          status: "completed",
+        },
+      ],
+    });
+    await mounted.workspace.loadWorkspaceSessions(1);
+
+    expect(mounted.workspace.pinnedWorkspaces.value[0]?.sessions[0]?.status).toBe("started");
     mounted.app.unmount();
   });
 

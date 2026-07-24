@@ -3,6 +3,7 @@ import { MESSAGE_EVENT } from "@shared/constants";
 import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { electronAPI } from "@/lib/ipc";
 import { useEventBus } from "./useEventBus";
+import { useMessageStatus } from "./useMessage";
 
 type UpdateSessionPayload = {
   sessionId: SessionInfo["id"];
@@ -18,17 +19,24 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function useWorkspace() {
   const { addEventListener, removeEventListener } = useEventBus();
+  const { isSessionRunning } = useMessageStatus();
   const pinnedWorkspaces = shallowRef<WorkspaceWithSessions[]>([]);
   const unpinnedWorkspaces = shallowRef<WorkspaceWithSessions[]>([]);
   const loading = ref(false);
   const workspaceError = ref("");
   const updatingWorkspaceId = ref<number>();
 
+  function withExecutionStatus(sessions: SessionInfo[]): SessionInfo[] {
+    return sessions.map((session) =>
+      isSessionRunning(session.id) ? { ...session, status: "started" } : session,
+    );
+  }
+
   async function withSessions(workspace: WorkspaceInfo): Promise<WorkspaceWithSessions> {
     const response = await electronAPI.getSessionList({
       workspaceId: workspace.id,
     });
-    return { ...workspace, sessions: response.sessions };
+    return { ...workspace, sessions: withExecutionStatus(response.sessions) };
   }
 
   function replaceWorkspaceSessions(workspaceId: number, sessions: SessionInfo[]) {
@@ -68,7 +76,7 @@ export function useWorkspace() {
     workspaceError.value = "";
     try {
       const response = await electronAPI.getSessionList({ workspaceId });
-      replaceWorkspaceSessions(workspaceId, response.sessions);
+      replaceWorkspaceSessions(workspaceId, withExecutionStatus(response.sessions));
     } catch (error) {
       workspaceError.value = getErrorMessage(error, "读取会话失败，请重试。");
     }

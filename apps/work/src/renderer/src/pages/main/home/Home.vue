@@ -36,7 +36,7 @@ const {
           <SelectTrigger
             aria-label="选择项目"
             size="sm"
-            class="rounded-xl border-transparent bg-transparent px-2 shadow-none hover:bg-muted"
+            class="dark:bg-unset cursor-pointer rounded-xl border-transparent bg-transparent px-2 shadow-none hover:bg-muted"
           >
             <Folder class="size-4" aria-hidden="true" />
             <SelectValue

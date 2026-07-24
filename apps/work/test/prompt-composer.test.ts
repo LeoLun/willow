@@ -233,6 +233,9 @@ describe("PromptComposer", () => {
         model: { providerId: "provider", modelId: "model" },
       }),
     ]);
+    await nextTick();
+    expect(mounted.content.value).toBe("");
+    expect(editor.textContent).toBe("");
   });
 
   it("inserts a newline for Shift+Enter and does not submit while composing", async () => {

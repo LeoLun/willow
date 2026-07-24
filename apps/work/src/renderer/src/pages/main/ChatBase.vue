@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import type { ModelConfig, ProviderInfo, ThinkingLevel } from "@shared/api";
+import type { MessageEventPayload, ModelConfig, ProviderInfo, ThinkingLevel } from "@shared/api";
+import { MESSAGE_EVENT } from "@shared/constants";
 import { ShieldCheckIcon, ShieldQuestionIcon, UserCheckIcon } from "lucide-vue-next";
-import { computed, nextTick, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { isNavigationFailure, useRoute, useRouter } from "vue-router";
+import BaseHeader from "@/components/layout/BaseHeader.vue";
 import {
   defaultComposerTokenRules,
   PromptComposer,
@@ -15,10 +17,11 @@ import { electronAPI } from "@/lib/ipc";
 
 const route = useRoute();
 const router = useRouter();
-const { waitUntilReady } = useEventBus();
+const { addEventListener, removeEventListener, waitUntilReady } = useEventBus();
 const message = ref("");
 const sending = ref(false);
 const sendError = ref("");
+const sessionTitle = ref("");
 const loadingModels = ref(true);
 const modelLoadError = ref(false);
 const providers = shallowRef<ProviderInfo[]>([]);
@@ -66,6 +69,11 @@ const composerDisabled = computed(
     modelLoadError.value ||
     (route.name !== "home" && sessionId.value === undefined),
 );
+const topBarTitle = computed(() =>
+  route.name === "chat" ? sessionTitle.value.trim() || "新对话" : "",
+);
+
+let sessionTitleLoadGeneration = 0;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -83,7 +91,36 @@ function getDefaultThinkingLevel(levels: ThinkingLevel[]): ThinkingLevel | undef
   return undefined;
 }
 
+async function loadSessionTitle() {
+  const currentWorkspaceId = workspaceId.value;
+  const currentSessionId = sessionId.value;
+  const generation = ++sessionTitleLoadGeneration;
+
+  sessionTitle.value = "";
+  if (route.name !== "chat" || !currentWorkspaceId || !currentSessionId) return;
+
+  try {
+    const response = await electronAPI.getSessionList({ workspaceId: currentWorkspaceId });
+    if (generation !== sessionTitleLoadGeneration) return;
+    sessionTitle.value =
+      response.sessions.find((session) => session.id === currentSessionId)?.title ?? "";
+  } catch (error) {
+    if (generation !== sessionTitleLoadGeneration) return;
+    console.error("读取会话标题失败:", error);
+  }
+}
+
+function handleSessionTitleUpdated(payload: MessageEventPayload) {
+  if (payload.type !== "title_updated" || payload.sessionId !== sessionId.value) return;
+  sessionTitleLoadGeneration += 1;
+  sessionTitle.value = payload.title;
+}
+
+watch([workspaceId, sessionId], () => void loadSessionTitle(), { immediate: true });
+
 onMounted(async () => {
+  addEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
+
   try {
     const [userConfig, catalog, configured] = await Promise.all([
       electronAPI.getUserConfig(),
@@ -107,6 +144,11 @@ onMounted(async () => {
   } finally {
     loadingModels.value = false;
   }
+});
+
+onBeforeUnmount(() => {
+  sessionTitleLoadGeneration += 1;
+  removeEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
 });
 
 async function sendMessage(payload: ComposerSubmitPayload) {
@@ -152,9 +194,6 @@ async function sendMessage(payload: ComposerSubmitPayload) {
       model,
     });
     console.log("[SEND_MESSAGE]", response.message);
-    if (message.value.trim() === content) {
-      message.value = "";
-    }
   } catch (error) {
     sendError.value = getErrorMessage(error, "发送消息失败，请重试。");
     console.error("创建会话、打开聊天或发送消息失败:", error);
@@ -165,53 +204,61 @@ async function sendMessage(payload: ComposerSubmitPayload) {
 </script>
 
 <template>
-  <div class="h-full min-h-0 overflow-hidden">
-    <RouterView v-slot="{ Component }">
-      <component :is="Component">
-        <PromptComposer
-          v-model:content="message"
-          v-model:approval-mode="approvalMode"
-          v-model:model="selectedModel"
-          v-model:reasoning-effort="reasoningEffort"
-          :approval-options="approvalOptions"
-          :models="modelOptions"
-          :token-rules="[...defaultComposerTokenRules]"
-          :disabled="composerDisabled"
-          :submitting="sending"
-          @submit="sendMessage"
-        >
-          <template #mention-panel="{ query, insert }">
-            <button
-              v-if="'work.vue'.includes(query.toLowerCase())"
-              type="button"
-              class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-              @click="insert('[work.vue](xxxxx/work.vue)')"
-            >
-              插入 Vue 文件示例
-            </button>
-            <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的引用</p>
-          </template>
-          <template #slash-panel="{ query, insert }">
-            <button
-              v-if="'skill'.includes(query.toLowerCase())"
-              type="button"
-              class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-              @click="insert('[!skill](xxxx/skill.md)')"
-            >
-              插入 skill 示例
-            </button>
-            <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的操作</p>
-          </template>
-        </PromptComposer>
-        <p v-if="loadingModels" class="mt-2 text-sm text-muted-foreground">正在读取模型…</p>
-        <p v-else-if="modelLoadError" class="mt-2 text-sm text-destructive">无法读取模型列表</p>
-        <p v-else-if="providers.length === 0" class="mt-2 text-sm text-muted-foreground">
-          请先连接模型提供商
-        </p>
-        <p v-if="sendError" class="mt-2 text-sm text-destructive" role="alert">
-          {{ sendError }}
-        </p>
-      </component>
-    </RouterView>
+  <div class="flex h-full min-h-0 flex-col overflow-hidden">
+    <BaseHeader>
+      <template #left>
+        <p class="truncate text-sm font-medium">{{ topBarTitle }}</p>
+      </template>
+    </BaseHeader>
+
+    <div class="min-h-0 flex-1 overflow-hidden">
+      <RouterView v-slot="{ Component }">
+        <component :is="Component">
+          <PromptComposer
+            v-model:content="message"
+            v-model:approval-mode="approvalMode"
+            v-model:model="selectedModel"
+            v-model:reasoning-effort="reasoningEffort"
+            :approval-options="approvalOptions"
+            :models="modelOptions"
+            :token-rules="[...defaultComposerTokenRules]"
+            :disabled="composerDisabled"
+            :submitting="sending"
+            @submit="sendMessage"
+          >
+            <template #mention-panel="{ query, insert }">
+              <button
+                v-if="'work.vue'.includes(query.toLowerCase())"
+                type="button"
+                class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+                @click="insert('[work.vue](xxxxx/work.vue)')"
+              >
+                插入 Vue 文件示例
+              </button>
+              <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的引用</p>
+            </template>
+            <template #slash-panel="{ query, insert }">
+              <button
+                v-if="'skill'.includes(query.toLowerCase())"
+                type="button"
+                class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+                @click="insert('[!skill](xxxx/skill.md)')"
+              >
+                插入 skill 示例
+              </button>
+              <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的操作</p>
+            </template>
+          </PromptComposer>
+          <p v-if="loadingModels" class="mt-2 text-sm text-muted-foreground">正在读取模型…</p>
+          <p v-else-if="modelLoadError" class="mt-2 text-sm text-destructive">无法读取模型列表</p>
+          <p v-else-if="providers.length === 0" class="mt-2 text-sm text-muted-foreground">
+            请先连接模型提供商
+          </p>
+          <p v-if="sendError" class="mt-2 text-sm text-destructive" role="alert">
+            {{ sendError }}
+          </p>
+        </component>
+      </RouterView>
+    </div>
   </div>
 </template>

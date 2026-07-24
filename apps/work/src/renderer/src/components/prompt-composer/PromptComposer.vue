@@ -295,12 +295,15 @@ function openMentionPanel(): void {
 function submit(): void {
   if (!canSubmit.value) return;
   closePanel();
-  emit("submit", {
+  const payload: ComposerSubmitPayload = {
     content: content.value.trim(),
     approvalMode: approvalMode.value,
     model: model.value,
     reasoningEffort: reasoningEffort.value,
-  });
+  };
+  emit("submit", payload);
+  content.value = "";
+  lastSelection = { start: 0, end: 0 };
 }
 
 async function handleKeydown(event: KeyboardEvent): Promise<void> {

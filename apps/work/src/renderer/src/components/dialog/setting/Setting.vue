@@ -15,6 +15,7 @@ import {
 } from "@willow/shadcn/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@willow/shadcn/components/ui/toggle-group";
 import {
+  ChartBar,
   CircleAlert,
   Cpu,
   DatabaseZap,
@@ -35,8 +36,9 @@ import { electronAPI } from "@/lib/ipc";
 import { getAvailableProviders, getConnectedProviders } from "./provider-display";
 import ProviderConnectDialog from "./ProviderConnectDialog.vue";
 import ProviderMark from "./ProviderMark.vue";
+import Statistics from "./Statistics.vue";
 
-type SettingTab = "general" | "providers" | "models" | "about";
+type SettingTab = "general" | "providers" | "models" | "statistics" | "about";
 
 const props = withDefaults(
   defineProps<{
@@ -51,6 +53,7 @@ const tabs = [
   { id: "general" as const, label: "常规", icon: Settings2 },
   { id: "providers" as const, label: "提供商", icon: Cpu },
   { id: "models" as const, label: "模型", icon: DatabaseZap },
+  { id: "statistics" as const, label: "统计", icon: ChartBar },
   { id: "about" as const, label: "关于", icon: Info },
 ];
 
@@ -236,7 +239,9 @@ onMounted(async () => {
 <template>
   <div class="grid h-full min-h-0 grid-cols-[180px_minmax(0,1fr)] bg-background">
     <DialogTitle class="sr-only">设置</DialogTitle>
-    <DialogDescription class="sr-only">配置应用外观、AI 提供商、模型和应用信息。</DialogDescription>
+    <DialogDescription class="sr-only">
+      配置应用外观、AI 提供商、模型、统计和应用信息。
+    </DialogDescription>
 
     <aside class="border-r bg-muted/35 p-3 pt-5">
       <div class="px-3 pb-4 text-base font-semibold">设置</div>
@@ -504,7 +509,7 @@ onMounted(async () => {
                     使用 {{ provider.apiKeyLabel }} 连接
                   </p>
                 </div>
-                <Button @click="openProviderConnection(provider)">
+                <Button variant="ghost" @click="openProviderConnection(provider)">
                   <Plus />
                   连接
                 </Button>
@@ -521,6 +526,16 @@ onMounted(async () => {
             </div>
           </section>
         </div>
+      </section>
+
+      <section
+        v-else-if="activeTab === 'statistics'"
+        id="setting-panel-statistics"
+        role="tabpanel"
+        aria-labelledby="setting-tab-statistics"
+        class="h-full min-h-0"
+      >
+        <Statistics />
       </section>
 
       <section
