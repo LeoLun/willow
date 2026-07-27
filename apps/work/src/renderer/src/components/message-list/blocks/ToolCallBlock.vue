@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatMessageValue } from "../message";
+import { formatToolCallTitle } from "../tool-display";
 import type { MessageContent } from "../types";
 
 defineProps<{
@@ -13,7 +14,9 @@ defineProps<{
     data-content-type="toolCall"
     data-slot="tool-call-block"
   >
-    <p class="mb-1 text-xs font-medium">调用工具 · {{ content.name }}</p>
+    <p class="mb-1 text-xs font-medium">
+      {{ formatToolCallTitle(content.name, content.arguments) }}
+    </p>
     <pre class="overflow-x-auto text-xs break-words whitespace-pre-wrap">{{
       formatMessageValue(content.arguments)
     }}</pre>

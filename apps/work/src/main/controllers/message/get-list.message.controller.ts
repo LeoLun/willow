@@ -22,11 +22,11 @@ export class GetMessageListController extends IPCBaseController<
     const error = this.checkParams(request);
     if (error) return this.buildError(400, error.message);
 
-    const messages = await this.messageService.getMessageList(
+    const response = await this.messageService.getMessageList(
       request.workspaceId,
       request.sessionId,
     );
-    return this.buildResponse({ messages });
+    return this.buildResponse(response);
   }
 
   checkParams(request: GetMessageListRequest): Error | undefined {

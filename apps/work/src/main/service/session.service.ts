@@ -2,6 +2,7 @@ import {
   SessionError,
   type AgentMessage,
   type SessionForkOptions,
+  type SessionTreeEntry,
 } from "@earendil-works/pi-agent-core";
 import { Injectable } from "@willow/poetry";
 import {
@@ -37,10 +38,25 @@ export class SessionService {
   }
 
   async getMessageList(workspaceId: number, agentSessionId: string): Promise<AgentMessage[]> {
+    const branch = await this.getBranch(workspaceId, agentSessionId);
+    return branch.flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
+  }
+
+  async getBranch(workspaceId: number, agentSessionId: string): Promise<SessionTreeEntry[]> {
     const metadata = this.getSession(workspaceId, agentSessionId);
     const session = await this.sessionManagerFactory.create(workspaceId).open(metadata);
-    const branch = await session.getBranch();
-    return branch.flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
+    return session.getBranch();
+  }
+
+  async appendCustomEntry(
+    workspaceId: number,
+    agentSessionId: string,
+    customType: string,
+    data: unknown,
+  ): Promise<string> {
+    const metadata = this.getSession(workspaceId, agentSessionId);
+    const session = await this.sessionManagerFactory.create(workspaceId).open(metadata);
+    return session.appendCustomEntry(customType, data);
   }
 
   async createSession(

@@ -32,6 +32,8 @@ export type MessageContent =
       value: unknown;
     };
 
+export type ToolCallContent = Extract<MessageContent, { type: "toolCall" }>;
+
 export interface Message {
   id: string;
   sourceKey: string;

@@ -1,0 +1,98 @@
+diff --git a/dist/harness/agent-harness.d.ts b/dist/harness/agent-harness.d.ts
+index d66aa0373acba3e64e898c6b68cd85da288f4152..12dce9886e1231adc8607613b706390d6d06a3cf 100644
+--- a/dist/harness/agent-harness.d.ts
++++ b/dist/harness/agent-harness.d.ts
+@@ -42,9 +42,11 @@ export declare class AgentHarness<TSkill extends Skill = Skill, TPromptTemplate
+     private handleAgentEvent;
+     private emitRunFailure;
+     private executeTurn;
++    private executeContinuation;
+     prompt(text: string, options?: {
+         images?: ImageContent[];
+     }): Promise<AssistantMessage>;
++    continue(): Promise<AssistantMessage>;
+     skill(name: string, additionalInstructions?: string): Promise<AssistantMessage>;
+     promptFromTemplate(name: string, args?: string[]): Promise<AssistantMessage>;
+     steer(text: string, options?: {
+diff --git a/dist/harness/agent-harness.js b/dist/harness/agent-harness.js
+index f7e939213602d1d5fa72e0790955b3457d81bf26..013f50c90e183e5bb4e9a5e3a6770254eead823c 100644
+--- a/dist/harness/agent-harness.js
++++ b/dist/harness/agent-harness.js
+@@ -1,4 +1,4 @@
+-import { runAgentLoop } from "../agent-loop.js";
++import { runAgentLoop, runAgentLoopContinue } from "../agent-loop.js";
+ import { collectEntriesForBranchSummary, generateBranchSummary } from "./compaction/branch-summarization.js";
+ import { compact, DEFAULT_COMPACTION_SETTINGS, prepareCompaction } from "./compaction/compaction.js";
+ import { convertToLlm } from "./messages.js";
+@@ -521,6 +521,47 @@ export class AgentHarness {
+             }
+         }
+     }
++    async executeContinuation(turnState) {
++        let activeTurnState = turnState;
++        const abortController = new AbortController();
++        const getTurnState = () => activeTurnState;
++        const setTurnState = (nextTurnState) => {
++            activeTurnState = nextTurnState;
++        };
++        this.runAbortController = abortController;
++        const runResultPromise = (async () => {
++            try {
++                return await runAgentLoopContinue(this.createContext(turnState), this.createLoopConfig(getTurnState, setTurnState), (event) => this.handleAgentEvent(event, abortController.signal), abortController.signal, this.createStreamFn(getTurnState));
++            }
++            catch (error) {
++                try {
++                    return await this.emitRunFailure(activeTurnState.model, error, abortController.signal.aborted, abortController.signal);
++                }
++                catch (failureError) {
++                    const cause = new AggregateError([toError(error), toError(failureError)], "Agent run failed and failure reporting failed");
++                    throw new AgentHarnessError("unknown", cause.message, cause);
++                }
++            }
++        })();
++        try {
++            const newMessages = await runResultPromise;
++            for (let i = newMessages.length - 1; i >= 0; i--) {
++                const message = newMessages[i];
++                if (message.role === "assistant") {
++                    return message;
++                }
++            }
++            throw new AgentHarnessError("invalid_state", "AgentHarness continuation completed without an assistant message");
++        }
++        finally {
++            try {
++                await this.flushPendingSessionWrites();
++            }
++            finally {
++                this.runAbortController = undefined;
++            }
++        }
++    }
+     async prompt(text, options) {
+         if (this.phase !== "idle")
+             throw new AgentHarnessError("busy", "AgentHarness is busy");
+@@ -538,6 +579,23 @@ export class AgentHarness {
+             finishRunPromise();
+         }
+     }
++    async continue() {
++        if (this.phase !== "idle")
++            throw new AgentHarnessError("busy", "AgentHarness is busy");
++        this.phase = "turn";
++        const finishRunPromise = this.startRunPromise();
++        try {
++            const turnState = await this.createTurnState();
++            return await this.executeContinuation(turnState);
++        }
++        catch (error) {
++            this.phase = "idle";
++            throw normalizeHarnessError(error, "unknown");
++        }
++        finally {
++            finishRunPromise();
++        }
++    }
+     async skill(name, additionalInstructions) {
+         if (this.phase !== "idle")
+             throw new AgentHarnessError("busy", "AgentHarness is busy");

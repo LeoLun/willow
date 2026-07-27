@@ -1,13 +1,15 @@
 import "reflect-metadata";
-import type { AgentHarness, AgentHarnessEvent } from "@earendil-works/pi-agent-core";
+import { AgentHarness, type AgentHarnessEvent } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, Model } from "@earendil-works/pi-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentService } from "../src/main/service/agent.service";
+import type { AiToolApprovalService } from "../src/main/service/ai-tool-approval.service";
 import type { WorkspaceDao } from "../src/main/service/dao/workspace.dao.server";
 import type { EventService } from "../src/main/service/event.service";
 import { MessageService } from "../src/main/service/message.service";
 import type { SessionService } from "../src/main/service/session.service";
 import type { TitleService } from "../src/main/service/title.service";
+import type { ToolApprovalService } from "../src/main/service/tool-approval.service";
 import { MESSAGE_EVENT } from "../src/shared/constants";
 
 const model = { id: "model" } as Model<any>;
@@ -76,6 +78,11 @@ describe("MessageService", () => {
   const sendEvent = vi.fn<EventService["sendEvent"]>();
   const findById = vi.fn<WorkspaceDao["findById"]>();
   const startTitleCreation = vi.fn<TitleService["startTitleCreation"]>();
+  const review = vi.fn<AiToolApprovalService["review"]>();
+  const requestApproval = vi.fn<ToolApprovalService["request"]>();
+  const getPendingApproval = vi.fn<ToolApprovalService["getPendingApproval"]>();
+  const resolveApproval = vi.fn<ToolApprovalService["resolve"]>();
+  const completeRecoveredResolution = vi.fn<ToolApprovalService["completeRecoveredResolution"]>();
 
   const sessionService = {
     getSession,
@@ -88,8 +95,19 @@ describe("MessageService", () => {
   const eventService = { sendEvent } as unknown as EventService;
   const workspaceDao = { findById } as unknown as WorkspaceDao;
   const titleService = { startTitleCreation } as unknown as TitleService;
+  const aiToolApprovalService = { review } as unknown as AiToolApprovalService;
+  const toolApprovalService = {
+    completeRecoveredResolution,
+    getPendingApproval,
+    request: requestApproval,
+    resolve: resolveApproval,
+  } as unknown as ToolApprovalService;
 
   let service: MessageService;
+
+  it("loads an AgentHarness with the persisted-session continuation API", () => {
+    expect(AgentHarness.prototype.continue).toBeTypeOf("function");
+  });
 
   beforeEach(() => {
     service = new MessageService(
@@ -98,6 +116,8 @@ describe("MessageService", () => {
       eventService,
       workspaceDao,
       titleService,
+      aiToolApprovalService,
+      toolApprovalService,
     );
     findById.mockReturnValue({
       id: 1,
@@ -112,6 +132,7 @@ describe("MessageService", () => {
       createdAt: new Date(0).toISOString(),
     });
     getModel.mockReturnValue(model);
+    getPendingApproval.mockResolvedValue(undefined);
   });
 
   it("opens the persisted session and forwards only message stream events", async () => {
@@ -143,6 +164,8 @@ describe("MessageService", () => {
       cwd: "/workspace/willow",
       model,
       metadata: expect.objectContaining({ id: "session" }),
+      permissionMode: "request-approval",
+      requestApproval: expect.any(Function),
     });
     expect(harness.prompt).toHaveBeenCalledWith("Hello");
     expect(sendEvent).toHaveBeenNthCalledWith(1, MESSAGE_EVENT, {
@@ -293,8 +316,12 @@ describe("MessageService", () => {
     const messages = [{ role: "user", content: "Hi", timestamp: 1 }] as const;
     getMessageList.mockResolvedValue(messages as never);
 
-    await expect(service.getMessageList(1, "session")).resolves.toBe(messages);
+    await expect(service.getMessageList(1, "session")).resolves.toEqual({
+      messages,
+      pendingToolApproval: undefined,
+    });
     expect(getMessageList).toHaveBeenCalledWith(1, "session");
+    expect(getPendingApproval).toHaveBeenCalledWith(1, "session");
   });
 
   it("starts title creation for an untitled session", async () => {
@@ -320,6 +347,292 @@ describe("MessageService", () => {
       sessionId: "session",
       content: "First",
     });
+  });
+
+  it("uses AI approval for delegated escapes and skips the user dialog when approved", async () => {
+    const harness = createHarness();
+    getAgentHarness.mockResolvedValue(harness.harness);
+    review.mockResolvedValue({ status: "approved", reason: "Matches the current task." });
+
+    await service.sendMessage({
+      workspaceId: 1,
+      sessionId: "session",
+      content: "Install the requested package",
+      model: modelConfig,
+      approvalMode: "delegate-approval",
+    });
+    const handler = getAgentHarness.mock.calls.at(-1)?.[0].requestApproval;
+    const decision = await handler?.({
+      toolCallId: "call",
+      toolName: "bash",
+      input: { command: "pnpm install" },
+      reason: "sandbox-denied",
+      display: "pnpm install",
+    });
+
+    expect(decision).toBe("allow");
+    expect(review).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspacePath: "/workspace/willow",
+        userMessage: "Install the requested package",
+      }),
+      undefined,
+    );
+    expect(requestApproval).not.toHaveBeenCalled();
+  });
+
+  it("falls back to one-time user approval when AI rejects or fails", async () => {
+    const harness = createHarness();
+    getAgentHarness.mockResolvedValue(harness.harness);
+    review.mockResolvedValue({ status: "rejected", reason: "The command is too broad." });
+    requestApproval.mockResolvedValue("allow");
+
+    await service.sendMessage({
+      workspaceId: 1,
+      sessionId: "session",
+      content: "Clean generated files",
+      model: modelConfig,
+      approvalMode: "delegate-approval",
+    });
+    const handler = getAgentHarness.mock.calls.at(-1)?.[0].requestApproval;
+    const toolRequest = {
+      toolCallId: "call",
+      toolName: "bash" as const,
+      input: { command: "rm -rf /tmp/output" },
+      reason: "sandbox-denied" as const,
+      display: "rm -rf /tmp/output",
+    };
+
+    await expect(handler?.(toolRequest)).resolves.toBe("allow");
+    expect(requestApproval).toHaveBeenCalledWith(
+      1,
+      "session",
+      toolRequest,
+      {
+        model: modelConfig,
+        permissionMode: "delegate-approval",
+        userMessage: "Clean generated files",
+      },
+      undefined,
+      {
+        status: "rejected",
+        reason: "The command is too broad.",
+      },
+    );
+  });
+
+  it("rebuilds and continues a session after resolving a persisted approval", async () => {
+    const execute = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "outside contents" }],
+      details: { path: "/outside/file.txt" },
+    }));
+    const appendMessage = vi.fn(async () => undefined);
+    const continuation = deferred<AssistantMessage>();
+    const continueRun = vi.fn(() => continuation.promise);
+    const recoveredHarness = createHarness();
+    Object.assign(recoveredHarness.harness as object, {
+      appendMessage,
+      continue: continueRun,
+      getTools: () => [{ name: "read", execute }],
+    });
+    getAgentHarness.mockResolvedValue(recoveredHarness.harness);
+    const approval = {
+      model: modelConfig,
+      permissionMode: "request-approval" as const,
+      userMessage: "Read the outside file",
+      payload: {
+        approvalId: "approval-recovered",
+        workspaceId: 1,
+        sessionId: "session",
+        toolCallId: "call-recovered",
+        toolName: "read" as const,
+        input: { path: "/outside/file.txt" },
+        reason: "outside-workspace-read" as const,
+        display: "/outside/file.txt",
+      },
+    };
+    resolveApproval.mockResolvedValue({ approval, live: false });
+    completeRecoveredResolution.mockResolvedValue("decision-entry");
+
+    await expect(
+      service.resolveToolApproval({
+        approvalId: approval.payload.approvalId,
+        workspaceId: approval.payload.workspaceId,
+        sessionId: approval.payload.sessionId,
+        decision: "allow",
+      }),
+    ).resolves.toBe(true);
+
+    expect(completeRecoveredResolution).toHaveBeenCalledWith(
+      1,
+      "session",
+      "approval-recovered",
+      "allow",
+    );
+    await vi.waitFor(() => expect(continueRun).toHaveBeenCalledOnce());
+    expect(execute).toHaveBeenCalledWith("call-recovered", {
+      path: "/outside/file.txt",
+    });
+    expect(appendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "toolResult",
+        toolCallId: "call-recovered",
+        toolName: "read",
+        isError: false,
+      }),
+    );
+    expect(sendEvent).not.toHaveBeenCalledWith(MESSAGE_EVENT, {
+      type: "status",
+      sessionId: "session",
+      status: "completed",
+    });
+
+    continuation.resolve(assistantMessage);
+    await vi.waitFor(() =>
+      expect(sendEvent).toHaveBeenCalledWith(MESSAGE_EVENT, {
+        type: "status",
+        sessionId: "session",
+        status: "completed",
+      }),
+    );
+  });
+
+  it("returns a recovered approval response before the continued agent finishes", async () => {
+    const continuation = deferred<AssistantMessage>();
+    const continueRun = vi.fn(() => continuation.promise);
+    const recoveredHarness = createHarness();
+    Object.assign(recoveredHarness.harness as object, {
+      appendMessage: vi.fn(async () => undefined),
+      continue: continueRun,
+      getTools: () => [],
+    });
+    getAgentHarness.mockResolvedValue(recoveredHarness.harness);
+    const approval = {
+      model: modelConfig,
+      permissionMode: "request-approval" as const,
+      userMessage: "Read the outside file",
+      payload: {
+        approvalId: "approval-immediate",
+        workspaceId: 1,
+        sessionId: "session",
+        toolCallId: "call-immediate",
+        toolName: "read" as const,
+        input: { path: "/outside/file.txt" },
+        reason: "outside-workspace-read" as const,
+        display: "/outside/file.txt",
+      },
+    };
+    resolveApproval.mockResolvedValue({ approval, live: false });
+    completeRecoveredResolution.mockResolvedValue("decision-entry");
+
+    const resolved = service.resolveToolApproval({
+      approvalId: approval.payload.approvalId,
+      workspaceId: approval.payload.workspaceId,
+      sessionId: approval.payload.sessionId,
+      decision: "deny",
+    });
+
+    await expect(resolved).resolves.toBe(true);
+    expect(completeRecoveredResolution).toHaveBeenCalledOnce();
+    expect(sendEvent).not.toHaveBeenCalledWith(MESSAGE_EVENT, {
+      type: "status",
+      sessionId: "session",
+      status: "completed",
+    });
+
+    await vi.waitFor(() => expect(continueRun).toHaveBeenCalledOnce());
+    continuation.resolve(assistantMessage);
+    await vi.waitFor(() =>
+      expect(sendEvent).toHaveBeenCalledWith(MESSAGE_EVENT, {
+        type: "status",
+        sessionId: "session",
+        status: "completed",
+      }),
+    );
+  });
+
+  it("continues a recovered session without executing the tool after denial", async () => {
+    const appendMessage = vi.fn(async () => undefined);
+    const continueRun = vi.fn(async () => assistantMessage);
+    const getTools = vi.fn(() => []);
+    const recoveredHarness = createHarness();
+    Object.assign(recoveredHarness.harness as object, {
+      appendMessage,
+      continue: continueRun,
+      getTools,
+    });
+    getAgentHarness.mockResolvedValue(recoveredHarness.harness);
+    const approval = {
+      model: modelConfig,
+      permissionMode: "request-approval" as const,
+      userMessage: "Read the outside file",
+      payload: {
+        approvalId: "approval-denied",
+        workspaceId: 1,
+        sessionId: "session",
+        toolCallId: "call-denied",
+        toolName: "read" as const,
+        input: { path: "/outside/file.txt" },
+        reason: "outside-workspace-read" as const,
+        display: "/outside/file.txt",
+      },
+    };
+    resolveApproval.mockResolvedValue({ approval, live: false });
+    completeRecoveredResolution.mockResolvedValue("decision-entry");
+
+    await expect(
+      service.resolveToolApproval({
+        approvalId: approval.payload.approvalId,
+        workspaceId: approval.payload.workspaceId,
+        sessionId: approval.payload.sessionId,
+        decision: "deny",
+      }),
+    ).resolves.toBe(true);
+
+    await vi.waitFor(() => expect(continueRun).toHaveBeenCalledOnce());
+    expect(getTools).not.toHaveBeenCalled();
+    expect(appendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "toolResult",
+        toolCallId: "call-denied",
+        isError: true,
+        content: [{ type: "text", text: "用户拒绝了此工具调用。" }],
+      }),
+    );
+    expect(completeRecoveredResolution).toHaveBeenCalledWith(
+      1,
+      "session",
+      "approval-denied",
+      "deny",
+    );
+  });
+
+  it("bypasses AI in request-approval mode and denies aborted delegated reviews", async () => {
+    const harness = createHarness();
+    getAgentHarness.mockResolvedValue(harness.harness);
+    requestApproval.mockResolvedValue("deny");
+
+    await service.sendMessage({
+      workspaceId: 1,
+      sessionId: "session",
+      content: "Run command",
+      model: modelConfig,
+      approvalMode: "request-approval",
+    });
+    const requestHandler = getAgentHarness.mock.calls.at(-1)?.[0].requestApproval;
+    const toolRequest = {
+      toolCallId: "call",
+      toolName: "bash" as const,
+      input: { command: "curl example.com" },
+      reason: "sandbox-denied" as const,
+      display: "curl example.com",
+    };
+    await expect(requestHandler?.(toolRequest)).resolves.toBe("deny");
+    expect(review).not.toHaveBeenCalled();
+
+    const controller = new AbortController();
+    controller.abort();
+    await expect(requestHandler?.(toolRequest, controller.signal)).resolves.toBe("deny");
   });
 
   it("validates prerequisites before creating a harness", async () => {

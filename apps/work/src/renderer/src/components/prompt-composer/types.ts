@@ -1,4 +1,4 @@
-import type { ModelConfig } from "@shared/api";
+import type { ModelConfig, PermissionMode } from "@shared/api";
 import type { Component } from "vue";
 
 export type ComposerSegment =
@@ -36,7 +36,7 @@ export interface ComposerModelOption {
 
 export interface ComposerSubmitPayload {
   content: string;
-  approvalMode?: string;
+  approvalMode?: PermissionMode;
   model?: ModelConfig;
   reasoningEffort?: string;
 }

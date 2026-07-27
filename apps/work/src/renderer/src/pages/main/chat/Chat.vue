@@ -36,7 +36,7 @@ watch(timeline, async () => {
       class="min-h-0 overflow-y-auto overscroll-contain"
       data-slot="chat-messages"
     >
-      <div class="mx-auto flex min-h-full w-full max-w-3xl flex-col pt-6 pb-[132px]">
+      <div class="mx-auto flex min-h-full w-full max-w-3xl flex-col pt-6 pb-[148px]">
         <div
           v-if="loading"
           class="flex flex-1 items-center justify-center text-sm text-muted-foreground"

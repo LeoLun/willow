@@ -8,6 +8,11 @@ Willow is a pnpm workspace. `apps/work/` contains the Electron desktop app. Unde
 
 Before planning or modifying code under `apps/work/`, you must first read `apps/work/AGENTS.md` in full. Its app-specific instructions supplement and may narrow these repository-wide rules.
 
+Before planning or modifying code under `packages/core/`, you must first read
+`packages/core/AGENTS.md` in full. Its package-specific instructions define the built-in tool
+layout, permission contract, sandbox and path-authorization invariants, and required security
+tests.
+
 ## Build, Test, and Development Commands
 
 - `pnpm install --frozen-lockfile` installs locked dependencies; use plain `pnpm install` when updating the lockfile.

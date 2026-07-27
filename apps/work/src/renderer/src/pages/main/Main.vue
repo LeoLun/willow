@@ -2,8 +2,10 @@
 import { SidebarInset, SidebarProvider } from "@willow/shadcn/components/ui/sidebar";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import { useMessageListener } from "@/composables/useMessage";
+import { useToolApprovalListener } from "@/composables/useToolApproval";
 
 useMessageListener();
+useToolApprovalListener();
 </script>
 
 <template>

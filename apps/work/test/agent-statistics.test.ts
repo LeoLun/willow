@@ -115,6 +115,8 @@ describe("AgentService statistics interception", () => {
       cwd: "/workspace",
       model: { id: "gpt" } as never,
       metadata: { id: "session-2" },
+      permissionMode: "request-approval",
+      requestApproval: vi.fn(async () => "allow"),
     });
 
     mocks.fullHarness.emit({ type: "agent_start" } satisfies AgentHarnessEvent);
@@ -149,6 +151,7 @@ describe("AgentService statistics interception", () => {
       systemPrompt: "title",
       workspaceId: 3,
       sessionId: "session-3",
+      source: "title",
     });
     const created = mocks.harnesses[0];
     created.emit({ type: "agent_start" });
@@ -175,10 +178,29 @@ describe("AgentService statistics interception", () => {
       systemPrompt: "title",
       workspaceId: 1,
       sessionId: "session",
+      source: "title",
     });
 
     expect(() => mocks.harnesses[0].emit({ type: "agent_start" })).not.toThrow();
     expect(consoleError).toHaveBeenCalledWith("Failed to record agent statistics:", error);
     expect(recordUsage).not.toHaveBeenCalled();
+  });
+
+  it("records AI approval agents separately from chat tasks", async () => {
+    await service.getSimpleAgent({
+      cwd: "/workspace",
+      model: { id: "gpt" } as never,
+      systemPrompt: "approval",
+      workspaceId: 4,
+      sessionId: "session-4",
+      source: "approval",
+    });
+    mocks.harnesses[0].emit({ type: "agent_start" });
+
+    expect(startRun).toHaveBeenCalledWith({
+      source: "approval",
+      workspaceId: 4,
+      sessionId: "session-4",
+    });
   });
 });

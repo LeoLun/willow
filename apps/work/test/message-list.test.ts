@@ -44,6 +44,18 @@ function mountReactiveMessageList(message: Message) {
   return { container, currentMessage };
 }
 
+function mountReactiveMessages(messages: Message[]) {
+  const container = document.createElement("div");
+  const currentMessages = shallowRef(messages);
+  document.body.append(container);
+  const app = createApp({
+    render: () => h(MessageList, { messages: currentMessages.value }),
+  });
+  app.mount(container);
+  mountedApps.push(app);
+  return { container, currentMessages };
+}
+
 afterEach(() => {
   for (const app of mountedApps.splice(0)) app.unmount();
   document.body.replaceChildren();
@@ -462,6 +474,7 @@ describe("MessageList", () => {
         timestamp: 3,
         status: "completed",
         content: [{ type: "text", text: "failed" }],
+        toolCallId: "call",
         toolName: "read",
         isError: true,
         details: circularDetails,
@@ -472,14 +485,22 @@ describe("MessageList", () => {
 
     expect(container.querySelector("script")).toBeNull();
     expect(container.textContent).toContain("<script>window.hacked = true</script>");
-    expect(container.querySelectorAll("[data-content-type]")).toHaveLength(7);
+    expect(container.querySelectorAll("[data-content-type]")).toHaveLength(5);
+    expect(container.querySelectorAll("[data-slot=tool-message]")).toHaveLength(1);
+    expect(container.querySelector("[data-slot=tool-call-block]")).toBeNull();
     expect(container.querySelector("[data-content-type=image]")?.getAttribute("src")).toBe(
       "data:image/png;base64,aGVsbG8=",
     );
     expect(container.textContent).toContain("思考内容不可用。");
-    expect(container.textContent).toContain("调用工具 · read");
+    expect(container.textContent).toContain("读取 a.ts");
     expect(container.textContent).toContain("未知节点 · future");
-    expect(container.textContent).toContain("[object Object]");
+    const toolTrigger = container.querySelector<HTMLButtonElement>(
+      "[data-slot=tool-result-block] button",
+    );
+    toolTrigger?.click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("[object Object]");
+    });
   });
 
   it("dispatches each role to its own message component", async () => {
@@ -514,16 +535,18 @@ describe("MessageList", () => {
     const container = mountMessageList(messages);
     await nextTick();
 
-    expect(container.querySelector("[data-slot=user-message]")?.textContent).toContain("你");
-    expect(container.querySelector("[data-slot=assistant-message]")?.textContent).toContain("AI");
-    expect(container.querySelector("[data-slot=tool-result]")?.textContent).toContain(
-      "工具结果 · read失败",
+    expect(container.querySelector("[data-slot=user-message]")?.textContent).toContain("hello");
+    expect(container.querySelector("[data-slot=assistant-message]")?.textContent).toContain(
+      "world",
+    );
+    expect(container.querySelector("[data-slot=tool-message]")?.textContent).toContain(
+      "read 执行失败",
     );
     expect(
       container.querySelector("[data-message-role=assistant]")?.getAttribute("data-message-status"),
     ).toBe("streaming");
-    expect(container.querySelector("[data-slot=tool-result] > div")?.className).toContain(
-      "border-destructive/40",
+    expect(container.querySelector("[data-slot=tool-message] svg")?.className.baseVal).toContain(
+      "text-destructive",
     );
   });
 
@@ -568,10 +591,188 @@ describe("MessageList", () => {
     expect(assistant?.querySelector("code")?.textContent).toBe("code");
     expect(container.querySelector("[data-slot=user-message] h1")).toBeNull();
     expect(container.querySelector("[data-slot=user-message]")?.textContent).toContain("# 标题");
-    expect(container.querySelector("[data-slot=tool-result] strong")).toBeNull();
-    expect(container.querySelector("[data-slot=tool-result]")?.textContent).toContain(
-      "**工具原文**",
+    expect(container.querySelector("[data-slot=tool-message] strong")).toBeNull();
+    container.querySelector<HTMLButtonElement>("[data-slot=tool-result-block] button")?.click();
+    await vi.waitFor(() => {
+      expect(container.querySelector("[data-slot=tool-message]")?.textContent).toContain(
+        "**工具原文**",
+      );
+    });
+  });
+
+  it("collapses tool output and details behind the tool summary", async () => {
+    const messages: Message[] = [
+      {
+        id: "tool",
+        sourceKey: "tool",
+        role: "toolResult",
+        timestamp: 1,
+        status: "completed",
+        content: [{ type: "text", text: "const answer = 42;" }],
+        toolName: "read",
+        details: {
+          msg: "读取 answer.ts 文件 1-1 行",
+          kind: "read",
+          path: "answer.ts",
+          offset: 1,
+          lineCount: 1,
+        },
+      },
+    ];
+    const container = mountMessageList(messages);
+    await nextTick();
+
+    const trigger = container.querySelector<HTMLButtonElement>(
+      "[data-slot=tool-result-block] button",
     );
+    expect(trigger?.textContent).toContain("读取 answer.ts 文件 1-1 行");
+    expect(trigger?.getAttribute("aria-label")).toContain("展开执行结果");
+    expect(container.textContent).not.toContain("const answer = 42;");
+    expect(container.textContent).not.toContain('"path": "answer.ts"');
+
+    trigger?.click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("const answer = 42;");
+      expect(container.textContent).toContain('"path": "answer.ts"');
+    });
+    expect(trigger?.getAttribute("aria-label")).toContain("收起执行结果");
+    expect(container.textContent).not.toContain('"msg"');
+
+    trigger?.click();
+    await vi.waitFor(() => {
+      expect(container.textContent).not.toContain("const answer = 42;");
+      expect(container.textContent).not.toContain('"path": "answer.ts"');
+    });
+  });
+
+  it("pairs a tool call with its result and keeps the call summary collapsed", async () => {
+    const messages: Message[] = [
+      {
+        id: "assistant",
+        sourceKey: "assistant",
+        role: "assistant",
+        timestamp: 1,
+        status: "completed",
+        content: [
+          { type: "text", text: "调用前" },
+          { type: "toolCall", id: "call-1", name: "read", arguments: { path: "answer.ts" } },
+          { type: "text", text: "调用后" },
+        ],
+      },
+      {
+        id: "tool",
+        sourceKey: "tool",
+        role: "toolResult",
+        timestamp: 2,
+        status: "completed",
+        content: [{ type: "text", text: "const answer = 42;" }],
+        toolCallId: "call-1",
+        toolName: "read",
+        details: { msg: "读取完成", kind: "read", path: "answer.ts", offset: 1, lineCount: 1 },
+      },
+    ];
+    const container = mountMessageList(messages);
+    await nextTick();
+
+    const toolMessages = container.querySelectorAll("[data-slot=tool-message]");
+    const assistantMessages = container.querySelectorAll("[data-slot=assistant-message]");
+    const trigger = toolMessages[0]?.querySelector("button");
+    expect(toolMessages).toHaveLength(1);
+    expect(assistantMessages).toHaveLength(2);
+    expect(assistantMessages[0]?.textContent).toContain("调用前");
+    expect(assistantMessages[1]?.textContent).toContain("调用后");
+    expect(trigger?.textContent).toContain("读取 answer.ts");
+    expect(trigger?.textContent).not.toContain("读取完成");
+    expect(toolMessages[0]?.textContent).not.toContain("const answer = 42;");
+
+    trigger?.click();
+    await vi.waitFor(() => {
+      expect(toolMessages[0]?.textContent).toContain("const answer = 42;");
+      expect(toolMessages[0]?.textContent).toContain('"lineCount": 1');
+    });
+  });
+
+  it("shows a pending tool call immediately and preserves expansion when the result arrives", async () => {
+    const assistant: Message = {
+      id: "assistant",
+      sourceKey: "assistant",
+      role: "assistant",
+      timestamp: 1,
+      status: "streaming",
+      content: [{ type: "toolCall", id: "call-1", name: "read", arguments: { path: "a.ts" } }],
+    };
+    const result: Message = {
+      id: "tool",
+      sourceKey: "tool",
+      role: "toolResult",
+      timestamp: 2,
+      status: "completed",
+      content: [{ type: "text", text: "result text" }],
+      toolCallId: "call-1",
+      toolName: "read",
+    };
+    const { container, currentMessages } = mountReactiveMessages([assistant]);
+    await nextTick();
+
+    const trigger = container.querySelector<HTMLButtonElement>("[data-slot=tool-message] button");
+    expect(trigger?.textContent).toContain("读取 a.ts");
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+
+    trigger?.click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("执行中…");
+    });
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+
+    currentMessages.value = [assistant, result];
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("result text");
+    });
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+    expect(container.textContent).not.toContain("执行中…");
+  });
+
+  it("renders multiple tool calls independently and keeps unmatched results visible", async () => {
+    const container = mountMessageList([
+      {
+        id: "assistant",
+        sourceKey: "assistant",
+        role: "assistant",
+        timestamp: 1,
+        status: "completed",
+        content: [
+          { type: "toolCall", id: "call-1", name: "read", arguments: { path: "a.ts" } },
+          { type: "toolCall", id: "call-2", name: "read", arguments: { path: "b.ts" } },
+        ],
+      },
+      {
+        id: "tool-1",
+        sourceKey: "tool-1",
+        role: "toolResult",
+        timestamp: 2,
+        status: "completed",
+        content: [{ type: "text", text: "a" }],
+        toolCallId: "call-1",
+        toolName: "read",
+      },
+      {
+        id: "orphan",
+        sourceKey: "orphan",
+        role: "toolResult",
+        timestamp: 3,
+        status: "completed",
+        content: [{ type: "text", text: "orphan result" }],
+        toolCallId: "missing",
+        toolName: "read",
+      },
+    ]);
+    await nextTick();
+
+    const toolMessages = container.querySelectorAll("[data-slot=tool-message]");
+    expect(toolMessages).toHaveLength(3);
+    expect(toolMessages[0]?.textContent).toContain("读取 a.ts");
+    expect(toolMessages[1]?.textContent).toContain("读取 b.ts");
+    expect(toolMessages[2]?.textContent).toContain("工具结果 · read");
   });
 
   it("renders math, Mermaid diagrams, and highlighted code blocks", async () => {

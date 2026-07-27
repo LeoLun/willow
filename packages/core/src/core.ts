@@ -2,6 +2,7 @@ import { AgentHarness, type ExecutionEnv, type SessionRepo } from "@earendil-wor
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
 import { AGENT_DIR } from "./constant";
+import { createWillowTools } from "./tools/index.js";
 import type { AgentCoreOptions, AgentHarnessOptions } from "./types";
 import { DefaultResourceLoader } from "./utils/resource-loader";
 
@@ -37,6 +38,10 @@ export class AgentCore {
   }
 
   async getAgentHarness(options: AgentHarnessOptions) {
+    const permissionMode = options.permissionMode ?? "request-approval";
+    if (permissionMode !== "full-access" && process.platform !== "darwin") {
+      throw new Error("Sandboxed permission modes are currently supported only on macOS");
+    }
     const session = options.metadata
       ? await this.sessionManager.open(options.metadata)
       : await this.sessionManager.create({});
@@ -49,6 +54,12 @@ export class AgentCore {
       session: session,
       model: options.model,
       thinkingLevel: "high",
+      tools: createWillowTools({
+        cwd: this.cwd,
+        permissionMode,
+        requestApproval: options.requestApproval,
+        sandboxPolicy: options.sandboxPolicy,
+      }),
       systemPrompt: systemPrompt,
       steeringMode: "all",
       followUpMode: "all",

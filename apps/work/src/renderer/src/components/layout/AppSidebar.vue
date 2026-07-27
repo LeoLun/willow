@@ -294,21 +294,21 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
             <SidebarMenuItem v-for="item in quickAccess" :key="item.id">
               <SidebarMenuButton
                 :is-active="selectedWorkspaceId === undefined && selectedItem === item.id"
-                class="h-8 items-center rounded-lg px-2.5 text-sm leading-4 font-medium text-sidebar-foreground/85 data-[active=true]:bg-sidebar-foreground/10"
+                class="text-text-primary h-8 items-center rounded-lg px-2.5 text-sm leading-4 data-[active=true]:bg-sidebar-foreground/10"
                 @click="selectQuickAccess(item.id)"
               >
                 <component
                   :is="item.icon"
                   :class="
                     selectedWorkspaceId === undefined && selectedItem === item.id
-                      ? 'text-primary'
+                      ? 'text-text-primary'
                       : 'text-sidebar-foreground/85'
                   "
                 />
                 <span
                   :class="
                     selectedWorkspaceId === undefined && selectedItem === item.id
-                      ? 'text-primary'
+                      ? 'text-text-primary'
                       : ''
                   "
                   >{{ item.label }}</span

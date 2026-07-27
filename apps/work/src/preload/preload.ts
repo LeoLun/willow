@@ -32,6 +32,8 @@ import type {
   RegisterEventResponse,
   RenameWorkspaceRequest,
   RenameWorkspaceResponse,
+  ResolveToolApprovalRequest,
+  ResolveToolApprovalResponse,
   SendMessageRequest,
   SendMessageResponse,
   SetCredentialRequest,
@@ -64,6 +66,7 @@ import {
   GET_WORKSPACE_LIST,
   REGISTER_EVENT,
   RENAME_WORKSPACE,
+  RESOLVE_TOOL_APPROVAL,
   SEND_MESSAGE,
   SET_CREDENTIAL,
   SET_THEME,
@@ -134,6 +137,8 @@ const ipcObject: IRenderHook = {
     invoke<StopMessageRequest, StopMessageResponse>(STOP_MESSAGE, request),
   getMessageList: (request: GetMessageListRequest) =>
     invoke<GetMessageListRequest, GetMessageListResponse>(GET_MESSAGE_LIST, request),
+  resolveToolApproval: (request: ResolveToolApprovalRequest) =>
+    invoke<ResolveToolApprovalRequest, ResolveToolApprovalResponse>(RESOLVE_TOOL_APPROVAL, request),
   getWorkspaceList: (request: GetWorkspaceListRequest) =>
     invoke<GetWorkspaceListRequest, GetWorkspaceListResponse>(GET_WORKSPACE_LIST, request),
   createWorkspace: (request: CreateWorkspaceRequest) =>

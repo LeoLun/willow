@@ -79,7 +79,7 @@ export const userConfigs = sqliteTable("user_configs", {
   smallModelId: text("small_model_id"),
 });
 
-export type StatisticsRunSource = "chat" | "title";
+export type StatisticsRunSource = "approval" | "chat" | "title";
 
 export const statisticsRuns = sqliteTable(
   "statistics_runs",

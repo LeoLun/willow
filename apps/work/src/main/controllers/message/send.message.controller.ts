@@ -41,6 +41,14 @@ export class SendMessageController extends IPCBaseController<
     ) {
       return new Error("model must include non-empty providerId and modelId");
     }
+    if (
+      request.approvalMode !== undefined &&
+      request.approvalMode !== "request-approval" &&
+      request.approvalMode !== "delegate-approval" &&
+      request.approvalMode !== "full-access"
+    ) {
+      return new Error("approvalMode must be a supported permission mode");
+    }
     return undefined;
   }
 }

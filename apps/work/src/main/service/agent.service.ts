@@ -7,8 +7,9 @@ import {
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { AssistantMessage, Model, MutableModels } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
-import { AgentCore, type AgentCoreOptions } from "@willow/core";
+import { AgentCore, type AgentCoreOptions, type ToolApprovalHandler } from "@willow/core";
 import { Injectable } from "@willow/poetry";
+import type { StatisticsRunSource } from "../db/schema";
 import { CredentialService } from "./credential.service";
 import { SessionManagerFactory } from "./session-manager.factory";
 import { StatisticsService } from "./statistics.service";
@@ -17,6 +18,8 @@ type AgentServiceOptions = Omit<AgentCoreOptions, "models" | "sessionRepo"> & {
   workspaceId: number;
   model: Model<any>;
   metadata: SessionMetadata;
+  permissionMode: import("@willow/core").PermissionMode;
+  requestApproval: ToolApprovalHandler;
 };
 
 type SimpleAgentOptions = {
@@ -25,10 +28,11 @@ type SimpleAgentOptions = {
   systemPrompt: string;
   workspaceId: number;
   sessionId: string;
+  source: Extract<StatisticsRunSource, "approval" | "title">;
 };
 
 type StatisticsInterceptorOptions = {
-  source: "chat" | "title";
+  source: StatisticsRunSource;
   workspaceId: number;
   sessionId: string;
 };
@@ -73,17 +77,29 @@ export class AgentService {
       thinkingLevel: "off",
     });
     return this.interceptStatistics(harness, {
-      source: "title",
+      source: options.source,
       workspaceId: options.workspaceId,
       sessionId: options.sessionId,
     });
   }
 
   // 获取完整的AgentHarness，用于执行复杂任务，会记录上下文到数据库
-  async getAgentHarness({ workspaceId, model, metadata, ...options }: AgentServiceOptions) {
+  async getAgentHarness({
+    workspaceId,
+    model,
+    metadata,
+    permissionMode,
+    requestApproval,
+    ...options
+  }: AgentServiceOptions) {
     const sessionRepo = this.sessionManagerFactory.create(workspaceId);
     const core = new AgentCore({ ...options, models: this.models, sessionRepo });
-    const harness = await core.getAgentHarness({ model, metadata });
+    const harness = await core.getAgentHarness({
+      model,
+      metadata,
+      permissionMode,
+      requestApproval,
+    });
     return this.interceptStatistics(harness, {
       source: "chat",
       workspaceId,

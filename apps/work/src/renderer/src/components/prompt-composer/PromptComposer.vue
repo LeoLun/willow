@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ModelConfig } from "@shared/api";
+import type { PermissionMode } from "@shared/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,7 +63,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const content = defineModel<string>("content", { default: "" });
-const approvalMode = defineModel<string | undefined>("approvalMode");
+const approvalMode = defineModel<PermissionMode | undefined>("approvalMode");
 const model = defineModel<ModelConfig | undefined>("model");
 const reasoningEffort = defineModel<string | undefined>("reasoningEffort");
 

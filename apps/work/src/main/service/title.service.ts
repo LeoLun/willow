@@ -96,6 +96,7 @@ export class TitleService {
           model,
           workspaceId: input.workspaceId,
           sessionId: input.sessionId,
+          source: "title",
           systemPrompt: TITLE_SYSTEM_PROMPT,
         });
         const response = await harness.prompt(content);

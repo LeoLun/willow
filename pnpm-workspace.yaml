@@ -10,3 +10,7 @@ catalog:
   inversify: ^6.2.1
   "@earendil-works/pi-ai": ^0.80.6
   "@earendil-works/pi-agent-core": ^0.80.6
+  diff: ^8.0.4
+  ignore: ^7.0.5
+  minimatch: ^5.1.6
+  typebox: 1.1.38

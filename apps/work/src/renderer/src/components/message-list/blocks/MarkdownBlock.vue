@@ -57,6 +57,7 @@ const markdownPlugins = [
   max-width: unset;
   font-size: var(--text-sm);
   line-height: var(--text-sm--line-height);
+  color: var(--text-primary);
 }
 
 .markdown-new-styling pre:where(:not(.not-markdown *)) {

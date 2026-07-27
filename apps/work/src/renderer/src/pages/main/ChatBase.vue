@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import type { MessageEventPayload, ModelConfig, ProviderInfo, ThinkingLevel } from "@shared/api";
+import type {
+  MessageEventPayload,
+  ModelConfig,
+  PermissionMode,
+  ProviderInfo,
+  ThinkingLevel,
+  ToolApprovalDecision,
+} from "@shared/api";
 import { MESSAGE_EVENT } from "@shared/constants";
 import { ShieldCheckIcon, ShieldQuestionIcon, UserCheckIcon } from "lucide-vue-next";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
@@ -12,7 +19,9 @@ import {
   type ComposerOption,
   type ComposerSubmitPayload,
 } from "@/components/prompt-composer";
+import ToolApprovalPanel from "@/components/tool/ToolApprovalPanel.vue";
 import { useEventBus } from "@/composables/useEventBus";
+import { useToolApproval } from "@/composables/useToolApproval";
 import { electronAPI } from "@/lib/ipc";
 
 const route = useRoute();
@@ -26,7 +35,7 @@ const loadingModels = ref(true);
 const modelLoadError = ref(false);
 const providers = shallowRef<ProviderInfo[]>([]);
 const selectedModel = shallowRef<ModelConfig>();
-const approvalMode = ref("request-approval");
+const approvalMode = ref<PermissionMode>("request-approval");
 const reasoningEffort = ref<string>();
 
 const approvalOptions: ComposerOption[] = [
@@ -45,6 +54,7 @@ const sessionId = computed(() => {
   const value = route.params.sessionId;
   return typeof value === "string" && value.trim() !== "" ? value : undefined;
 });
+const { currentApproval, resolveApproval } = useToolApproval(workspaceId, sessionId);
 
 const modelOptions = computed<ComposerModelOption[]>(() =>
   providers.value.flatMap((provider) =>
@@ -114,6 +124,12 @@ function handleSessionTitleUpdated(payload: MessageEventPayload) {
   if (payload.type !== "title_updated" || payload.sessionId !== sessionId.value) return;
   sessionTitleLoadGeneration += 1;
   sessionTitle.value = payload.title;
+}
+
+async function decideApproval(decision: ToolApprovalDecision): Promise<void> {
+  const approval = currentApproval.value;
+  if (!approval) throw new Error("审批请求已失效");
+  await resolveApproval(approval.approvalId, decision);
 }
 
 watch([workspaceId, sessionId], () => void loadSessionTitle(), { immediate: true });
@@ -192,6 +208,7 @@ async function sendMessage(payload: ComposerSubmitPayload) {
       sessionId: currentSessionId,
       content,
       model,
+      approvalMode: payload.approvalMode ?? "request-approval",
     });
     console.log("[SEND_MESSAGE]", response.message);
   } catch (error) {
@@ -214,41 +231,51 @@ async function sendMessage(payload: ComposerSubmitPayload) {
     <div class="min-h-0 flex-1 overflow-hidden">
       <RouterView v-slot="{ Component }">
         <component :is="Component">
-          <PromptComposer
-            v-model:content="message"
-            v-model:approval-mode="approvalMode"
-            v-model:model="selectedModel"
-            v-model:reasoning-effort="reasoningEffort"
-            :approval-options="approvalOptions"
-            :models="modelOptions"
-            :token-rules="[...defaultComposerTokenRules]"
-            :disabled="composerDisabled"
-            :submitting="sending"
-            @submit="sendMessage"
-          >
-            <template #mention-panel="{ query, insert }">
-              <button
-                v-if="'work.vue'.includes(query.toLowerCase())"
-                type="button"
-                class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-                @click="insert('[work.vue](xxxxx/work.vue)')"
-              >
-                插入 Vue 文件示例
-              </button>
-              <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的引用</p>
-            </template>
-            <template #slash-panel="{ query, insert }">
-              <button
-                v-if="'skill'.includes(query.toLowerCase())"
-                type="button"
-                class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-                @click="insert('[!skill](xxxx/skill.md)')"
-              >
-                插入 skill 示例
-              </button>
-              <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的操作</p>
-            </template>
-          </PromptComposer>
+          <Transition name="approval-panel" mode="out-in">
+            <ToolApprovalPanel
+              v-if="currentApproval"
+              :key="currentApproval.approvalId"
+              :request="currentApproval"
+              :on-decision="decideApproval"
+            />
+            <PromptComposer
+              v-else
+              key="prompt-composer"
+              v-model:content="message"
+              v-model:approval-mode="approvalMode"
+              v-model:model="selectedModel"
+              v-model:reasoning-effort="reasoningEffort"
+              :approval-options="approvalOptions"
+              :models="modelOptions"
+              :token-rules="[...defaultComposerTokenRules]"
+              :disabled="composerDisabled"
+              :submitting="sending"
+              @submit="sendMessage"
+            >
+              <template #mention-panel="{ query, insert }">
+                <button
+                  v-if="'work.vue'.includes(query.toLowerCase())"
+                  type="button"
+                  class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+                  @click="insert('[work.vue](xxxxx/work.vue)')"
+                >
+                  插入 Vue 文件示例
+                </button>
+                <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的引用</p>
+              </template>
+              <template #slash-panel="{ query, insert }">
+                <button
+                  v-if="'skill'.includes(query.toLowerCase())"
+                  type="button"
+                  class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+                  @click="insert('[!skill](xxxx/skill.md)')"
+                >
+                  插入 skill 示例
+                </button>
+                <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的操作</p>
+              </template>
+            </PromptComposer>
+          </Transition>
           <p v-if="loadingModels" class="mt-2 text-sm text-muted-foreground">正在读取模型…</p>
           <p v-else-if="modelLoadError" class="mt-2 text-sm text-destructive">无法读取模型列表</p>
           <p v-else-if="providers.length === 0" class="mt-2 text-sm text-muted-foreground">
@@ -262,3 +289,25 @@ async function sendMessage(payload: ComposerSubmitPayload) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.approval-panel-enter-active,
+.approval-panel-leave-active {
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.approval-panel-enter-from,
+.approval-panel-leave-to {
+  opacity: 0;
+  transform: translateY(0.5rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .approval-panel-enter-active,
+  .approval-panel-leave-active {
+    transition-duration: 0.01ms;
+  }
+}
+</style>

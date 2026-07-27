@@ -1,0 +1,166 @@
+// @vitest-environment jsdom
+
+import type { ToolApprovalEventPayload } from "@shared/api";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createApp, h, nextTick, type App } from "vue";
+import ToolApprovalPanel from "../src/renderer/src/components/tool/ToolApprovalPanel.vue";
+
+const mountedApps: App[] = [];
+
+function createRequest(
+  overrides: Partial<ToolApprovalEventPayload> = {},
+): ToolApprovalEventPayload {
+  return {
+    approvalId: "approval",
+    workspaceId: 1,
+    sessionId: "session",
+    toolCallId: "call",
+    toolName: "bash",
+    input: { command: "curl example.com" },
+    reason: "sandbox-denied",
+    display: "curl example.com",
+    ...overrides,
+  };
+}
+
+function mountPanel(request: ToolApprovalEventPayload, onDecision = vi.fn(async () => undefined)) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const app = createApp({
+    render: () => h(ToolApprovalPanel, { request, onDecision }),
+  });
+  mountedApps.push(app);
+  app.mount(container);
+  return { container, onDecision };
+}
+
+async function flushDecision(): Promise<void> {
+  await nextTick();
+  await Promise.resolve();
+  await nextTick();
+}
+
+afterEach(() => {
+  for (const app of mountedApps.splice(0)) app.unmount();
+  document.body.replaceChildren();
+});
+
+describe("ToolApprovalPanel", () => {
+  it("renders independently and preserves escaped AI review details", async () => {
+    const mounted = mountPanel(
+      createRequest({
+        mayHavePartialEffects: true,
+        aiReview: {
+          status: "rejected",
+          reason: '<img src=x onerror="window.hacked=true"> Too broad.',
+        },
+      }),
+    );
+
+    expect(mounted.container.querySelector("[data-slot=tool-approval-panel]")).not.toBeNull();
+    expect(mounted.container.querySelector("[role=dialog]")).toBeNull();
+    expect(
+      mounted.container.querySelector("[data-slot=ai-approval-review]")?.textContent,
+    ).toContain("AI 未批准");
+    expect(mounted.container.textContent).toContain(
+      '<img src=x onerror="window.hacked=true"> Too broad.',
+    );
+    expect(mounted.container.querySelector("img")).toBeNull();
+    expect(mounted.container.textContent).toContain("可能已经产生部分工作区内副作用");
+
+    const allow = [...mounted.container.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("仅本次允许"),
+    );
+    allow?.click();
+    await flushDecision();
+    expect(mounted.onDecision).toHaveBeenCalledWith("allow");
+  });
+
+  it("submits an explicit denial", async () => {
+    const mounted = mountPanel(createRequest());
+    const deny = [...mounted.container.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("拒绝"),
+    );
+
+    deny?.click();
+    await flushDecision();
+
+    expect(mounted.onDecision).toHaveBeenCalledWith("deny");
+  });
+
+  it("blocks repeated decisions while a submission is pending", async () => {
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const onDecision = vi.fn(() => pending);
+    const mounted = mountPanel(createRequest(), onDecision);
+    const [deny, allow] = [...mounted.container.querySelectorAll("button")];
+
+    allow.click();
+    deny.click();
+    await nextTick();
+
+    expect(onDecision).toHaveBeenCalledTimes(1);
+    expect(onDecision).toHaveBeenCalledWith("allow");
+    expect(deny.disabled).toBe(true);
+    expect(allow.disabled).toBe(true);
+    expect(allow.getAttribute("aria-busy")).toBe("true");
+
+    finish();
+    await flushDecision();
+    expect(deny.disabled).toBe(false);
+    expect(allow.disabled).toBe(false);
+  });
+
+  it("keeps the panel available and reports a submission failure", async () => {
+    const mounted = mountPanel(
+      createRequest(),
+      vi.fn(async () => {
+        throw new Error("审批服务暂不可用");
+      }),
+    );
+    const allow = [...mounted.container.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("仅本次允许"),
+    );
+
+    allow?.click();
+    await flushDecision();
+
+    expect(mounted.container.querySelector("[data-slot=tool-approval-panel]")).not.toBeNull();
+    expect(mounted.container.querySelector("[role=alert]")?.textContent).toContain(
+      "审批服务暂不可用",
+    );
+    expect(allow?.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("distinguishes an unavailable AI review", () => {
+    const mounted = mountPanel(
+      createRequest({
+        toolName: "write",
+        input: { path: "/outside" },
+        reason: "outside-workspace-write",
+        display: "/outside",
+        aiReview: { status: "failed", reason: "未配置小模型。" },
+      }),
+    );
+
+    expect(mounted.container.textContent).toContain("AI 审批不可用");
+    expect(mounted.container.textContent).toContain("未配置小模型。");
+  });
+
+  it("describes a domain allowlist request as a scoped sandbox grant", () => {
+    const mounted = mountPanel(
+      createRequest({
+        input: { command: "curl https://example.com" },
+        reason: "network-domain",
+        display: "example.com",
+        mayHavePartialEffects: true,
+      }),
+    );
+
+    expect(mounted.container.textContent).toContain("目标域名不在网络允许列表中");
+    expect(mounted.container.textContent).toContain("仅放行上述资源");
+    expect(mounted.container.textContent).toContain("在沙箱中完整");
+  });
+});

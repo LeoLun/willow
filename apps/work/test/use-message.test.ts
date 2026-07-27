@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { MessageEventPayload, MessageStreamEvent } from "@shared/api";
+import type {
+  MessageEventPayload,
+  MessageStreamEvent,
+  ToolApprovalEventPayload,
+} from "@shared/api";
 import { MESSAGE_EVENT } from "@shared/constants";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, nextTick, ref, type App, type Ref } from "vue";
@@ -34,8 +38,13 @@ import {
   useMessageStatus,
   useSessionMessages,
 } from "../src/renderer/src/composables/useMessage";
+import {
+  hydrateToolApproval,
+  useToolApproval,
+} from "../src/renderer/src/composables/useToolApproval";
 
 type SessionMessages = ReturnType<typeof useSessionMessages>;
+type ToolApproval = ReturnType<typeof useToolApproval>;
 
 const mountedApps: App[] = [];
 const touchedSessionIds = new Set<string>();
@@ -109,10 +118,12 @@ function mountSessionMessages(
   sessionId: Ref<string | undefined>,
 ) {
   let messages: SessionMessages | undefined;
+  let approval: ToolApproval | undefined;
   const app = createApp({
     setup() {
       useMessageListener();
       messages = useSessionMessages(workspaceId, sessionId);
+      approval = useToolApproval(workspaceId, sessionId);
       return () => null;
     },
   });
@@ -124,6 +135,23 @@ function mountSessionMessages(
       if (!messages) throw new Error("session messages were not initialized");
       return messages;
     },
+    get approval() {
+      if (!approval) throw new Error("tool approval was not initialized");
+      return approval;
+    },
+  };
+}
+
+function toolApproval(sessionId: string, approvalId: string): ToolApprovalEventPayload {
+  return {
+    approvalId,
+    workspaceId: 1,
+    sessionId,
+    toolCallId: `call-${approvalId}`,
+    toolName: "read",
+    input: { path: "/outside/file.txt" },
+    reason: "outside-workspace-read",
+    display: "/outside/file.txt",
   };
 }
 
@@ -271,6 +299,38 @@ describe("useMessage", () => {
     await nextTick();
 
     expect(mounted.messages.timeline.value.messages).toEqual([]);
+  });
+
+  it("hydrates an unresolved approval while loading session history", async () => {
+    const restoredSessionId = nextSessionId("approval-restored");
+    const restoredApproval = toolApproval(restoredSessionId, "approval-restored");
+    mocks.getMessageList.mockResolvedValueOnce({
+      messages: [],
+      pendingToolApproval: restoredApproval,
+    });
+    const workspaceId = ref<number | undefined>(1);
+    const sessionId = ref<string | undefined>(restoredSessionId);
+    const mounted = mountSessionMessages(workspaceId, sessionId);
+
+    await vi.waitFor(() => expect(mounted.messages.loading.value).toBe(false));
+
+    expect(mounted.approval.currentApproval.value).toEqual(restoredApproval);
+  });
+
+  it("keeps a newer live approval when an older history response is empty", async () => {
+    const history = deferred<{ messages: AgentMessage[] }>();
+    mocks.getMessageList.mockReturnValueOnce(history.promise);
+    const currentSessionId = nextSessionId("approval-race");
+    const liveApproval = toolApproval(currentSessionId, "approval-live");
+    const workspaceId = ref<number | undefined>(1);
+    const sessionId = ref<string | undefined>(currentSessionId);
+    const mounted = mountSessionMessages(workspaceId, sessionId);
+
+    hydrateToolApproval(1, currentSessionId, liveApproval);
+    history.resolve({ messages: [] });
+    await vi.waitFor(() => expect(mounted.messages.loading.value).toBe(false));
+
+    expect(mounted.approval.currentApproval.value).toEqual(liveApproval);
   });
 
   it("protects consumed entries and releases terminal entries when the consumer leaves", async () => {

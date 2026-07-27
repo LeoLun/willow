@@ -9,6 +9,7 @@ import { GetCredentialController } from "./controllers/credential/get.credential
 import { SetCredentialController } from "./controllers/credential/set.credential.controller";
 import { EventController } from "./controllers/event.controller";
 import { GetMessageListController } from "./controllers/message/get-list.message.controller";
+import { ResolveToolApprovalController } from "./controllers/message/resolve-tool-approval.message.controller";
 import { SendMessageController } from "./controllers/message/send.message.controller";
 import { StopMessageController } from "./controllers/message/stop.message.controller";
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
@@ -26,6 +27,7 @@ import { RenameWorkspaceController } from "./controllers/workspace/rename.worksp
 import { SelectWorkspaceDirectoryController } from "./controllers/workspace/select-directory.workspace.controller";
 import { SetWorkspacePinnedController } from "./controllers/workspace/set-pinned.workspace.controller";
 import { AgentService } from "./service/agent.service";
+import { AiToolApprovalService } from "./service/ai-tool-approval.service";
 import { CredentialService } from "./service/credential.service";
 import { CredentialDao } from "./service/dao/credential.dao.server";
 import { SessionDao } from "./service/dao/session.dao.server";
@@ -40,6 +42,7 @@ import { SessionManagerFactory } from "./service/session-manager.factory";
 import { SessionService } from "./service/session.service";
 import { StatisticsService } from "./service/statistics.service";
 import { TitleService } from "./service/title.service";
+import { ToolApprovalService } from "./service/tool-approval.service";
 import { UserConfigService } from "./service/user-config.service";
 import { WorkspaceService } from "./service/workspace.service";
 import { configureMainWindowBounds, MainWindow } from "./window/main.window";
@@ -64,11 +67,13 @@ if (started) {
     SessionManagerFactory,
     StatisticsService,
     AgentService,
+    AiToolApprovalService,
     SessionService,
     TitleService,
     CredentialService,
     EventService,
     MessageService,
+    ToolApprovalService,
     ProviderCatalogService,
     UserConfigService,
     WorkspaceService,
@@ -90,6 +95,7 @@ if (started) {
     SendMessageController,
     StopMessageController,
     GetMessageListController,
+    ResolveToolApprovalController,
     GetWorkspaceListController,
     CreateWorkspaceController,
     SelectWorkspaceDirectoryController,
