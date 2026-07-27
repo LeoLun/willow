@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type {
+  FileSearchItem,
   MessageEventPayload,
   ModelConfig,
   PermissionMode,
   ProviderInfo,
+  SkillInfo,
   ThinkingLevel,
   ToolApprovalDecision,
 } from "@shared/api";
@@ -15,10 +17,14 @@ import BaseHeader from "@/components/layout/BaseHeader.vue";
 import {
   defaultComposerTokenRules,
   PromptComposer,
+  serializeFileToken,
   type ComposerModelOption,
   type ComposerOption,
+  type ComposerPanelSlotProps,
   type ComposerSubmitPayload,
 } from "@/components/prompt-composer";
+import FileSearchPanel from "@/components/prompt-composer/FileSearchPanel.vue";
+import SkillSearchPanel from "@/components/prompt-composer/SkillSearchPanel.vue";
 import ToolApprovalPanel from "@/components/tool/ToolApprovalPanel.vue";
 import { useEventBus } from "@/composables/useEventBus";
 import { useToolApproval } from "@/composables/useToolApproval";
@@ -118,6 +124,14 @@ async function loadSessionTitle() {
     if (generation !== sessionTitleLoadGeneration) return;
     console.error("读取会话标题失败:", error);
   }
+}
+
+function insertFileReference(file: FileSearchItem, insert: ComposerPanelSlotProps["insert"]): void {
+  insert(serializeFileToken(file.name, file.relativePath));
+}
+
+function insertSkillReference(skill: SkillInfo, insert: ComposerPanelSlotProps["insert"]): void {
+  insert(`[!${skill.name}](${skill.filePath})`);
 }
 
 function handleSessionTitleUpdated(payload: MessageEventPayload) {
@@ -253,26 +267,18 @@ async function sendMessage(payload: ComposerSubmitPayload) {
               @submit="sendMessage"
             >
               <template #mention-panel="{ query, insert }">
-                <button
-                  v-if="'work.vue'.includes(query.toLowerCase())"
-                  type="button"
-                  class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-                  @click="insert('[work.vue](xxxxx/work.vue)')"
-                >
-                  插入 Vue 文件示例
-                </button>
-                <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的引用</p>
+                <FileSearchPanel
+                  :workspace-id="workspaceId"
+                  :query="query"
+                  @select="insertFileReference($event, insert)"
+                />
               </template>
               <template #slash-panel="{ query, insert }">
-                <button
-                  v-if="'skill'.includes(query.toLowerCase())"
-                  type="button"
-                  class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-                  @click="insert('[!skill](xxxx/skill.md)')"
-                >
-                  插入 skill 示例
-                </button>
-                <p v-else class="px-3 py-2 text-sm text-muted-foreground">没有匹配的操作</p>
+                <SkillSearchPanel
+                  :workspace-id="workspaceId"
+                  :query="query"
+                  @select="insertSkillReference($event, insert)"
+                />
               </template>
             </PromptComposer>
           </Transition>

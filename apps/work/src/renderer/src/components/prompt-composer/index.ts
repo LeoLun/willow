@@ -1,5 +1,11 @@
 export { default as PromptComposer } from "./PromptComposer.vue";
-export { defaultComposerTokenRules, skillTokenRule, vueFileTokenRule } from "./default-token-rules";
+export {
+  defaultComposerTokenRules,
+  fileTokenRule,
+  skillTokenRule,
+  vueFileTokenRule,
+} from "./default-token-rules";
+export { serializeFileToken, unescapeFileTokenValue } from "./file-token";
 export { parseComposerContent, serializeComposerSegments } from "./token-parser";
 export type {
   ComposerInsertOptions,

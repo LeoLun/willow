@@ -8,7 +8,7 @@ defineProps<{
 </script>
 
 <template>
-  <span class="inline-flex items-center gap-1 text-primary" :title="path">
+  <span class="inline-flex items-center gap-1 text-blue-500" :title="path">
     <FileIcon class="size-4 shrink-0" />
     <span>{{ fileName }}</span>
   </span>

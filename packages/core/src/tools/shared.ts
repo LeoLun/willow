@@ -3,6 +3,7 @@ import {
   isSensitiveWritePath,
   isWorkspaceMutation,
   pathMatchesAllowedRoot,
+  resolveGlobalSkillsDirectory,
   resolveFromCwd,
 } from "./policy.js";
 import type {
@@ -47,6 +48,7 @@ export async function authorizeMutation(options: {
   toolName: Extract<ToolName, "write" | "edit">;
   input: Record<string, unknown>;
   permissionMode: PermissionMode;
+  agentDir?: ToolRuntimeOptions["agentDir"];
   requestApproval?: ToolApprovalHandler;
   signal?: AbortSignal;
   sandboxPolicy?: ToolRuntimeOptions["sandboxPolicy"];
@@ -55,8 +57,11 @@ export async function authorizeMutation(options: {
   if (await isSensitiveWritePath(options.cwd, options.path, options.sandboxPolicy)) {
     throw new Error(`Sensitive write denied for ${options.path}`);
   }
+  const globalSkillsDirectory = resolveGlobalSkillsDirectory(options.agentDir);
   if (
     (await isWorkspaceMutation(options.cwd, options.path)) ||
+    (globalSkillsDirectory !== undefined &&
+      (await pathMatchesAllowedRoot(options.cwd, options.path, [globalSkillsDirectory]))) ||
     (await pathMatchesAllowedRoot(options.cwd, options.path, options.sandboxPolicy?.allowWrite))
   ) {
     return;
@@ -82,13 +87,17 @@ export async function authorizeRead(options: {
   toolName: Extract<ToolName, "read" | "ls" | "grep" | "find">;
   input: Record<string, unknown>;
   permissionMode: PermissionMode;
+  agentDir?: ToolRuntimeOptions["agentDir"];
   requestApproval?: ToolApprovalHandler;
   sandboxPolicy?: ToolRuntimeOptions["sandboxPolicy"];
   signal?: AbortSignal;
 }): Promise<void> {
   if (options.permissionMode === "full-access") return;
+  const globalSkillsDirectory = resolveGlobalSkillsDirectory(options.agentDir);
   if (
     (await isWorkspaceMutation(options.cwd, options.path)) ||
+    (globalSkillsDirectory !== undefined &&
+      (await pathMatchesAllowedRoot(options.cwd, options.path, [globalSkillsDirectory]))) ||
     (await pathMatchesAllowedRoot(options.cwd, options.path, options.sandboxPolicy?.allowRead)) ||
     (await pathMatchesAllowedRoot(options.cwd, options.path, options.sandboxPolicy?.allowWrite))
   ) {

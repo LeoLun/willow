@@ -149,7 +149,7 @@ function renderEditorContent(value: string): void {
       continue;
     }
     const token = document.createElement("span");
-    token.className = "mx-0.5 inline-flex align-baseline";
+    token.className = "mx-0.5 inline-flex align-middle";
     token.setAttribute("contenteditable", "false");
     token.dataset.tokenSource = segment.source;
     token.dataset.tokenRule = segment.ruleId;
@@ -420,7 +420,7 @@ watch(content, (value) => {
   >
     <div
       v-if="trigger && activePanelSlot"
-      class="absolute right-3 bottom-full left-3 z-50 mb-2 max-h-72 overflow-y-auto rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-lg"
+      class="absolute right-0 bottom-full left-0 z-50 mb-2 max-h-72 overflow-y-auto rounded-[1.75rem] border border-border bg-popover p-3 text-popover-foreground shadow-lg"
       data-slot="prompt-panel"
       @mousedown.prevent
     >

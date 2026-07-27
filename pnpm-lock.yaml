@@ -100,6 +100,9 @@ importers:
       electron-squirrel-startup:
         specifier: ^1.0.1
         version: 1.0.1
+      ignore:
+        specifier: 'catalog:'
+        version: 7.0.5
       katex:
         specifier: ^0.17.0
         version: 0.17.0

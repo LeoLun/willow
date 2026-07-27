@@ -1,5 +1,6 @@
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -242,6 +243,110 @@ describe("filesystem tools", () => {
     );
   });
 
+  it("allows read-only tools inside global skills without allowing symlink escapes", async () => {
+    const parent = await temporaryDirectory("willow-global-skills-read-");
+    const cwd = join(parent, "workspace");
+    const agentDir = join(parent, "global-agent");
+    const skillsDirectory = join(agentDir, "skills");
+    const outside = join(parent, "outside");
+    await mkdir(cwd);
+    await mkdir(skillsDirectory, { recursive: true });
+    await mkdir(outside);
+    await writeFile(join(skillsDirectory, "example.txt"), "Needle\n", "utf8");
+    await writeFile(join(outside, "secret.txt"), "secret\n", "utf8");
+    await symlink(outside, join(skillsDirectory, "escape"));
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const runtime = {
+      cwd,
+      agentDir,
+      permissionMode: "request-approval" as const,
+      requestApproval,
+    };
+
+    await createReadTool(runtime).execute("read-global-skill", {
+      path: join(skillsDirectory, "example.txt"),
+    });
+    await createLsTool(runtime).execute("ls-global-skills", { path: skillsDirectory });
+    await createGrepTool(runtime).execute("grep-global-skills", {
+      path: skillsDirectory,
+      pattern: "Needle",
+    });
+    await createFindTool(runtime).execute("find-global-skills", {
+      path: skillsDirectory,
+      pattern: "*.txt",
+    });
+
+    expect(requestApproval).not.toHaveBeenCalled();
+
+    await expect(
+      createReadTool(runtime).execute("read-global-skill-escape", {
+        path: join(skillsDirectory, "escape", "secret.txt"),
+      }),
+    ).rejects.toThrow("Permission denied");
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCallId: "read-global-skill-escape",
+        reason: "outside-workspace-read",
+      }),
+      undefined,
+    );
+  });
+
+  it("allows write tools inside global skills without weakening hard denies", async () => {
+    const parent = await temporaryDirectory("willow-global-skills-write-");
+    const cwd = join(parent, "workspace");
+    const agentDir = join(parent, "global-agent");
+    const skillsDirectory = join(agentDir, "skills");
+    const outside = join(parent, "outside");
+    await mkdir(cwd);
+    await mkdir(skillsDirectory, { recursive: true });
+    await mkdir(outside);
+    await symlink(outside, join(skillsDirectory, "escape"));
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const runtime = {
+      cwd,
+      agentDir,
+      permissionMode: "request-approval" as const,
+      requestApproval,
+    };
+    const skillPath = join(skillsDirectory, "custom", "SKILL.md");
+
+    await createWriteTool(runtime).execute("write-global-skill", {
+      path: skillPath,
+      content: "name: custom\n",
+    });
+    await createEditTool(runtime).execute("edit-global-skill", {
+      path: skillPath,
+      edits: [{ oldText: "custom", newText: "customized" }],
+    });
+
+    expect(await readFile(skillPath, "utf8")).toBe("name: customized\n");
+    expect(requestApproval).not.toHaveBeenCalled();
+
+    await expect(
+      createWriteTool(runtime).execute("write-global-skill-escape", {
+        path: join(skillsDirectory, "escape", "outside.txt"),
+        content: "blocked",
+      }),
+    ).rejects.toThrow("Permission denied");
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCallId: "write-global-skill-escape",
+        reason: "outside-workspace-write",
+      }),
+      undefined,
+    );
+
+    requestApproval.mockClear();
+    await expect(
+      createWriteTool(runtime).execute("write-global-skill-secret", {
+        path: join(skillsDirectory, "custom", ".env"),
+        content: "SECRET=value\n",
+      }),
+    ).rejects.toThrow("Sensitive write denied");
+    expect(requestApproval).not.toHaveBeenCalled();
+  });
+
   it("hard-blocks sensitive writes in sandboxed modes", async () => {
     const cwd = await temporaryDirectory("willow-sensitive-write-");
     const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
@@ -297,6 +402,51 @@ describe("bash tool", () => {
       );
       expect(result.content).toEqual([{ type: "text", text: "sandboxed" }]);
       expect(result.details).toMatchObject({ kind: "bash", sandboxed: true, exitCode: 0 });
+    },
+  );
+
+  const globalSkillsDirectory = join(homedir(), ".willow", "skills");
+  it.runIf(process.platform === "darwin" && existsSync(globalSkillsDirectory))(
+    "reads the global Willow skills directory through sandbox-exec",
+    async () => {
+      const cwd = await temporaryDirectory("willow-bash-global-skills-");
+      const result = await createBashTool({
+        cwd,
+        agentDir: ".willow",
+        permissionMode: "request-approval",
+      }).execute("bash-global-skills", {
+        command: `test -r ${JSON.stringify(globalSkillsDirectory)} && printf 'skills-readable'`,
+      });
+
+      expect(result.content).toEqual([{ type: "text", text: "skills-readable" }]);
+      expect(result.details).toMatchObject({ kind: "bash", sandboxed: true, exitCode: 0 });
+    },
+  );
+
+  it.runIf(process.platform === "darwin")(
+    "writes custom global skills through sandbox-exec",
+    async () => {
+      const root = await workspaceTemporaryDirectory(".willow-global-skills-write-");
+      const cwd = join(root, "workspace");
+      const agentDir = join(root, "global-agent");
+      const skillsDirectory = join(agentDir, "skills");
+      const skillPath = join(skillsDirectory, "custom", "SKILL.md");
+      await mkdir(cwd);
+      await mkdir(skillsDirectory, { recursive: true });
+      const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+
+      const result = await createBashTool({
+        cwd,
+        agentDir,
+        permissionMode: "request-approval",
+        requestApproval,
+      }).execute("bash-write-global-skill", {
+        command: `mkdir -p ${JSON.stringify(join(skillsDirectory, "custom"))} && printf 'name: custom\\n' > ${JSON.stringify(skillPath)}`,
+      });
+
+      expect(result.details).toMatchObject({ kind: "bash", sandboxed: true, exitCode: 0 });
+      expect(await readFile(skillPath, "utf8")).toBe("name: custom\n");
+      expect(requestApproval).not.toHaveBeenCalled();
     },
   );
 

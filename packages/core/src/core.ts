@@ -37,6 +37,10 @@ export class AgentCore {
     return model;
   }
 
+  async getSkills() {
+    return await this.loader.reloadSkills();
+  }
+
   async getAgentHarness(options: AgentHarnessOptions) {
     const permissionMode = options.permissionMode ?? "request-approval";
     if (permissionMode !== "full-access" && process.platform !== "darwin") {
@@ -56,6 +60,7 @@ export class AgentCore {
       thinkingLevel: "high",
       tools: createWillowTools({
         cwd: this.cwd,
+        agentDir: this.agentDir,
         permissionMode,
         requestApproval: options.requestApproval,
         sandboxPolicy: options.sandboxPolicy,

@@ -6,6 +6,7 @@ import { calculateDefaultWindowBounds } from "./default-window-bounds";
 const option: WindowMetadata = {
   options: {
     minWidth: 1200,
+    minHeight: 800,
     titleBarStyle: "hiddenInset",
     trafficLightPosition: {
       x: 20,

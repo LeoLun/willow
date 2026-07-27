@@ -28,8 +28,9 @@
 1. **默认最小权限**：未指定模式时使用 `request-approval`。
 2. **沙箱优先**：非完全访问模式下，`bash` 通过 `@carderne/sandbox-runtime` 在 macOS
    `sandbox-exec` 中执行。
-3. **读写边界明确**：只读工具默认只能无提示地读取当前工作区；`write` 和 `edit` 默认只能
-   无提示地修改当前工作区。
+3. **读写边界明确**：文件工具和 shell 沙箱默认可读写当前工作区，以及由
+   `AgentCore.agentDir` 解析出的全局 `skills` 目录（默认 `~/.willow/skills`），以支持管理
+   自定义全局技能。
 4. **防止路径伪装**：工作区判断使用 canonical path，并检查最近存在的父目录，避免通过符号链接
    或尚未创建的路径绕过边界。
 5. **单次授权**：AI 或用户批准只对当前工具调用有效，不产生会话白名单或永久规则。
@@ -133,10 +134,10 @@ type ToolApprovalRequest = {
 | `bash` 请求未允许域名 | 允许该域名后在沙箱内重跑 | AI 通过后按域名重跑，否则转用户审批 | 不经过沙箱 |
 | `bash` 写入可识别的未允许路径 | 允许该路径后在沙箱内重跑 | AI 通过后按路径重跑，否则转用户审批 | 不经过沙箱 |
 | `bash` 未知沙箱拒绝 | 失败，不提供裸跑 | 失败，不提供裸跑 | 不经过沙箱 |
-| `write/edit` 工作区内写入 | 直接执行 | 直接执行 | 直接执行 |
+| `write/edit` 工作区或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区外写入 | 执行前弹窗 | AI 通过后写入，否则转用户审批 | 直接执行 |
 | `write/edit` 敏感目标 | 硬拒绝 | 硬拒绝 | 直接执行 |
-| `read/ls/grep/find` 工作区内读取 | 直接读取 | 直接读取 | 直接读取 |
+| `read/ls/grep/find` 工作区或全局技能目录内读取 | 直接读取 | 直接读取 | 直接读取 |
 | `read/ls/grep/find` 工作区外读取 | 执行前弹窗 | AI 通过后读取，否则转用户审批 | 直接读取 |
 | 缺少审批回调 | 拒绝逃逸 | 拒绝逃逸 | 不需要回调 |
 | 非 macOS 平台 | 创建任务失败 | 创建任务失败 | 可使用 |
@@ -151,14 +152,19 @@ type ToolApprovalRequest = {
 非 `full-access` 模式通过 `@carderne/sandbox-runtime` 生成 macOS Seatbelt Profile，并启动
 受控 HTTP/SOCKS 代理。基础策略为：
 
-- 用户主目录默认禁止读取，再放行 canonical workspace、系统临时目录和明确配置路径；
-- 写入只允许 canonical workspace、系统临时目录和明确配置路径；
+- 用户主目录默认禁止读取，再只读放行 canonical workspace、系统临时目录、由
+  `AgentCore.agentDir` 解析出的全局 `skills` 目录（默认 `~/.willow/skills`）和明确配置路径；
+- 写入只允许 canonical workspace、系统临时目录、全局 `skills` 目录和明确配置路径；
 - `.env`、`.env.*`、`*.pem`、`*.key` 及 runtime mandatory deny 路径禁止写入；
 - 网络采用域名 allowlist，未匹配域名由 runtime ask callback 报告并拒绝；
 - Apple Events、浏览器进程能力、弱嵌套沙箱和弱网络隔离默认关闭。
 
 `SandboxManager` 是进程级单例，因此 Core 将沙箱初始化、命令执行和 reset 串行化，防止并发
 Harness 的工作区策略互相覆盖。
+
+`AgentCore` 将实例字段 `agentDir` 传入工具运行时。相对路径按用户主目录解析，绝对路径保持其
+绝对位置，沙箱再在解析后的全局 Agent 目录下追加 `skills` 作为只读白名单；Core 不在沙箱实现中
+重复写死默认目录名。
 
 ### 6.2 资源拒绝与沙箱内重跑
 
@@ -207,7 +213,8 @@ Harness 的工作区策略互相覆盖。
 4. 将尚未存在的剩余路径重新附加到 canonical parent；
 5. 将结果与工作区的 canonical path 比较。
 
-只有目标位于工作区 canonical path 或显式 `allowWrite` 根内时，才允许无提示写入。
+只有目标位于工作区 canonical path、由 `agentDir` 解析出的全局 `skills` 目录或显式
+`allowWrite` 根内时，才允许无提示写入。
 
 这同时覆盖：
 
@@ -215,6 +222,9 @@ Harness 的工作区策略互相覆盖。
 - 绝对路径写出工作区；
 - 工作区内符号链接指向外部目录；
 - 目标尚未创建，但最近存在的父目录位于工作区外。
+
+全局技能目录沿用相同的 canonical path 判断，目录内指向外部位置的符号链接不会获得写权限。
+`.env`、私钥等敏感写入模式也会同时应用于工作区和全局技能目录。
 
 ### 7.2 写入时序
 
@@ -241,7 +251,7 @@ Harness 的工作区策略互相覆盖。
 
 1. 解析目标文件、目录或搜索根；
 2. 通过最近存在父目录和 `realpath()` 得到 canonical path；
-3. 工作区、`allowRead` 或 `allowWrite` 根内直接读取；
+3. 工作区、由 `agentDir` 解析出的全局 `skills` 目录、`allowRead` 或 `allowWrite` 根内直接读取；
 4. 其他路径构造 `outside-workspace-read` 审批；
 5. 获批只允许当前工具调用继续，不保存规则。
 
@@ -253,7 +263,9 @@ Harness 的工作区策略互相覆盖。
 - `grep` 跳过包含 NUL 字节的二进制文件；
 - 搜索与读取仍支持 `AbortSignal` 和统一输出截断。
 
-`.gitignore` 只影响搜索结果，不是安全边界，也不阻止显式 `read`。
+全局技能目录使用与其他允许根相同的 canonical path 比较，因此该目录内指向外部位置的符号链接
+仍视为越界读取并要求单次审批。`.gitignore` 只影响搜索结果，不是安全边界，也不阻止显式
+`read`。
 
 ## 9. 端到端权限传递
 

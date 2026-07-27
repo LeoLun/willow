@@ -8,6 +8,7 @@ import { GetConfiguredProvidersController } from "./controllers/credential/get-c
 import { GetCredentialController } from "./controllers/credential/get.credential.controller";
 import { SetCredentialController } from "./controllers/credential/set.credential.controller";
 import { EventController } from "./controllers/event.controller";
+import { SearchFilesController } from "./controllers/file-search/search.file-search.controller";
 import { GetMessageListController } from "./controllers/message/get-list.message.controller";
 import { ResolveToolApprovalController } from "./controllers/message/resolve-tool-approval.message.controller";
 import { SendMessageController } from "./controllers/message/send.message.controller";
@@ -15,6 +16,7 @@ import { StopMessageController } from "./controllers/message/stop.message.contro
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { GetSessionListController } from "./controllers/session/get-list.session.controller";
+import { GetSkillListController } from "./controllers/skill/get-list.skill.controller";
 import { GetStatisticsController } from "./controllers/statistics/get.statistics.controller";
 import { SetThemeController } from "./controllers/theme/set.theme.controller";
 import { GetUserConfigController } from "./controllers/user-config/get.user-config.controller";
@@ -36,10 +38,12 @@ import { UserConfigDao } from "./service/dao/user-config.dao.server";
 import { WorkspaceDao } from "./service/dao/workspace.dao.server";
 import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
+import { FileSearchService } from "./service/file-search.service";
 import { MessageService } from "./service/message.service";
 import { ProviderCatalogService } from "./service/provider-catalog.service";
 import { SessionManagerFactory } from "./service/session-manager.factory";
 import { SessionService } from "./service/session.service";
+import { SkillService } from "./service/skill.service";
 import { StatisticsService } from "./service/statistics.service";
 import { TitleService } from "./service/title.service";
 import { ToolApprovalService } from "./service/tool-approval.service";
@@ -69,9 +73,11 @@ if (started) {
     AgentService,
     AiToolApprovalService,
     SessionService,
+    SkillService,
     TitleService,
     CredentialService,
     EventService,
+    FileSearchService,
     MessageService,
     ToolApprovalService,
     ProviderCatalogService,
@@ -80,6 +86,7 @@ if (started) {
   ],
   controllers: [
     EventController,
+    SearchFilesController,
     GetAppInfoController,
     SetThemeController,
     GetProviderCatalogController,
@@ -91,6 +98,7 @@ if (started) {
     SetUserConfigController,
     CreateSessionController,
     GetSessionListController,
+    GetSkillListController,
     GetStatisticsController,
     SendMessageController,
     StopMessageController,

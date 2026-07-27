@@ -1,12 +1,12 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const sandbox = vi.hoisted(() => {
   let config: {
     network: { allowedDomains: string[] };
-    filesystem: { allowWrite: string[] };
+    filesystem: { allowRead: string[]; allowWrite: string[]; denyWrite: string[] };
   };
   let ask: ((input: { host: string; port?: number }) => Promise<boolean>) | undefined;
   const configs: (typeof config)[] = [];
@@ -31,6 +31,12 @@ const sandbox = vi.hoisted(() => {
           return `printf 'bash: ${path}: Operation not permitted\\n' >&2; exit 1`;
         }
         return `printf 'allowed' > ${JSON.stringify(path)}`;
+      }
+      if (command.startsWith("read-attempt:")) {
+        const path = command.slice("read-attempt:".length);
+        return config.filesystem.allowRead.includes(path)
+          ? "printf 'allowed'"
+          : `printf 'bash: ${path}: Operation not permitted\\n' >&2; exit 1`;
       }
       return "printf 'Operation not permitted' >&2; exit 1";
     }),
@@ -78,6 +84,31 @@ async function workspaceTemporaryDirectory(prefix: string): Promise<string> {
 }
 
 describe("bash sandbox policy", () => {
+  it("allows read and write access to the global Willow skills directory", async () => {
+    const cwd = await temporaryDirectory("willow-global-skills-policy-");
+    const agentDir = ".custom-willow";
+    const globalSkillsDirectory = join(homedir(), agentDir, "skills");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
+    const result = await createBashTool({
+      cwd,
+      agentDir,
+      permissionMode: "request-approval",
+      requestApproval,
+    }).execute("global-skills", {
+      command: `read-attempt:${globalSkillsDirectory}`,
+    });
+
+    expect(sandbox.configs).toHaveLength(1);
+    expect(sandbox.configs[0].filesystem.allowRead).toContain(globalSkillsDirectory);
+    expect(sandbox.configs[0].filesystem.allowWrite).toContain(globalSkillsDirectory);
+    expect(sandbox.configs[0].filesystem.denyWrite).toContain(
+      join(globalSkillsDirectory, "**", ".env"),
+    );
+    expect(requestApproval).not.toHaveBeenCalled();
+    expect(result.content).toEqual([{ type: "text", text: "allowed" }]);
+    expect(result.details.sandboxed).toBe(true);
+  });
+
   it("approves one domain and retries inside the expanded sandbox", async () => {
     const cwd = await temporaryDirectory("willow-domain-policy-");
     const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");

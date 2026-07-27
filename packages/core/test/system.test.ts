@@ -1,7 +1,7 @@
 import type { Skill } from "@earendil-works/pi-agent-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SystemPromptOptions } from "../src/types";
 import { getSystemPrompt } from "../src/prompt/system";
+import type { SystemPromptOptions } from "../src/types";
 
 function createOptions(overrides: Partial<SystemPromptOptions> = {}): SystemPromptOptions {
   return {
@@ -76,6 +76,13 @@ describe("getSystemPrompt", () => {
     expect(prompt).toContain("# Language");
     expect(prompt).toContain("Write in the language used by the user's most recent request");
     expect(prompt).toContain("# Prompt and Tool Use");
+    expect(prompt).toContain("# Built-in Tools");
+    expect(prompt).toContain("`find` locates files by glob pattern");
+    expect(prompt).toContain("`grep` searches text with a regular expression by default");
+    expect(prompt).toContain(
+      "`edit` changes an existing file using one or more exact replacements",
+    );
+    expect(prompt).toContain("An approval applies to the current tool call only");
     expect(prompt).toContain("# General Guidelines for Coding");
     expect(prompt).toContain("# General Guidelines for Research and Data Processing");
     expect(prompt).toContain("# Context Management");

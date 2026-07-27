@@ -51,6 +51,34 @@ export interface GetProviderCatalogResponse {
   providers: ProviderInfo[];
 }
 
+export interface SkillInfo {
+  name: string;
+  description: string;
+  filePath: string;
+}
+
+export interface GetSkillListRequest {
+  workspaceId: number;
+}
+
+export interface GetSkillListResponse {
+  skills: SkillInfo[];
+}
+
+export interface FileSearchItem {
+  name: string;
+  relativePath: string;
+}
+
+export interface SearchFilesRequest {
+  workspaceId: number;
+  query: string;
+}
+
+export interface SearchFilesResponse {
+  files: FileSearchItem[];
+}
+
 export interface GetCredentialRequest {
   providerId: string;
 }

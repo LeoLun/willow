@@ -7,6 +7,7 @@ import {
   defaultComposerTokenRules,
   parseComposerContent,
   PromptComposer,
+  serializeFileToken,
   type ComposerModelOption,
   serializeComposerSegments,
   type ComposerSubmitPayload,
@@ -114,6 +115,46 @@ describe("prompt composer token parser", () => {
     expect(serializeComposerSegments(segments)).toBe(source);
   });
 
+  it("parses real skill paths with an uppercase SKILL.md filename", () => {
+    const source = "[!skill](/workspace/.willow/skills/review/SKILL.md)";
+    const segments = parseComposerContent(source, defaultComposerTokenRules);
+
+    expect(segments).toEqual([
+      expect.objectContaining({
+        type: "token",
+        ruleId: "skill",
+        source,
+      }),
+    ]);
+    expect(serializeComposerSegments(segments)).toBe(source);
+  });
+
+  it("serializes and parses arbitrary workspace file tokens", () => {
+    const source = serializeFileToken("draft]file", "docs/Guide (draft)>/README");
+    const segments = parseComposerContent(source, defaultComposerTokenRules);
+
+    expect(source).toBe("[draft\\]file](<docs/Guide (draft)\\>/README>)");
+    expect(segments).toEqual([
+      expect.objectContaining({
+        type: "token",
+        ruleId: "file",
+        source,
+        props: {
+          fileName: "draft]file",
+          path: "docs/Guide (draft)>/README",
+        },
+      }),
+    ]);
+    expect(serializeComposerSegments(segments)).toBe(source);
+  });
+
+  it("does not treat HTTP links as workspace file tokens", () => {
+    const source = "[OpenAI](<https://openai.com/docs>)";
+    expect(parseComposerContent(source, defaultComposerTokenRules)).toEqual([
+      { type: "text", content: source },
+    ]);
+  });
+
   it("uses rule order for overlapping matches and ignores zero-length rules", () => {
     const component = { render: () => null };
     const first: ComposerTokenRule = {
@@ -214,6 +255,7 @@ describe("PromptComposer", () => {
 
     expect(token.textContent).toContain("work.vue");
     expect(token.getAttribute("contenteditable")).toBe("false");
+    expect(token.classList.contains("align-middle")).toBe(true);
     expect(serializeComposerDom(editor)).toBe("Open [work.vue](src/work.vue)");
   });
 

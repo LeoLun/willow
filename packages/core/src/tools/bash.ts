@@ -142,6 +142,7 @@ async function runShell(options: {
 async function runSandboxedShell(options: {
   command: string;
   cwd: string;
+  agentDir?: string;
   timeout?: number;
   policy: ToolRuntimeOptions["sandboxPolicy"];
   grants: SandboxGrants;
@@ -151,6 +152,7 @@ async function runSandboxedShell(options: {
   return await withPreparedSandbox(
     {
       cwd: options.cwd,
+      agentDir: options.agentDir,
       command: options.command,
       policy: options.policy,
       grants: options.grants,
@@ -264,6 +266,7 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
         result = await runSandboxedShell({
           command: input.command,
           cwd: this.options.cwd,
+          agentDir: this.options.agentDir,
           timeout: input.timeout,
           policy: this.options.sandboxPolicy,
           grants,

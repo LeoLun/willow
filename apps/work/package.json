@@ -44,6 +44,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "electron-squirrel-startup": "^1.0.1",
+    "ignore": "catalog:",
     "katex": "^0.17.0",
     "lucide-vue-next": "^0.473.0",
     "pinia": "^3.0.4",

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { defaultComposerTokenRules } from "@/components/prompt-composer";
 import ContentBlocks from "../blocks/ContentBlocks.vue";
 import type { Message } from "../types";
 
@@ -17,7 +18,7 @@ const props = defineProps<{
     <div
       class="flex max-w-[85%] flex-col gap-2 rounded-2xl bg-primary px-3 py-3 text-sm text-primary-foreground"
     >
-      <ContentBlocks :message="props.message" />
+      <ContentBlocks :message="props.message" :token-rules="defaultComposerTokenRules" />
     </div>
   </article>
 </template>

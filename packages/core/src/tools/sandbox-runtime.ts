@@ -5,7 +5,11 @@ import {
   type SandboxRuntimeConfig,
   type SandboxViolationEvent,
 } from "@carderne/sandbox-runtime";
-import { sandboxDenyWritePatterns, sandboxPolicyPaths } from "./policy.js";
+import {
+  resolveGlobalSkillsDirectory,
+  sandboxDenyWritePatterns,
+  sandboxPolicyPaths,
+} from "./policy.js";
 import type { SandboxPolicy } from "./types.js";
 
 let sandboxRuntimeTail: Promise<void> = Promise.resolve();
@@ -34,7 +38,11 @@ export function createSandboxRuntimeConfig(
   cwd: string,
   policy: SandboxPolicy | undefined,
   grants: SandboxGrants,
+  agentDir?: string,
 ): SandboxRuntimeConfig {
+  const canonicalHome = canonicalDirectory(homedir());
+  const globalSkillsDirectory = resolveGlobalSkillsDirectory(agentDir);
+
   return {
     network: {
       allowedDomains: unique([...(policy?.allowedDomains ?? []), ...grants.domains]),
@@ -44,20 +52,26 @@ export function createSandboxRuntimeConfig(
       allowUnauthenticatedSocksProxy: false,
     },
     filesystem: {
-      denyRead: [canonicalDirectory(homedir())],
+      denyRead: [canonicalHome],
       allowRead: unique([
         canonicalDirectory(cwd),
         canonicalDirectory(tmpdir()),
+        ...(globalSkillsDirectory ? [globalSkillsDirectory] : []),
         ...sandboxPolicyPaths(cwd, policy?.allowRead),
         ...grants.readPaths,
       ]),
       allowWrite: unique([
         canonicalDirectory(cwd),
         canonicalDirectory(tmpdir()),
+        ...(globalSkillsDirectory ? [globalSkillsDirectory] : []),
         ...sandboxPolicyPaths(cwd, policy?.allowWrite),
         ...grants.writePaths,
       ]),
-      denyWrite: sandboxDenyWritePatterns(cwd, policy),
+      denyWrite: sandboxDenyWritePatterns(
+        cwd,
+        policy,
+        globalSkillsDirectory ? [globalSkillsDirectory] : [],
+      ),
     },
     enableWeakerNestedSandbox: false,
     enableWeakerNetworkIsolation: false,
@@ -69,6 +83,7 @@ export function createSandboxRuntimeConfig(
 export async function withPreparedSandbox<T>(
   options: {
     cwd: string;
+    agentDir?: string;
     command: string;
     policy?: SandboxPolicy;
     grants: SandboxGrants;
@@ -88,7 +103,7 @@ export async function withPreparedSandbox<T>(
   violationStore.clear();
   try {
     await SandboxManager.initialize(
-      createSandboxRuntimeConfig(options.cwd, options.policy, options.grants),
+      createSandboxRuntimeConfig(options.cwd, options.policy, options.grants, options.agentDir),
       async ({ host }) => {
         deniedDomains.push(host);
         return false;

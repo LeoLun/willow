@@ -61,9 +61,11 @@ Maintain these invariants:
 - In `request-approval` and `delegate-approval`, execute the complete command with macOS
   `sandbox-exec` through `@carderne/sandbox-runtime`.
 - Deny reads below the user home directory by default, then re-allow the canonical workspace,
-  system temporary directory, and explicitly configured or one-call-approved paths.
-- Write only below the canonical workspace, system temporary directory, and explicitly configured
-  or one-call-approved paths. Sensitive write patterns must remain hard-blocked.
+  system temporary directory, the global skills directory derived from `agentDir`, and explicitly
+  configured or one-call-approved paths.
+- Write only below the canonical workspace, system temporary directory, the global skills
+  directory derived from `agentDir`, and explicitly configured or one-call-approved paths.
+  Sensitive write patterns must remain hard-blocked.
 - Route network traffic through the runtime proxy and enforce exact-domain allowlists.
 - When a blocked domain or identifiable write path is approved, add only that resource to the
   current tool call's in-memory grants and rerun the complete command inside the expanded sandbox.
@@ -86,7 +88,7 @@ and documentation updates.
 - Resolve relative paths from the workspace and compare canonical paths.
 - Resolve the nearest existing parent so nonexistent targets cannot evade checks.
 - Treat workspace symlinks pointing outside the workspace as outside-workspace writes.
-- Allow workspace-contained writes without prompting.
+- Allow workspace-contained and global-skills-contained writes without prompting.
 - In `request-approval`, require a one-time approval before an outside-workspace write.
 - In `delegate-approval`, delegate the outside-workspace decision through the approval callback.
 - Serialize mutations to the same resolved absolute path within the process.
@@ -96,9 +98,9 @@ and documentation updates.
 ### Read-only tools
 
 In non-full-access modes, `read`, `ls`, `grep`, and `find` must authorize their target or search
-root before reading. Workspace paths and explicitly configured `allowRead`/`allowWrite` roots are
-allowed; other paths require one-call approval. Canonicalize paths so symlink escapes cannot bypass
-the boundary.
+root before reading. Workspace paths, the global skills directory derived from `agentDir`, and
+explicitly configured `allowRead`/`allowWrite` roots are allowed; other paths require one-call
+approval. Canonicalize paths so symlink escapes cannot bypass the boundary.
 
 - `read` supports 1-indexed offsets and line limits, with the common 2000-line/50KB bound.
 - `ls` lists only direct children in deterministic order.

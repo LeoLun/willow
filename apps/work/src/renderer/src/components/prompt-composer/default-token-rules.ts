@@ -1,6 +1,17 @@
+import { unescapeFileTokenValue } from "./file-token";
 import PromptFileToken from "./PromptFileToken.vue";
 import PromptSkillToken from "./PromptSkillToken.vue";
 import type { ComposerTokenRule } from "./types";
+
+export const fileTokenRule: ComposerTokenRule = {
+  id: "file",
+  pattern: /\[((?:\\.|[^\]\\\r\n])*)\]\(<((?![a-z][a-z0-9+.-]*:\/\/)(?:\\.|[^>\\\r\n])+)>\)/gi,
+  component: PromptFileToken,
+  createProps: (match) => ({
+    fileName: unescapeFileTokenValue(match[1] ?? ""),
+    path: unescapeFileTokenValue(match[2] ?? ""),
+  }),
+};
 
 export const vueFileTokenRule: ComposerTokenRule = {
   id: "vue-file",
@@ -11,9 +22,9 @@ export const vueFileTokenRule: ComposerTokenRule = {
 
 export const skillTokenRule: ComposerTokenRule = {
   id: "skill",
-  pattern: /\[!skill\]\(([^)\r\n]*skill\.md)\)/g,
+  pattern: /\[!([^\]\r\n]+)\]\(([^)\r\n]*skill\.md)\)/gi,
   component: PromptSkillToken,
-  createProps: (match) => ({ path: match[1] ?? "" }),
+  createProps: (match) => ({ skillName: match[1] ?? "", path: match[2] ?? "" }),
 };
 
-export const defaultComposerTokenRules = [vueFileTokenRule, skillTokenRule] as const;
+export const defaultComposerTokenRules = [fileTokenRule, vueFileTokenRule, skillTokenRule] as const;

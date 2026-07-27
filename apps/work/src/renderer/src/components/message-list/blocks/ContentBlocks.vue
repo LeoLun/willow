@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import type { ComposerTokenRule } from "@/components/prompt-composer";
+import TokenizedText from "@/components/prompt-composer/TokenizedText.vue";
 import { getImageSource } from "../message";
 import type { Message } from "../types";
 import MarkdownBlock from "./MarkdownBlock.vue";
@@ -10,10 +12,12 @@ import UnknownBlock from "./UnknownBlock.vue";
 interface Props {
   message: Message;
   markdown?: boolean;
+  tokenRules?: readonly ComposerTokenRule[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
   markdown: false,
+  tokenRules: () => [],
 });
 
 const lastTextIndex = computed(() => {
@@ -42,7 +46,12 @@ function isStreamingMarkdown(index: number): boolean {
       class="break-words whitespace-pre-wrap"
       data-content-type="text"
     >
-      {{ content.text }}
+      <TokenizedText
+        v-if="props.tokenRules.length > 0"
+        :content="content.text"
+        :token-rules="props.tokenRules"
+      />
+      <template v-else>{{ content.text }}</template>
     </p>
 
     <img

@@ -107,6 +107,7 @@ export type WillowToolDetails =
 
 export type ToolRuntimeOptions = {
   cwd: string;
+  agentDir?: string;
   permissionMode: PermissionMode;
   requestApproval?: ToolApprovalHandler;
   sandboxPolicy?: SandboxPolicy;

@@ -10,6 +10,12 @@ export function resolveFromCwd(cwd: string, path: string): string {
   return isAbsolute(path) ? resolve(path) : resolve(cwd, path);
 }
 
+export function resolveGlobalSkillsDirectory(agentDir: string | undefined): string | undefined {
+  if (!agentDir) return undefined;
+  const globalAgentDir = isAbsolute(agentDir) ? resolve(agentDir) : resolve(homedir(), agentDir);
+  return join(globalAgentDir, "skills");
+}
+
 export function isPathInside(parent: string, child: string): boolean {
   const path = relative(parent, child);
   return path === "" || (!path.startsWith("..") && !isAbsolute(path));
@@ -81,16 +87,21 @@ export async function isSensitiveWritePath(
   });
 }
 
-export function sandboxDenyWritePatterns(cwd: string, policy?: SandboxPolicy): string[] {
-  const workspacePatterns = DEFAULT_DENY_WRITE_PATTERNS.map((pattern) =>
-    resolve(cwd, "**", pattern),
+export function sandboxDenyWritePatterns(
+  cwd: string,
+  policy?: SandboxPolicy,
+  additionalWritableRoots: readonly string[] = [],
+): string[] {
+  const writableRoots = [resolve(cwd), ...additionalWritableRoots.map((root) => resolve(root))];
+  const defaultPatterns = writableRoots.flatMap((root) =>
+    DEFAULT_DENY_WRITE_PATTERNS.map((pattern) => resolve(root, "**", pattern)),
   );
   return [
-    ...workspacePatterns,
-    ...(policy?.denyWrite ?? []).map((pattern) =>
+    ...defaultPatterns,
+    ...(policy?.denyWrite ?? []).flatMap((pattern) =>
       pattern.includes("/") || isAbsolute(pattern) || pattern.startsWith("~")
-        ? expandPolicyPath(cwd, pattern)
-        : resolve(cwd, "**", pattern),
+        ? [expandPolicyPath(cwd, pattern)]
+        : writableRoots.map((root) => resolve(root, "**", pattern)),
     ),
   ];
 }

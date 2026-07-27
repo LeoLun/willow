@@ -1,8 +1,8 @@
 import { homedir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { loadSkills, type Skill } from "@earendil-works/pi-agent-core";
-import { getSystemPrompt } from "../prompt/system";
 import type { ExecutionEnv } from "@earendil-works/pi-agent-core";
+import { getSystemPrompt } from "../prompt/system";
 import type { AgentsFile } from "../types";
 
 export class DefaultResourceLoader {
@@ -44,15 +44,15 @@ export class DefaultResourceLoader {
       ? this.agentDir
       : join(homedir(), this.agentDir);
     const agentDirName = basename(this.agentDir);
-    const workspaceAgentDir = isAbsolute(this.agentDir)
-      ? join(
-          this.cwd,
-          agentDirName.startsWith(".") ? agentDirName : `.${agentDirName}`,
-        )
+    const workspaceWillowAgentDir = isAbsolute(this.agentDir)
+      ? join(this.cwd, agentDirName.startsWith(".") ? agentDirName : `.${agentDirName}`)
       : join(this.cwd, this.agentDir);
+
+    const workspaceAgentDir = join(this.cwd, ".agents");
 
     const { skills } = await loadSkills(this.env, [
       join(globalAgentDir, "skills"),
+      join(workspaceWillowAgentDir, "skills"),
       join(workspaceAgentDir, "skills"),
     ]);
     this.skills = skills;
@@ -100,10 +100,7 @@ export class DefaultResourceLoader {
 
   private directoriesFromRoot(root: string, cwd: string): string[] {
     const pathFromRoot = relative(root, cwd);
-    if (
-      pathFromRoot === "" ||
-      (!pathFromRoot.startsWith(`..${sep}`) && pathFromRoot !== "..")
-    ) {
+    if (pathFromRoot === "" || (!pathFromRoot.startsWith(`..${sep}`) && pathFromRoot !== "..")) {
       const directories = [root];
       if (pathFromRoot) {
         let current = root;
@@ -128,6 +125,11 @@ export class DefaultResourceLoader {
     if (!this.isInit) {
       await this.reload();
     }
+    return this.skills;
+  }
+
+  async reloadSkills() {
+    await this.loadSkills();
     return this.skills;
   }
 

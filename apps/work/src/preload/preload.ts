@@ -24,6 +24,8 @@ import type {
   GetStatisticsResponse,
   GetSessionListRequest,
   GetSessionListResponse,
+  GetSkillListRequest,
+  GetSkillListResponse,
   GetUserConfigRequest,
   GetUserConfigResponse,
   GetWorkspaceListRequest,
@@ -34,6 +36,8 @@ import type {
   RenameWorkspaceResponse,
   ResolveToolApprovalRequest,
   ResolveToolApprovalResponse,
+  SearchFilesRequest,
+  SearchFilesResponse,
   SendMessageRequest,
   SendMessageResponse,
   SetCredentialRequest,
@@ -62,11 +66,13 @@ import {
   GET_PROVIDER_CATALOG,
   GET_STATISTICS,
   GET_SESSION_LIST,
+  GET_SKILL_LIST,
   GET_USER_CONFIG,
   GET_WORKSPACE_LIST,
   REGISTER_EVENT,
   RENAME_WORKSPACE,
   RESOLVE_TOOL_APPROVAL,
+  SEARCH_FILES,
   SEND_MESSAGE,
   SET_CREDENTIAL,
   SET_THEME,
@@ -131,6 +137,10 @@ const ipcObject: IRenderHook = {
     invoke<CreateSessionRequest, CreateSessionResponse>(CREATE_SESSION, request),
   getSessionList: (request: GetSessionListRequest) =>
     invoke<GetSessionListRequest, GetSessionListResponse>(GET_SESSION_LIST, request),
+  getSkillList: (request: GetSkillListRequest) =>
+    invoke<GetSkillListRequest, GetSkillListResponse>(GET_SKILL_LIST, request),
+  searchFiles: (request: SearchFilesRequest) =>
+    invoke<SearchFilesRequest, SearchFilesResponse>(SEARCH_FILES, request),
   sendMessage: (request: SendMessageRequest) =>
     invoke<SendMessageRequest, SendMessageResponse>(SEND_MESSAGE, request),
   stopMessage: (request: StopMessageRequest) =>

@@ -550,6 +550,33 @@ describe("MessageList", () => {
     );
   });
 
+  it("renders default composer tokens in user message text", async () => {
+    const skillSource =
+      "[!test-global-skill](/Users/test/.willow/skills/test-global-skill/SKILL.md)";
+    const fileSource = "[UserMessage.vue](apps/work/UserMessage.vue)";
+    const container = mountMessageList([
+      {
+        id: "user",
+        sourceKey: "user",
+        role: "user",
+        timestamp: 1,
+        status: "completed",
+        content: [{ type: "text", text: `查看 ${fileSource} 并使用 ${skillSource}` }],
+      },
+    ]);
+    await nextTick();
+
+    const userMessage = container.querySelector("[data-slot=user-message]");
+    const fileToken = userMessage?.querySelector("[data-token-rule=vue-file]");
+    const skillToken = userMessage?.querySelector("[data-token-rule=skill]");
+
+    expect(fileToken?.textContent).toContain("UserMessage.vue");
+    expect(fileToken?.getAttribute("data-token-source")).toBe(fileSource);
+    expect(skillToken?.textContent).toContain("test-global-skill");
+    expect(skillToken?.getAttribute("data-token-source")).toBe(skillSource);
+    expect(userMessage?.textContent).not.toContain("[!test-global-skill]");
+  });
+
   it("renders markdown only for assistant text", async () => {
     const markdown = "# 标题\n\n**加粗**\n\n- 列表\n\n[链接](https://example.com)\n\n`code`";
     const messages: Message[] = [

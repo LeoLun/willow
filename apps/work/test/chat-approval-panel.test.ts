@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getConfiguredProviders: vi.fn(),
   getProviderCatalog: vi.fn(),
   getSessionList: vi.fn(),
+  getSkillList: vi.fn(),
   getUserConfig: vi.fn(),
   removeEventListener: vi.fn(),
   resolveToolApproval: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock("@/lib/ipc", () => ({
     getConfiguredProviders: mocks.getConfiguredProviders,
     getProviderCatalog: mocks.getProviderCatalog,
     getSessionList: mocks.getSessionList,
+    getSkillList: mocks.getSkillList,
     getUserConfig: mocks.getUserConfig,
     resolveToolApproval: mocks.resolveToolApproval,
   },
@@ -72,6 +74,7 @@ beforeEach(() => {
   mocks.getConfiguredProviders.mockResolvedValue({ providerIds: [] });
   mocks.getProviderCatalog.mockResolvedValue({ providers: [] });
   mocks.getSessionList.mockResolvedValue({ sessions: [] });
+  mocks.getSkillList.mockResolvedValue({ skills: [] });
   mocks.getUserConfig.mockResolvedValue({});
   mocks.resolveToolApproval.mockResolvedValue({ resolved: true });
   mocks.waitUntilReady.mockResolvedValue(undefined);
