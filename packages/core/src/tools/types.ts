@@ -1,6 +1,16 @@
 import type { TruncationResult } from "@earendil-works/pi-agent-core";
 
-export const TOOL_NAMES = ["bash", "read", "write", "edit", "ls", "grep", "find"] as const;
+export const TOOL_NAMES = [
+  "bash",
+  "read",
+  "write",
+  "edit",
+  "ls",
+  "grep",
+  "find",
+  "webfetch",
+  "websearch",
+] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
 
@@ -96,6 +106,37 @@ export interface FindToolDetails extends BaseDetails {
   resultLimitReached?: number;
 }
 
+export interface WebFetchToolDetails extends BaseDetails {
+  kind: "webfetch";
+  url: string;
+  finalUrl: string;
+  format: "text" | "markdown" | "html";
+  returnedFormat: "text" | "markdown" | "html";
+  timeoutMs: number;
+  contentType: string;
+  title: string;
+  outputLength: number;
+  fetchStatus: number;
+  wasRetried: boolean;
+  redirectCount: number;
+}
+
+export interface WebSearchResultItem {
+  title: string;
+  url: string;
+  favicon?: string;
+}
+
+export interface WebSearchToolDetails extends BaseDetails {
+  kind: "websearch";
+  query: string;
+  searchDepth: "basic" | "advanced";
+  numResults: number;
+  resultCount: number;
+  hasAnswer: boolean;
+  results: WebSearchResultItem[];
+}
+
 export type WillowToolDetails =
   | BashToolDetails
   | ReadToolDetails
@@ -103,7 +144,9 @@ export type WillowToolDetails =
   | EditToolDetails
   | LsToolDetails
   | GrepToolDetails
-  | FindToolDetails;
+  | FindToolDetails
+  | WebFetchToolDetails
+  | WebSearchToolDetails;
 
 export type ToolRuntimeOptions = {
   cwd: string;
@@ -111,4 +154,5 @@ export type ToolRuntimeOptions = {
   permissionMode: PermissionMode;
   requestApproval?: ToolApprovalHandler;
   sandboxPolicy?: SandboxPolicy;
+  tavilyApiKey?: string;
 };

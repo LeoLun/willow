@@ -41,7 +41,7 @@ afterEach(async () => {
 describe("filesystem tools", () => {
   it("creates every built-in tool through ToolBase-backed factories", () => {
     const tools = createWillowTools({ cwd: process.cwd(), permissionMode: "full-access" });
-    expect(tools).toHaveLength(7);
+    expect(tools).toHaveLength(8);
     expect(tools.every((tool) => tool instanceof ToolBase)).toBe(true);
   });
 

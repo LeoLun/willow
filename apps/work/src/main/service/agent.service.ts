@@ -13,8 +13,9 @@ import type { StatisticsRunSource } from "../db/schema";
 import { CredentialService } from "./credential.service";
 import { SessionManagerFactory } from "./session-manager.factory";
 import { StatisticsService } from "./statistics.service";
+import { TAVILY_CREDENTIAL_ID } from "./tavily.service";
 
-type AgentServiceOptions = Omit<AgentCoreOptions, "models" | "sessionRepo"> & {
+type AgentServiceOptions = Omit<AgentCoreOptions, "models" | "sessionRepo" | "tavilyApiKey"> & {
   workspaceId: number;
   model: Model<any>;
   metadata: SessionMetadata;
@@ -93,7 +94,15 @@ export class AgentService {
     ...options
   }: AgentServiceOptions) {
     const sessionRepo = this.sessionManagerFactory.create(workspaceId);
-    const core = new AgentCore({ ...options, models: this.models, sessionRepo });
+    const credential = await this.credentialService.getCredential(TAVILY_CREDENTIAL_ID);
+    const tavilyApiKey =
+      credential?.type === "api_key" && credential.key?.trim() ? credential.key.trim() : undefined;
+    const core = new AgentCore({
+      ...options,
+      models: this.models,
+      sessionRepo,
+      tavilyApiKey,
+    });
     const harness = await core.getAgentHarness({
       model,
       metadata,

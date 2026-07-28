@@ -16,6 +16,7 @@ export type AgentCoreOptions = {
   models: MutableModels;
   sessionRepo: SessionRepo;
   agentDir?: string;
+  tavilyApiKey?: string;
 };
 
 export type AgentHarnessOptions = {

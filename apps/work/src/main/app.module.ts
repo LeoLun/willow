@@ -18,6 +18,9 @@ import { CreateSessionController } from "./controllers/session/create.session.co
 import { GetSessionListController } from "./controllers/session/get-list.session.controller";
 import { GetSkillListController } from "./controllers/skill/get-list.skill.controller";
 import { GetStatisticsController } from "./controllers/statistics/get.statistics.controller";
+import { DeleteTavilyApiKeyController } from "./controllers/tavily/delete-api-key.tavily.controller";
+import { GetTavilySettingsController } from "./controllers/tavily/get-settings.tavily.controller";
+import { SetTavilyApiKeyController } from "./controllers/tavily/set-api-key.tavily.controller";
 import { SetThemeController } from "./controllers/theme/set.theme.controller";
 import { GetUserConfigController } from "./controllers/user-config/get.user-config.controller";
 import { SetUserConfigController } from "./controllers/user-config/set.user-config.controller";
@@ -45,6 +48,7 @@ import { SessionManagerFactory } from "./service/session-manager.factory";
 import { SessionService } from "./service/session.service";
 import { SkillService } from "./service/skill.service";
 import { StatisticsService } from "./service/statistics.service";
+import { TavilyService } from "./service/tavily.service";
 import { TitleService } from "./service/title.service";
 import { ToolApprovalService } from "./service/tool-approval.service";
 import { UserConfigService } from "./service/user-config.service";
@@ -70,6 +74,7 @@ if (started) {
     UserConfigDao,
     SessionManagerFactory,
     StatisticsService,
+    TavilyService,
     AgentService,
     AiToolApprovalService,
     SessionService,
@@ -100,6 +105,9 @@ if (started) {
     GetSessionListController,
     GetSkillListController,
     GetStatisticsController,
+    GetTavilySettingsController,
+    SetTavilyApiKeyController,
+    DeleteTavilyApiKeyController,
     SendMessageController,
     StopMessageController,
     GetMessageListController,

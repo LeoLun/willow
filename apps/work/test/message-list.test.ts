@@ -672,6 +672,77 @@ describe("MessageList", () => {
     });
   });
 
+  it("renders websearch progress and expands only structured result links", async () => {
+    const messages: Message[] = [
+      {
+        id: "assistant",
+        sourceKey: "assistant",
+        role: "assistant",
+        timestamp: 1,
+        status: "completed",
+        content: [
+          {
+            type: "toolCall",
+            id: "search-call",
+            name: "websearch",
+            arguments: { query: "Willow 最新消息" },
+          },
+        ],
+      },
+      {
+        id: "tool",
+        sourceKey: "tool",
+        role: "toolResult",
+        timestamp: 2,
+        status: "completed",
+        content: [{ type: "text", text: "模型可见的搜索摘要" }],
+        toolCallId: "search-call",
+        toolName: "websearch",
+        details: {
+          msg: "搜索 Willow 最新消息",
+          kind: "websearch",
+          query: "Willow 最新消息",
+          searchDepth: "basic",
+          numResults: 5,
+          resultCount: 2,
+          hasAnswer: true,
+          results: [
+            {
+              title: "Willow 发布新版本",
+              url: "https://example.com/news",
+              favicon: "https://example.com/favicon.ico",
+            },
+            {
+              title: "不安全链接",
+              url: "javascript:alert(1)",
+              favicon: "http://example.com/favicon.ico",
+            },
+          ],
+        },
+      },
+    ];
+    const container = mountMessageList(messages);
+    await nextTick();
+
+    const block = container.querySelector("[data-slot=websearch-result-block]");
+    const trigger = block?.querySelector<HTMLButtonElement>("button");
+    expect(trigger?.textContent).toContain("搜索 Willow 最新消息");
+    expect(trigger?.textContent).toContain("搜索完成");
+    expect(container.textContent).not.toContain("Willow 发布新版本");
+    expect(container.textContent).not.toContain("模型可见的搜索摘要");
+
+    trigger?.click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("Willow 发布新版本");
+    });
+    expect(block?.querySelector("a")?.getAttribute("href")).toBe("https://example.com/news");
+    expect(block?.querySelectorAll("a")).toHaveLength(1);
+    expect(block?.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/favicon.ico",
+    );
+    expect(container.textContent).not.toContain("模型可见的搜索摘要");
+  });
+
   it("pairs a tool call with its result and keeps the call summary collapsed", async () => {
     const messages: Message[] = [
       {

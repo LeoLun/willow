@@ -14,6 +14,7 @@ export class AgentCore {
   private agentDir: string; // 全局目录
   private sessionManager: SessionRepo;
   private loader: DefaultResourceLoader;
+  private tavilyApiKey?: string;
 
   constructor(options: AgentCoreOptions) {
     this.cwd = options.cwd;
@@ -21,6 +22,7 @@ export class AgentCore {
     this.env = new NodeExecutionEnv({ cwd: this.cwd });
     this.models = options.models;
     this.sessionManager = options.sessionRepo;
+    this.tavilyApiKey = options.tavilyApiKey;
 
     this.loader = new DefaultResourceLoader({
       cwd: this.cwd,
@@ -64,6 +66,7 @@ export class AgentCore {
         permissionMode,
         requestApproval: options.requestApproval,
         sandboxPolicy: options.sandboxPolicy,
+        tavilyApiKey: this.tavilyApiKey,
       }),
       systemPrompt: systemPrompt,
       steeringMode: "all",

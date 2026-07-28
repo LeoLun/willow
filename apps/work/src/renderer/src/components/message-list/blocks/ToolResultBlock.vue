@@ -13,7 +13,7 @@ import {
 } from "../tool-display";
 import type { Message, ToolCallContent } from "../types";
 import ContentBlocks from "./ContentBlocks.vue";
-import MarkdownBlock from "./MarkdownBlock.vue";
+import WebSearchResultBlock from "./WebSearchResultBlock.vue";
 
 const props = defineProps<{
   toolCall?: ToolCallContent;
@@ -21,6 +21,15 @@ const props = defineProps<{
 }>();
 
 const open = ref(false);
+const isWebSearch = computed(
+  () =>
+    props.toolCall?.name === "websearch" ||
+    props.result?.toolName === "websearch" ||
+    (typeof props.result?.details === "object" &&
+      props.result.details !== null &&
+      "kind" in props.result.details &&
+      props.result.details.kind === "websearch"),
+);
 const summary = computed(
   () =>
     (props.toolCall
@@ -36,15 +45,19 @@ const iconComponent = computed(() => {
   return formatToolCallIcon(props.toolCall?.name ?? props.result?.toolName ?? "");
 });
 
-console.log("result", props.result);
-
 const formattedDetails = computed(() =>
   props.result?.details === undefined ? undefined : formatToolDetails(props.result.details),
 );
 </script>
 
 <template>
-  <Collapsible v-model:open="open" data-content-type="toolResult" data-slot="tool-result-block">
+  <WebSearchResultBlock v-if="isWebSearch" :tool-call="props.toolCall" :result="props.result" />
+  <Collapsible
+    v-else
+    v-model:open="open"
+    data-content-type="toolResult"
+    data-slot="tool-result-block"
+  >
     <CollapsibleTrigger as-child>
       <button
         type="button"

@@ -155,6 +155,33 @@ export interface DeleteCredentialRequest {
 
 export interface DeleteCredentialResponse {}
 
+export interface TavilyUsageInfo {
+  currentPlan: string;
+  planUsage: number;
+  planLimit: number;
+}
+
+export interface GetTavilySettingsRequest {}
+
+export interface GetTavilySettingsResponse {
+  configured: boolean;
+  usage?: TavilyUsageInfo;
+  usageError?: string;
+}
+
+export interface SetTavilyApiKeyRequest {
+  apiKey: string;
+}
+
+export interface SetTavilyApiKeyResponse {
+  configured: true;
+  usage: TavilyUsageInfo;
+}
+
+export interface DeleteTavilyApiKeyRequest {}
+
+export interface DeleteTavilyApiKeyResponse {}
+
 export interface WorkspaceInfo {
   id: number;
   name: string;

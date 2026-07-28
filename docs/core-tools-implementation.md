@@ -2,7 +2,7 @@
 
 ## 1. 文档定位
 
-本文说明 `packages/core/src/tools/` 中七个内置工具的注册方式、执行流程、输出结构、中止语义和
+本文说明 `packages/core/src/tools/` 中八个内置工具的注册方式、执行流程、输出结构、中止语义和
 权限检查实现。
 
 权限模型的规范性定义仍以
@@ -18,6 +18,7 @@
 - `ls`：列出目录的直接子项；
 - `grep`：递归搜索文件内容；
 - `find`：按 glob 递归查找文件。
+- `webfetch`：抓取 HTTP/S 网页并转换为文本、Markdown 或 HTML。
 
 ## 2. 工具创建与注册
 
@@ -58,6 +59,7 @@ Harness。`full-access` 不依赖该沙箱，可以继续创建。
   createLsTool(options),
   createGrepTool(options),
   createFindTool(options),
+  createWebFetchTool(options),
 ]
 ```
 
@@ -68,7 +70,7 @@ Harness。`full-access` 不依赖该沙箱，可以继续创建。
 - `execute(toolCallId, input, signal, onUpdate?)`；
 - 供 Work App 展示和统计的结构化 `details`。
 
-七个内置工具都继承 `ToolBase`。基类的公共 `execute()` 固定按以下顺序编排调用：
+八个内置工具都继承 `ToolBase`。基类的公共 `execute()` 固定按以下顺序编排调用：
 
 1. 检查 `AbortSignal`；
 2. 使用工具的 TypeBox Schema 校验输入结构；
@@ -80,7 +82,8 @@ Harness。`full-access` 不依赖该沙箱，可以继续创建。
 任一阶段失败时，基类通过 `buildError()` 保留已有 `Error`，或将其他异常值转换为 `Error` 后
 重新抛出。`pi-agent-core` 会将抛出的错误转换为 `isError: true` 的工具结果交给 Agent，不会把
 失败伪装为成功结果。`bash` 的路径和域名权限只能在沙箱执行后确定，因此它的前置权限钩子为空，
-动态拒绝仍通过基类的单次审批辅助方法处理。
+动态拒绝仍通过基类的单次审批辅助方法处理。`webfetch` 在发送初始请求和跟随每一跳重定向前
+执行域名授权，避免自动重定向绕过白名单。
 
 `index.ts` 同时公开导出各工具的输入类型、权限类型和结果详情类型。
 
@@ -99,7 +102,7 @@ type PermissionMode =
 
 | 模式 | Core 内的行为 |
 | --- | --- |
-| `request-approval` | `bash` 沙箱优先；具体域名、读路径或写路径越界时调用审批回调 |
+| `request-approval` | `bash` 沙箱优先；`webfetch` 和具体域名、读路径或写路径越界时调用审批回调 |
 | `delegate-approval` | 与 `request-approval` 使用相同执行边界，同样调用审批回调 |
 | `full-access` | 跳过 Willow 沙箱和工作区读写检查 |
 
@@ -537,7 +540,26 @@ relative/path.ts:12:line content
 
 `find` 在遍历前授权搜索根，工作区外搜索需要一次性审批。
 
-## 12. `grep/find` 共享文件遍历
+## 12. `webfetch`
+
+实现文件：`packages/core/src/tools/webfetch.ts`。
+
+`webfetch` 接收完整 HTTP/S URL、可选的 `text | markdown | html` 格式和不超过 120 秒的超时。
+HTTP URL 在请求前升级为 HTTPS。HTML 可以原样返回，也可以清理为纯文本或通过 Turndown 转换为
+Markdown；非 HTML 响应保持原文本。
+
+在 `request-approval` 和 `delegate-approval` 模式下，工具按规范化后的精确 hostname 检查
+`sandboxPolicy.deniedDomains` 和 `allowedDomains`。拒绝列表优先；不在允许列表中的域名通过
+`network-domain` 请求一次性审批。获批域名只缓存在当前工具调用内。
+
+工具关闭 fetch 自动重定向，最多手动跟随 10 跳。每一跳都在发送请求前重新执行域名授权；跨域
+跳转获批前不会访问目标。重定向阶段的审批设置 `mayHavePartialEffects: true`，因为前序请求已经
+发出。`full-access` 跳过域名策略和审批，但仍保留 URL、超时、重定向和响应大小限制。
+
+响应体按流读取并限制为 5MB，即使服务器不提供可信的 `Content-Length` 也不能绕过限制。
+任务中止和超时通过同一个 fetch `AbortSignal` 终止当前网络请求。
+
+## 13. `grep/find` 共享文件遍历
 
 实现文件：`packages/core/src/tools/search-files.ts`。
 
@@ -564,13 +586,17 @@ relative/path.ts:12:line content
 遍历器在进入目录和处理每个目录项之前检查 AbortSignal。已经发出的单次 `readdir()` 或
 `readFile()` 不能由该检查直接取消，但会在下一检查点终止后续工作。
 
-## 13. 权限决策矩阵
+## 14. 权限决策矩阵
 
 | 工具或行为 | `request-approval` | `delegate-approval` | `full-access` |
 | --- | --- | --- | --- |
 | `bash` 可在沙箱完成 | 沙箱执行 | 沙箱执行 | 直接执行 |
 | `bash` 请求未允许域名/写路径 | 允许该资源后在沙箱内重跑 | AI 或用户允许后在沙箱内重跑 | 不经过沙箱 |
 | `bash` 未知拒绝 | 安全失败 | 安全失败 | 不经过沙箱 |
+| `webfetch` 访问允许域名 | 直接请求 | 直接请求 | 直接请求 |
+| `webfetch` 访问未允许域名 | 请求前调用审批回调 | 请求前调用审批回调 | 直接请求 |
+| `webfetch` 跨域重定向 | 逐跳审批 | 逐跳审批 | 直接跟随 |
+| `webfetch` 访问拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
 | `write/edit` 工作区内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区外写入 | 写入前调用审批回调 | 写入前调用审批回调 | 直接执行 |
 | `write/edit` 敏感路径 | 硬拒绝 | 硬拒绝 | 直接执行 |
@@ -578,11 +604,12 @@ relative/path.ts:12:line content
 | `read/ls/grep/find` 工作区外 | 读取前调用审批回调 | 读取前调用审批回调 | 直接读取 |
 | 缺少审批回调 | 拒绝需要逃逸的调用 | 拒绝需要逃逸的调用 | 不需要回调 |
 
-## 14. 中止与副作用边界
+## 15. 中止与副作用边界
 
 所有工具都接收可选的 AbortSignal，但中止检查是协作式的：
 
 - `bash` 可以主动终止整个 shell 进程组；
+- `webfetch` 通过 fetch `AbortSignal` 终止当前请求和响应读取；
 - 文件和搜索工具在显式检查点观察中止；
 - Node 已经开始的单次文件系统调用通常不能被同步撤销；
 - `write/edit` 在写入完成后才观察到中止时，工具调用可能返回失败，但文件修改已经发生；
@@ -590,7 +617,7 @@ relative/path.ts:12:line content
 
 因此，AbortSignal 保证停止后续执行，但不提供文件事务或副作用回滚。
 
-## 15. 实现边界与注意事项
+## 16. 实现边界与注意事项
 
 1. 只读工具在非完全访问模式下对工作区外路径要求一次性审批。
 2. `delegate-approval` 的 AI 判断不在 Core 内实现，Core 只调用注入的审批 handler。
@@ -602,8 +629,9 @@ relative/path.ts:12:line content
    策略。
 8. 当前沙箱模式只支持 macOS。
 9. Mutation queue 只提供单进程、单路径的串行化，不提供跨进程一致性。
+10. `webfetch` 的域名判断是应用层精确 hostname 白名单；IP 字面量按普通 hostname 处理。
 
-## 16. 测试覆盖
+## 17. 测试覆盖
 
 主要测试位于 `packages/core/test/tools.test.ts`，当前覆盖：
 
@@ -619,8 +647,10 @@ relative/path.ts:12:line content
 - `.gitignore`；
 - `grep` 二进制文件跳过；
 - `find/grep` 的基本结果统计。
+- `webfetch` 三种权限模式、逐跳重定向授权、格式转换、5MB 限制、超时和中止。
 
 资源扩权和未知拒绝回归测试位于
-`packages/core/test/bash-sandbox-policy.test.ts`。
+`packages/core/test/bash-sandbox-policy.test.ts`；网页抓取回归测试位于
+`packages/core/test/webfetch.test.ts`。
 
 工具或权限行为发生变化时，应同步更新本说明、`permission-design.md` 和对应测试。

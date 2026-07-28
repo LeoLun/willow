@@ -23,7 +23,7 @@ const sessionId = computed(() => {
 
 const { timeline, loading } = useSessionMessages(workspaceId, sessionId);
 const messageContentStyle = computed<StyleValue>(() => ({
-  paddingBottom: `${composerHeight.value}px`,
+  paddingBottom: `${composerHeight.value + 32}px`,
 }));
 
 function scrollToBottom(): void {

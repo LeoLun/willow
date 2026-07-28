@@ -5,7 +5,7 @@
 本文描述 Willow Agent 文件工具的权限模型、执行边界、审批链路和失败语义，作为后续扩展工具、
 审查安全边界及排查审批问题的依据。
 
-当前系统默认向 Agent 注册以下七个工具：
+当前系统向 Agent 注册以下九个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
 
 - `bash`：执行 shell 命令；
 - `read`：读取文本文件；
@@ -14,6 +14,8 @@
 - `ls`：列出目录的直接子项；
 - `grep`：搜索文件内容；
 - `find`：按 glob 搜索文件。
+- `webfetch`：抓取 HTTP/S 网页并转换为文本、Markdown 或 HTML。
+- `websearch`：通过固定的 Tavily Search API 查询实时网络信息。
 
 核心实现位于 [`packages/core/src/tools/`](../packages/core/src/tools/)，桌面应用的 AI 初审、用户审批
 服务与界面位于
@@ -93,6 +95,9 @@ type ToolApprovalRequest = {
 这是默认模式。
 
 - `bash` 首先在沙箱中运行；
+- `webfetch` 在每次网络请求前检查严格域名白名单，未允许域名先请求用户批准；
+- `websearch` 仅访问已配置集成的固定域名 `api.tavily.com`，不逐次请求域名批准，但仍硬拒绝
+  `deniedDomains` 中显式禁止的 Tavily 域名；
 - 未允许的网络域名或可识别的写路径被拒绝后，请求用户批准；
 - 用户允许后，只把该域名或路径加入当前调用的临时授权，并在沙箱内完整重跑；
 - `write/edit` 写入工作区外路径前请求批准；
@@ -107,6 +112,8 @@ type ToolApprovalRequest = {
 该模式保留与请求批准相同的初始安全边界，并使用设置中的小模型进行 AI 初审：
 
 - `bash` 仍先在沙箱中执行；
+- `webfetch` 仍在每次请求前执行域名检查，越界域名进入 AI 初审；
+- `websearch` 沿用已配置集成的固定域名授权，不进入 AI 初审，并继续尊重显式域名拒绝；
 - 沙箱拒绝或 `write/edit` 准备写出工作区时，将当前用户消息、工具请求、越界原因和工作区路径
   发送给无工具的小模型；
 - 只有严格、结构化的 AI `allow` 结果才直接放行；
@@ -121,6 +128,8 @@ type ToolApprovalRequest = {
 该模式不应用 Willow 的沙箱或工作区写入检查：
 
 - `bash` 直接通过 `/bin/bash -lc` 执行；
+- `webfetch` 跳过 Willow 域名策略和审批；
+- `websearch` 跳过 Willow 域名策略，只受操作系统和 Tavily 服务端限制；
 - `write/edit` 直接按目标路径写入；
 - 不发起审批。
 
@@ -134,6 +143,12 @@ type ToolApprovalRequest = {
 | `bash` 请求未允许域名 | 允许该域名后在沙箱内重跑 | AI 通过后按域名重跑，否则转用户审批 | 不经过沙箱 |
 | `bash` 写入可识别的未允许路径 | 允许该路径后在沙箱内重跑 | AI 通过后按路径重跑，否则转用户审批 | 不经过沙箱 |
 | `bash` 未知沙箱拒绝 | 失败，不提供裸跑 | 失败，不提供裸跑 | 不经过沙箱 |
+| `webfetch` 请求允许域名 | 直接请求 | 直接请求 | 直接请求 |
+| `webfetch` 请求未允许域名 | 请求前弹窗 | AI 通过后请求，否则转用户审批 | 直接请求 |
+| `webfetch` 跨域重定向 | 逐跳授权 | 逐跳授权 | 直接跟随 |
+| `webfetch` 请求拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
+| `websearch` 请求固定 Tavily 域名 | 配置 Key 后直接请求 | 配置 Key 后直接请求 | 直接请求 |
+| `websearch` 命中拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
 | `write/edit` 工作区或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区外写入 | 执行前弹窗 | AI 通过后写入，否则转用户审批 | 直接执行 |
 | `write/edit` 敏感目标 | 硬拒绝 | 硬拒绝 | 直接执行 |
@@ -266,6 +281,31 @@ Harness 的工作区策略互相覆盖。
 全局技能目录使用与其他允许根相同的 canonical path 比较，因此该目录内指向外部位置的符号链接
 仍视为越界读取并要求单次审批。`.gitignore` 只影响搜索结果，不是安全边界，也不阻止显式
 `read`。
+
+### 8.1 `webfetch` 网络边界
+
+`webfetch` 不通过 shell 沙箱执行，因此在发送每一个请求前直接应用 `SandboxPolicy`：
+
+1. 使用标准 `URL` 解析并将 hostname 规范化为小写精确值；
+2. `deniedDomains` 优先，命中时硬拒绝；
+3. `allowedDomains` 或当前工具调用已批准域名直接放行；
+4. 其他域名构造 `network-domain` 审批；
+5. 获批域名只加入当前 `toolCallId` 的内存集合。
+
+HTTP URL 会在访问前升级为 HTTPS。工具关闭自动重定向并最多手动跟随 10 跳，每个新目标在请求前
+重复上述授权流程；重定向审批设置 `mayHavePartialEffects: true`，因为前序请求已经发出。
+`full-access` 跳过该域名授权，但仍执行 URL、120 秒超时、10 跳重定向和 5MB 响应限制。
+
+### 8.2 `websearch` 网络边界
+
+`websearch` 是显式配置的固定服务集成，只在 `AgentCoreOptions.tavilyApiKey` 为非空时注册。工具
+仅向 `https://api.tavily.com/search` 发送查询，不接受 URL、域名或请求头参数，API Key 只进入
+Bearer Authorization Header，不写入工具输出、details、会话或日志。
+
+保存 Tavily API Key 表示用户授权 Willow 使用该固定服务，因此 `request-approval` 和
+`delegate-approval` 不为每次搜索重复弹出域名审批。两种沙箱模式仍检查
+`SandboxPolicy.deniedDomains`，显式拒绝 `api.tavily.com` 时在发出请求前硬拒绝；`full-access`
+与其他工具一致跳过该策略。搜索保留参数校验、25 秒超时、AbortSignal 和稳定 HTTP 错误语义。
 
 ## 9. 端到端权限传递
 
@@ -418,6 +458,7 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 - 不提供永久白名单、会话规则或“始终允许”；
 - 不提供跨进程文件锁、回滚或事务；
 - `full-access` 不绕过操作系统权限；
+- `webfetch` 的应用层域名授权不是独立主机容器；显式允许的 IP 字面量按普通 hostname 访问；
 - 当前沙箱模式仅支持 macOS，未实现 Linux namespace/seccomp 或 Windows sandbox；
 - 首轮沙箱命令和扩权后沙箱重跑之间不具备原子性。
 - AI 审批是保守的辅助判断，不构成独立安全边界；用户仍可覆盖 AI 拒绝。
@@ -435,7 +476,7 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 
 权限相关变更至少应覆盖：
 
-1. 三种模式下的 `bash` 执行矩阵；
+1. 三种模式下的 `bash` 与 `webfetch` 执行矩阵；
 2. 域名和写路径获批后仅扩展具体资源，并在沙箱内重跑；
 3. 未知沙箱拒绝不会触发通用审批或裸跑；
 4. 工作区内、工作区外和符号链接逃逸的读写；
@@ -447,9 +488,14 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 10. 对话框权限原因、AI 理由、allow、deny 和关闭行为；
 11. 停止任务时 shell、AI 调用、工具和审批等待项的释放；
 12. 真实 macOS runtime 对读取、写入和域名 allowlist 的限制。
+13. `webfetch` 初始请求和跨域重定向逐跳授权、格式转换、大小限制、超时和中止。
+14. `websearch` 的条件注册、固定域名拒绝、Bearer 鉴权、参数校验、响应解析、超时、中止和密钥
+    不泄漏。
 
 Core 测试位于
-[`packages/core/test/tools.test.ts`](../packages/core/test/tools.test.ts)，主进程审批测试位于
+[`packages/core/test/tools.test.ts`](../packages/core/test/tools.test.ts) 和
+[`packages/core/test/webfetch.test.ts`](../packages/core/test/webfetch.test.ts)、
+[`packages/core/test/websearch.test.ts`](../packages/core/test/websearch.test.ts)，主进程审批测试位于
 [`apps/work/test/tool-approval.test.ts`](../apps/work/test/tool-approval.test.ts)。
 
 ## 14. 后续演进建议

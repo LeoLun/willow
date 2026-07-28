@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
   return {
     harnesses,
     fullHarness,
+    coreOptions: [] as unknown[],
     getProvider: vi.fn(() => ({ name: "OpenAI" })),
     getModel: vi.fn(() => ({ name: "GPT" })),
   };
@@ -61,6 +62,9 @@ vi.mock("@earendil-works/pi-ai/providers/all", () => ({
 
 vi.mock("@willow/core", () => ({
   AgentCore: class AgentCore {
+    constructor(options: unknown) {
+      mocks.coreOptions.push(options);
+    }
     async getAgentHarness() {
       return mocks.fullHarness;
     }
@@ -96,6 +100,7 @@ describe("AgentService statistics interception", () => {
   const statisticsService = { startRun, recordUsage } as unknown as StatisticsService;
   const credentialService = {
     getCredentialStore: vi.fn(() => ({})),
+    getCredential: vi.fn(async () => undefined),
   } as unknown as CredentialService;
   const sessionManagerFactory = {
     create: vi.fn(() => ({})),
@@ -104,9 +109,32 @@ describe("AgentService statistics interception", () => {
 
   beforeEach(() => {
     mocks.harnesses.length = 0;
+    mocks.coreOptions.length = 0;
     mocks.fullHarness.listener = undefined;
     startRun.mockReturnValue(11);
     service = new AgentService(credentialService, sessionManagerFactory, statisticsService);
+  });
+
+  it("passes the current Tavily API key only to full AgentCore instances", async () => {
+    vi.mocked(credentialService.getCredential).mockResolvedValueOnce({
+      type: "api_key",
+      key: "  tvly-test  ",
+    });
+
+    await service.getAgentHarness({
+      workspaceId: 2,
+      cwd: "/workspace",
+      model: { id: "gpt" } as never,
+      metadata: { id: "session-2" },
+      permissionMode: "request-approval",
+      requestApproval: vi.fn(async () => "allow"),
+    });
+
+    expect(credentialService.getCredential).toHaveBeenCalledWith("tavily");
+    expect(mocks.coreOptions[0]).toMatchObject({
+      cwd: "/workspace",
+      tavilyApiKey: "tvly-test",
+    });
   });
 
   it("marks full agents as chat tasks and records every assistant response", async () => {

@@ -10,6 +10,8 @@ import type {
   DeleteWorkspaceResponse,
   DeleteCredentialRequest,
   DeleteCredentialResponse,
+  DeleteTavilyApiKeyRequest,
+  DeleteTavilyApiKeyResponse,
   GetAppInfoRequest,
   GetAppInfoResponse,
   GetConfiguredProvidersRequest,
@@ -22,6 +24,8 @@ import type {
   GetProviderCatalogResponse,
   GetStatisticsRequest,
   GetStatisticsResponse,
+  GetTavilySettingsRequest,
+  GetTavilySettingsResponse,
   GetSessionListRequest,
   GetSessionListResponse,
   GetSkillListRequest,
@@ -44,6 +48,8 @@ import type {
   SetCredentialResponse,
   SetThemeRequest,
   SetThemeResponse,
+  SetTavilyApiKeyRequest,
+  SetTavilyApiKeyResponse,
   SetUserConfigRequest,
   SetUserConfigResponse,
   SelectWorkspaceDirectoryRequest,
@@ -56,6 +62,7 @@ import type {
 import {
   CREATE_SESSION,
   DELETE_CREDENTIAL,
+  DELETE_TAVILY_API_KEY,
   CREATE_WORKSPACE,
   DELETE_WORKSPACE,
   EVENT_BUS,
@@ -65,6 +72,7 @@ import {
   GET_MESSAGE_LIST,
   GET_PROVIDER_CATALOG,
   GET_STATISTICS,
+  GET_TAVILY_SETTINGS,
   GET_SESSION_LIST,
   GET_SKILL_LIST,
   GET_USER_CONFIG,
@@ -76,6 +84,7 @@ import {
   SEND_MESSAGE,
   SET_CREDENTIAL,
   SET_THEME,
+  SET_TAVILY_API_KEY,
   SET_USER_CONFIG,
   SELECT_WORKSPACE_DIRECTORY,
   SET_WORKSPACE_PINNED,
@@ -129,6 +138,12 @@ const ipcObject: IRenderHook = {
     invoke<SetCredentialRequest, SetCredentialResponse>(SET_CREDENTIAL, request),
   deleteCredential: (request: DeleteCredentialRequest) =>
     invoke<DeleteCredentialRequest, DeleteCredentialResponse>(DELETE_CREDENTIAL, request),
+  getTavilySettings: (request: GetTavilySettingsRequest = {}) =>
+    invoke<GetTavilySettingsRequest, GetTavilySettingsResponse>(GET_TAVILY_SETTINGS, request),
+  setTavilyApiKey: (request: SetTavilyApiKeyRequest) =>
+    invoke<SetTavilyApiKeyRequest, SetTavilyApiKeyResponse>(SET_TAVILY_API_KEY, request),
+  deleteTavilyApiKey: (request: DeleteTavilyApiKeyRequest = {}) =>
+    invoke<DeleteTavilyApiKeyRequest, DeleteTavilyApiKeyResponse>(DELETE_TAVILY_API_KEY, request),
   getUserConfig: (request: GetUserConfigRequest = {}) =>
     invoke<GetUserConfigRequest, GetUserConfigResponse>(GET_USER_CONFIG, request),
   setUserConfig: (request: SetUserConfigRequest) =>
