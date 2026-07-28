@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
+import type { StyleValue } from "vue";
 import { useRoute } from "vue-router";
 import { MessageList } from "@/components/message-list";
 import { useSessionMessages } from "@/composables/useMessage";
 
 const route = useRoute();
-const messageViewport = ref<HTMLElement>();
+const messageViewport = shallowRef<HTMLElement>();
+const composer = shallowRef<HTMLElement>();
+const composerHeight = ref(0);
+let composerResizeObserver: ResizeObserver | undefined;
 
 const workspaceId = computed(() => {
   const value = Number(route.query.workspaceId);
@@ -18,25 +22,56 @@ const sessionId = computed(() => {
 });
 
 const { timeline, loading } = useSessionMessages(workspaceId, sessionId);
+const messageContentStyle = computed<StyleValue>(() => ({
+  paddingBottom: `${composerHeight.value}px`,
+}));
+
+function scrollToBottom(): void {
+  const viewport = messageViewport.value;
+  if (viewport) viewport.scrollTop = viewport.scrollHeight;
+}
+
+function updateComposerHeight(): void {
+  const root = composer.value;
+  if (!root) return;
+
+  const viewport = messageViewport.value;
+  const wasAtBottom = viewport
+    ? viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= 1
+    : false;
+  const nextHeight = root.offsetHeight;
+  if (composerHeight.value === nextHeight) return;
+
+  composerHeight.value = nextHeight;
+  if (wasAtBottom) void nextTick(scrollToBottom);
+}
 
 watch(timeline, async () => {
   await nextTick();
-  const viewport = messageViewport.value;
-  if (viewport) viewport.scrollTop = viewport.scrollHeight;
+  scrollToBottom();
 });
+
+onMounted(() => {
+  updateComposerHeight();
+  if (typeof ResizeObserver === "undefined" || !composer.value) return;
+  composerResizeObserver = new ResizeObserver(updateComposerHeight);
+  composerResizeObserver.observe(composer.value);
+});
+
+onBeforeUnmount(() => composerResizeObserver?.disconnect());
 </script>
 
 <template>
-  <div
-    class="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden"
-    data-slot="chat-layout"
-  >
+  <div class="relative h-full min-h-0 overflow-hidden" data-slot="chat-layout">
     <div
       ref="messageViewport"
-      class="min-h-0 overflow-y-auto overscroll-contain"
+      class="h-full min-h-0 overflow-y-auto overscroll-contain"
       data-slot="chat-messages"
     >
-      <div class="mx-auto flex min-h-full w-full max-w-3xl flex-col pt-6 pb-[148px]">
+      <div
+        class="mx-auto flex min-h-full w-full max-w-3xl flex-col pt-6"
+        :style="messageContentStyle"
+      >
         <div
           v-if="loading"
           class="flex flex-1 items-center justify-center text-sm text-muted-foreground"
@@ -54,7 +89,11 @@ watch(timeline, async () => {
       </div>
     </div>
 
-    <div class="absolute bottom-0 z-10 w-full shrink-0 px-8 pb-2" data-slot="chat-composer">
+    <div
+      ref="composer"
+      class="absolute right-0 bottom-0 left-0 z-10 w-full px-8 pb-2"
+      data-slot="chat-composer"
+    >
       <div class="relative z-1 mx-auto w-full max-w-3xl">
         <slot />
       </div>

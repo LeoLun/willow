@@ -11,11 +11,11 @@ const RESULT_LIMIT = 50;
 type FileIndexCache = {
   workspacePath: string;
   expiresAt: number;
-  files: FileSearchItem[];
+  entries: FileSearchItem[];
 };
 
-type RankedFile = {
-  file: FileSearchItem;
+type RankedEntry = {
+  entry: FileSearchItem;
   rank: number;
 };
 
@@ -28,19 +28,23 @@ export class FileSearchService {
 
   async searchFiles(workspaceId: number, query: string): Promise<FileSearchItem[]> {
     const workspace = this.workspaceService.getWorkspaceDetail(workspaceId);
-    const files = await this.getFileIndex(workspaceId, workspace.path);
+    const entries = await this.getFileIndex(workspaceId, workspace.path);
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return files.slice(0, RESULT_LIMIT);
+    if (!normalizedQuery) {
+      return entries.filter((entry) => entry.type === "file").slice(0, RESULT_LIMIT);
+    }
 
-    return files
-      .map((file): RankedFile | undefined => {
-        const rank = this.rankFile(file, normalizedQuery);
-        return rank === undefined ? undefined : { file, rank };
+    return entries
+      .map((entry): RankedEntry | undefined => {
+        const rank = this.rankEntry(entry, normalizedQuery);
+        return rank === undefined ? undefined : { entry, rank };
       })
-      .filter((result): result is RankedFile => result !== undefined)
-      .sort((left, right) => left.rank - right.rank || compareRelativePaths(left.file, right.file))
+      .filter((result): result is RankedEntry => result !== undefined)
+      .sort(
+        (left, right) => left.rank - right.rank || compareRelativePaths(left.entry, right.entry),
+      )
       .slice(0, RESULT_LIMIT)
-      .map(({ file }) => file);
+      .map(({ entry }) => entry);
   }
 
   private async getFileIndex(
@@ -49,7 +53,7 @@ export class FileSearchService {
   ): Promise<FileSearchItem[]> {
     const cached = this.cache.get(workspaceId);
     if (cached && cached.workspacePath === workspacePath && cached.expiresAt > Date.now()) {
-      return cached.files;
+      return cached.entries;
     }
 
     const scanKey = `${workspaceId}:${workspacePath}`;
@@ -59,13 +63,13 @@ export class FileSearchService {
     const scan = this.scanWorkspace(workspacePath);
     this.scans.set(scanKey, scan);
     try {
-      const files = await scan;
+      const entries = await scan;
       this.cache.set(workspaceId, {
         workspacePath,
         expiresAt: Date.now() + CACHE_TTL_MS,
-        files,
+        entries,
       });
-      return files;
+      return entries;
     } finally {
       this.scans.delete(scanKey);
     }
@@ -79,30 +83,37 @@ export class FileSearchService {
       if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
     }
 
-    const files: FileSearchItem[] = [];
+    const entries: FileSearchItem[] = [];
     const walk = async (directory: string): Promise<void> => {
-      const entries = await readdir(directory, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isSymbolicLink()) continue;
-        const absolutePath = resolve(directory, entry.name);
+      const directoryEntries = await readdir(directory, { withFileTypes: true });
+      for (const directoryEntry of directoryEntries) {
+        if (directoryEntry.isSymbolicLink()) continue;
+        const absolutePath = resolve(directory, directoryEntry.name);
         const relativePath = relative(workspacePath, absolutePath).split("\\").join("/");
-        const ignoredPath = entry.isDirectory() ? `${relativePath}/` : relativePath;
+        const ignoredPath = directoryEntry.isDirectory() ? `${relativePath}/` : relativePath;
         if (matcher.ignores(ignoredPath)) continue;
-        if (entry.isDirectory()) {
+        if (directoryEntry.isDirectory()) {
+          if (!/[\r\n]/.test(relativePath)) {
+            entries.push({
+              name: directoryEntry.name,
+              relativePath: `${relativePath}/`,
+              type: "directory",
+            });
+          }
           await walk(absolutePath);
-        } else if (entry.isFile() && !/[\r\n]/.test(relativePath)) {
-          files.push({ name: basename(relativePath), relativePath });
+        } else if (directoryEntry.isFile() && !/[\r\n]/.test(relativePath)) {
+          entries.push({ name: basename(relativePath), relativePath, type: "file" });
         }
       }
     };
 
     await walk(workspacePath);
-    return files.sort(compareRelativePaths);
+    return entries.sort(compareRelativePaths);
   }
 
-  private rankFile(file: FileSearchItem, query: string): number | undefined {
-    const name = file.name.toLowerCase();
-    const path = file.relativePath.toLowerCase();
+  private rankEntry(entry: FileSearchItem, query: string): number | undefined {
+    const name = entry.name.toLowerCase();
+    const path = entry.relativePath.toLowerCase();
     if (name === query) return 0;
     if (name.startsWith(query)) return 1;
     if (name.includes(query)) return 2;

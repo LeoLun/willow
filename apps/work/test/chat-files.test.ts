@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { FileSearchItem } from "@shared/api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, defineComponent, h, nextTick, type App } from "vue";
 import { createMemoryHistory, createRouter, RouterView } from "vue-router";
@@ -126,6 +127,7 @@ describe("ChatBase file search", () => {
         {
           name: "ChatBase.vue",
           relativePath: "apps/work/src/pages/ChatBase.vue",
+          type: "file",
         },
       ],
     });
@@ -147,11 +149,39 @@ describe("ChatBase file search", () => {
     });
   });
 
+  it("searches and inserts a workspace-relative directory token with a trailing slash", async () => {
+    mocks.searchFiles.mockResolvedValueOnce({
+      files: [
+        {
+          name: "components",
+          relativePath: "apps/work/src/components/",
+          type: "directory",
+        },
+      ],
+    });
+    const container = await mountChatBase();
+    enterMentionQuery(container, "components");
+
+    await vi.waitFor(() => {
+      expect(mocks.searchFiles).toHaveBeenCalledWith({ workspaceId: 1, query: "components" });
+      expect(
+        container.querySelector("[data-entry-type=directory] [data-icon-type=directory]"),
+      ).not.toBeNull();
+    });
+
+    container.querySelector<HTMLButtonElement>("[data-entry-type=directory]")?.click();
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-token-source="[components](<apps/work/src/components/>)"]'),
+      ).not.toBeNull();
+    });
+  });
+
   it("hides the relative path for root files and keeps it for nested files", async () => {
     mocks.searchFiles.mockResolvedValueOnce({
       files: [
-        { name: "README.md", relativePath: "README.md" },
-        { name: "guide.md", relativePath: "docs/guide.md" },
+        { name: "README.md", relativePath: "README.md", type: "file" },
+        { name: "guide.md", relativePath: "docs/guide.md", type: "file" },
       ],
     });
     const container = await mountChatBase();
@@ -169,8 +199,8 @@ describe("ChatBase file search", () => {
   });
 
   it("discards stale search results and shows empty and error states", async () => {
-    const first = deferred<{ files: { name: string; relativePath: string }[] }>();
-    const second = deferred<{ files: { name: string; relativePath: string }[] }>();
+    const first = deferred<{ files: FileSearchItem[] }>();
+    const second = deferred<{ files: FileSearchItem[] }>();
     mocks.searchFiles.mockImplementation(({ query }: { query: string }) => {
       if (query === "first") return first.promise;
       if (query === "second") return second.promise;
@@ -187,9 +217,11 @@ describe("ChatBase file search", () => {
       expect(mocks.searchFiles).toHaveBeenCalledWith({ workspaceId: 1, query: "second" }),
     );
 
-    second.resolve({ files: [{ name: "second.ts", relativePath: "second.ts" }] });
+    second.resolve({
+      files: [{ name: "second.ts", relativePath: "second.ts", type: "file" }],
+    });
     await vi.waitFor(() => expect(container.textContent).toContain("second.ts"));
-    first.resolve({ files: [{ name: "first.ts", relativePath: "first.ts" }] });
+    first.resolve({ files: [{ name: "first.ts", relativePath: "first.ts", type: "file" }] });
     await nextTick();
     expect(container.textContent).not.toContain("first.ts");
 

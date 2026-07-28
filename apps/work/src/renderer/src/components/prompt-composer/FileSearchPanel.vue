@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FileSearchItem } from "@shared/api";
-import { FileIcon } from "lucide-vue-next";
+import { FileIcon, FolderIcon } from "lucide-vue-next";
 import { onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { electronAPI } from "@/lib/ipc";
 
@@ -51,7 +51,7 @@ async function search(
   } catch (error) {
     if (currentGeneration !== generation) return;
     loadError.value = true;
-    console.error("搜索工作区文件失败:", error);
+    console.error("搜索工作区文件和文件夹失败:", error);
   } finally {
     if (currentGeneration === generation) loading.value = false;
   }
@@ -67,45 +67,57 @@ onBeforeUnmount(() => {
 
 <template>
   <div data-slot="file-search">
-    <p class="px-2 pb-1 text-xs font-medium text-muted-foreground">文件</p>
+    <p class="px-2 text-xs font-medium text-foreground">文件和文件夹</p>
     <p
       v-if="loading"
-      class="px-2 py-2 text-sm text-muted-foreground"
+      class="mt-1 text-sm leading-6 text-muted-foreground"
       data-slot="file-search-loading"
     >
-      正在搜索文件…
+      正在搜索文件和文件夹…
     </p>
     <p
       v-else-if="loadError"
-      class="px-2 py-2 text-sm text-destructive"
+      class="mt-1 text-sm leading-6 text-destructive"
       data-slot="file-search-error"
     >
-      无法搜索工作区文件
+      无法搜索工作区文件和文件夹
     </p>
     <p
       v-else-if="files.length === 0"
-      class="px-2 py-2 text-sm text-muted-foreground"
+      class="mt-1 text-sm leading-6 text-muted-foreground"
       data-slot="file-search-empty"
     >
-      没有匹配的文件
+      没有匹配的文件或文件夹
     </p>
-    <div v-else class="space-y-0.5">
+    <div v-else class="mt-1">
       <button
         v-for="file in files"
         :key="file.relativePath"
         type="button"
-        class="grid h-9 w-full grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-lg px-2 text-left transition-colors hover:bg-accent"
+        class="grid min-h-7 w-full grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl px-2 text-left text-sm leading-6 transition-colors hover:bg-accent/60"
         data-slot="file-search-item"
+        :data-entry-type="file.type"
         :title="file.relativePath"
         @click="emit('select', file)"
       >
-        <FileIcon class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span class="text-sm font-medium whitespace-nowrap text-foreground">
+        <FolderIcon
+          v-if="file.type === 'directory'"
+          class="size-4 shrink-0 text-muted-foreground"
+          data-icon-type="directory"
+          aria-hidden="true"
+        />
+        <FileIcon
+          v-else
+          class="size-4 shrink-0 text-muted-foreground"
+          data-icon-type="file"
+          aria-hidden="true"
+        />
+        <span class="whitespace-nowrap text-foreground">
           {{ file.name }}
         </span>
         <span
           v-if="file.relativePath !== file.name"
-          class="truncate text-sm text-muted-foreground"
+          class="truncate text-muted-foreground"
           data-slot="file-search-path"
         >
           {{ file.relativePath }}

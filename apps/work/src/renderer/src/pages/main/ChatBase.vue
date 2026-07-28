@@ -24,18 +24,23 @@ import {
   type ComposerSubmitPayload,
 } from "@/components/prompt-composer";
 import FileSearchPanel from "@/components/prompt-composer/FileSearchPanel.vue";
+import QueuedMessageList from "@/components/prompt-composer/QueuedMessageList.vue";
 import SkillSearchPanel from "@/components/prompt-composer/SkillSearchPanel.vue";
 import ToolApprovalPanel from "@/components/tool/ToolApprovalPanel.vue";
 import { useEventBus } from "@/composables/useEventBus";
+import { useMessageStatus } from "@/composables/useMessage";
+import { useMessageQueue } from "@/composables/useMessageQueue";
 import { useToolApproval } from "@/composables/useToolApproval";
 import { electronAPI } from "@/lib/ipc";
 
 const route = useRoute();
 const router = useRouter();
 const { addEventListener, removeEventListener, waitUntilReady } = useEventBus();
+const { isSessionRunning } = useMessageStatus();
+const messageQueue = useMessageQueue();
 const message = ref("");
-const sending = ref(false);
-const sendError = ref("");
+const creatingSession = ref(false);
+const creationError = ref("");
 const sessionTitle = ref("");
 const loadingModels = ref(true);
 const modelLoadError = ref(false);
@@ -61,6 +66,42 @@ const sessionId = computed(() => {
   return typeof value === "string" && value.trim() !== "" ? value : undefined;
 });
 const { currentApproval, resolveApproval } = useToolApproval(workspaceId, sessionId);
+const currentSessionRunning = computed(() => {
+  const currentSessionId = sessionId.value;
+  return currentSessionId ? isSessionRunning(currentSessionId) : false;
+});
+const currentSessionActive = computed(() => {
+  const currentWorkspaceId = workspaceId.value;
+  const currentSessionId = sessionId.value;
+  return currentWorkspaceId !== undefined && currentSessionId !== undefined
+    ? messageQueue.isSessionActive(currentWorkspaceId, currentSessionId)
+    : false;
+});
+const currentSessionStreaming = computed(
+  () => currentSessionRunning.value || currentSessionActive.value,
+);
+const currentSessionStopping = computed(() => {
+  const currentWorkspaceId = workspaceId.value;
+  const currentSessionId = sessionId.value;
+  return currentWorkspaceId !== undefined && currentSessionId !== undefined
+    ? messageQueue.isSessionStopping(currentWorkspaceId, currentSessionId)
+    : false;
+});
+const queuedMessages = computed(() => {
+  const currentWorkspaceId = workspaceId.value;
+  const currentSessionId = sessionId.value;
+  return currentWorkspaceId !== undefined && currentSessionId !== undefined
+    ? messageQueue.getQueuedMessages(currentWorkspaceId, currentSessionId)
+    : [];
+});
+const sendError = computed(() => {
+  if (creationError.value) return creationError.value;
+  const currentWorkspaceId = workspaceId.value;
+  const currentSessionId = sessionId.value;
+  return currentWorkspaceId !== undefined && currentSessionId !== undefined
+    ? messageQueue.getSessionError(currentWorkspaceId, currentSessionId)
+    : "";
+});
 
 const modelOptions = computed<ComposerModelOption[]>(() =>
   providers.value.flatMap((provider) =>
@@ -83,6 +124,7 @@ const composerDisabled = computed(
   () =>
     workspaceId.value === undefined ||
     modelLoadError.value ||
+    creatingSession.value ||
     (route.name !== "home" && sessionId.value === undefined),
 );
 const topBarTitle = computed(() =>
@@ -147,6 +189,15 @@ async function decideApproval(decision: ToolApprovalDecision): Promise<void> {
 }
 
 watch([workspaceId, sessionId], () => void loadSessionTitle(), { immediate: true });
+watch(
+  [workspaceId, sessionId, currentSessionRunning],
+  ([nextWorkspaceId, nextSessionId, running]) => {
+    if (nextWorkspaceId !== undefined && nextSessionId !== undefined && !running) {
+      messageQueue.resume(nextWorkspaceId, nextSessionId);
+    }
+  },
+  { immediate: true },
+);
 
 onMounted(async () => {
   addEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
@@ -181,56 +232,89 @@ onBeforeUnmount(() => {
   removeEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
 });
 
-async function sendMessage(payload: ComposerSubmitPayload) {
+function enqueueMessage(
+  currentWorkspaceId: number,
+  currentSessionId: string,
+  payload: ComposerSubmitPayload,
+): void {
+  if (!payload.model) return;
+  messageQueue.enqueue({
+    workspaceId: currentWorkspaceId,
+    sessionId: currentSessionId,
+    blocked:
+      isSessionRunning(currentSessionId) &&
+      !messageQueue.isSessionActive(currentWorkspaceId, currentSessionId),
+    payload: {
+      content: payload.content,
+      model: payload.model,
+      approvalMode: payload.approvalMode ?? "request-approval",
+      reasoningEffort: payload.reasoningEffort,
+    },
+  });
+}
+
+async function createSessionAndEnqueue(
+  currentWorkspaceId: number,
+  payload: ComposerSubmitPayload,
+): Promise<void> {
+  creatingSession.value = true;
+  try {
+    await waitUntilReady();
+    const response = await electronAPI.createSession({ workspaceId: currentWorkspaceId });
+    const currentSessionId = response.sessionId;
+    const navigationFailure = await router.push({
+      name: "chat",
+      params: { sessionId: currentSessionId },
+      query: { workspaceId: String(currentWorkspaceId) },
+    });
+    if (isNavigationFailure(navigationFailure)) throw navigationFailure;
+
+    await nextTick();
+    enqueueMessage(currentWorkspaceId, currentSessionId, payload);
+  } catch (error) {
+    creationError.value = getErrorMessage(error, "创建会话失败，请重试。");
+    console.error("创建会话或打开聊天失败:", error);
+  } finally {
+    creatingSession.value = false;
+  }
+}
+
+function sendMessage(payload: ComposerSubmitPayload): void {
   const content = payload.content;
   const model = payload.model;
   const currentWorkspaceId = workspaceId.value;
-  let currentSessionId = sessionId.value;
+  const currentSessionId = sessionId.value;
   if (
     !content ||
     !model ||
     !currentWorkspaceId ||
-    sending.value ||
+    creatingSession.value ||
     (route.name !== "home" && !currentSessionId)
   ) {
     console.error("发送消息失败: 缺少工作区、会话或模型配置");
     return;
   }
 
-  sending.value = true;
-  sendError.value = "";
-  try {
-    await waitUntilReady();
-
-    if (!currentSessionId) {
-      const response = await electronAPI.createSession({ workspaceId: currentWorkspaceId });
-      currentSessionId = response.sessionId;
-      const navigationFailure = await router.push({
-        name: "chat",
-        params: { sessionId: currentSessionId },
-        query: { workspaceId: String(currentWorkspaceId) },
-      });
-      if (isNavigationFailure(navigationFailure)) {
-        throw navigationFailure;
-      }
-
-      await nextTick();
-    }
-
-    const response = await electronAPI.sendMessage({
-      workspaceId: currentWorkspaceId,
-      sessionId: currentSessionId,
-      content,
-      model,
-      approvalMode: payload.approvalMode ?? "request-approval",
-    });
-    console.log("[SEND_MESSAGE]", response.message);
-  } catch (error) {
-    sendError.value = getErrorMessage(error, "发送消息失败，请重试。");
-    console.error("创建会话、打开聊天或发送消息失败:", error);
-  } finally {
-    sending.value = false;
+  creationError.value = "";
+  if (currentSessionId) {
+    enqueueMessage(currentWorkspaceId, currentSessionId, payload);
+  } else {
+    void createSessionAndEnqueue(currentWorkspaceId, payload);
   }
+}
+
+function stopMessage(): void {
+  const currentWorkspaceId = workspaceId.value;
+  const currentSessionId = sessionId.value;
+  if (!currentWorkspaceId || !currentSessionId || !currentSessionStreaming.value) return;
+  void messageQueue.stop(currentWorkspaceId, currentSessionId);
+}
+
+function removeQueuedMessage(messageId: string): void {
+  const currentWorkspaceId = workspaceId.value;
+  const currentSessionId = sessionId.value;
+  if (!currentWorkspaceId || !currentSessionId) return;
+  messageQueue.remove(currentWorkspaceId, currentSessionId, messageId);
 }
 </script>
 
@@ -245,6 +329,11 @@ async function sendMessage(payload: ComposerSubmitPayload) {
     <div class="min-h-0 flex-1 overflow-hidden">
       <RouterView v-slot="{ Component }">
         <component :is="Component">
+          <QueuedMessageList
+            v-if="queuedMessages.length > 0"
+            :messages="queuedMessages"
+            @remove="removeQueuedMessage"
+          />
           <Transition name="approval-panel" mode="out-in">
             <ToolApprovalPanel
               v-if="currentApproval"
@@ -263,7 +352,10 @@ async function sendMessage(payload: ComposerSubmitPayload) {
               :models="modelOptions"
               :token-rules="[...defaultComposerTokenRules]"
               :disabled="composerDisabled"
-              :submitting="sending"
+              :submitting="creatingSession"
+              :streaming="currentSessionStreaming"
+              :stopping="currentSessionStopping"
+              @stop="stopMessage"
               @submit="sendMessage"
             >
               <template #mention-panel="{ query, insert }">

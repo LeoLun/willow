@@ -43,6 +43,8 @@ interface Props {
   tokenRules?: ComposerTokenRule[];
   disabled?: boolean;
   submitting?: boolean;
+  streaming?: boolean;
+  stopping?: boolean;
   placeholder?: string;
 }
 
@@ -59,6 +61,8 @@ const props = withDefaults(defineProps<Props>(), {
   tokenRules: () => [],
   disabled: false,
   submitting: false,
+  streaming: false,
+  stopping: false,
   placeholder: "Ask, Search or Chat...",
 });
 
@@ -69,6 +73,7 @@ const reasoningEffort = defineModel<string | undefined>("reasoningEffort");
 
 const emit = defineEmits<{
   submit: [payload: ComposerSubmitPayload];
+  stop: [];
   "panel-keydown": [payload: ComposerPanelKeydownPayload];
 }>();
 
@@ -113,6 +118,10 @@ const canSubmit = computed(
     model.value !== undefined &&
     (reasoningOptions.value.length === 0 ||
       reasoningOptions.value.some((option) => option.value === reasoningEffort.value)),
+);
+const showStopAction = computed(() => content.value.trim() === "" && props.streaming);
+const actionDisabled = computed(() =>
+  showStopAction.value ? props.disabled || props.stopping : !canSubmit.value,
 );
 const activePanelSlot = computed(() => {
   if (trigger.value?.type === "mention") return slots["mention-panel"];
@@ -307,6 +316,14 @@ function submit(): void {
   lastSelection = { start: 0, end: 0 };
 }
 
+function triggerAction(): void {
+  if (showStopAction.value) {
+    if (!actionDisabled.value) emit("stop");
+    return;
+  }
+  submit();
+}
+
 async function handleKeydown(event: KeyboardEvent): Promise<void> {
   if (composing.value || event.isComposing) return;
 
@@ -420,31 +437,33 @@ watch(content, (value) => {
   >
     <div
       v-if="trigger && activePanelSlot"
-      class="absolute right-0 bottom-full left-0 z-50 mb-2 max-h-72 overflow-y-auto rounded-[1.75rem] border border-border bg-popover p-3 text-popover-foreground shadow-lg"
+      class="absolute right-0 bottom-full left-0 z-50 mb-2 overflow-hidden rounded-[1.75rem] border border-border bg-popover text-popover-foreground shadow-lg"
       data-slot="prompt-panel"
       @mousedown.prevent
     >
-      <slot
-        v-if="trigger.type === 'mention'"
-        name="mention-panel"
-        :query="trigger.query"
-        :insert="insertFromPanel"
-        :close="closePanel"
-      />
-      <slot
-        v-else
-        name="slash-panel"
-        :query="trigger.query"
-        :insert="insertFromPanel"
-        :close="closePanel"
-      />
+      <div class="max-h-72 overflow-y-auto px-2 py-3" data-slot="prompt-panel-scroll">
+        <slot
+          v-if="trigger.type === 'mention'"
+          name="mention-panel"
+          :query="trigger.query"
+          :insert="insertFromPanel"
+          :close="closePanel"
+        />
+        <slot
+          v-else
+          name="slash-panel"
+          :query="trigger.query"
+          :insert="insertFromPanel"
+          :close="closePanel"
+        />
+      </div>
     </div>
 
     <div class="relative">
       <div
         v-if="content === '' && !composing"
         data-slot="prompt-placeholder"
-        class="pointer-events-none absolute inset-x-5 top-4 text-sm text-muted-foreground"
+        class="pointer-events-none absolute inset-x-5 top-4.5 text-sm text-muted-foreground"
       >
         {{ props.placeholder }}
       </div>
@@ -588,12 +607,25 @@ watch(content, (value) => {
 
         <button
           type="button"
-          class="ml-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:pointer-events-none disabled:opacity-40"
-          :disabled="!canSubmit"
-          aria-label="发送"
-          @click="submit"
+          class="ml-1 inline-flex size-7 shrink-0 items-center justify-center rounded-full transition-[background-color,opacity] disabled:pointer-events-none disabled:opacity-40"
+          :class="
+            showStopAction
+              ? 'bg-black text-white dark:bg-white dark:text-black'
+              : 'bg-primary text-primary-foreground'
+          "
+          :disabled="actionDisabled"
+          :aria-label="showStopAction ? '暂停生成' : '发送'"
+          :aria-busy="showStopAction && props.stopping ? true : undefined"
+          :data-action="showStopAction ? 'stop' : 'submit'"
+          @click="triggerAction"
         >
-          <ArrowUpIcon class="size-5" />
+          <span
+            v-if="showStopAction"
+            data-slot="stop-icon"
+            class="size-2.5 rounded-[2px] bg-white dark:bg-black"
+            aria-hidden="true"
+          />
+          <ArrowUpIcon v-else class="size-5" aria-hidden="true" />
         </button>
       </div>
     </div>

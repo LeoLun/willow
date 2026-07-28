@@ -62,49 +62,47 @@ onBeforeUnmount(() => {
 
 <template>
   <div data-slot="skill-list">
-    <p class="px-2 pb-1 text-xs font-medium text-muted-foreground" data-slot="skill-list-label">
-      技能
-    </p>
+    <p class="px-2 text-xs font-medium text-foreground" data-slot="skill-list-label">技能</p>
     <p
       v-if="loading"
-      class="px-2 py-2 text-sm text-muted-foreground"
+      class="mt-1 text-sm leading-6 text-muted-foreground"
       data-slot="skill-list-loading"
     >
       正在读取 skills…
     </p>
     <p
       v-else-if="loadError"
-      class="px-2 py-2 text-sm text-destructive"
+      class="mt-1 text-sm leading-6 text-destructive"
       data-slot="skill-list-error"
     >
       无法读取 skills 列表
     </p>
     <p
       v-else-if="skills.length === 0"
-      class="px-2 py-2 text-sm text-muted-foreground"
+      class="mt-1 text-sm leading-6 text-muted-foreground"
       data-slot="skill-list-empty"
     >
       当前工作区没有可用的 skill
     </p>
-    <div v-else-if="matchingSkills.length > 0" class="space-y-0.5">
+    <div v-else-if="matchingSkills.length > 0" class="mt-1">
       <button
         v-for="skill in matchingSkills"
         :key="skill.filePath"
         type="button"
-        class="grid h-9 w-full grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-lg px-2 text-left transition-colors hover:bg-accent"
+        class="grid min-h-7 w-full grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl px-2 text-left text-sm leading-6 transition-colors hover:bg-accent/60"
         data-slot="skill-list-item"
         :title="skill.filePath"
         @click="emit('select', skill)"
       >
         <BoxIcon class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span class="text-sm font-medium whitespace-nowrap text-foreground">
+        <span class="whitespace-nowrap text-foreground">
           {{ skill.name }}
         </span>
-        <span class="truncate text-sm text-muted-foreground">
+        <span class="truncate text-muted-foreground">
           {{ skill.description }}
         </span>
       </button>
     </div>
-    <p v-else class="px-2 py-2 text-sm text-muted-foreground">没有匹配的 skill</p>
+    <p v-else class="mt-1 text-sm leading-6 text-muted-foreground">没有匹配的 skill</p>
   </div>
 </template>

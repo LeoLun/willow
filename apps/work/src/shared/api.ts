@@ -68,6 +68,7 @@ export interface GetSkillListResponse {
 export interface FileSearchItem {
   name: string;
   relativePath: string;
+  type: "file" | "directory";
 }
 
 export interface SearchFilesRequest {

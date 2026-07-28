@@ -16,7 +16,7 @@ const props = defineProps<{
     :data-message-status="props.message.status"
   >
     <div
-      class="flex max-w-[85%] flex-col gap-2 rounded-2xl bg-primary px-3 py-3 text-sm text-primary-foreground"
+      class="flex max-w-[85%] flex-col gap-2 rounded-2xl bg-secondary px-3 py-3 text-sm text-card-foreground"
     >
       <ContentBlocks :message="props.message" :token-rules="defaultComposerTokenRules" />
     </div>

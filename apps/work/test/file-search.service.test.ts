@@ -52,10 +52,17 @@ describe("FileSearchService", () => {
     await symlink(outside, join(root, "linked-directory"));
 
     await expect(createService(root).searchFiles(1, "")).resolves.toEqual([
-      { name: ".gitignore", relativePath: ".gitignore" },
-      { name: "README.md", relativePath: "README.md" },
-      { name: "main.ts", relativePath: "src/main.ts" },
-      { name: "keep.ts", relativePath: "src/nested/keep.ts" },
+      { name: ".gitignore", relativePath: ".gitignore", type: "file" },
+      { name: "README.md", relativePath: "README.md", type: "file" },
+      { name: "main.ts", relativePath: "src/main.ts", type: "file" },
+      { name: "keep.ts", relativePath: "src/nested/keep.ts", type: "file" },
+    ]);
+
+    await expect(createService(root).searchFiles(1, "src")).resolves.toEqual([
+      { name: "src", relativePath: "src/", type: "directory" },
+      { name: "main.ts", relativePath: "src/main.ts", type: "file" },
+      { name: "nested", relativePath: "src/nested/", type: "directory" },
+      { name: "keep.ts", relativePath: "src/nested/keep.ts", type: "file" },
     ]);
   });
 
@@ -68,18 +75,23 @@ describe("FileSearchService", () => {
     const service = createService(root);
 
     await expect(service.searchFiles(1, "chatbase.vue")).resolves.toEqual([
-      { name: "ChatBase.vue", relativePath: "ChatBase.vue" },
+      { name: "ChatBase.vue", relativePath: "ChatBase.vue", type: "file" },
     ]);
     await expect(service.searchFiles(1, "chatbase")).resolves.toEqual([
-      { name: "ChatBase.test.ts", relativePath: "ChatBase.test.ts" },
-      { name: "ChatBase.vue", relativePath: "ChatBase.vue" },
-      { name: "my-chatbase-notes.md", relativePath: "notes/my-chatbase-notes.md" },
+      { name: "ChatBase.test.ts", relativePath: "ChatBase.test.ts", type: "file" },
+      { name: "ChatBase.vue", relativePath: "ChatBase.vue", type: "file" },
+      {
+        name: "my-chatbase-notes.md",
+        relativePath: "notes/my-chatbase-notes.md",
+        type: "file",
+      },
     ]);
     await expect(service.searchFiles(1, "pages/main")).resolves.toEqual([
-      { name: "Composer.vue", relativePath: "pages/main/Composer.vue" },
+      { name: "main", relativePath: "pages/main/", type: "directory" },
+      { name: "Composer.vue", relativePath: "pages/main/Composer.vue", type: "file" },
     ]);
     await expect(service.searchFiles(1, "cmpsrv")).resolves.toEqual([
-      { name: "Composer.vue", relativePath: "pages/main/Composer.vue" },
+      { name: "Composer.vue", relativePath: "pages/main/Composer.vue", type: "file" },
     ]);
   });
 
@@ -99,7 +111,7 @@ describe("FileSearchService", () => {
 
     now.mockReturnValue(6_001);
     await expect(service.searchFiles(1, "fresh")).resolves.toEqual([
-      { name: "fresh.txt", relativePath: "fresh.txt" },
+      { name: "fresh.txt", relativePath: "fresh.txt", type: "file" },
     ]);
   });
 
@@ -113,7 +125,7 @@ describe("FileSearchService", () => {
       service.searchFiles(1, "main"),
     ]);
 
-    expect(allFiles).toEqual([{ name: "main.ts", relativePath: "src/main.ts" }]);
-    expect(matchingFiles).toEqual([{ name: "main.ts", relativePath: "src/main.ts" }]);
+    expect(allFiles).toEqual([{ name: "main.ts", relativePath: "src/main.ts", type: "file" }]);
+    expect(matchingFiles).toEqual([{ name: "main.ts", relativePath: "src/main.ts", type: "file" }]);
   });
 });

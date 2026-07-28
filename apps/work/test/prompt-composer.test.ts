@@ -27,13 +27,20 @@ function mountComposer(
     model?: ModelConfig;
     models?: ComposerModelOption[];
     reasoningEffort?: string;
+    streaming?: boolean;
+    stopping?: boolean;
+    submitting?: boolean;
   } = {},
 ) {
   const content = ref(options.content ?? "");
   const model = ref<ModelConfig>(options.model ?? { providerId: "provider", modelId: "model" });
   const models = ref(options.models ?? []);
   const reasoningEffort = ref<string | undefined>(options.reasoningEffort);
+  const streaming = ref(options.streaming ?? false);
+  const stopping = ref(options.stopping ?? false);
+  const submitting = ref(options.submitting ?? false);
   const submissions: ComposerSubmitPayload[] = [];
+  const stop = vi.fn();
   const panelKeydown = vi.fn();
   const container = document.createElement("div");
   document.body.append(container);
@@ -48,6 +55,9 @@ function mountComposer(
             model: model.value,
             models: models.value,
             reasoningEffort: reasoningEffort.value,
+            streaming: streaming.value,
+            stopping: stopping.value,
+            submitting: submitting.value,
             tokenRules: [...defaultComposerTokenRules],
             "onUpdate:content": (value: string) => {
               content.value = value;
@@ -59,6 +69,7 @@ function mountComposer(
               reasoningEffort.value = value;
             },
             onSubmit: (payload: ComposerSubmitPayload) => submissions.push(payload),
+            onStop: stop,
             onPanelKeydown: panelKeydown,
           },
           options.withPanels
@@ -87,7 +98,19 @@ function mountComposer(
   });
   app.mount(container);
   mountedApps.push(app);
-  return { container, content, model, models, reasoningEffort, submissions, panelKeydown };
+  return {
+    container,
+    content,
+    model,
+    models,
+    reasoningEffort,
+    streaming,
+    stopping,
+    submitting,
+    submissions,
+    stop,
+    panelKeydown,
+  };
 }
 
 function setCaret(editor: HTMLElement, offset: number): void {
@@ -146,6 +169,29 @@ describe("prompt composer token parser", () => {
       }),
     ]);
     expect(serializeComposerSegments(segments)).toBe(source);
+  });
+
+  it("serializes and renders workspace directory tokens", () => {
+    const source = serializeFileToken("components", "src/components/");
+    const segments = parseComposerContent(source, defaultComposerTokenRules);
+
+    expect(source).toBe("[components](<src/components/>)");
+    expect(segments).toEqual([
+      expect.objectContaining({
+        type: "token",
+        ruleId: "file",
+        source,
+        props: {
+          fileName: "components",
+          path: "src/components/",
+        },
+      }),
+    ]);
+
+    const mounted = mountComposer({ content: source });
+    const token = mounted.container.querySelector<HTMLElement>("[data-token-rule=file]")!;
+    expect(token.querySelector("[data-icon-type=directory]")).not.toBeNull();
+    expect(token.querySelector("[data-icon-type=file]")).toBeNull();
   });
 
   it("does not treat HTTP links as workspace file tokens", () => {
@@ -280,6 +326,54 @@ describe("PromptComposer", () => {
     expect(editor.textContent).toBe("");
   });
 
+  it("shows a stop action while streaming with empty content", async () => {
+    const mounted = mountComposer({ streaming: true });
+    const action = mounted.container.querySelector<HTMLButtonElement>("[data-action=stop]")!;
+
+    expect(action.getAttribute("aria-label")).toBe("暂停生成");
+    expect(action.disabled).toBe(false);
+    expect(action.classList).toContain("dark:bg-white");
+    expect(action.querySelector("[data-slot=stop-icon]")?.classList).toContain("dark:bg-black");
+    action.click();
+    expect(mounted.stop).toHaveBeenCalledOnce();
+
+    mounted.stopping.value = true;
+    await nextTick();
+    expect(action.disabled).toBe(true);
+    action.click();
+    expect(mounted.stop).toHaveBeenCalledOnce();
+  });
+
+  it("switches from stop to submit while streaming when content is entered", async () => {
+    const mounted = mountComposer({ streaming: true });
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    editor.textContent = "queue this";
+    setCaret(editor, 10);
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+    await nextTick();
+
+    const action = mounted.container.querySelector<HTMLButtonElement>("[data-action=submit]")!;
+    expect(action.getAttribute("aria-label")).toBe("发送");
+    expect(action.disabled).toBe(false);
+    action.click();
+    expect(mounted.submissions).toEqual([
+      expect.objectContaining({
+        content: "queue this",
+        model: { providerId: "provider", modelId: "model" },
+      }),
+    ]);
+
+    await nextTick();
+    expect(mounted.container.querySelector("[data-action=stop]")).not.toBeNull();
+  });
+
+  it("keeps the idle empty submit action disabled", () => {
+    const mounted = mountComposer();
+    const action = mounted.container.querySelector<HTMLButtonElement>("[data-action=submit]")!;
+    expect(action.getAttribute("aria-label")).toBe("发送");
+    expect(action.disabled).toBe(true);
+  });
+
   it("inserts a newline for Shift+Enter and does not submit while composing", async () => {
     const mounted = mountComposer({ content: "hello" });
     const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
@@ -339,6 +433,12 @@ describe("PromptComposer", () => {
     await nextTick();
 
     expect(mounted.container.querySelector("[data-test=mention-panel]")?.textContent).toBe("wor");
+    expect(mounted.container.querySelector("[data-slot=prompt-panel]")?.classList).toContain(
+      "overflow-hidden",
+    );
+    expect(mounted.container.querySelector("[data-slot=prompt-panel-scroll]")?.classList).toContain(
+      "overflow-y-auto",
+    );
     editor.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
     expect(mounted.panelKeydown).toHaveBeenCalledWith(
       expect.objectContaining({ type: "mention", query: "wor", key: "ArrowDown" }),

@@ -15,7 +15,10 @@ describe("SearchFilesController", () => {
   });
 
   it("returns matching workspace files", async () => {
-    const files = [{ name: "ChatBase.vue", relativePath: "src/ChatBase.vue" }];
+    const files = [
+      { name: "ChatBase.vue", relativePath: "src/ChatBase.vue", type: "file" as const },
+      { name: "components", relativePath: "src/components/", type: "directory" as const },
+    ];
     searchFiles.mockResolvedValueOnce(files);
 
     await expect(controller.run(event, { workspaceId: 7, query: "chat" })).resolves.toEqual({
