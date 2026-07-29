@@ -1,4 +1,4 @@
-// import { join } from "node:path";
+import { join } from "node:path";
 import { On, WindowFactoryResolver, Module } from "@willow/poetry";
 import { app, screen } from "electron";
 import started from "electron-squirrel-startup";
@@ -59,9 +59,10 @@ if (started) {
   app.quit();
 }
 
-// if (!app.isPackaged && process.platform === "darwin" && app.dock) {
-//   app.dock.setIcon(join(__dirname, "../../assets/icons/icon.png"));
-// }
+if (!app.isPackaged && process.platform === "darwin" && app.dock) {
+  app.dock.setIcon(join(__dirname, "../../assets/icons/icon-dev.png"));
+}
+
 @Module({
   imports: [],
   windows: [MainWindow],

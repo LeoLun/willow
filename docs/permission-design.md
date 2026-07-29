@@ -347,7 +347,9 @@ flowchart LR
 - `queue`：审批顺序；
 - `activeApprovalId`：当前唯一展示的审批。
 
-审批按 FIFO 串行展示。一个审批完成后才派发下一个，避免多个模态框同时竞争。
+审批按 FIFO 串行展示。一个审批完成后才派发下一个，避免多个模态框同时竞争。同一会话的
+`requested` 和 `decided` custom entry 也通过独立的持久化队列串行追加，避免并发工具审批以同一
+parent 写成不同 session branch。
 
 ```mermaid
 sequenceDiagram
@@ -389,6 +391,9 @@ sequenceDiagram
 - **关闭对话框**：等同拒绝。
 
 无效、已完成或已中止的 `approvalId` 返回 `resolved: false`，不能被重复使用。
+审批正常完成或因任务中止而自动拒绝时，主进程会广播对应 `approvalId` 的结算事件；renderer
+仅在事件仍匹配当前面板时清除它，避免并发请求的新面板被旧事件覆盖。若 renderer 错过事件后
+提交了已失效请求，也会清除该陈旧面板并等待会话历史或后续实时事件恢复当前审批。
 
 ### 10.3 中止与清理
 

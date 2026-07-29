@@ -182,15 +182,10 @@ export class MessageService {
         request.sessionId,
         request.approvalId,
         request.decision,
+        "recovered",
       );
       if (!resolution) return false;
       if (!resolution.live) {
-        await this.toolApprovalService.completeRecoveredResolution(
-          request.workspaceId,
-          request.sessionId,
-          request.approvalId,
-          request.decision,
-        );
         void this.resumeToolApproval(resolution.approval, request.decision, key)
           .catch((error) => {
             console.error("Failed to resume persisted tool approval:", error);

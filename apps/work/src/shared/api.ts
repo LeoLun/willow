@@ -356,6 +356,11 @@ export type ToolApprovalEventPayload = ToolApprovalRequest & {
   aiReview?: AiApprovalReview;
 };
 
+export type ToolApprovalResolvedEventPayload = Pick<
+  ToolApprovalEventPayload,
+  "approvalId" | "workspaceId" | "sessionId"
+>;
+
 export interface ResolveToolApprovalRequest {
   approvalId: string;
   workspaceId: number;

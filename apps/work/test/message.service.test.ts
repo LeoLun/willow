@@ -82,7 +82,6 @@ describe("MessageService", () => {
   const requestApproval = vi.fn<ToolApprovalService["request"]>();
   const getPendingApproval = vi.fn<ToolApprovalService["getPendingApproval"]>();
   const resolveApproval = vi.fn<ToolApprovalService["resolve"]>();
-  const completeRecoveredResolution = vi.fn<ToolApprovalService["completeRecoveredResolution"]>();
 
   const sessionService = {
     getSession,
@@ -97,7 +96,6 @@ describe("MessageService", () => {
   const titleService = { startTitleCreation } as unknown as TitleService;
   const aiToolApprovalService = { review } as unknown as AiToolApprovalService;
   const toolApprovalService = {
-    completeRecoveredResolution,
     getPendingApproval,
     request: requestApproval,
     resolve: resolveApproval,
@@ -452,8 +450,6 @@ describe("MessageService", () => {
       },
     };
     resolveApproval.mockResolvedValue({ approval, live: false });
-    completeRecoveredResolution.mockResolvedValue("decision-entry");
-
     await expect(
       service.resolveToolApproval({
         approvalId: approval.payload.approvalId,
@@ -463,11 +459,12 @@ describe("MessageService", () => {
       }),
     ).resolves.toBe(true);
 
-    expect(completeRecoveredResolution).toHaveBeenCalledWith(
+    expect(resolveApproval).toHaveBeenCalledWith(
       1,
       "session",
       "approval-recovered",
       "allow",
+      "recovered",
     );
     await vi.waitFor(() => expect(continueRun).toHaveBeenCalledOnce());
     expect(execute).toHaveBeenCalledWith("call-recovered", {
@@ -523,8 +520,6 @@ describe("MessageService", () => {
       },
     };
     resolveApproval.mockResolvedValue({ approval, live: false });
-    completeRecoveredResolution.mockResolvedValue("decision-entry");
-
     const resolved = service.resolveToolApproval({
       approvalId: approval.payload.approvalId,
       workspaceId: approval.payload.workspaceId,
@@ -533,7 +528,13 @@ describe("MessageService", () => {
     });
 
     await expect(resolved).resolves.toBe(true);
-    expect(completeRecoveredResolution).toHaveBeenCalledOnce();
+    expect(resolveApproval).toHaveBeenCalledWith(
+      1,
+      "session",
+      "approval-immediate",
+      "deny",
+      "recovered",
+    );
     expect(sendEvent).not.toHaveBeenCalledWith(MESSAGE_EVENT, {
       type: "status",
       sessionId: "session",
@@ -578,8 +579,6 @@ describe("MessageService", () => {
       },
     };
     resolveApproval.mockResolvedValue({ approval, live: false });
-    completeRecoveredResolution.mockResolvedValue("decision-entry");
-
     await expect(
       service.resolveToolApproval({
         approvalId: approval.payload.approvalId,
@@ -599,11 +598,12 @@ describe("MessageService", () => {
         content: [{ type: "text", text: "用户拒绝了此工具调用。" }],
       }),
     );
-    expect(completeRecoveredResolution).toHaveBeenCalledWith(
+    expect(resolveApproval).toHaveBeenCalledWith(
       1,
       "session",
       "approval-denied",
       "deny",
+      "recovered",
     );
   });
 

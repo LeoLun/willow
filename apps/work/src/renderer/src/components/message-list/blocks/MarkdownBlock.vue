@@ -56,7 +56,7 @@ const markdownPlugins = [
 .markdown-new-styling {
   max-width: unset;
   font-size: var(--text-sm);
-  line-height: var(--text-sm--line-height);
+  line-height: var(--text-line-height);
   color: var(--text-primary);
 }
 

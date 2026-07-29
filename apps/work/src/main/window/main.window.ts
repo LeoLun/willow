@@ -16,7 +16,7 @@ const option: WindowMetadata = {
       preload: join(__dirname, "preload.js"),
     },
     ...(MAIN_WINDOW_VITE_DEV_SERVER_URL
-      ? { icon: join(__dirname, "../../assets/icons/icon.png") }
+      ? { icon: join(__dirname, "../../assets/icons/icon-dev.png") }
       : {}),
   },
   openDevTools: !app.isPackaged,

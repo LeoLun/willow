@@ -96,6 +96,7 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   --text-primary: #0d0d0d;
+  --text-line-height: calc(1.625 / 0.875);
 }
 
 .dark {

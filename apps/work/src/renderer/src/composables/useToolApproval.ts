@@ -1,5 +1,9 @@
-import type { ToolApprovalDecision, ToolApprovalEventPayload } from "@shared/api";
-import { TOOL_APPROVAL_EVENT } from "@shared/constants";
+import type {
+  ToolApprovalDecision,
+  ToolApprovalEventPayload,
+  ToolApprovalResolvedEventPayload,
+} from "@shared/api";
+import { TOOL_APPROVAL_EVENT, TOOL_APPROVAL_RESOLVED_EVENT } from "@shared/constants";
 import { createGlobalState } from "@vueuse/core";
 import {
   computed,
@@ -18,6 +22,15 @@ const useToolApprovalState = createGlobalState(() => {
 
   function handleApprovalRequested(payload: ToolApprovalEventPayload): void {
     setApproval(payload.workspaceId, payload.sessionId, payload);
+  }
+
+  function handleApprovalResolved(payload: ToolApprovalResolvedEventPayload): void {
+    if (
+      approvals.value.get(approvalKey(payload.workspaceId, payload.sessionId))?.approvalId ===
+      payload.approvalId
+    ) {
+      setApproval(payload.workspaceId, payload.sessionId);
+    }
   }
 
   function setApproval(
@@ -65,7 +78,15 @@ const useToolApprovalState = createGlobalState(() => {
       sessionId: approval.sessionId,
       decision,
     });
-    if (!response.resolved) throw new Error("审批请求已失效");
+    if (!response.resolved) {
+      if (
+        approvals.value.get(approvalKey(approval.workspaceId, approval.sessionId))?.approvalId ===
+        approvalId
+      ) {
+        setApproval(approval.workspaceId, approval.sessionId);
+      }
+      return;
+    }
     if (
       approvals.value.get(approvalKey(approval.workspaceId, approval.sessionId))?.approvalId ===
       approvalId
@@ -78,6 +99,7 @@ const useToolApprovalState = createGlobalState(() => {
     approvals,
     getRevision,
     handleApprovalRequested,
+    handleApprovalResolved,
     hydrateApproval,
     resolveApproval,
     setApproval,
@@ -102,11 +124,12 @@ export function getToolApprovalRevision(workspaceId: number, sessionId: string):
 }
 
 export function useToolApprovalListener(): void {
-  const { handleApprovalRequested } = useToolApprovalState();
+  const { handleApprovalRequested, handleApprovalResolved } = useToolApprovalState();
   const { addEventListener, removeEventListener, waitUntilReady } = useEventBus();
 
   onMounted(() => {
     addEventListener(TOOL_APPROVAL_EVENT, handleApprovalRequested);
+    addEventListener(TOOL_APPROVAL_RESOLVED_EVENT, handleApprovalResolved);
     void waitUntilReady().catch((error) => {
       console.error("订阅工具审批事件失败:", error);
     });
@@ -114,6 +137,7 @@ export function useToolApprovalListener(): void {
 
   onBeforeUnmount(() => {
     removeEventListener(TOOL_APPROVAL_EVENT, handleApprovalRequested);
+    removeEventListener(TOOL_APPROVAL_RESOLVED_EVENT, handleApprovalResolved);
   });
 }
 

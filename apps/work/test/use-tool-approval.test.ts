@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ToolApprovalEventPayload } from "@shared/api";
-import { TOOL_APPROVAL_EVENT } from "@shared/constants";
+import { TOOL_APPROVAL_EVENT, TOOL_APPROVAL_RESOLVED_EVENT } from "@shared/constants";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, nextTick, ref, type App } from "vue";
 
@@ -71,6 +71,18 @@ function getApprovalListener(): (payload: ToolApprovalEventPayload) => void {
     ([event]) => event === TOOL_APPROVAL_EVENT,
   )?.[1];
   if (!listener) throw new Error("tool approval listener was not registered");
+  return listener;
+}
+
+function getApprovalResolvedListener(): (payload: {
+  approvalId: string;
+  workspaceId: number;
+  sessionId: string;
+}) => void {
+  const listener = mocks.addEventListener.mock.calls.find(
+    ([event]) => event === TOOL_APPROVAL_RESOLVED_EVENT,
+  )?.[1];
+  if (!listener) throw new Error("tool approval resolved listener was not registered");
   return listener;
 }
 
@@ -165,16 +177,40 @@ describe("useToolApproval", () => {
     expect(mounted.approval.currentApproval.value).toBe(request);
   });
 
-  it("retains a request when the main process no longer resolves it", async () => {
+  it("clears a stale request when the main process no longer resolves it", async () => {
     const mounted = mountApproval();
     const request = createRequest("approval-stale");
     getApprovalListener()(request);
     mocks.resolveToolApproval.mockResolvedValueOnce({ resolved: false });
 
-    await expect(mounted.approval.resolveApproval(request.approvalId, "deny")).rejects.toThrow(
-      "审批请求已失效",
-    );
-    expect(mounted.approval.currentApproval.value).toBe(request);
+    await expect(
+      mounted.approval.resolveApproval(request.approvalId, "deny"),
+    ).resolves.toBeUndefined();
+    expect(mounted.approval.currentApproval.value).toBeUndefined();
+  });
+
+  it("clears only the matching approval when the main process settles it", async () => {
+    const mounted = mountApproval();
+    const requested = getApprovalListener();
+    const resolved = getApprovalResolvedListener();
+    const first = createRequest("approval-settled-first");
+    const second = createRequest("approval-settled-second");
+    requested(first);
+    requested(second);
+
+    resolved({
+      approvalId: first.approvalId,
+      workspaceId: first.workspaceId,
+      sessionId: first.sessionId,
+    });
+    expect(mounted.approval.currentApproval.value).toBe(second);
+
+    resolved({
+      approvalId: second.approvalId,
+      workspaceId: second.workspaceId,
+      sessionId: second.sessionId,
+    });
+    expect(mounted.approval.currentApproval.value).toBeUndefined();
   });
 
   it("removes the global event listener on unmount", () => {
@@ -184,5 +220,9 @@ describe("useToolApproval", () => {
     mounted.app.unmount();
 
     expect(mocks.removeEventListener).toHaveBeenCalledWith(TOOL_APPROVAL_EVENT, listener);
+    expect(mocks.removeEventListener).toHaveBeenCalledWith(
+      TOOL_APPROVAL_RESOLVED_EVENT,
+      expect.any(Function),
+    );
   });
 });

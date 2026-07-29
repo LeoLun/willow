@@ -1,4 +1,9 @@
-import { createWebHistory, createRouter, type RouteRecordRaw } from "vue-router";
+import {
+  createRouter,
+  createWebHashHistory,
+  createWebHistory,
+  type RouteRecordRaw,
+} from "vue-router";
 
 import Auto from "./pages/main/auto/Auto.vue";
 import Chat from "./pages/main/chat/Chat.vue";
@@ -6,6 +11,7 @@ import ChatBase from "./pages/main/ChatBase.vue";
 import Home from "./pages/main/home/Home.vue";
 import Main from "./pages/main/Main.vue";
 import Skill from "./pages/main/skill/Skill.vue";
+import { getRendererHistoryMode } from "./router-history";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -26,7 +32,12 @@ const routes: RouteRecordRaw[] = [
   },
 ];
 
+const history =
+  getRendererHistoryMode(window.location.protocol) === "hash"
+    ? createWebHashHistory()
+    : createWebHistory();
+
 export const router = createRouter({
-  history: createWebHistory(),
+  history,
   routes,
 });

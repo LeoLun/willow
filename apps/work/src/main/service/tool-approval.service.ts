@@ -7,7 +7,7 @@ import type {
   ToolApprovalDecision,
   ToolApprovalEventPayload,
 } from "@shared/api";
-import { TOOL_APPROVAL_EVENT } from "@shared/constants";
+import { TOOL_APPROVAL_EVENT, TOOL_APPROVAL_RESOLVED_EVENT } from "@shared/constants";
 import type { ToolApprovalRequest } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import { EventService } from "./event.service";
@@ -55,6 +55,7 @@ export class ToolApprovalService {
   private readonly pending = new Map<string, PendingApproval>();
   private readonly queue: string[] = [];
   private readonly resolving = new Set<string>();
+  private readonly persistenceQueues = new Map<string, Promise<void>>();
   private activeApprovalId?: string;
 
   constructor(
@@ -115,18 +116,18 @@ export class ToolApprovalService {
     sessionId: string,
     approvalId: string,
     decision: ToolApprovalDecision,
+    mode: "live" | "recovered" = "live",
   ): Promise<ToolApprovalResolution | undefined> {
     if (this.resolving.has(approvalId)) return undefined;
     this.resolving.add(approvalId);
     try {
       const approvals = await this.getPendingApprovals(workspaceId, sessionId);
-      const approval = approvals[0];
-      if (!approval || approval.payload.approvalId !== approvalId) return undefined;
-      const live = this.pending.has(approvalId);
-      if (live) {
-        await this.appendDecision(workspaceId, sessionId, approvalId, decision);
-        this.settle(approvalId, decision);
-      }
+      const approval = approvals.find((candidate) => candidate.payload.approvalId === approvalId);
+      if (!approval) return undefined;
+      const hasPendingRequest = this.pending.has(approvalId);
+      const live = mode === "live" && hasPendingRequest;
+      await this.appendDecision(workspaceId, sessionId, approvalId, decision);
+      if (hasPendingRequest) this.settle(approvalId, decision);
       return { approval, live };
     } finally {
       this.resolving.delete(approvalId);
@@ -158,15 +159,6 @@ export class ToolApprovalService {
     return [...pending.values()];
   }
 
-  completeRecoveredResolution(
-    workspaceId: number,
-    sessionId: string,
-    approvalId: string,
-    decision: ToolApprovalDecision,
-  ): Promise<string> {
-    return this.appendDecision(workspaceId, sessionId, approvalId, decision);
-  }
-
   private settle(approvalId: string, decision: ToolApprovalDecision): void {
     const item = this.pending.get(approvalId);
     if (!item) return;
@@ -177,6 +169,11 @@ export class ToolApprovalService {
     const queueIndex = this.queue.indexOf(approvalId);
     if (queueIndex >= 0) this.queue.splice(queueIndex, 1);
     if (this.activeApprovalId === approvalId) this.activeApprovalId = undefined;
+    this.eventService.sendEvent(TOOL_APPROVAL_RESOLVED_EVENT, {
+      approvalId,
+      workspaceId: item.approval.payload.workspaceId,
+      sessionId: item.approval.payload.sessionId,
+    });
     item.resolve(decision);
     this.dispatchNext();
   }
@@ -214,7 +211,20 @@ export class ToolApprovalService {
     sessionId: string,
     data: ToolApprovalEntryData,
   ): Promise<string> {
-    return this.sessionService.appendCustomEntry(workspaceId, sessionId, TOOL_APPROVAL_ENTRY, data);
+    const key = `${workspaceId}:${sessionId}`;
+    const previous = this.persistenceQueues.get(key) ?? Promise.resolve();
+    const operation = previous.then(() =>
+      this.sessionService.appendCustomEntry(workspaceId, sessionId, TOOL_APPROVAL_ENTRY, data),
+    );
+    const tail = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.persistenceQueues.set(key, tail);
+    void tail.finally(() => {
+      if (this.persistenceQueues.get(key) === tail) this.persistenceQueues.delete(key);
+    });
+    return operation;
   }
 
   private parseEntry(entry: SessionTreeEntry): ToolApprovalEntryData | undefined {
