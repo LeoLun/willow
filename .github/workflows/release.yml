@@ -43,7 +43,10 @@ jobs:
           mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg || true
           APP_ASAR=$(find out -path "*darwin-arm64*/Contents/Resources/app.asar" -type f -print -quit)
           test -n "$APP_ASAR"
+          test -d "${APP_ASAR}.unpacked"
+          rm -rf out/app-arm64.asar.unpacked
           cp "$APP_ASAR" out/app-arm64.asar
+          cp -R "${APP_ASAR}.unpacked" out/app-arm64.asar.unpacked
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -56,8 +59,10 @@ jobs:
         run: |
           cd apps/work
           test -f out/app-arm64.asar
+          test -d out/app-arm64.asar.unpacked
           TEMP_ASAR_DIR=$(mktemp -d)
-          trap 'rm -rf "$TEMP_ASAR_DIR"' EXIT
+          UNPACKED_ASAR_DIR="$PWD/out/app-arm64.asar.unpacked"
+          trap 'rm -rf "$TEMP_ASAR_DIR" "$UNPACKED_ASAR_DIR"' EXIT
           pnpm exec asar extract out/app-arm64.asar "$TEMP_ASAR_DIR"
           rm -rf "$TEMP_ASAR_DIR/node_modules/better-sqlite3/build"
           rm -rf "$TEMP_ASAR_DIR/node_modules/better-sqlite3/bin"
@@ -75,8 +80,8 @@ jobs:
             echo "Native modules must not be included in the hot-update ASAR"
             exit 1
           fi
-          cd out
-          shasum -a 256 "app-${{ env.VERSION }}.asar" > "app-${{ env.VERSION }}.asar.sha256"
+          shasum -a 256 "out/app-${{ env.VERSION }}.asar" \
+            > "out/app-${{ env.VERSION }}.asar.sha256"
 
       - name: Check output files
         run: |
