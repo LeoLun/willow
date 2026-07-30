@@ -32,12 +32,14 @@
    `sandbox-exec` 中执行。
 3. **读写边界明确**：文件工具和 shell 沙箱默认可读写当前工作区，以及由
    `AgentCore.agentDir` 解析出的全局 `skills` 目录（默认 `~/.willow/skills`），以支持管理
-   自定义全局技能。
+   自定义全局技能。由桌面应用传入的内置技能目录同样允许读写，以支持技能脚本在自身目录维护
+   安装状态、缓存等运行资源。
 4. **防止路径伪装**：工作区判断使用 canonical path，并检查最近存在的父目录，避免通过符号链接
    或尚未创建的路径绕过边界。
 5. **单次授权**：AI 或用户批准只对当前工具调用有效，不产生会话白名单或永久规则。
 6. **敏感写入硬拒绝**：`.env`、私钥等敏感模式在沙箱模式下不能通过普通审批放行。
-7. **最小扩权**：shell 获批后只增加当前路径或域名，并继续在沙箱中完整重跑。
+7. **最小扩权**：shell 获批后只增加当前路径、域名或当前调用所需的 Apple Events 能力，并继续
+   在沙箱中完整重跑。
 8. **安全失败**：缺少审批回调、对话框关闭、任务中止或无效审批都按拒绝处理。
 9. **模式按消息确定**：权限选择随每次发送消息传递，不持久化为工作区级策略。
 
@@ -58,6 +60,7 @@ type ToolApprovalReason =
   | "outside-workspace-read"
   | "outside-workspace-write"
   | "network-domain"
+  | "application-launch"
   | "sandbox-denied";
 ```
 
@@ -98,8 +101,9 @@ type ToolApprovalRequest = {
 - `webfetch` 在每次网络请求前检查严格域名白名单，未允许域名先请求用户批准；
 - `websearch` 仅访问已配置集成的固定域名 `api.tavily.com`，不逐次请求域名批准，但仍硬拒绝
   `deniedDomains` 中显式禁止的 Tavily 域名；
-- 未允许的网络域名或可识别的写路径被拒绝后，请求用户批准；
-- 用户允许后，只把该域名或路径加入当前调用的临时授权，并在沙箱内完整重跑；
+- 未允许的网络域名、可识别的写路径或结构化的应用启动能力被拒绝后，请求用户批准；
+- 用户允许后，只把该域名、路径或 Apple Events 能力加入当前调用的临时授权，并在沙箱内完整
+  重跑；
 - `write/edit` 写入工作区外路径前请求批准；
 - `read/ls/grep/find` 读取工作区外路径前请求批准；
 - 敏感写入和无法映射到具体资源的 shell 拒绝不会提供裸跑逃逸；
@@ -114,8 +118,8 @@ type ToolApprovalRequest = {
 - `bash` 仍先在沙箱中执行；
 - `webfetch` 仍在每次请求前执行域名检查，越界域名进入 AI 初审；
 - `websearch` 沿用已配置集成的固定域名授权，不进入 AI 初审，并继续尊重显式域名拒绝；
-- 沙箱拒绝或 `write/edit` 准备写出工作区时，将当前用户消息、工具请求、越界原因和工作区路径
-  发送给无工具的小模型；
+- 可识别的沙箱资源拒绝、应用启动请求或 `write/edit` 准备写出工作区时，将当前用户消息、工具
+  请求、越界原因和工作区路径发送给无工具的小模型；
 - 只有严格、结构化的 AI `allow` 结果才直接放行；
 - AI 拒绝、小模型未配置、调用失败、15 秒超时或输出无法解析时，转入用户审批；
 - 用户可以拒绝或仅本次允许；任务已中止时直接拒绝，不再弹窗。
@@ -142,6 +146,7 @@ type ToolApprovalRequest = {
 | `bash` 可在沙箱内完成 | 沙箱执行 | 沙箱执行 | 直接执行 |
 | `bash` 请求未允许域名 | 允许该域名后在沙箱内重跑 | AI 通过后按域名重跑，否则转用户审批 | 不经过沙箱 |
 | `bash` 写入可识别的未允许路径 | 允许该路径后在沙箱内重跑 | AI 通过后按路径重跑，否则转用户审批 | 不经过沙箱 |
+| `bash` 请求启动或控制外部应用 | 允许 Apple Events 后在沙箱内重跑 | AI 通过后按当前调用重跑，否则转用户审批 | 不经过沙箱 |
 | `bash` 未知沙箱拒绝 | 失败，不提供裸跑 | 失败，不提供裸跑 | 不经过沙箱 |
 | `webfetch` 请求允许域名 | 直接请求 | 直接请求 | 直接请求 |
 | `webfetch` 请求未允许域名 | 请求前弹窗 | AI 通过后请求，否则转用户审批 | 直接请求 |
@@ -150,9 +155,10 @@ type ToolApprovalRequest = {
 | `websearch` 请求固定 Tavily 域名 | 配置 Key 后直接请求 | 配置 Key 后直接请求 | 直接请求 |
 | `websearch` 命中拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
 | `write/edit` 工作区或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
+| `write/edit` 内置技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区外写入 | 执行前弹窗 | AI 通过后写入，否则转用户审批 | 直接执行 |
 | `write/edit` 敏感目标 | 硬拒绝 | 硬拒绝 | 直接执行 |
-| `read/ls/grep/find` 工作区或全局技能目录内读取 | 直接读取 | 直接读取 | 直接读取 |
+| `read/ls/grep/find` 工作区、全局或内置技能目录内读取 | 直接读取 | 直接读取 | 直接读取 |
 | `read/ls/grep/find` 工作区外读取 | 执行前弹窗 | AI 通过后读取，否则转用户审批 | 直接读取 |
 | 缺少审批回调 | 拒绝逃逸 | 拒绝逃逸 | 不需要回调 |
 | 非 macOS 平台 | 创建任务失败 | 创建任务失败 | 可使用 |
@@ -168,34 +174,43 @@ type ToolApprovalRequest = {
 受控 HTTP/SOCKS 代理。基础策略为：
 
 - 用户主目录默认禁止读取，再只读放行 canonical workspace、系统临时目录、由
-  `AgentCore.agentDir` 解析出的全局 `skills` 目录（默认 `~/.willow/skills`）和明确配置路径；
-- 写入只允许 canonical workspace、系统临时目录、全局 `skills` 目录和明确配置路径；
+  `AgentCore.agentDir` 解析出的全局 `skills` 目录（默认 `~/.willow/skills`）、由
+  `AgentCoreOptions.builtinSkills` 指定的内置技能目录和明确配置路径；
+- 写入只允许 canonical workspace、系统临时目录、全局 `skills` 目录、由
+  `AgentCoreOptions.builtinSkills` 指定的内置技能目录和明确配置路径；
 - `.env`、`.env.*`、`*.pem`、`*.key` 及 runtime mandatory deny 路径禁止写入；
 - 网络采用域名 allowlist，未匹配域名由 runtime ask callback 报告并拒绝；
-- Apple Events、浏览器进程能力、弱嵌套沙箱和弱网络隔离默认关闭。
+- Apple Events、浏览器进程能力、弱嵌套沙箱和弱网络隔离默认关闭；Apple Events 仅能通过当前
+  bash 工具调用的一次性审批开启。
 
 `SandboxManager` 是进程级单例，因此 Core 将沙箱初始化、命令执行和 reset 串行化，防止并发
 Harness 的工作区策略互相覆盖。
 
 `AgentCore` 将实例字段 `agentDir` 传入工具运行时。相对路径按用户主目录解析，绝对路径保持其
-绝对位置，沙箱再在解析后的全局 Agent 目录下追加 `skills` 作为只读白名单；Core 不在沙箱实现中
-重复写死默认目录名。
+绝对位置，沙箱再在解析后的全局 Agent 目录下追加 `skills`。桌面应用传入的内置技能目录会同时
+合并到 `SandboxPolicy.allowRead` 和 `SandboxPolicy.allowWrite`；Core 不在沙箱实现中重复写死
+应用资源路径。
 
 ### 6.2 资源拒绝与沙箱内重跑
 
 网络代理 callback 会返回未允许的具体 host。shell 重定向错误和 macOS violation monitor 用于
-提取被拒绝的具体写路径。识别到资源后：
+提取被拒绝的具体写路径。violation monitor 还会识别 `lsopen`、`appleevent-send` 以及
+LaunchServices/Apple Events 的固定 Mach 服务拒绝。识别到资源或应用启动能力后：
 
 1. 域名构造 `reason: "network-domain"`，写路径构造
-   `reason: "outside-workspace-write"`；
+   `reason: "outside-workspace-write"`，应用启动构造 `reason: "application-launch"`；
 2. 设置 `mayHavePartialEffects: true`；
 3. 按当前权限模式进入用户审批或 AI 初审；
-4. 获准后只将该 host 或 canonical path 加入当前 `toolCallId` 的内存授权；
+4. 获准后只将该 host、canonical path 或 Apple Events 能力加入当前 `toolCallId` 的内存授权；
 5. reset 并按扩展后的策略重新初始化 runtime；
 6. 在新的沙箱中完整重跑原始命令。
 
-无法识别为具体资源的拒绝作为普通命令错误返回，不再提供脱离沙箱重跑。单个命令最多处理 16
-次资源扩权，防止重定向或恶意命令产生无限审批循环。
+Apple Events 是 macOS 提供给 `open` 和 `osascript` 的共同能力，因此审批文案明确说明它可以
+启动或控制外部应用。Core 不解析 shell，也不根据可伪造的 stdout/stderr 文案授予该能力；只有
+结构化 violation 可以触发审批。授权后浏览器进程能力仍保持关闭，文件和网络策略不变。
+
+无法识别为具体资源或能力的拒绝作为普通命令错误返回，不再提供脱离沙箱重跑。单个命令最多处理
+16 次资源扩权，防止重定向或恶意命令产生无限审批循环。
 
 ### 6.3 输出、超时与中止
 
@@ -229,7 +244,7 @@ Harness 的工作区策略互相覆盖。
 5. 将结果与工作区的 canonical path 比较。
 
 只有目标位于工作区 canonical path、由 `agentDir` 解析出的全局 `skills` 目录或显式
-`allowWrite` 根内时，才允许无提示写入。
+`allowWrite` 根内时，才允许无提示写入。内置技能目录由 `AgentCore` 合并到 `allowWrite`。
 
 这同时覆盖：
 
@@ -266,7 +281,8 @@ Harness 的工作区策略互相覆盖。
 
 1. 解析目标文件、目录或搜索根；
 2. 通过最近存在父目录和 `realpath()` 得到 canonical path；
-3. 工作区、由 `agentDir` 解析出的全局 `skills` 目录、`allowRead` 或 `allowWrite` 根内直接读取；
+3. 工作区、由 `agentDir` 解析出的全局 `skills` 目录、内置技能目录、`allowRead` 或
+   `allowWrite` 根内直接读取；
 4. 其他路径构造 `outside-workspace-read` 审批；
 5. 获批只允许当前工具调用继续，不保存规则。
 
@@ -460,6 +476,8 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 
 - 不分析 shell AST，也不在执行前预测命令需要哪些权限；
 - 不为单个 shell 子命令授权；资源获批后仍会完整重跑整条命令；
+- Apple Events 获批后对当前工具调用中的完整命令生效，不能限制为只执行 `open`；它也能支持
+  `osascript` 控制外部应用，因此必须作为独立能力明确展示；
 - 不提供永久白名单、会话规则或“始终允许”；
 - 不提供跨进程文件锁、回滚或事务；
 - `full-access` 不绕过操作系统权限；
@@ -482,7 +500,7 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 权限相关变更至少应覆盖：
 
 1. 三种模式下的 `bash` 与 `webfetch` 执行矩阵；
-2. 域名和写路径获批后仅扩展具体资源，并在沙箱内重跑；
+2. 域名、写路径和应用启动能力获批后仅扩展当前调用，并在沙箱内重跑；
 3. 未知沙箱拒绝不会触发通用审批或裸跑；
 4. 工作区内、工作区外和符号链接逃逸的读写；
 5. 敏感写入硬拒绝以及 `full-access` 的显式绕过；
@@ -492,7 +510,7 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 9. AI 严格 JSON、未配置、失败、超时、无效输出和 AbortSignal；
 10. 对话框权限原因、AI 理由、allow、deny 和关闭行为；
 11. 停止任务时 shell、AI 调用、工具和审批等待项的释放；
-12. 真实 macOS runtime 对读取、写入和域名 allowlist 的限制。
+12. 真实 macOS runtime 对读取、写入、域名 allowlist 和 Apple Events 默认关闭的限制。
 13. `webfetch` 初始请求和跨域重定向逐跳授权、格式转换、大小限制、超时和中止。
 14. `websearch` 的条件注册、固定域名拒绝、Bearer 鉴权、参数校验、响应解析、超时、中止和密钥
     不泄漏。

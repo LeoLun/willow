@@ -243,6 +243,45 @@ describe("filesystem tools", () => {
     );
   });
 
+  it("allows configured built-in skill reads without allowing writes", async () => {
+    const parent = await temporaryDirectory("willow-builtin-skill-permission-");
+    const cwd = join(parent, "workspace");
+    const builtinSkills = join(parent, "builtin-skills");
+    await mkdir(cwd);
+    await mkdir(builtinSkills);
+    const skillPath = join(builtinSkills, "SKILL.md");
+    await writeFile(skillPath, "built-in skill", "utf8");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const runtime = {
+      cwd,
+      permissionMode: "request-approval" as const,
+      requestApproval,
+      sandboxPolicy: { allowRead: [builtinSkills] },
+    };
+
+    await expect(
+      createReadTool(runtime).execute("read-builtin", { path: skillPath }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        content: [{ type: "text", text: "built-in skill" }],
+      }),
+    );
+    await expect(
+      createWriteTool(runtime).execute("write-builtin", {
+        path: skillPath,
+        content: "changed",
+      }),
+    ).rejects.toThrow("Permission denied");
+    expect(requestApproval).toHaveBeenCalledTimes(1);
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCallId: "write-builtin",
+        reason: "outside-workspace-write",
+      }),
+      undefined,
+    );
+  });
+
   it("allows read-only tools inside global skills without allowing symlink escapes", async () => {
     const parent = await temporaryDirectory("willow-global-skills-read-");
     const cwd = join(parent, "workspace");

@@ -54,4 +54,50 @@ describe("AgentCore skills", () => {
       ]),
     );
   });
+
+  it("loads enabled built-in skills and only filters disabled skills from the built-in source", async () => {
+    const root = await mkdtemp(join(tmpdir(), "willow-core-builtin-skills-"));
+    temporaryDirectories.push(root);
+    const cwd = join(root, "workspace");
+    const agentDir = join(root, ".willow");
+    const builtinSkillsDirectory = join(root, "builtin-skills");
+    const builtinReviewPath = join(builtinSkillsDirectory, "review");
+    const builtinDocsPath = join(builtinSkillsDirectory, "write-docs");
+    const workspaceReviewPath = join(cwd, ".willow", "skills", "review");
+    await writeSkill(builtinReviewPath, "review", "Built-in review");
+    await writeSkill(builtinDocsPath, "write-docs", "Built-in documentation");
+    await writeSkill(workspaceReviewPath, "review", "Workspace review");
+
+    const core = new AgentCore({
+      cwd,
+      agentDir,
+      builtinSkills: {
+        directory: builtinSkillsDirectory,
+        disabledIds: ["review"],
+      },
+      models: {} as never,
+      sessionRepo: {} as never,
+    });
+
+    const skills = await core.getSkills();
+    expect(skills).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "write-docs",
+          filePath: join(builtinDocsPath, "SKILL.md"),
+        }),
+        expect.objectContaining({
+          name: "review",
+          filePath: join(workspaceReviewPath, "SKILL.md"),
+        }),
+      ]),
+    );
+    expect(skills).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          filePath: join(builtinReviewPath, "SKILL.md"),
+        }),
+      ]),
+    );
+  });
 });

@@ -18,6 +18,7 @@ export type SandboxGrants = {
   readPaths: string[];
   writePaths: string[];
   domains: string[];
+  allowAppleEvents: boolean;
 };
 
 export type PreparedSandboxCommand = {
@@ -75,7 +76,7 @@ export function createSandboxRuntimeConfig(
     },
     enableWeakerNestedSandbox: false,
     enableWeakerNetworkIsolation: false,
-    allowAppleEvents: false,
+    allowAppleEvents: grants.allowAppleEvents,
     allowBrowserProcess: false,
   };
 }

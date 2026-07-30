@@ -22,6 +22,7 @@ export type ToolApprovalReason =
   | "outside-workspace-read"
   | "outside-workspace-write"
   | "network-domain"
+  | "application-launch"
   | "sandbox-denied";
 
 export type ToolApprovalRequest = {

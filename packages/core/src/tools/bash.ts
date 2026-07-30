@@ -35,6 +35,13 @@ type ShellResult = {
 };
 
 const MAX_SANDBOX_APPROVALS = 16;
+const APPLICATION_LAUNCH_DENIAL_MARKERS = [
+  "lsopen",
+  "appleevent-send",
+  "mach-lookup com.apple.coreservices.appleevents",
+  "mach-lookup com.apple.coreservices.coreservicesd",
+  "mach-lookup com.apple.coreservices.quarantine-resolver",
+] as const;
 
 function killProcess(pid: number | undefined): void {
   if (!pid) return;
@@ -199,6 +206,16 @@ function extractBlockedWritePath(result: ShellResult): string | undefined {
   return match?.[1]?.trim();
 }
 
+function hasApplicationLaunchViolation(violations: readonly SandboxViolationEvent[]): boolean {
+  return violations.some((violation) => {
+    const line = violation.line.toLocaleLowerCase().replace(/"/g, "");
+    return (
+      /deny(?:\(\d+\))?\s/.test(line) &&
+      APPLICATION_LAUNCH_DENIAL_MARKERS.some((marker) => line.includes(marker))
+    );
+  });
+}
+
 async function formatResult(
   command: string,
   sandboxed: boolean,
@@ -260,7 +277,12 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
         onUpdate,
       });
     } else {
-      const grants: SandboxGrants = { readPaths: [], writePaths: [], domains: [] };
+      const grants: SandboxGrants = {
+        readPaths: [],
+        writePaths: [],
+        domains: [],
+        allowAppleEvents: false,
+      };
       let approvals = 0;
       while (true) {
         result = await runSandboxedShell({
@@ -313,6 +335,20 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
             mayHavePartialEffects: true,
           });
           grants.writePaths.push(canonicalPath);
+          approvals += 1;
+          continue;
+        }
+
+        if (!grants.allowAppleEvents && hasApplicationLaunchViolation(result.violations ?? [])) {
+          if (approvals >= MAX_SANDBOX_APPROVALS) {
+            throw new Error("Too many sandbox permission requests for one command");
+          }
+          await this.requestPermission(context, {
+            reason: "application-launch",
+            display: input.command,
+            mayHavePartialEffects: true,
+          });
+          grants.allowAppleEvents = true;
           approvals += 1;
           continue;
         }

@@ -1,3 +1,4 @@
+import { arch, platform, release, type } from "node:os";
 import type { Skill } from "@earendil-works/pi-agent-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSystemPrompt } from "../src/prompt/system";
@@ -17,10 +18,12 @@ describe("getSystemPrompt", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-10T08:00:00.000Z"));
+    vi.stubEnv("SHELL", "/bin/test-shell");
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
 
   it("renders project instructions in discovery order with escaped paths", () => {
@@ -89,6 +92,11 @@ describe("getSystemPrompt", () => {
     expect(prompt).toContain("# Working Environment");
     expect(prompt).toContain("Current date: 2026-07-10");
     expect(prompt).toContain("Current working directory: /workspace/project");
+    expect(prompt).toContain(`Operating system: ${type()}`);
+    expect(prompt).toContain(`Platform: ${platform()}`);
+    expect(prompt).toContain(`OS release: ${release()}`);
+    expect(prompt).toContain(`Architecture: ${arch()}`);
+    expect(prompt).toContain("Shell: /bin/test-shell");
     expect(prompt).toContain("# Ultimate Reminders");
     expect(prompt).not.toMatch(/`(?:Read|Glob|Grep|WriteFile|Shell|Agent|TaskList)`/);
     expect(prompt).not.toMatch(/\{[{%]|[}%]\}/);

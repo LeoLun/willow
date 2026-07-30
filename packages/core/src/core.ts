@@ -14,6 +14,7 @@ export class AgentCore {
   private agentDir: string; // 全局目录
   private sessionManager: SessionRepo;
   private loader: DefaultResourceLoader;
+  private builtinSkills?: AgentCoreOptions["builtinSkills"];
   private tavilyApiKey?: string;
 
   constructor(options: AgentCoreOptions) {
@@ -22,11 +23,13 @@ export class AgentCore {
     this.env = new NodeExecutionEnv({ cwd: this.cwd });
     this.models = options.models;
     this.sessionManager = options.sessionRepo;
+    this.builtinSkills = options.builtinSkills;
     this.tavilyApiKey = options.tavilyApiKey;
 
     this.loader = new DefaultResourceLoader({
       cwd: this.cwd,
       agentDir: this.agentDir,
+      builtinSkills: this.builtinSkills,
       env: this.env,
     });
   }
@@ -54,6 +57,13 @@ export class AgentCore {
 
     const { systemPrompt } = await this.loader.reload();
 
+    const sandboxPolicy = this.builtinSkills
+      ? {
+          ...options.sandboxPolicy,
+          allowRead: [...(options.sandboxPolicy?.allowRead ?? []), this.builtinSkills.directory],
+          allowWrite: [...(options.sandboxPolicy?.allowWrite ?? []), this.builtinSkills.directory],
+        }
+      : options.sandboxPolicy;
     const harness = new AgentHarness({
       models: this.models,
       env: this.env,
@@ -65,7 +75,7 @@ export class AgentCore {
         agentDir: this.agentDir,
         permissionMode,
         requestApproval: options.requestApproval,
-        sandboxPolicy: options.sandboxPolicy,
+        sandboxPolicy,
         tavilyApiKey: this.tavilyApiKey,
       }),
       systemPrompt: systemPrompt,

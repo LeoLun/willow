@@ -163,4 +163,25 @@ describe("ToolApprovalPanel", () => {
     expect(mounted.container.textContent).toContain("仅放行上述资源");
     expect(mounted.container.textContent).toContain("在沙箱中完整");
   });
+
+  it("describes an application launch as control of an external application", () => {
+    const command = 'open -a "Microsoft Word" report.docx';
+    const mounted = mountPanel(
+      createRequest({
+        input: { command },
+        reason: "application-launch",
+        display: command,
+        mayHavePartialEffects: true,
+      }),
+    );
+
+    expect(mounted.container.textContent).toContain("启动或控制外部应用");
+    expect(mounted.container.querySelector("[data-slot=tool-approval-command]")?.textContent).toBe(
+      command,
+    );
+    expect(mounted.container.textContent).toContain("可能已经产生部分工作区内副作用");
+    expect(mounted.container.textContent).toContain(
+      "仅为本次工具调用开启应用启动与 Apple Events 能力",
+    );
+  });
 });

@@ -44,6 +44,10 @@ const config = {
         join(buildPath, "src/main/db/migrations"),
         { force: true, recursive: true },
       );
+      await cp(join(process.cwd(), "resources/skills"), join(buildPath, "resources/skills"), {
+        force: true,
+        recursive: true,
+      });
     },
   },
   makers: [

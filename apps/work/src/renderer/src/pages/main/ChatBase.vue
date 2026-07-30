@@ -27,6 +27,7 @@ import FileSearchPanel from "@/components/prompt-composer/FileSearchPanel.vue";
 import QueuedMessageList from "@/components/prompt-composer/QueuedMessageList.vue";
 import SkillSearchPanel from "@/components/prompt-composer/SkillSearchPanel.vue";
 import ToolApprovalPanel from "@/components/tool/ToolApprovalPanel.vue";
+import { useComposerPreferences } from "@/composables/useComposerPreferences";
 import { useEventBus } from "@/composables/useEventBus";
 import { useMessageStatus } from "@/composables/useMessage";
 import { useMessageQueue } from "@/composables/useMessageQueue";
@@ -38,6 +39,7 @@ const router = useRouter();
 const { addEventListener, removeEventListener, waitUntilReady } = useEventBus();
 const { isSessionRunning } = useMessageStatus();
 const messageQueue = useMessageQueue();
+const composerPreferences = useComposerPreferences();
 const message = ref("");
 const creatingSession = ref(false);
 const creationError = ref("");
@@ -45,9 +47,9 @@ const sessionTitle = ref("");
 const loadingModels = ref(true);
 const modelLoadError = ref(false);
 const providers = shallowRef<ProviderInfo[]>([]);
-const selectedModel = shallowRef<ModelConfig>();
-const approvalMode = ref<PermissionMode>("request-approval");
-const reasoningEffort = ref<string>();
+const selectedModel = shallowRef<ModelConfig | undefined>(composerPreferences.value.model);
+const approvalMode = ref<PermissionMode>(composerPreferences.value.approvalMode);
+const reasoningEffort = ref<string | undefined>(composerPreferences.value.reasoningEffort);
 
 const approvalOptions: ComposerOption[] = [
   { value: "request-approval", label: "请求批准", icon: ShieldQuestionIcon },
@@ -190,6 +192,17 @@ async function decideApproval(decision: ToolApprovalDecision): Promise<void> {
 
 watch([workspaceId, sessionId], () => void loadSessionTitle(), { immediate: true });
 watch(
+  [approvalMode, selectedModel, reasoningEffort],
+  ([nextApprovalMode, nextModel, nextReasoningEffort]) => {
+    composerPreferences.value = {
+      approvalMode: nextApprovalMode,
+      model: nextModel,
+      reasoningEffort: nextReasoningEffort,
+    };
+  },
+  { flush: "sync" },
+);
+watch(
   [workspaceId, sessionId, currentSessionRunning],
   ([nextWorkspaceId, nextSessionId, running]) => {
     if (nextWorkspaceId !== undefined && nextSessionId !== undefined && !running) {
@@ -212,13 +225,15 @@ onMounted(async () => {
     providers.value = catalog.providers.filter(
       (provider) => configuredProviderIds.has(provider.id) && provider.models.length > 0,
     );
-    const configuredModel = userConfig.largeModel;
-    const hasConfiguredModel = providers.value.some(
-      (provider) =>
-        provider.id === configuredModel?.providerId &&
-        provider.models.some((model) => model.id === configuredModel.modelId),
-    );
-    selectedModel.value = hasConfiguredModel ? configuredModel : modelOptions.value[0]?.value;
+    const findAvailableModel = (model: ModelConfig | undefined) =>
+      modelOptions.value.find(
+        (option) =>
+          option.value.providerId === model?.providerId && option.value.modelId === model.modelId,
+      )?.value;
+    selectedModel.value =
+      findAvailableModel(composerPreferences.value.model) ??
+      findAvailableModel(userConfig.largeModel) ??
+      modelOptions.value[0]?.value;
   } catch (error) {
     modelLoadError.value = true;
     console.error("读取模型列表失败:", error);

@@ -20,7 +20,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-import { sessions, workspaces } from "../src/main/db/schema";
+import { builtinSkillSettings, sessions, workspaces } from "../src/main/db/schema";
 import { DbService } from "../src/main/service/db.service";
 
 const appPath = fileURLToPath(new URL("..", import.meta.url));
@@ -57,6 +57,20 @@ describe("DbService", () => {
     service.init();
 
     expect(service.getDb().select().from(workspaces).all()).toHaveLength(1);
+  });
+
+  it("persists built-in skill settings across database initialization", () => {
+    service
+      .getDb()
+      .insert(builtinSkillSettings)
+      .values({ skillId: "review", enabled: false })
+      .run();
+    service.close();
+
+    service = new DbService();
+    expect(service.getDb().select().from(builtinSkillSettings).all()).toEqual([
+      { skillId: "review", enabled: false },
+    ]);
   });
 
   it("enforces workspace and session constraints", () => {

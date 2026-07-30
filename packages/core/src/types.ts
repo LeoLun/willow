@@ -16,6 +16,10 @@ export type AgentCoreOptions = {
   models: MutableModels;
   sessionRepo: SessionRepo;
   agentDir?: string;
+  builtinSkills?: {
+    directory: string;
+    disabledIds?: readonly string[];
+  };
   tavilyApiKey?: string;
 };
 

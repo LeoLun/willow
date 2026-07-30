@@ -1,12 +1,20 @@
+import { arch, platform, release, type } from "node:os";
 import type { Skill } from "@earendil-works/pi-agent-core";
 import type { AgentsFile, SystemPromptOptions } from "../types";
 import { renderPrompt } from "../utils/render-prompt";
 import systemPrompt from "./system.md?raw";
 
 function buildEnvPrompt(cwd: string): string {
-  let prompt = `Current date: ${new Date().toISOString().split("T")[0]}`;
-  prompt += `\nCurrent working directory: ${cwd}`;
-  return prompt;
+  const shell = process.env.SHELL ?? process.env.ComSpec ?? "unknown";
+  return [
+    `Current date: ${new Date().toISOString().split("T")[0]}`,
+    `Current working directory: ${cwd}`,
+    `Operating system: ${type()}`,
+    `Platform: ${platform()}`,
+    `OS release: ${release()}`,
+    `Architecture: ${arch()}`,
+    `Shell: ${shell}`,
+  ].join("\n");
 }
 
 function buildSkillsPrompt(skills: Skill[]): string {
@@ -26,9 +34,7 @@ function buildSkillsPrompt(skills: Skill[]): string {
   for (const skill of skills) {
     lines.push("  <skill>");
     lines.push(`    <name>${escapeXml(skill.name)}</name>`);
-    lines.push(
-      `    <description>${escapeXml(skill.description)}</description>`,
-    );
+    lines.push(`    <description>${escapeXml(skill.description)}</description>`);
     lines.push(`    <location>${escapeXml(skill.filePath)}</location>`);
     lines.push("  </skill>");
   }

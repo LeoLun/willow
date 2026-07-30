@@ -79,6 +79,11 @@ export const userConfigs = sqliteTable("user_configs", {
   smallModelId: text("small_model_id"),
 });
 
+export const builtinSkillSettings = sqliteTable("builtin_skill_settings", {
+  skillId: text("skill_id").primaryKey(),
+  enabled: integer("enabled", { mode: "boolean" }).notNull(),
+});
+
 export type StatisticsRunSource = "approval" | "chat" | "title";
 
 export const statisticsRuns = sqliteTable(
@@ -144,6 +149,8 @@ export type StoredCredential = typeof credentials.$inferSelect;
 export type NewStoredCredential = typeof credentials.$inferInsert;
 export type UserConfig = typeof userConfigs.$inferSelect;
 export type NewUserConfig = typeof userConfigs.$inferInsert;
+export type BuiltinSkillSetting = typeof builtinSkillSettings.$inferSelect;
+export type NewBuiltinSkillSetting = typeof builtinSkillSettings.$inferInsert;
 export type StatisticsRun = typeof statisticsRuns.$inferSelect;
 export type NewStatisticsRun = typeof statisticsRuns.$inferInsert;
 export type StatisticsUsage = typeof statisticsUsage.$inferSelect;

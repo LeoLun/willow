@@ -55,6 +55,30 @@ export interface SkillInfo {
   name: string;
   description: string;
   filePath: string;
+  source: "builtin" | "global" | "project";
+}
+
+export interface BuiltinSkillInfo {
+  id: string;
+  name: string;
+  description: string;
+  scope: "global";
+  enabled: boolean;
+}
+
+export interface GetBuiltinSkillListRequest {}
+
+export interface GetBuiltinSkillListResponse {
+  skills: BuiltinSkillInfo[];
+}
+
+export interface SetBuiltinSkillEnabledRequest {
+  id: string;
+  enabled: boolean;
+}
+
+export interface SetBuiltinSkillEnabledResponse {
+  skill: BuiltinSkillInfo;
 }
 
 export interface GetSkillListRequest {

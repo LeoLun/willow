@@ -9,6 +9,8 @@ export function createApplicationMenuTemplate(
     ...(platform === "darwin"
       ? ([{ role: "appMenu" }] satisfies MenuItemConstructorOptions[])
       : []),
+    { role: "editMenu" },
+    { role: "windowMenu" },
   ];
 }
 

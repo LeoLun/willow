@@ -8,15 +8,28 @@ import type { AgentsFile } from "../types";
 export class DefaultResourceLoader {
   private cwd: string;
   private agentDir: string;
+  private builtinSkills?: {
+    directory: string;
+    disabledIds?: readonly string[];
+  };
   private skills: Skill[];
   private agentsFiles: AgentsFile[];
   private systemPrompt: string;
   private isInit: boolean = false;
   private env: ExecutionEnv;
 
-  constructor(options: { cwd: string; agentDir: string; env: ExecutionEnv }) {
+  constructor(options: {
+    cwd: string;
+    agentDir: string;
+    builtinSkills?: {
+      directory: string;
+      disabledIds?: readonly string[];
+    };
+    env: ExecutionEnv;
+  }) {
     this.cwd = options.cwd;
     this.agentDir = options.agentDir;
+    this.builtinSkills = options.builtinSkills;
     this.skills = [];
     this.agentsFiles = [];
     this.systemPrompt = "";
@@ -50,12 +63,21 @@ export class DefaultResourceLoader {
 
     const workspaceAgentDir = join(this.cwd, ".agents");
 
-    const { skills } = await loadSkills(this.env, [
-      join(globalAgentDir, "skills"),
-      join(workspaceWillowAgentDir, "skills"),
-      join(workspaceAgentDir, "skills"),
+    const [builtinResult, discoveredResult] = await Promise.all([
+      this.builtinSkills
+        ? loadSkills(this.env, this.builtinSkills.directory)
+        : Promise.resolve({ skills: [] as Skill[], diagnostics: [] }),
+      loadSkills(this.env, [
+        join(globalAgentDir, "skills"),
+        join(workspaceWillowAgentDir, "skills"),
+        join(workspaceAgentDir, "skills"),
+      ]),
     ]);
-    this.skills = skills;
+    const disabledBuiltinIds = new Set(this.builtinSkills?.disabledIds ?? []);
+    this.skills = [
+      ...builtinResult.skills.filter((skill) => !disabledBuiltinIds.has(skill.name)),
+      ...discoveredResult.skills,
+    ];
   }
 
   private async loadAgentFiles() {

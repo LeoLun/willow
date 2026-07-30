@@ -16,7 +16,9 @@ import { StopMessageController } from "./controllers/message/stop.message.contro
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { GetSessionListController } from "./controllers/session/get-list.session.controller";
+import { GetBuiltinSkillListController } from "./controllers/skill/get-builtin-list.skill.controller";
 import { GetSkillListController } from "./controllers/skill/get-list.skill.controller";
+import { SetBuiltinSkillEnabledController } from "./controllers/skill/set-builtin-enabled.skill.controller";
 import { GetStatisticsController } from "./controllers/statistics/get.statistics.controller";
 import { DeleteTavilyApiKeyController } from "./controllers/tavily/delete-api-key.tavily.controller";
 import { GetTavilySettingsController } from "./controllers/tavily/get-settings.tavily.controller";
@@ -33,7 +35,9 @@ import { SelectWorkspaceDirectoryController } from "./controllers/workspace/sele
 import { SetWorkspacePinnedController } from "./controllers/workspace/set-pinned.workspace.controller";
 import { AgentService } from "./service/agent.service";
 import { AiToolApprovalService } from "./service/ai-tool-approval.service";
+import { BuiltinSkillService } from "./service/builtin-skill.service";
 import { CredentialService } from "./service/credential.service";
+import { BuiltinSkillSettingDao } from "./service/dao/builtin-skill-setting.dao.server";
 import { CredentialDao } from "./service/dao/credential.dao.server";
 import { SessionDao } from "./service/dao/session.dao.server";
 import { StatisticsDao } from "./service/dao/statistics.dao.server";
@@ -73,12 +77,14 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     StatisticsDao,
     CredentialDao,
     UserConfigDao,
+    BuiltinSkillSettingDao,
     SessionManagerFactory,
     StatisticsService,
     TavilyService,
     AgentService,
     AiToolApprovalService,
     SessionService,
+    BuiltinSkillService,
     SkillService,
     TitleService,
     CredentialService,
@@ -104,7 +110,9 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     SetUserConfigController,
     CreateSessionController,
     GetSessionListController,
+    GetBuiltinSkillListController,
     GetSkillListController,
+    SetBuiltinSkillEnabledController,
     GetStatisticsController,
     GetTavilySettingsController,
     SetTavilyApiKeyController,

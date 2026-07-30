@@ -38,6 +38,7 @@ export async function authorize(
   if (signal?.aborted) throw new Error("Operation aborted");
   if (mode === "full-access") return;
   const decision = requestApproval ? await requestApproval(request, signal) : "deny";
+  if (signal?.aborted) throw new Error("Operation aborted");
   if (decision !== "allow") throw new Error(`Permission denied for ${request.toolName}`);
 }
 

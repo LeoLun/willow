@@ -16,10 +16,16 @@ const reasonLabel = computed(() => {
     "outside-workspace-read": "读取目标位于工作区外",
     "outside-workspace-write": "写入目标位于工作区外",
     "network-domain": "目标域名不在网络允许列表中",
+    "application-launch": "启动或控制外部应用",
     "sandbox-denied": "沙箱拒绝了命令",
   } satisfies Record<ToolApprovalEventPayload["reason"], string>;
   return labels[props.request.reason];
 });
+const partialEffectsMessage = computed(() =>
+  props.request.reason === "application-launch"
+    ? "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅为本次工具调用开启应用启动与 Apple Events 能力，并在沙箱中完整重跑该命令。"
+    : "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整重跑该命令。",
+);
 
 async function decide(decision: ToolApprovalDecision): Promise<void> {
   if (submitting.value) return;
@@ -75,8 +81,7 @@ async function decide(decision: ToolApprovalDecision): Promise<void> {
         v-if="request.mayHavePartialEffects"
         class="border-warning/30 bg-warning/5 rounded-lg border p-3 text-sm"
       >
-        沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整
-        重跑该命令。
+        {{ partialEffectsMessage }}
       </div>
 
       <div

@@ -14,6 +14,8 @@ import type {
   DeleteTavilyApiKeyResponse,
   GetAppInfoRequest,
   GetAppInfoResponse,
+  GetBuiltinSkillListRequest,
+  GetBuiltinSkillListResponse,
   GetConfiguredProvidersRequest,
   GetConfiguredProvidersResponse,
   GetCredentialRequest,
@@ -46,6 +48,8 @@ import type {
   SendMessageResponse,
   SetCredentialRequest,
   SetCredentialResponse,
+  SetBuiltinSkillEnabledRequest,
+  SetBuiltinSkillEnabledResponse,
   SetThemeRequest,
   SetThemeResponse,
   SetTavilyApiKeyRequest,
@@ -67,6 +71,7 @@ import {
   DELETE_WORKSPACE,
   EVENT_BUS,
   GET_APP_INFO,
+  GET_BUILTIN_SKILL_LIST,
   GET_CONFIGURED_PROVIDERS,
   GET_CREDENTIAL,
   GET_MESSAGE_LIST,
@@ -83,6 +88,7 @@ import {
   SEARCH_FILES,
   SEND_MESSAGE,
   SET_CREDENTIAL,
+  SET_BUILTIN_SKILL_ENABLED,
   SET_THEME,
   SET_TAVILY_API_KEY,
   SET_USER_CONFIG,
@@ -154,6 +160,16 @@ const ipcObject: IRenderHook = {
     invoke<GetSessionListRequest, GetSessionListResponse>(GET_SESSION_LIST, request),
   getSkillList: (request: GetSkillListRequest) =>
     invoke<GetSkillListRequest, GetSkillListResponse>(GET_SKILL_LIST, request),
+  getBuiltinSkillList: (request: GetBuiltinSkillListRequest = {}) =>
+    invoke<GetBuiltinSkillListRequest, GetBuiltinSkillListResponse>(
+      GET_BUILTIN_SKILL_LIST,
+      request,
+    ),
+  setBuiltinSkillEnabled: (request: SetBuiltinSkillEnabledRequest) =>
+    invoke<SetBuiltinSkillEnabledRequest, SetBuiltinSkillEnabledResponse>(
+      SET_BUILTIN_SKILL_ENABLED,
+      request,
+    ),
   searchFiles: (request: SearchFilesRequest) =>
     invoke<SearchFilesRequest, SearchFilesResponse>(SEARCH_FILES, request),
   sendMessage: (request: SendMessageRequest) =>

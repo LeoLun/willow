@@ -72,6 +72,7 @@ vi.mock("@willow/core", () => ({
 }));
 
 import { AgentService } from "../src/main/service/agent.service";
+import type { BuiltinSkillService } from "../src/main/service/builtin-skill.service";
 import type { CredentialService } from "../src/main/service/credential.service";
 import type { SessionManagerFactory } from "../src/main/service/session-manager.factory";
 import type { StatisticsService } from "../src/main/service/statistics.service";
@@ -105,6 +106,12 @@ describe("AgentService statistics interception", () => {
   const sessionManagerFactory = {
     create: vi.fn(() => ({})),
   } as unknown as SessionManagerFactory;
+  const builtinSkillService = {
+    getCoreOptions: vi.fn(() => ({
+      directory: "/app/resources/skills",
+      disabledIds: ["review"],
+    })),
+  } as unknown as BuiltinSkillService;
   let service: AgentService;
 
   beforeEach(() => {
@@ -112,7 +119,12 @@ describe("AgentService statistics interception", () => {
     mocks.coreOptions.length = 0;
     mocks.fullHarness.listener = undefined;
     startRun.mockReturnValue(11);
-    service = new AgentService(credentialService, sessionManagerFactory, statisticsService);
+    service = new AgentService(
+      credentialService,
+      sessionManagerFactory,
+      statisticsService,
+      builtinSkillService,
+    );
   });
 
   it("passes the current Tavily API key only to full AgentCore instances", async () => {
@@ -133,6 +145,10 @@ describe("AgentService statistics interception", () => {
     expect(credentialService.getCredential).toHaveBeenCalledWith("tavily");
     expect(mocks.coreOptions[0]).toMatchObject({
       cwd: "/workspace",
+      builtinSkills: {
+        directory: "/app/resources/skills",
+        disabledIds: ["review"],
+      },
       tavilyApiKey: "tvly-test",
     });
   });

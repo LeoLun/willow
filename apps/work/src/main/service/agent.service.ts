@@ -10,6 +10,7 @@ import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { AgentCore, type AgentCoreOptions, type ToolApprovalHandler } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import type { StatisticsRunSource } from "../db/schema";
+import { BuiltinSkillService } from "./builtin-skill.service";
 import { CredentialService } from "./credential.service";
 import { SessionManagerFactory } from "./session-manager.factory";
 import { StatisticsService } from "./statistics.service";
@@ -49,6 +50,7 @@ export class AgentService {
     private readonly credentialService: CredentialService,
     private readonly sessionManagerFactory: SessionManagerFactory,
     private readonly statisticsService: StatisticsService,
+    private readonly builtinSkillService: BuiltinSkillService,
   ) {
     const credentialStore = this.credentialService.getCredentialStore();
     this.models = builtinModels({ credentials: credentialStore });
@@ -101,6 +103,7 @@ export class AgentService {
       ...options,
       models: this.models,
       sessionRepo,
+      builtinSkills: this.builtinSkillService.getCoreOptions(),
       tavilyApiKey,
     });
     const harness = await core.getAgentHarness({
