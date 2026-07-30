@@ -14,6 +14,7 @@ import { FuseV1Options, FuseVersion } from "@electron/fuses";
 const betterSqlite3Source = fileURLToPath(
   new URL("../../node_modules/better-sqlite3", import.meta.url),
 );
+const macSigningIdentity = process.env.WILLOW_MACOS_SIGN_IDENTITY?.trim() || "-";
 
 const config = {
   packagerConfig: {
@@ -24,6 +25,11 @@ const config = {
     appCategoryType: "public.app-category.productivity",
     executableName: "Willow",
     icon: "./assets/icons/icon",
+    osxSign: {
+      continueOnError: false,
+      identity: macSigningIdentity,
+      identityValidation: macSigningIdentity !== "-",
+    },
     extendInfo: {
       CFBundleAllowMixedLocalizations: true,
       CFBundleDevelopmentRegion: "zh_CN",

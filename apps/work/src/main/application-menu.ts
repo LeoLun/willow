@@ -10,6 +10,7 @@ export function createApplicationMenuTemplate(
       ? ([{ role: "appMenu" }] satisfies MenuItemConstructorOptions[])
       : []),
     { role: "editMenu" },
+    { role: "viewMenu" },
     { role: "windowMenu" },
   ];
 }

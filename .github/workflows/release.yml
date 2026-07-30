@@ -36,21 +36,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build and Package Mac App (x64)
-        run: |
-          cd apps/work
-          pnpm run make:mac:x64
-          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-x64.dmg || true
-          APP_ASAR=$(find out -path "*darwin-x64*/Contents/Resources/app.asar" -type f -print -quit)
-          test -n "$APP_ASAR"
-          test -d "${APP_ASAR}.unpacked"
-          cp "$APP_ASAR" out/app-x64.asar
-          cp -R "${APP_ASAR}.unpacked" out/app-x64.asar.unpacked
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
       - name: Build and Package Mac App (arm64)
         run: |
           cd apps/work
@@ -69,28 +54,22 @@ jobs:
       - name: Validate and prepare app.asar hot update
         run: |
           cd apps/work
-          test -f out/app-x64.asar
           test -f out/app-arm64.asar
           TEMP_ASAR_DIR=$(mktemp -d)
-          mkdir -p "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64"
-          pnpm exec asar extract out/app-x64.asar "$TEMP_ASAR_DIR/x64"
-          pnpm exec asar extract out/app-arm64.asar "$TEMP_ASAR_DIR/arm64"
-          rm -rf out/app-x64.asar.unpacked out/app-arm64.asar.unpacked
-          rm -rf "$TEMP_ASAR_DIR/x64/node_modules/better-sqlite3/build"
-          rm -rf "$TEMP_ASAR_DIR/arm64/node_modules/better-sqlite3/build"
-          rm -rf "$TEMP_ASAR_DIR/x64/node_modules/better-sqlite3/bin"
-          rm -rf "$TEMP_ASAR_DIR/arm64/node_modules/better-sqlite3/bin"
-          find "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64" -name '*.node' -delete
-          find "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64" -type l -delete
-          find "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64" -depth -type d -empty -delete
-          diff -qr "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64"
-          test -f "$TEMP_ASAR_DIR/arm64/.vite/build/main.js"
-          test -f "$TEMP_ASAR_DIR/arm64/.vite/build/preload.js"
-          test -f "$TEMP_ASAR_DIR/arm64/src/main/db/migrations/meta/_journal.json"
-          test -n "$(find "$TEMP_ASAR_DIR/arm64/resources/skills" -name SKILL.md -print -quit)"
-          ASAR_VERSION=$(node -p "require('$TEMP_ASAR_DIR/arm64/package.json').version")
+          pnpm exec asar extract out/app-arm64.asar "$TEMP_ASAR_DIR"
+          rm -rf out/app-arm64.asar.unpacked
+          rm -rf "$TEMP_ASAR_DIR/node_modules/better-sqlite3/build"
+          rm -rf "$TEMP_ASAR_DIR/node_modules/better-sqlite3/bin"
+          find "$TEMP_ASAR_DIR" -name '*.node' -delete
+          find "$TEMP_ASAR_DIR" -type l -delete
+          find "$TEMP_ASAR_DIR" -depth -type d -empty -delete
+          test -f "$TEMP_ASAR_DIR/.vite/build/main.js"
+          test -f "$TEMP_ASAR_DIR/.vite/build/preload.js"
+          test -f "$TEMP_ASAR_DIR/src/main/db/migrations/meta/_journal.json"
+          test -n "$(find "$TEMP_ASAR_DIR/resources/skills" -name SKILL.md -print -quit)"
+          ASAR_VERSION=$(node -p "require('$TEMP_ASAR_DIR/package.json').version")
           test "v$ASAR_VERSION" = "${{ env.VERSION }}"
-          pnpm exec asar pack "$TEMP_ASAR_DIR/arm64" "out/app-${{ env.VERSION }}.asar"
+          pnpm exec asar pack "$TEMP_ASAR_DIR" "out/app-${{ env.VERSION }}.asar"
           if pnpm exec asar list "out/app-${{ env.VERSION }}.asar" | grep -q '\.node$'; then
             echo "Native modules must not be included in the hot-update ASAR"
             exit 1
@@ -102,7 +81,6 @@ jobs:
       - name: Check output files
         run: |
           ls -la apps/work/out/make/ || true
-          ls -la apps/work/out/make/zip/darwin/x64/ || true
           ls -la apps/work/out/make/zip/darwin/arm64/ || true
 
       - name: Upload Packaged Artifacts to Actions Run
@@ -111,7 +89,6 @@ jobs:
           name: willow-build-${{ env.VERSION }}
           path: |
             apps/work/out/make/*.dmg
-            apps/work/out/make/zip/darwin/x64/*.zip
             apps/work/out/make/zip/darwin/arm64/*.zip
             apps/work/out/app-${{ env.VERSION }}.asar
             apps/work/out/app-${{ env.VERSION }}.asar.sha256
@@ -124,7 +101,6 @@ jobs:
           name: Release ${{ env.VERSION }}
           files: |
             apps/work/out/make/*.dmg
-            apps/work/out/make/zip/darwin/x64/*.zip
             apps/work/out/make/zip/darwin/arm64/*.zip
             apps/work/out/app-${{ env.VERSION }}.asar
             apps/work/out/app-${{ env.VERSION }}.asar.sha256
