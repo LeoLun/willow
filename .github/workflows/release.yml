@@ -41,7 +41,11 @@ jobs:
           cd apps/work
           pnpm run make:mac:x64
           mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-x64.dmg || true
-          find out -path "*darwin-x64*/Contents/Resources/app.asar" -exec cp {} out/app-x64.asar \; -quit
+          APP_ASAR=$(find out -path "*darwin-x64*/Contents/Resources/app.asar" -type f -print -quit)
+          test -n "$APP_ASAR"
+          test -d "${APP_ASAR}.unpacked"
+          cp "$APP_ASAR" out/app-x64.asar
+          cp -R "${APP_ASAR}.unpacked" out/app-x64.asar.unpacked
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -52,7 +56,11 @@ jobs:
           cd apps/work
           pnpm run make:mac:arm64
           mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg || true
-          find out -path "*darwin-arm64*/Contents/Resources/app.asar" -exec cp {} out/app-arm64.asar \; -quit
+          APP_ASAR=$(find out -path "*darwin-arm64*/Contents/Resources/app.asar" -type f -print -quit)
+          test -n "$APP_ASAR"
+          test -d "${APP_ASAR}.unpacked"
+          cp "$APP_ASAR" out/app-arm64.asar
+          cp -R "${APP_ASAR}.unpacked" out/app-arm64.asar.unpacked
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -67,6 +75,7 @@ jobs:
           mkdir -p "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64"
           pnpm exec asar extract out/app-x64.asar "$TEMP_ASAR_DIR/x64"
           pnpm exec asar extract out/app-arm64.asar "$TEMP_ASAR_DIR/arm64"
+          rm -rf out/app-x64.asar.unpacked out/app-arm64.asar.unpacked
           rm -rf "$TEMP_ASAR_DIR/x64/node_modules/better-sqlite3/build"
           rm -rf "$TEMP_ASAR_DIR/arm64/node_modules/better-sqlite3/build"
           find "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64" -name '*.node' -delete
