@@ -30,8 +30,9 @@ jobs:
 
       - name: Read version from package.json
         run: |
-          VERSION=$(node -p "require('./apps/work/package.json').version")
-          echo "VERSION=v$VERSION" >> $GITHUB_ENV
+          APP_VERSION=$(node -p "require('./apps/work/package.json').version")
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "VERSION=v$APP_VERSION" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -56,7 +57,9 @@ jobs:
               exit 1
             fi
           fi
-          mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg || true
+          DMG_PATH=$(find out/make -maxdepth 1 -name '*.dmg' -type f -print -quit)
+          test -n "$DMG_PATH"
+          mv "$DMG_PATH" "out/make/Willow-darwin-arm64-${{ env.APP_VERSION }}.dmg"
           APP_ASAR=$(find out -path "*darwin-arm64*/Contents/Resources/app.asar" -type f -print -quit)
           test -n "$APP_ASAR"
           test -d "${APP_ASAR}.unpacked"
