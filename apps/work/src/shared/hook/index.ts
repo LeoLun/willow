@@ -8,6 +8,7 @@ import type { IWorkspaceApi } from "./workspace.hook";
 
 export interface IRenderHook
   extends
+    IAppUpdateApi,
     IEventApi,
     IFileSearchApi,
     IMessageApi,
@@ -15,3 +16,4 @@ export interface IRenderHook
     ISettingApi,
     ISkillApi,
     IWorkspaceApi {}
+import type { IAppUpdateApi } from "./app-update.hook";

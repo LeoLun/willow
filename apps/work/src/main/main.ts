@@ -1,20 +1,22 @@
 import { join } from "node:path";
-import { CoreFactory } from "@willow/poetry";
-import "reflect-metadata";
 import { app } from "electron";
-import { AppModule } from "./app.module";
-import { configureApplicationMenu } from "./application-menu";
+import { prepareHotUpdateLaunch } from "./update/hot-update-launcher";
 
-configureApplicationMenu();
 const folderName = app.isPackaged ? "com.willow.work" : "com.willow.work-dev";
 const legacyUserDataPath = join(app.getPath("appData"), folderName);
 app.setPath("userData", legacyUserDataPath);
 
-console.log("------------");
-
 async function bootstrap() {
-  console.log("bootstrap");
-  await CoreFactory.create(AppModule);
+  const payloadEntry = prepareHotUpdateLaunch(legacyUserDataPath);
+  if (payloadEntry) {
+    require(payloadEntry);
+    return;
+  }
+  const { startApplication } = await import("./application");
+  await startApplication();
 }
 
-bootstrap();
+void bootstrap().catch((error) => {
+  console.error("Failed to start Willow:", error);
+  app.exit(1);
+});

@@ -6,6 +6,7 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { app } from "electron";
 import * as schema from "../db/schema";
+import { getEffectiveAppPath } from "../update/hot-update-launcher";
 
 const DATABASE_FILE_NAME = "willow.db";
 
@@ -50,12 +51,17 @@ export class DbService {
     this.db = null;
   }
 
-  private getDatabasePath(): string {
+  getDatabasePath(): string {
     return join(app.getPath("userData"), DATABASE_FILE_NAME);
   }
 
+  prepareForUpdate(): void {
+    this.sqlite?.pragma("wal_checkpoint(TRUNCATE)");
+    this.close();
+  }
+
   private getMigrationsFolder(): string {
-    return join(app.getAppPath(), "src/main/db/migrations");
+    return join(getEffectiveAppPath(), "src/main/db/migrations");
   }
 
   private openDatabase(databasePath: string): BetterSqlite3.Database {

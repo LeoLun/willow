@@ -4,7 +4,7 @@ import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { BuiltinSkillInfo } from "@shared/api";
 import type { AgentCoreOptions } from "@willow/core";
 import { Injectable } from "@willow/poetry";
-import { app } from "electron";
+import { getEffectiveAppPath } from "../update/hot-update-launcher";
 import { BuiltinSkillSettingDao } from "./dao/builtin-skill-setting.dao.server";
 
 export class BuiltinSkillNotFoundError extends Error {
@@ -53,7 +53,7 @@ export class BuiltinSkillService {
   }
 
   private getSkillsDirectory(): string {
-    return join(app.getAppPath(), "resources", "skills");
+    return join(getEffectiveAppPath(), "resources", "skills");
   }
 
   private async loadBuiltinSkills() {

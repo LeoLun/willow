@@ -22,6 +22,26 @@ export interface GetAppInfoResponse {
   version: string;
 }
 
+export type AppUpdateState =
+  | { status: "checking" | "upToDate" | "checkFailed"; currentVersion: string }
+  | {
+      status: "hotAvailable" | "downloading" | "ready" | "downloadFailed";
+      currentVersion: string;
+      latestVersion: string;
+      progress: number;
+    }
+  | {
+      status: "manualAvailable";
+      currentVersion: string;
+      latestVersion: string;
+      releaseUrl: string;
+    };
+
+export interface AppUpdateRequest {}
+export type AppUpdateResponse = AppUpdateState;
+export interface RestartToUpdateResponse {}
+export interface OpenManualUpdateResponse {}
+
 export type ThemeMode = "system" | "light" | "dark";
 
 export interface SetThemeRequest {

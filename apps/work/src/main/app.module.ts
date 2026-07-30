@@ -2,6 +2,12 @@ import { join } from "node:path";
 import { On, WindowFactoryResolver, Module } from "@willow/poetry";
 import { app, screen } from "electron";
 import started from "electron-squirrel-startup";
+import { CheckAppUpdateController } from "./controllers/app-update/check.app-update.controller";
+import { ConfirmUpdateBootController } from "./controllers/app-update/confirm-boot.app-update.controller";
+import { DownloadAppUpdateController } from "./controllers/app-update/download.app-update.controller";
+import { GetAppUpdateStateController } from "./controllers/app-update/get-state.app-update.controller";
+import { OpenManualUpdateController } from "./controllers/app-update/open-manual.app-update.controller";
+import { RestartToUpdateController } from "./controllers/app-update/restart.app-update.controller";
 import { GetAppInfoController } from "./controllers/app/get-info.app.controller";
 import { DeleteCredentialController } from "./controllers/credential/delete.credential.controller";
 import { GetConfiguredProvidersController } from "./controllers/credential/get-configured.credential.controller";
@@ -35,6 +41,7 @@ import { SelectWorkspaceDirectoryController } from "./controllers/workspace/sele
 import { SetWorkspacePinnedController } from "./controllers/workspace/set-pinned.workspace.controller";
 import { AgentService } from "./service/agent.service";
 import { AiToolApprovalService } from "./service/ai-tool-approval.service";
+import { AppUpdateService } from "./service/app-update.service";
 import { BuiltinSkillService } from "./service/builtin-skill.service";
 import { CredentialService } from "./service/credential.service";
 import { BuiltinSkillSettingDao } from "./service/dao/builtin-skill-setting.dao.server";
@@ -72,6 +79,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
   windows: [MainWindow],
   providers: [
     DbService,
+    AppUpdateService,
     WorkspaceDao,
     SessionDao,
     StatisticsDao,
@@ -98,6 +106,12 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
   ],
   controllers: [
     EventController,
+    GetAppUpdateStateController,
+    CheckAppUpdateController,
+    DownloadAppUpdateController,
+    RestartToUpdateController,
+    OpenManualUpdateController,
+    ConfirmUpdateBootController,
     SearchFilesController,
     GetAppInfoController,
     SetThemeController,

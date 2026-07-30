@@ -49,6 +49,7 @@ import SettingDialog from "@/components/dialog/setting/Setting.vue";
 import CreateWorkspaceDialog from "@/components/dialog/workspace/CreateWorkspaceDialog.vue";
 import DeleteWorkspaceDialog from "@/components/dialog/workspace/DeleteWorkspaceDialog.vue";
 import RenameWorkspaceDialog from "@/components/dialog/workspace/RenameWorkspaceDialog.vue";
+import AppUpdateButton from "@/components/layout/AppUpdateButton.vue";
 import { baseShadowStyles } from "@/components/ui/base-shadow";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/composables/useWorkspace";
@@ -483,6 +484,7 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
         <Settings />
         设置
       </Button>
+      <AppUpdateButton />
     </SidebarFooter>
   </Sidebar>
 </template>

@@ -1,6 +1,6 @@
 {
   "name": "Willow",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "willow-agent",
   "keywords": [],
   "license": "MIT",
@@ -17,9 +17,9 @@
     "make:mac": "electron-forge make --platform=darwin",
     "premake:mac": "pnpm run rebuild:native",
     "make:mac:arm64": "electron-forge make --platform=darwin --arch=arm64",
-    "premake:mac:arm64": "pnpm run rebuild:native",
+    "premake:mac:arm64": "pnpm run rebuild:native:arm64",
     "make:mac:x64": "electron-forge make --platform=darwin --arch=x64",
-    "premake:mac:x64": "pnpm run rebuild:native",
+    "premake:mac:x64": "pnpm run rebuild:native:x64",
     "publish": "electron-forge publish",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
@@ -28,6 +28,8 @@
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "typecheck:renderer": "vue-tsc -p src/renderer/tsconfig.json --noEmit",
     "rebuild:native": "env HOME=$PWD/../.. electron-rebuild --force --module-dir . --which-module better-sqlite3 --dist-url=https://electronjs.org/headers",
+    "rebuild:native:arm64": "pnpm run rebuild:native -- --arch=arm64",
+    "rebuild:native:x64": "pnpm run rebuild:native -- --arch=x64",
     "postinstall": "pnpm run rebuild:native"
   },
   "dependencies": {

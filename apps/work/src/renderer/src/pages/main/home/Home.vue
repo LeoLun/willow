@@ -9,6 +9,8 @@ import {
   SelectValue,
 } from "@willow/shadcn/components/ui/select";
 import { Folder } from "lucide-vue-next";
+import { onMounted } from "vue";
+import { useAppUpdate } from "@/composables/useAppUpdate";
 import { useWorkspaceSelection } from "@/composables/useWorkspaceSelection";
 
 const {
@@ -21,6 +23,12 @@ const {
   selectWorkspace,
   handleWorkspaceSelectOpen,
 } = useWorkspaceSelection();
+
+const { checkForUpdate, confirmUpdateBoot } = useAppUpdate();
+onMounted(async () => {
+  await confirmUpdateBoot();
+  await checkForUpdate();
+});
 </script>
 
 <template>

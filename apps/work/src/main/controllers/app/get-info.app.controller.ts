@@ -6,15 +6,22 @@ import { IPCBaseController } from "../ipc.base.controller";
 
 @Injectable()
 export class GetAppInfoController extends IPCBaseController<GetAppInfoRequest, GetAppInfoResponse> {
+  constructor(private readonly appUpdateService: AppUpdateService) {
+    super();
+  }
   @IPC(GET_APP_INFO)
   async run(
     _event: Electron.IpcMainInvokeEvent,
     _request: GetAppInfoRequest,
   ): Promise<ApiResponse<GetAppInfoResponse>> {
-    return this.buildResponse({ name: app.getName(), version: app.getVersion() });
+    return this.buildResponse({
+      name: app.getName(),
+      version: this.appUpdateService.getCurrentVersion(),
+    });
   }
 
   checkParams(_request: GetAppInfoRequest): Error | undefined {
     return undefined;
   }
 }
+import { AppUpdateService } from "@main/service/app-update.service";

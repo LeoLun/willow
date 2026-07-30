@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { IRenderHook } from "../shared";
 import type {
   ApiResponse,
+  AppUpdateRequest,
+  AppUpdateResponse,
   CreateSessionRequest,
   CreateSessionResponse,
   CreateWorkspaceRequest,
@@ -38,6 +40,8 @@ import type {
   GetWorkspaceListResponse,
   RegisterEventRequest,
   RegisterEventResponse,
+  RestartToUpdateResponse,
+  OpenManualUpdateResponse,
   RenameWorkspaceRequest,
   RenameWorkspaceResponse,
   ResolveToolApprovalRequest,
@@ -65,12 +69,16 @@ import type {
 } from "../shared/api";
 import {
   CREATE_SESSION,
+  CHECK_APP_UPDATE,
+  CONFIRM_UPDATE_BOOT,
   DELETE_CREDENTIAL,
   DELETE_TAVILY_API_KEY,
   CREATE_WORKSPACE,
   DELETE_WORKSPACE,
   EVENT_BUS,
+  DOWNLOAD_APP_UPDATE,
   GET_APP_INFO,
+  GET_APP_UPDATE_STATE,
   GET_BUILTIN_SKILL_LIST,
   GET_CONFIGURED_PROVIDERS,
   GET_CREDENTIAL,
@@ -83,8 +91,10 @@ import {
   GET_USER_CONFIG,
   GET_WORKSPACE_LIST,
   REGISTER_EVENT,
+  OPEN_MANUAL_UPDATE,
   RENAME_WORKSPACE,
   RESOLVE_TOOL_APPROVAL,
+  RESTART_TO_UPDATE,
   SEARCH_FILES,
   SEND_MESSAGE,
   SET_CREDENTIAL,
@@ -127,6 +137,18 @@ const ipcObject: IRenderHook = {
   },
   getAppInfo: (request: GetAppInfoRequest = {}) =>
     invoke<GetAppInfoRequest, GetAppInfoResponse>(GET_APP_INFO, request),
+  getUpdateState: (request: AppUpdateRequest = {}) =>
+    invoke<AppUpdateRequest, AppUpdateResponse>(GET_APP_UPDATE_STATE, request),
+  checkForUpdate: (request: AppUpdateRequest = {}) =>
+    invoke<AppUpdateRequest, AppUpdateResponse>(CHECK_APP_UPDATE, request),
+  downloadUpdate: (request: AppUpdateRequest = {}) =>
+    invoke<AppUpdateRequest, AppUpdateResponse>(DOWNLOAD_APP_UPDATE, request),
+  restartToUpdate: (request: AppUpdateRequest = {}) =>
+    invoke<AppUpdateRequest, RestartToUpdateResponse>(RESTART_TO_UPDATE, request),
+  openManualUpdate: (request: AppUpdateRequest = {}) =>
+    invoke<AppUpdateRequest, OpenManualUpdateResponse>(OPEN_MANUAL_UPDATE, request),
+  confirmUpdateBoot: (request: AppUpdateRequest = {}) =>
+    invoke<AppUpdateRequest, AppUpdateResponse>(CONFIRM_UPDATE_BOOT, request),
   setTheme: (request: SetThemeRequest) =>
     invoke<SetThemeRequest, SetThemeResponse>(SET_THEME, request),
   getProviderCatalog: (request: GetProviderCatalogRequest = {}) =>

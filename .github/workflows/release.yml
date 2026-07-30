@@ -44,6 +44,7 @@ jobs:
           cd apps/work
           pnpm run make:mac:x64
           mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-x64.dmg || true
+          find out -path "*darwin-x64*/Contents/Resources/app.asar" -exec cp {} out/app-x64.asar \; -quit
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -54,19 +55,40 @@ jobs:
           cd apps/work
           pnpm run make:mac:arm64
           mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg || true
+          find out -path "*darwin-arm64*/Contents/Resources/app.asar" -exec cp {} out/app-arm64.asar \; -quit
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      - name: Extract app.asar for incremental update
+      - name: Validate and prepare app.asar hot update
         run: |
-          find apps/work/out -path "*/Contents/Resources/app.asar" -exec cp {} apps/work/out/app.asar \; -quit
-          if [ ! -f apps/work/out/app.asar ]; then
-            echo "Error: app.asar was not found in the build output directory!"
+          cd apps/work
+          test -f out/app-x64.asar
+          test -f out/app-arm64.asar
+          TEMP_ASAR_DIR=$(mktemp -d)
+          mkdir -p "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64"
+          pnpm exec asar extract out/app-x64.asar "$TEMP_ASAR_DIR/x64"
+          pnpm exec asar extract out/app-arm64.asar "$TEMP_ASAR_DIR/arm64"
+          rm -rf "$TEMP_ASAR_DIR/x64/node_modules/better-sqlite3/build"
+          rm -rf "$TEMP_ASAR_DIR/arm64/node_modules/better-sqlite3/build"
+          find "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64" -name '*.node' -delete
+          find "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64" -type l -delete
+          diff -qr "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64"
+          test -f "$TEMP_ASAR_DIR/arm64/.vite/build/main.js"
+          test -f "$TEMP_ASAR_DIR/arm64/.vite/build/preload.js"
+          test -f "$TEMP_ASAR_DIR/arm64/src/main/db/migrations/meta/_journal.json"
+          test -n "$(find "$TEMP_ASAR_DIR/arm64/resources/skills" -name SKILL.md -print -quit)"
+          ASAR_VERSION=$(node -p "require('$TEMP_ASAR_DIR/arm64/package.json').version")
+          test "v$ASAR_VERSION" = "${{ env.VERSION }}"
+          pnpm exec asar pack "$TEMP_ASAR_DIR/arm64" "out/app-${{ env.VERSION }}.asar"
+          if pnpm exec asar list "out/app-${{ env.VERSION }}.asar" | grep -q '\.node$'; then
+            echo "Native modules must not be included in the hot-update ASAR"
             exit 1
           fi
-          ls -la apps/work/out/app.asar
+          rm -rf "$TEMP_ASAR_DIR"
+          cd out
+          shasum -a 256 "app-${{ env.VERSION }}.asar" > "app-${{ env.VERSION }}.asar.sha256"
 
       - name: Check output files
         run: |
@@ -82,7 +104,8 @@ jobs:
             apps/work/out/make/*.dmg
             apps/work/out/make/zip/darwin/x64/*.zip
             apps/work/out/make/zip/darwin/arm64/*.zip
-            apps/work/out/app.asar
+            apps/work/out/app-${{ env.VERSION }}.asar
+            apps/work/out/app-${{ env.VERSION }}.asar.sha256
 
       - name: Create Release and Upload Assets
         if: ${{ inputs.upload_release == true }}
@@ -94,7 +117,8 @@ jobs:
             apps/work/out/make/*.dmg
             apps/work/out/make/zip/darwin/x64/*.zip
             apps/work/out/make/zip/darwin/arm64/*.zip
-            apps/work/out/app.asar
+            apps/work/out/app-${{ env.VERSION }}.asar
+            apps/work/out/app-${{ env.VERSION }}.asar.sha256
           draft: false
           prerelease: false
         env:
@@ -110,6 +134,7 @@ jobs:
                https://api.github.com/repos/LeoLun/willow/releases/latest \
                -o dist-pages/latest.json
           node -e "const data = require('./dist-pages/latest.json'); if(!data.tag_name) throw new Error('Invalid JSON generated');"
+          node -e "const data = require('./dist-pages/latest.json'); const base='app-' + data.tag_name + '.asar'; const names=new Set(data.assets.map(a=>a.name)); if(!names.has(base)||!names.has(base+'.sha256')) throw new Error('Hot update assets are missing');"
 
       - name: Deploy to GitHub Pages
         if: ${{ inputs.upload_release == true }}

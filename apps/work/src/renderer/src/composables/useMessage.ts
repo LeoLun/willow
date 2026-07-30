@@ -225,6 +225,7 @@ export function useMessageStatus() {
   const { runningSessionIds } = useMessageState();
 
   return {
+    hasRunningSessions: computed(() => runningSessionIds.value.size > 0),
     isSessionRunning: (sessionId: string) => runningSessionIds.value.has(sessionId),
   };
 }
