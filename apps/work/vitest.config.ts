@@ -1,0 +1,20 @@
+import { resolve } from "path";
+import vue from "@vitejs/plugin-vue";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  plugins: [vue()],
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "src/renderer/src"),
+      "@main": resolve(__dirname, "src/main"),
+      "@shared": resolve(__dirname, "src/shared"),
+    },
+  },
+  test: {
+    environment: "node",
+    include: ["test/**/*.test.ts"],
+    clearMocks: true,
+    restoreMocks: true,
+  },
+});

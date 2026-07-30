@@ -12,6 +12,9 @@
     "./components/ui/*/*": "./src/components/ui/*/*",
     "./lib/*": "./src/lib/*.ts"
   },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
   "dependencies": {
     "@vueuse/core": "^12.8.2",
     "class-variance-authority": "^0.7.1",
@@ -21,6 +24,9 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.2.2",
     "vue-sonner": "^2.0.9"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
   },
   "peerDependencies": {
     "vue": "^3.5.0"

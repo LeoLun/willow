@@ -1,126 +1,52 @@
-# Willow AGENTS.md
+# Repository Guidelines
 
-名称：Willow 工作空间 Agent
-描述：当任务明显属于 Willow 仓库的桌面应用、renderer、共享包、OpenSpec 工作流或工程配置范围时触发；触发后在该工作空间内分析、修改并验证结果。这是对话功能调用此工作空间的主要触发机制。
+## Project Structure & Module Organization
 
-For renderer, `shadcn-vue`, and page design work, always consult the repository root `DESIGN.md` after reading the relevant OpenSpec artifacts.
+Willow is a pnpm workspace. `apps/work/` contains the Electron desktop app. Under `packages/`, `core` provides agent/session logic, `poetry` provides Electron decorators and managers, and `shadcn` provides reusable Vue components. Core tests live in `packages/core/test/`; supporting material lives in `docs/`.
 
-## Workflow Contract
+## Scoped Instructions
 
-- Only use these workflow skills for project process orchestration: `workflow-spec`, `workflow-worktree`, `workflow-plan`, `workflow-implement`, `workflow-close`.
-- Do not use legacy `openspec-*` or `superpowers` workflow skill names in this repository.
-- All new workflow-side documents must be written under `docs/ai-workflows/`.
-- The canonical OpenSpec storage location is `docs/ai-workflows/openspec/`.
-- The repository root `DESIGN.md` is the long-lived renderer design standard. It does not replace feature-level OpenSpec behavior or requirements.
-- The repository root `openspec/` path is a compatibility symlink for tools that still expect the default OpenSpec directory.
-- Standard sequence:
-  1. `workflow-spec`: define or update the OpenSpec change.
-  2. `workflow-worktree`: prepare an isolated implementation workspace.
-  3. `workflow-plan`: write an execution plan to `docs/ai-workflows/plans/`.
-  4. `workflow-implement`: implement strictly against OpenSpec and the plan.
-  5. `workflow-close`: run final verification, review, and archive when ready.
-- If implementation reveals a missing requirement or design conflict, return to `workflow-spec` before continuing code changes.
+Before planning or modifying code under `apps/work/`, you must first read `apps/work/AGENTS.md` in full. Its app-specific instructions supplement and may narrow these repository-wide rules.
 
-## Repository Guidelines
+Before planning or modifying code under `packages/core/`, you must first read
+`packages/core/AGENTS.md` in full. Its package-specific instructions define the built-in tool
+layout, permission contract, sandbox and path-authorization invariants, and required security
+tests.
 
-### Project Structure And Module Organization
+## Build, Test, and Development Commands
 
-This repository is a `pnpm` workspace with app packages and shared packages:
+- `pnpm install --frozen-lockfile` installs locked dependencies; use plain `pnpm install` when updating the lockfile.
+- `pnpm dev` rebuilds native modules and starts the Electron app through Forge.
+- `pnpm lint` runs Oxlint across `apps/` and `packages/`.
+- `pnpm typecheck` runs each workspace package's TypeScript or `vue-tsc` checks.
+- `pnpm format` formats supported files with Oxfmt; `pnpm format:check` verifies formatting without writing.
+- `pnpm --filter @willow/core test` runs the Vitest suite once.
 
-- `app/work/`: Electron desktop app.
-- `app/ui-playground/`: isolated Vite playground for renderer and UI experiments.
-- `packages/core/src/`: shared business/domain utilities published as `@willow/core`.
-- `packages/poetry/src/`: reusable Electron framework layer (decorators, dependency injection, IPC binding, window/module management).
-- `packages/shadcn/src/`: local `shadcn-vue` component package published as `@willow/shadcn`.
-- `packages/ui/src/`: shared higher-level UI package published as `@willow/ui`.
+## Coding Style & Naming Conventions
 
-Inside `app/work/src/`, code is split by process:
+Write strict TypeScript and ESM. Oxfmt enforces 2-space indentation, 100-column lines, double quotes, semicolons, trailing commas, and sorted imports. Prefer workspace imports such as `@willow/core` over long relative paths.
 
-- `main/`: Electron services, controllers, database access, and app bootstrap.
-- `preload/`: `contextBridge` exposure.
-- `renderer/`: desktop app shell entry and Vue renderer assets.
-- `shared/`: IPC constants, hooks, and shared types.
+## Testing Guidelines
 
-Database schema and migrations live in `app/work/src/main/db/`.
+Vitest runs in a Node environment for `packages/core`. Add tests as `packages/core/test/<feature>.test.ts`, group behavior with `describe`, and keep tests deterministic by cleaning temporary files in hooks. No coverage threshold is configured; cover new branches and regressions meaningfully. For renderer changes, also run `pnpm dev` and manually verify the affected Electron flow.
 
-### Build, Test, And Development Commands
+## Commit & Pull Request Guidelines
 
-Install dependencies first:
+History follows concise Conventional Commit prefixes such as `feat:`, `fix:`, `refactor:`, and `chore:`; summaries may be English or Simplified Chinese. Keep each commit focused. Pull requests should describe the change, list affected workspaces, link relevant issues, and report lint, typecheck, and test results.
 
-```bash
-pnpm install
-```
+## Security & Configuration
 
-Key workspace commands:
+Never commit credentials or local `.env` files.
 
-- `pnpm build`: build all workspace packages.
-- `pnpm dev`: run the Electron app in development mode (`app/work`).
-- `pnpm dev:ui`: run the UI playground (`app/ui-playground`).
-- `pnpm dev:p`: watch-build `packages/poetry`.
-- `pnpm lint`: run `oxlint` for `app/` and `packages/`.
-- `pnpm format`: format with `oxfmt`.
-- `pnpm format:check`: check formatting with `oxfmt --check`.
+<!-- CODEGRAPH_START -->
 
-App-specific commands:
+## CodeGraph
 
-- `cd app/work && pnpm package`: package the desktop app.
-- `cd app/work && pnpm make`: generate platform installers.
-- `cd app/work && pnpm lint`: lint only the Electron app sources.
-- `cd app/work && pnpm db:generate`: generate Drizzle migrations.
-- `cd app/work && pnpm db:push`: push schema changes.
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
 
-### Coding Style And Naming Conventions
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
 
-- Language: TypeScript with `strict` mode enabled.
-- Vue SFCs must use `<script setup lang="ts">`.
-- Prefer Composition API and setup-style stores for Vue and Pinia code.
-- Indentation: 2 spaces.
-- Imports order: Node built-ins, third-party deps, alias imports, relative imports.
-- Prefer double quotes for imports; follow surrounding semicolon style.
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
 
-Naming:
-
-- Vue components: `PascalCase` (for example `ChatInput.vue`)
-- Files: `kebab-case` (for example `workspace.service.ts`)
-- Functions and composables: `camelCase`; composables start with `use`
-- Pinia stores: setup-style `defineStore("name", () => {})`
-- IPC constants and channels: `UPPER_SNAKE_CASE`
-
-### UI And Renderer Notes
-
-- Treat `app/work` renderer as a desktop productivity surface, not a marketing page.
-- Reuse the existing token system from `app/work/src/renderer/index.css`; do not invent a parallel theme layer.
-- Prefer `@willow/shadcn` and `@willow/ui` before creating one-off UI primitives.
-- Use `app/ui-playground` to validate new renderer patterns or shared UI changes when a fast isolated preview helps.
-- For `shadcn-vue` usage or page design updates, read the relevant OpenSpec artifacts first, then `DESIGN.md`.
-
-### Testing Guidelines
-
-There is no formal repository-wide test runner configured yet.
-
-- `packages/poetry` includes Jest as a dev dependency, but no active root test script is wired up.
-- `app/work` currently relies on linting, build validation, and manual verification.
-- When adding tests, place them near source files and use `*.test.ts`.
-
-Before submitting changes, run the relevant checks for the area you touched:
-
-- `pnpm lint`
-- `pnpm build` when the change can affect package build output
-- manual verification with `pnpm dev` or `pnpm dev:ui` for renderer/UI work
-
-### Commit And Pull Request Guidelines
-
-- Use concise Conventional Commit prefixes consistent with history.
-- Prefer Simplified Chinese for user-visible changes and commit summaries when it matches existing history.
-
-PRs should include:
-
-- scope summary and impacted packages
-- screenshots for renderer or UI updates
-- explicit notes for migrations, environment variable changes, or build-impacting changes
-
-### Security And Configuration Tips
-
-- Never commit `.env` files or any secrets.
-- Store app tokens only in local `.env`.
-- Use `workspace:*` for local package references and `catalog:` for shared dependency versions.
+<!-- CODEGRAPH_END -->

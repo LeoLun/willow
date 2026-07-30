@@ -1,83 +1,39 @@
-import { createAskUserTool } from "./ask-user";
-import { createBashTool } from "./bash";
-import { createTool, type WillowTool, type ToolPermissionDecision } from "./create-tool";
-import { createEditTool } from "./edit";
-import { createFindTool } from "./find";
-import { createGrepTool } from "./grep";
-import { createLsTool } from "./ls";
-import { createReadTool } from "./read";
-import type { TodoStore } from "./todo-store";
-import { createTodoReadTool } from "./todoread";
-import { createTodoWriteTool } from "./todowrite";
-import { ToolApprovalCoordinator } from "./tool-approval";
-import { createWebFetchTool } from "./webfetch";
-import { createWebSearchTool } from "./websearch";
-import { createWriteTool } from "./write";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { createBashTool } from "./bash.js";
+import { createEditTool } from "./edit.js";
+import { createFindTool } from "./find.js";
+import { createGrepTool } from "./grep.js";
+import { createLsTool } from "./ls.js";
+import { createReadTool } from "./read.js";
+import type { ToolRuntimeOptions } from "./types.js";
+import { createWebFetchTool } from "./webfetch.js";
+import { createWebSearchTool } from "./websearch.js";
+import { createWriteTool } from "./write.js";
 
-export {
-  createBashTool,
-  createTool,
-  createEditTool,
-  createFindTool,
-  createGrepTool,
-  createLsTool,
-  createReadTool,
-  createTodoReadTool,
-  createTodoWriteTool,
-  createWebFetchTool,
-  createWebSearchTool,
-  createWriteTool,
-  createAskUserTool,
-  ToolApprovalCoordinator,
-};
-
-export type { TodoItem, TodoStore } from "./todo-store";
-export type { WillowTool, ToolPermissionDecision } from "./create-tool";
-export type {
-  ToolApprovalRequest,
-  ToolApprovalDecision,
-  ToolApprovalStatus,
-} from "./tool-approval";
-
-export interface WebSearchOptions {
-  getApiKey: () => string;
-}
-
-export interface CreateAllToolsOptions {
-  websearch?: WebSearchOptions;
-  todoStore?: TodoStore;
-  extraTools?: WillowTool<any>[];
-  approvalCoordinator?: ToolApprovalCoordinator;
-}
-
-export function createAllTools(cwd: string, options?: CreateAllToolsOptions): WillowTool<any>[] {
-  const tools: WillowTool<any>[] = [
-    createBashTool(cwd) as WillowTool<any>,
-    createEditTool(cwd) as WillowTool<any>,
-    createFindTool(cwd) as WillowTool<any>,
-    createGrepTool(cwd) as WillowTool<any>,
-    createLsTool(cwd) as WillowTool<any>,
-    createReadTool(cwd) as WillowTool<any>,
-    createWebFetchTool() as WillowTool<any>,
-    createWriteTool(cwd) as WillowTool<any>,
+export function createWillowTools(options: ToolRuntimeOptions): AgentTool[] {
+  const tools: AgentTool[] = [
+    createBashTool(options),
+    createReadTool(options),
+    createWriteTool(options),
+    createEditTool(options),
+    createLsTool(options),
+    createGrepTool(options),
+    createFindTool(options),
+    createWebFetchTool(options),
   ];
-
-  if (options?.approvalCoordinator) {
-    tools.push(createAskUserTool(options.approvalCoordinator) as WillowTool<any>);
-  }
-
-  if (options?.websearch) {
-    tools.push(createWebSearchTool(options.websearch.getApiKey) as WillowTool<any>);
-  }
-
-  if (options?.todoStore) {
-    tools.push(createTodoWriteTool(options.todoStore) as WillowTool<any>);
-    tools.push(createTodoReadTool(options.todoStore) as WillowTool<any>);
-  }
-
-  if (options?.extraTools?.length) {
-    tools.push(...options.extraTools);
-  }
-
+  if (options.tavilyApiKey?.trim()) tools.push(createWebSearchTool(options));
   return tools;
 }
+
+export * from "./base.js";
+export * from "./bash.js";
+export * from "./edit.js";
+export * from "./find.js";
+export * from "./grep.js";
+export * from "./ls.js";
+export * from "./policy.js";
+export * from "./read.js";
+export * from "./types.js";
+export * from "./webfetch.js";
+export * from "./websearch.js";
+export * from "./write.js";

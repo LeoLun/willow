@@ -1,92 +1,90 @@
-import { constants } from "fs";
-import { readFile, access } from "fs/promises";
-import { resolve } from "path";
-import { Type } from "@sinclair/typebox";
-import { createTool } from "./create-tool";
-
-export interface ReadToolDetails {
-  absolutePath: string;
-  totalLines: number;
-  linesShown: number;
-  startLine1Indexed: number;
-  truncatedByLineCap: boolean;
-  truncatedByByteCap: boolean;
-  hasMoreLinesAfter: boolean;
-}
-
-const MAX_LINES = 2000;
-const MAX_BYTES = 256 * 1024;
+import { readFile } from "node:fs/promises";
+import {
+  DEFAULT_MAX_BYTES,
+  DEFAULT_MAX_LINES,
+  truncateHead,
+  type AgentTool,
+} from "@earendil-works/pi-agent-core";
+import { Type, type Static } from "typebox";
+import { ToolBase, type ToolExecutionContext } from "./base.js";
+import { authorizeRead, resolveFromCwd, throwIfAborted } from "./shared.js";
+import type { ReadToolDetails, ToolRuntimeOptions } from "./types.js";
 
 const readSchema = Type.Object({
-  path: Type.String({ description: "文件路径（相对或绝对）" }),
-  offset: Type.Optional(Type.Number({ description: "起始行号（从 1 开始）" })),
-  limit: Type.Optional(Type.Number({ description: "最多读取行数" })),
+  path: Type.String({ description: "Path to the file to read (relative or absolute)" }),
+  offset: Type.Optional(
+    Type.Number({ description: "Line number to start reading from (1-indexed)" }),
+  ),
+  limit: Type.Optional(Type.Number({ description: "Maximum number of lines to read" })),
 });
 
-export function createReadTool(cwd: string) {
-  return createTool({
-    name: "read",
-    label: "读取文件",
-    description: `读取文件内容。输出最多 ${MAX_LINES} 行或 ${MAX_BYTES / 1024}KB。大文件请使用 offset/limit。`,
-    parameters: readSchema,
-    meta: {
-      label: "读取文件",
-      permission: () => ({ mode: "allow" }),
-    },
-    async execute(toolCallId, params, _signal, _onUpdate) {
-      const { path, offset, limit } = params;
-      const absolutePath = resolve(cwd, path);
-      await access(absolutePath, constants.R_OK);
+export type ReadToolInput = Static<typeof readSchema>;
 
-      const buffer = await readFile(absolutePath);
-      const text = buffer.toString("utf-8");
-      const allLines = text.split("\n");
+export class ReadTool extends ToolBase<typeof readSchema, ReadToolDetails> {
+  readonly name = "read";
+  readonly label = "read";
+  readonly description = "Read a UTF-8 text file with optional 1-indexed offset and line limit.";
+  readonly parameters = readSchema;
 
-      const startLine = offset ? Math.max(0, offset - 1) : 0;
-      if (startLine >= allLines.length) {
-        throw new Error(`offset ${offset} 超出文件末尾（共 ${allLines.length} 行）`);
-      }
+  protected override checkParams(input: ReadToolInput): Error | undefined {
+    const offset = input.offset ?? 1;
+    if (!Number.isInteger(offset) || offset < 1) return new Error("offset must be at least 1");
+    if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1)) {
+      return new Error("limit must be at least 1");
+    }
+    return undefined;
+  }
 
-      const endLine = limit ? Math.min(startLine + limit, allLines.length) : allLines.length;
-      let selectedLines = allLines.slice(startLine, endLine);
-      let truncatedByLineCap = false;
-      let truncatedByByteCap = false;
+  protected override async checkPermission(
+    context: ToolExecutionContext<ReadToolInput, ReadToolDetails>,
+  ): Promise<void> {
+    await authorizeRead({
+      ...this.options,
+      path: context.input.path,
+      toolCallId: context.toolCallId,
+      toolName: this.name,
+      input: context.input,
+      signal: context.signal,
+    });
+  }
 
-      // 截断保护
-      if (selectedLines.length > MAX_LINES) {
-        selectedLines = selectedLines.slice(0, MAX_LINES);
-        truncatedByLineCap = true;
-      }
+  protected override async run(context: ToolExecutionContext<ReadToolInput, ReadToolDetails>) {
+    const { input, signal } = context;
+    const offset = input.offset ?? 1;
+    throwIfAborted(signal);
+    const absolutePath = resolveFromCwd(this.options.cwd, input.path);
+    const content = await readFile(absolutePath, "utf8");
+    throwIfAborted(signal);
+    const lines = content.replace(/\r\n|\r/g, "\n").split("\n");
+    if (content === "") lines.length = 0;
+    const selected = lines.slice(offset - 1, input.limit ? offset - 1 + input.limit : undefined);
+    const output = selected.join("\n");
+    const truncation = truncateHead(output, {
+      maxBytes: DEFAULT_MAX_BYTES,
+      maxLines: DEFAULT_MAX_LINES,
+    });
+    const lineCount = output === "" ? 0 : truncation.outputLines;
+    let text = truncation.content;
+    if (truncation.truncated) {
+      text += `\n\n[Showing ${lineCount} lines; use offset/limit to continue.]`;
+    }
+    const msg =
+      lineCount === 0
+        ? `读取 ${input.path} 文件 0 行`
+        : `读取 ${input.path} 文件 ${offset}-${offset + lineCount - 1} 行`;
+    return this.buildResponse([{ type: "text", text }], {
+      msg,
+      kind: "read",
+      path: input.path,
+      offset,
+      lineCount,
+      truncation: truncation.truncated ? truncation : undefined,
+    });
+  }
+}
 
-      let output = selectedLines.join("\n");
-      if (Buffer.byteLength(output, "utf-8") > MAX_BYTES) {
-        while (Buffer.byteLength(output, "utf-8") > MAX_BYTES && selectedLines.length > 1) {
-          selectedLines.pop();
-          output = selectedLines.join("\n");
-        }
-      }
-
-      const remaining = allLines.length - (startLine + selectedLines.length);
-      if (remaining > 0) {
-        output += `\n\n[还有 ${remaining} 行。使用 offset=${startLine + selectedLines.length + 1} 继续读取。]`;
-      }
-
-      const hasMoreLinesAfter = remaining > 0;
-      if (hasMoreLinesAfter) {
-        output += `\n\n[还有 ${remaining} 行。使用 offset=${startLine + selectedLines.length + 1} 继续读取。]`;
-      }
-
-      const details: ReadToolDetails = {
-        absolutePath,
-        totalLines: allLines.length,
-        linesShown: selectedLines.length,
-        startLine1Indexed: startLine + 1,
-        truncatedByLineCap,
-        truncatedByByteCap,
-        hasMoreLinesAfter,
-      };
-
-      return { content: [{ type: "text", text: output }], details };
-    },
-  });
+export function createReadTool(
+  options: ToolRuntimeOptions,
+): AgentTool<typeof readSchema, ReadToolDetails> {
+  return new ReadTool(options);
 }

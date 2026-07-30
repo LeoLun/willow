@@ -1,91 +1,129 @@
-import { constants } from "fs";
-import { readFile, writeFile, access } from "fs/promises";
-import { Type } from "@sinclair/typebox";
-import { createTool } from "./create-tool";
-import { isPathInsideCwd, resolveToCwd } from "./path-utils";
+import { readFile, writeFile } from "node:fs/promises";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { createPatch, diffLines } from "diff";
+import { Type, type Static } from "typebox";
+import { ToolBase, type ToolExecutionContext } from "./base.js";
+import {
+  authorizeMutation,
+  countLines,
+  resolveFromCwd,
+  throwIfAborted,
+  withMutationQueue,
+} from "./shared.js";
+import type { EditToolDetails, ToolRuntimeOptions } from "./types.js";
 
-export interface EditToolDetails {
-  absolutePath: string;
-  bytesBefore: number;
-  bytesAfter: number;
-  /** 极简 unified diff 预览；完整 diff 字符串见 pi `EditToolDetails.diff` + `computeEditDiff` */
-  diff: string;
-}
-
-/** 参数名与 pi-mono 的 `edit` schema 一致：`oldText` / `newText`。 */
-const editSchema = Type.Object({
-  path: Type.String({
-    description: "要编辑的文件路径（相对或绝对）",
-  }),
-  oldText: Type.String({
-    description: "要查找并替换的原文（须与文件内容完全一致，含空白与换行）",
-  }),
-  newText: Type.String({ description: "替换后的文本" }),
+const replacementSchema = Type.Object({
+  oldText: Type.String({ description: "Unique exact text to replace" }),
+  newText: Type.String({ description: "Replacement text" }),
 });
 
-export function createEditTool(cwd: string) {
-  return createTool({
-    name: "edit",
-    label: "编辑文件",
-    description: "通过精确字符串替换编辑文件。oldText 必须与原文完全一致且仅出现一次。请先 read。",
-    parameters: editSchema,
-    meta: {
-      label: "编辑文件",
-      permission: (params) =>
-        isPathInsideCwd(params.path, cwd)
-          ? { mode: "allow" }
-          : {
-              mode: "ask",
-              title: `是否允许执行 编辑 ${params.path}`,
-              reason: "编辑文件会修改工作区内容",
-              risk: "high",
-            },
-    },
-    async execute(_toolCallId, params) {
-      const { path, oldText, newText } = params;
-      const absolutePath = resolveToCwd(path, cwd);
-      await access(absolutePath, constants.R_OK | constants.W_OK);
+const editSchema = Type.Object({
+  path: Type.String({ description: "Path to the file to edit (relative or absolute)" }),
+  edits: Type.Array(replacementSchema, { minItems: 1 }),
+});
 
-      const content = await readFile(absolutePath, "utf-8");
+export type EditToolInput = Static<typeof editSchema>;
 
-      if (oldText === newText) {
-        throw new Error("oldText 与 newText 相同");
+function normalizeLf(content: string): string {
+  return content.replace(/\r\n|\r/g, "\n");
+}
+
+function restoreLineEndings(content: string, ending: string): string {
+  return ending === "\n" ? content : content.replace(/\n/g, ending);
+}
+
+export class EditTool extends ToolBase<typeof editSchema, EditToolDetails> {
+  readonly name = "edit";
+  readonly label = "edit";
+  readonly description = "Edit one file with unique, non-overlapping exact text replacements.";
+  readonly parameters = editSchema;
+  override readonly executionMode = "sequential";
+
+  protected override checkParams(input: EditToolInput): Error | undefined {
+    if (input.edits.some((edit) => edit.oldText === "")) {
+      return new Error("oldText must not be empty");
+    }
+    return undefined;
+  }
+
+  protected override async checkPermission(
+    context: ToolExecutionContext<EditToolInput, EditToolDetails>,
+  ): Promise<void> {
+    await authorizeMutation({
+      ...this.options,
+      path: context.input.path,
+      toolCallId: context.toolCallId,
+      toolName: this.name,
+      input: context.input,
+      signal: context.signal,
+    });
+  }
+
+  protected override async run(context: ToolExecutionContext<EditToolInput, EditToolDetails>) {
+    const { input, signal } = context;
+    const absolutePath = resolveFromCwd(this.options.cwd, input.path);
+    return await withMutationQueue(absolutePath, async () => {
+      throwIfAborted(signal);
+      const rawContent = await readFile(absolutePath, "utf8");
+      throwIfAborted(signal);
+      const bom = rawContent.startsWith("\uFEFF") ? "\uFEFF" : "";
+      const withoutBom = bom ? rawContent.slice(1) : rawContent;
+      const ending = withoutBom.includes("\r\n") ? "\r\n" : withoutBom.includes("\r") ? "\r" : "\n";
+      const original = normalizeLf(withoutBom);
+      const replacements = input.edits.map((edit) => ({
+        oldText: normalizeLf(edit.oldText),
+        newText: normalizeLf(edit.newText),
+      }));
+      const ranges = replacements.map((edit) => {
+        const start = original.indexOf(edit.oldText);
+        if (start < 0) throw new Error("oldText was not found in the original file");
+        if (original.indexOf(edit.oldText, start + 1) >= 0) {
+          throw new Error("oldText must match exactly one location");
+        }
+        return { ...edit, start, end: start + edit.oldText.length };
+      });
+      ranges.sort((left, right) => left.start - right.start);
+      for (let index = 1; index < ranges.length; index += 1) {
+        if (ranges[index].start < ranges[index - 1].end) {
+          throw new Error("Edit ranges must not overlap");
+        }
       }
-
-      const occurrences = content.split(oldText).length - 1;
-
-      if (occurrences === 0) {
-        throw new Error(`在 ${path} 中未找到 oldText。请完全匹配原文，包括空白与换行。`);
+      let updated = original;
+      for (const range of [...ranges].reverse()) {
+        updated = updated.slice(0, range.start) + range.newText + updated.slice(range.end);
       }
+      const changes = diffLines(original, updated);
+      const addedLines = changes
+        .filter((change) => change.added)
+        .reduce((total, change) => total + (change.count ?? countLines(change.value)), 0);
+      const removedLines = changes
+        .filter((change) => change.removed)
+        .reduce((total, change) => total + (change.count ?? countLines(change.value)), 0);
+      const diff = createPatch(input.path, original, updated, "", "");
+      await writeFile(absolutePath, bom + restoreLineEndings(updated, ending), "utf8");
+      throwIfAborted(signal);
+      return this.buildResponse(
+        [
+          {
+            type: "text",
+            text: `Successfully edited ${input.path} (+${addedLines} -${removedLines})`,
+          },
+        ],
+        {
+          msg: `修改 ${input.path} 文件 +${addedLines} -${removedLines}`,
+          kind: "edit",
+          path: input.path,
+          addedLines,
+          removedLines,
+          diff,
+        },
+      );
+    });
+  }
+}
 
-      if (occurrences > 1) {
-        throw new Error(
-          `oldText 在 ${path} 中出现 ${occurrences} 次，必须唯一匹配——请增加更多上下文。`,
-        );
-      }
-
-      const newContent = content.replace(oldText, newText);
-      await writeFile(absolutePath, newContent, "utf-8");
-
-      const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n)}…`);
-      const diff = [
-        `--- ${path}`,
-        `+++ ${path}`,
-        `@@ replacement (1 occurrence) @@`,
-        `-${clip(oldText, 120)}`,
-        `+${clip(newText, 120)}`,
-      ].join("\n");
-      const details: EditToolDetails = {
-        absolutePath,
-        bytesBefore: Buffer.byteLength(content, "utf-8"),
-        bytesAfter: Buffer.byteLength(newContent, "utf-8"),
-        diff,
-      };
-
-      return {
-        content: [{ type: "text", text: `已编辑 ${path}：替换 1 处` }],
-        details,
-      };
-    },
-  });
+export function createEditTool(
+  options: ToolRuntimeOptions,
+): AgentTool<typeof editSchema, EditToolDetails> {
+  return new EditTool(options);
 }

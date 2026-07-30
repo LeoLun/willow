@@ -1,39 +1,6 @@
-export {
-  createBashTool,
-  createTool,
-  createEditTool,
-  createFindTool,
-  createGrepTool,
-  createLsTool,
-  createReadTool,
-  createTodoReadTool,
-  createTodoWriteTool,
-  createWebFetchTool,
-  createWebSearchTool,
-  createWriteTool,
-  createAskUserTool,
-  createAllTools,
-  ToolApprovalCoordinator,
-  type TodoItem,
-  type TodoStore,
-  type WillowTool,
-  type WebSearchOptions,
-  type ToolPermissionDecision,
-  type ToolApprovalRequest,
-  type ToolApprovalDecision,
-  type ToolApprovalStatus,
-} from "./tools/index";
+export { AgentCore } from "./core.js";
+export * from "./tools/index.js";
+export type { Skill } from "@earendil-works/pi-agent-core";
+export type { Credential, CredentialStore } from "@earendil-works/pi-ai";
 
-export { buildSystemPrompt, type SystemPromptOptions } from "./system-prompt";
-
-export {
-  loadSkills,
-  formatSkillsForPrompt,
-  type Skill,
-  type LoadSkillsResult,
-  type SkillFrontmatter,
-} from "./skills";
-
-export { CoreAgent, type CoreAgentOptions } from "./core-agent";
-
-export { parseFrontmatter } from "./utils/frontmatter";
+export type { Agent, AgentCoreOptions, AgentHarnessOptions, AgentOptions } from "./types";

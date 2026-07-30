@@ -9,7 +9,6 @@
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "outDir": "./dist",
     "paths": {
       "@willow/shadcn": ["./packages/shadcn/src/index.ts"],
       "@willow/shadcn/*": ["./packages/shadcn/src/*"]

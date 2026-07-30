@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1784119197476,
+      "tag": "0000_luxuriant_next_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784122994142,
+      "tag": "0001_naive_black_panther",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784194273397,
+      "tag": "0002_striped_frank_castle",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784257897587,
+      "tag": "0003_fine_the_captain",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784443036183,
+      "tag": "0004_curvy_solo",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784858835486,
+      "tag": "0005_mature_silverclaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1785342024202,
+      "tag": "0006_amused_stranger",
+      "breakpoints": true
+    }
+  ]
+}

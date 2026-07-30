@@ -1,153 +1,235 @@
-import { Type } from "@sinclair/typebox";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
 import TurndownService from "turndown";
-import { createTool } from "./create-tool";
-
-export interface WebFetchToolDetails {
-  url: string;
-  format: "text" | "markdown" | "html";
-  timeoutMs: number;
-  contentType: string;
-  title: string;
-  outputLength: number;
-  fetchStatus: number;
-  wasRetried: boolean;
-  returnedFormat: "text" | "markdown" | "html";
-}
+import { Type, type Static } from "typebox";
+import { ToolBase, type ToolExecutionContext } from "./base.js";
+import type { ToolRuntimeOptions, WebFetchToolDetails } from "./types.js";
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024;
-const DEFAULT_TIMEOUT_MS = 30 * 1000;
-const MAX_TIMEOUT_MS = 120 * 1000;
+const DEFAULT_TIMEOUT_SECONDS = 30;
+const MAX_TIMEOUT_SECONDS = 120;
+const MAX_REDIRECTS = 10;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 const webFetchSchema = Type.Object({
   url: Type.String({
-    description: "要抓取内容的 URL，必须以 http:// 或 https:// 开头",
+    description: "The complete http:// or https:// URL to fetch.",
   }),
   format: Type.Optional(
     Type.Union([Type.Literal("text"), Type.Literal("markdown"), Type.Literal("html")], {
-      description: "返回格式：text、markdown 或 html，默认 markdown",
+      description: "Output format. Defaults to markdown.",
     }),
   ),
-  timeout: Type.Optional(Type.Number({ description: "超时时间（秒），最大 120 秒" })),
+  timeout: Type.Optional(
+    Type.Number({
+      description: `Timeout in seconds. Must be positive and at most ${MAX_TIMEOUT_SECONDS}.`,
+    }),
+  ),
 });
 
-export function createWebFetchTool() {
-  return createTool({
-    name: "webfetch",
-    label: "抓取网页",
-    description: `- 从指定 URL 获取内容
-- 输入 URL 和可选格式
-- 获取 URL 内容，并将其转换为请求的格式(默认为 Markdown)
-- 返回指定格式的内容
-- 当您需要检索和分析网页内容时，请使用此工具
+export type WebFetchToolInput = Static<typeof webFetchSchema>;
+type WebFetchFormat = NonNullable<WebFetchToolInput["format"]>;
 
-使用说明：
-- 重要提示：如果存在其他网页抓取功能更强大、更适合特定任务或限制更少的工具，请优先使用该工具。
-- URL 必须是完整有效的 URL
-- HTTP URL 将自动升级为 HTTPS
-- 格式选项："markdown"(默认),"text" 或 "html"
-- 此工具为只读工具，不会修改任何文件
-- 如果内容过大，结果可能会被汇总`,
-    parameters: webFetchSchema,
-    meta: {
-      label: "抓取网页",
-      permission: () => ({ mode: "allow" }),
-    },
-    async execute(_toolCallId, params, signal) {
-      const format = params.format ?? "markdown";
-      const timeoutMs = Math.min(
-        Math.max((params.timeout ?? DEFAULT_TIMEOUT_MS / 1000) * 1000, 1),
-        MAX_TIMEOUT_MS,
+type FetchResult = {
+  response: Response;
+  finalUrl: URL;
+  redirectCount: number;
+  wasRetried: boolean;
+};
+
+export class WebFetchTool extends ToolBase<typeof webFetchSchema, WebFetchToolDetails> {
+  readonly name = "webfetch";
+  readonly label = "webfetch";
+  readonly description = `Fetch an HTTP or HTTPS URL and return text, Markdown, or HTML.
+HTTP URLs are upgraded to HTTPS. The default format is Markdown. Responses are limited to 5MB.`;
+  readonly parameters = webFetchSchema;
+
+  protected override checkParams(input: WebFetchToolInput): Error | undefined {
+    if (
+      input.timeout !== undefined &&
+      (!Number.isFinite(input.timeout) || input.timeout <= 0 || input.timeout > MAX_TIMEOUT_SECONDS)
+    ) {
+      return new Error(`timeout must be positive and at most ${MAX_TIMEOUT_SECONDS} seconds`);
+    }
+    try {
+      parseHttpUrl(input.url);
+    } catch (error) {
+      return error instanceof Error ? error : new Error(String(error));
+    }
+    return undefined;
+  }
+
+  protected override async run(
+    context: ToolExecutionContext<WebFetchToolInput, WebFetchToolDetails>,
+  ) {
+    const format = context.input.format ?? "markdown";
+    const timeoutSeconds = context.input.timeout ?? DEFAULT_TIMEOUT_SECONDS;
+    const timeoutMs = timeoutSeconds * 1000;
+    const controller = new AbortController();
+    const timeoutError = new Error(`Web fetch timed out after ${timeoutSeconds} seconds`);
+    const timeoutHandle = setTimeout(() => controller.abort(timeoutError), timeoutMs);
+    const abortListener = () => controller.abort(new Error("Operation aborted"));
+    context.signal?.addEventListener("abort", abortListener, { once: true });
+
+    try {
+      const approvedDomains = new Set<string>();
+      const initialUrl = parseHttpUrl(context.input.url);
+      const fetched = await this.fetchFollowingRedirects(
+        context,
+        initialUrl,
+        format,
+        approvedDomains,
+        controller.signal,
       );
+      const contentType = fetched.response.headers.get("content-type") ?? "";
+      const content = await readResponseText(fetched.response, controller.signal);
+      const title = extractTitle(content, contentType);
+      const output = convertContent(content, contentType, format);
+      const returnedFormat = resolveReturnedFormat(format, contentType);
 
-      if (!params.url.startsWith("http://") && !params.url.startsWith("https://")) {
-        throw new Error("URL 必须以 http:// 或 https:// 开头");
+      return this.buildResponse([{ type: "text", text: output }], {
+        msg: `抓取 ${fetched.finalUrl.href}`,
+        kind: "webfetch",
+        url: context.input.url,
+        finalUrl: fetched.finalUrl.href,
+        format,
+        returnedFormat,
+        timeoutMs,
+        contentType,
+        title,
+        outputLength: output.length,
+        fetchStatus: fetched.response.status,
+        wasRetried: fetched.wasRetried,
+        redirectCount: fetched.redirectCount,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        const reason = controller.signal.reason;
+        throw reason instanceof Error ? reason : new Error("Web fetch aborted");
       }
+      throw error;
+    } finally {
+      clearTimeout(timeoutHandle);
+      context.signal?.removeEventListener("abort", abortListener);
+    }
+  }
 
-      const controller = new AbortController();
-      const timeoutHandle = setTimeout(() => {
-        controller.abort(new Error(`请求超时（>${timeoutMs / 1000} 秒）`));
-      }, timeoutMs);
+  private async fetchFollowingRedirects(
+    context: ToolExecutionContext<WebFetchToolInput, WebFetchToolDetails>,
+    initialUrl: URL,
+    format: WebFetchFormat,
+    approvedDomains: Set<string>,
+    signal: AbortSignal,
+  ): Promise<FetchResult> {
+    const headers = createHeaders(format);
+    let currentUrl = initialUrl;
+    let redirectCount = 0;
+    let wasRetried = false;
 
-      const abortListener = () => controller.abort(new Error("请求已中止"));
-      signal?.addEventListener("abort", abortListener, { once: true });
+    while (true) {
+      await this.authorizeDomain(context, currentUrl, approvedDomains, redirectCount > 0);
+      let response = await fetch(currentUrl, {
+        signal,
+        headers,
+        redirect: "manual",
+      });
 
-      try {
-        const headers = {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-          Accept: getAcceptHeader(format),
-          "Accept-Language": "en-US,en;q=0.9",
-        };
-
-        const initial = await fetch(params.url, {
-          signal: controller.signal,
-          headers,
+      if (response.status === 403 && response.headers.get("cf-mitigated") === "challenge") {
+        await response.body?.cancel();
+        wasRetried = true;
+        response = await fetch(currentUrl, {
+          signal,
+          headers: { ...headers, "User-Agent": "opencode" },
+          redirect: "manual",
         });
-
-        let response = initial;
-        let wasRetried = false;
-
-        if (initial.status === 403 && initial.headers.get("cf-mitigated") === "challenge") {
-          wasRetried = true;
-          response = await fetch(params.url, {
-            signal: controller.signal,
-            headers: {
-              ...headers,
-              "User-Agent": "opencode",
-            },
-          });
-        }
-
-        if (!response.ok) {
-          throw new Error(`请求失败，状态码：${response.status}`);
-        }
-
-        const contentLength = response.headers.get("content-length");
-        if (contentLength && Number.parseInt(contentLength, 10) > MAX_RESPONSE_SIZE) {
-          throw new Error("响应内容过大，超过 5MB 限制");
-        }
-
-        const arrayBuffer = await response.arrayBuffer();
-        if (arrayBuffer.byteLength > MAX_RESPONSE_SIZE) {
-          throw new Error("响应内容过大，超过 5MB 限制");
-        }
-
-        const content = new TextDecoder().decode(arrayBuffer);
-        const contentType = response.headers.get("content-type") ?? "";
-        const title = extractTitle(content, contentType);
-        const output = convertContent(content, contentType, format);
-        const returnedFormat = resolveReturnedFormat(format, contentType);
-
-        const details: WebFetchToolDetails = {
-          url: params.url,
-          format,
-          timeoutMs,
-          contentType,
-          title,
-          outputLength: output.length,
-          fetchStatus: response.status,
-          wasRetried,
-          returnedFormat,
-        };
-
-        return {
-          content: [{ type: "text", text: output }],
-          details,
-        };
-      } catch (error) {
-        if (controller.signal.aborted && error instanceof Error && error.name === "AbortError") {
-          throw new Error(`请求超时或已中止（${timeoutMs / 1000} 秒）`);
-        }
-        throw error;
-      } finally {
-        clearTimeout(timeoutHandle);
-        signal?.removeEventListener("abort", abortListener);
       }
-    },
-  });
+
+      if (!REDIRECT_STATUSES.has(response.status)) {
+        if (!response.ok) {
+          await response.body?.cancel();
+          throw new Error(`Web fetch failed with status ${response.status}`);
+        }
+        return { response, finalUrl: currentUrl, redirectCount, wasRetried };
+      }
+
+      const location = response.headers.get("location");
+      await response.body?.cancel();
+      if (!location) throw new Error(`Redirect response ${response.status} is missing Location`);
+      if (redirectCount >= MAX_REDIRECTS) {
+        throw new Error(`Web fetch exceeded ${MAX_REDIRECTS} redirects`);
+      }
+      currentUrl = parseHttpUrl(new URL(location, currentUrl).href);
+      redirectCount += 1;
+    }
+  }
+
+  private async authorizeDomain(
+    context: ToolExecutionContext<WebFetchToolInput, WebFetchToolDetails>,
+    url: URL,
+    approvedDomains: Set<string>,
+    mayHavePartialEffects: boolean,
+  ): Promise<void> {
+    if (this.options.permissionMode === "full-access") return;
+
+    const hostname = normalizeHostname(url.hostname);
+    const deniedDomains = normalizedDomains(this.options.sandboxPolicy?.deniedDomains);
+    if (deniedDomains.has(hostname)) {
+      throw new Error(`Network domain is denied by policy: ${hostname}`);
+    }
+
+    const allowedDomains = normalizedDomains(this.options.sandboxPolicy?.allowedDomains);
+    if (allowedDomains.has(hostname) || approvedDomains.has(hostname)) return;
+
+    await this.requestPermission(context, {
+      reason: "network-domain",
+      display: hostname,
+      mayHavePartialEffects,
+    });
+    approvedDomains.add(hostname);
+  }
 }
 
-function getAcceptHeader(format: "text" | "markdown" | "html") {
+export function createWebFetchTool(
+  options: ToolRuntimeOptions,
+): AgentTool<typeof webFetchSchema, WebFetchToolDetails> {
+  return new WebFetchTool(options);
+}
+
+function parseHttpUrl(value: string): URL {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("url must be a complete http:// or https:// URL");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("url must use http:// or https://");
+  }
+  if (url.username || url.password) {
+    throw new Error("url must not contain embedded credentials");
+  }
+  if (url.protocol === "http:") url.protocol = "https:";
+  return url;
+}
+
+function normalizeHostname(hostname: string): string {
+  return hostname.trim().toLowerCase().replace(/\.$/, "");
+}
+
+function normalizedDomains(domains: readonly string[] | undefined): Set<string> {
+  return new Set((domains ?? []).map(normalizeHostname).filter(Boolean));
+}
+
+function createHeaders(format: WebFetchFormat): Record<string, string> {
+  return {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+      "(KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    Accept: getAcceptHeader(format),
+    "Accept-Language": "en-US,en;q=0.9",
+  };
+}
+
+function getAcceptHeader(format: WebFetchFormat): string {
   switch (format) {
     case "markdown":
       return "text/markdown;q=1.0, text/x-markdown;q=0.9, text/plain;q=0.8, text/html;q=0.7, */*;q=0.1";
@@ -158,10 +240,43 @@ function getAcceptHeader(format: "text" | "markdown" | "html") {
   }
 }
 
-function extractTitle(content: string, contentType: string): string {
-  if (!contentType.includes("text/html")) {
-    return "";
+async function readResponseText(response: Response, signal: AbortSignal): Promise<string> {
+  const contentLength = response.headers.get("content-length");
+  if (contentLength) {
+    const declaredSize = Number.parseInt(contentLength, 10);
+    if (Number.isFinite(declaredSize) && declaredSize > MAX_RESPONSE_SIZE) {
+      await response.body?.cancel();
+      throw new Error("Web fetch response exceeds the 5MB limit");
+    }
   }
+  if (!response.body) return "";
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  while (true) {
+    if (signal.aborted) throw signal.reason;
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > MAX_RESPONSE_SIZE) {
+      await reader.cancel();
+      throw new Error("Web fetch response exceeds the 5MB limit");
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+function extractTitle(content: string, contentType: string): string {
+  if (!isHtmlContentType(contentType)) return "";
   const match = content.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
   return decodeHtmlEntities(match?.[1] ?? "")
     .replace(/\s+/g, " ")
@@ -169,36 +284,23 @@ function extractTitle(content: string, contentType: string): string {
 }
 
 function resolveReturnedFormat(
-  format: "text" | "markdown" | "html",
+  format: WebFetchFormat,
   contentType: string,
-): "text" | "markdown" | "html" {
-  if (format === "html") {
-    return "html";
-  }
-  if (format === "markdown" && contentType.includes("text/html")) {
-    return "markdown";
-  }
+): WebFetchToolDetails["returnedFormat"] {
+  if (format === "html") return "html";
+  if (format === "markdown" && isHtmlContentType(contentType)) return "markdown";
   return "text";
 }
 
-function convertContent(
-  content: string,
-  contentType: string,
-  format: "text" | "markdown" | "html",
-): string {
-  if (format === "html") {
-    return content;
-  }
-
-  if (!contentType.includes("text/html")) {
-    return content;
-  }
-
-  if (format === "markdown") {
-    return convertHtmlToMarkdown(content);
-  }
-
+function convertContent(content: string, contentType: string, format: WebFetchFormat): string {
+  if (format === "html") return content;
+  if (!isHtmlContentType(contentType)) return content;
+  if (format === "markdown") return convertHtmlToMarkdown(content);
   return extractTextFromHtml(content);
+}
+
+function isHtmlContentType(contentType: string): boolean {
+  return contentType.toLowerCase().includes("text/html");
 }
 
 function extractTextFromHtml(html: string): string {

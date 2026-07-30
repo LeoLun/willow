@@ -1,0 +1,70 @@
+@import "../../../../packages/shadcn/src/style.css";
+
+@source "../../../../packages/shadcn/src";
+@source "../../../../packages/ui/src";
+@source "../../../../packages/sender/src";
+
+@layer base {
+  :root {
+    --glass-surface-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 95%), inset 0 -1px 0 rgb(255 255 255 / 35%),
+      0 14px 32px rgb(0 0 0 / 13%), 0 3px 8px rgb(0 0 0 / 8%);
+    --top-drag-bar-z-index: 1000;
+  }
+
+  .dark {
+    --glass-surface-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 22%), inset 0 -1px 0 rgb(255 255 255 / 6%),
+      0 14px 32px rgb(0 0 0 / 35%);
+  }
+
+  :focus-visible {
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-inset-ring-shadow: 0 0 #0000 !important;
+    outline: none !important;
+  }
+
+  * {
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track,
+  *:hover::-webkit-scrollbar-track {
+    margin: 0;
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 0;
+    border-radius: 9999px;
+    background-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+  }
+}
+
+/* styles.css */
+.CollapsibleContent {
+  overflow: hidden;
+}
+.CollapsibleContent[data-state="open"] {
+  animation: slideDown 300ms ease-out;
+}
+.CollapsibleContent[data-state="closed"] {
+  animation: slideUp 300ms ease-out;
+}
+
+@layer components {
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+
+  .no-drag-region {
+    -webkit-app-region: no-drag;
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "resolvePackageJsonExports": true,
+    "resolveJsonModule": true,
+    "types": ["vite/client"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "@/*": ["./src/renderer/src/*"],
+      "@main/*": ["./src/main/*"],
+      "@renderer/*": ["./src/renderer/*"],
+      "@shared/*": ["./src/shared/*"]
+    }
+  },
+  "include": [
+    "./*.ts",
+    "./*.d.ts",
+    "./src/main/**/*.ts",
+    "./src/preload/**/*.ts",
+    "./src/shared/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "./src/renderer"]
+}

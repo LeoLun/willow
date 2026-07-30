@@ -1,7 +1,0 @@
-{
-  "id": "bill-management",
-  "name": "账单管理",
-  "description": "内置账单管理 Skill 及模板应用代码，可进行账单分析及自动化理财计算。",
-  "zipFileName": "bill-management.zip",
-  "previewFileName": "preview.png"
-}

@@ -13,7 +13,7 @@
     "newlinesBetween": false
   },
   "sortTailwindcss": {
-    "stylesheet": "app/work/src/renderer/index.css"
+    "stylesheet": "apps/work/src/renderer/index.css"
   },
   "sortPackageJson": true,
   "ignorePatterns": [

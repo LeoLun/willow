@@ -1,4 +1,0 @@
-schema: spec-driven
-
-# Canonical OpenSpec storage now lives under docs/ai-workflows/openspec.
-# The repository-root openspec/ path is kept as a symlink for tool compatibility.

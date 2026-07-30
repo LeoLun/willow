@@ -1,5 +1,3 @@
-import "./style.css";
-
 export { Shimmer } from "./components/ai-elements/shimmer";
 export { Button, buttonVariants } from "./components/ui/button";
 export type { ButtonVariants } from "./components/ui/button";
@@ -20,3 +18,19 @@ export {
   CardHeader,
   CardTitle,
 } from "./components/ui/card";
+
+export {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+  InputGroupTextarea,
+} from "./components/ui/input-group";
+export type { InputGroupVariants, InputGroupButtonVariants } from "./components/ui/input-group";
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "./components/ui/dropdown-menu";

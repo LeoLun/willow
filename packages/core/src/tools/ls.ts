@@ -1,77 +1,65 @@
-import { readdir, stat } from "fs/promises";
-import { join } from "path";
-import { Type } from "@sinclair/typebox";
-import { createTool } from "./create-tool";
-import { resolveToCwd } from "./path-utils";
-
-const DEFAULT_LIMIT = 500;
-const MAX_OUTPUT_BYTES = 64 * 1024;
-
-export interface LsToolDetails {
-  absolutePath: string;
-  totalEntries: number;
-  returned: number;
-  entryLimitReached: boolean;
-  outputByteTruncated: boolean;
-}
+import { readdir } from "node:fs/promises";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { Type, type Static } from "typebox";
+import { ToolBase, type ToolExecutionContext } from "./base.js";
+import { authorizeRead, resolveFromCwd, throwIfAborted } from "./shared.js";
+import type { LsToolDetails, ToolRuntimeOptions } from "./types.js";
 
 const lsSchema = Type.Object({
-  path: Type.Optional(Type.String({ description: "要列出的目录（默认：当前目录）" })),
-  limit: Type.Optional(Type.Number({ description: `最多条目数（默认 ${DEFAULT_LIMIT}）` })),
+  path: Type.Optional(
+    Type.String({
+      description: "Directory to list (default: current directory)",
+    }),
+  ),
 });
 
-export function createLsTool(cwd: string) {
-  return createTool({
-    name: "ls",
-    label: "列出目录",
-    description: "列出单个目录下的文件与子目录（非递归）。",
-    parameters: lsSchema,
-    meta: {
-      label: "列出目录",
-      permission: () => ({ mode: "allow" }),
-    },
-    async execute(_toolCallId, params) {
-      const { path: dirPath, limit } = params;
-      const root = resolveToCwd(dirPath ?? ".", cwd);
-      const entries = await readdir(root, { withFileTypes: true });
-      const max = Math.max(1, limit ?? DEFAULT_LIMIT);
+export type LsToolInput = Static<typeof lsSchema>;
 
-      const rows: string[] = [];
-      for (const ent of entries.slice(0, max)) {
-        const full = join(root, ent.name);
-        let suffix = "";
-        try {
-          const s = await stat(full);
-          suffix = s.isDirectory() ? "/" : "";
-        } catch {
-          suffix = "?";
-        }
-        rows.push(`${ent.name}${suffix}`);
-      }
+export class LsTool extends ToolBase<typeof lsSchema, LsToolDetails> {
+  readonly name = "ls";
+  readonly label = "ls";
+  readonly description = "List the direct children of a directory.";
+  readonly parameters = lsSchema;
 
-      let body = rows.join("\n");
-      const entryLimitReached = entries.length > max;
-      if (entryLimitReached) {
-        body += `\n\n[仅显示 ${max} 条，共 ${entries.length} 条]`;
-      }
-      let outputByteTruncated = false;
-      if (Buffer.byteLength(body, "utf-8") > MAX_OUTPUT_BYTES) {
-        body = body.slice(0, MAX_OUTPUT_BYTES) + "\n\n[已截断]";
-        outputByteTruncated = true;
-      }
+  protected override async checkPermission(
+    context: ToolExecutionContext<LsToolInput, LsToolDetails>,
+  ): Promise<void> {
+    await authorizeRead({
+      ...this.options,
+      path: context.input.path || ".",
+      toolCallId: context.toolCallId,
+      toolName: this.name,
+      input: context.input,
+      signal: context.signal,
+    });
+  }
 
-      const details: LsToolDetails = {
-        absolutePath: root,
-        totalEntries: entries.length,
-        returned: Math.min(entries.length, max),
-        entryLimitReached,
-        outputByteTruncated,
-      };
+  protected override async run(context: ToolExecutionContext<LsToolInput, LsToolDetails>) {
+    const { input, signal } = context;
+    const path = input.path || ".";
+    throwIfAborted(signal);
+    const entries = await readdir(resolveFromCwd(this.options.cwd, path), {
+      withFileTypes: true,
+    });
+    throwIfAborted(signal);
+    entries.sort((left, right) => {
+      if (left.isDirectory() !== right.isDirectory()) return left.isDirectory() ? -1 : 1;
+      return left.name.localeCompare(right.name);
+    });
+    const output = entries
+      .map((entry) => `${entry.name}${entry.isDirectory() ? "/" : ""}`)
+      .join("\n");
+    return this.buildResponse([{ type: "text", text: output || "(empty directory)" }], {
+      msg: `列出 ${path} 目录，共 ${entries.length} 项`,
+      kind: "ls",
+      path,
+      entryCount: entries.length,
+    });
+  }
+}
 
-      return {
-        content: [{ type: "text", text: body || "（空）" }],
-        details,
-      };
-    },
-  });
+export function createLsTool(
+  options: ToolRuntimeOptions,
+): AgentTool<typeof lsSchema, LsToolDetails> {
+  return new LsTool(options);
 }

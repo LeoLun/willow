@@ -30,10 +30,5 @@ jobs:
       - name: Run Lint
         run: pnpm lint
 
-      - name: Build monorepo packages
-        run: pnpm build
-
       - name: Run Type Check
-        run: |
-          cd app/work
-          npx tsc --noEmit
+        run: pnpm typecheck

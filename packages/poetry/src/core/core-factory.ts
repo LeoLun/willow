@@ -90,6 +90,10 @@ export class CoreFactoryStatic {
       });
     }
 
+    for (const controller of controllers ?? []) {
+      container.get(controller);
+    }
+
     const instance = container.resolve(module) as any;
     this.initModule(module, instance);
     return instance;
