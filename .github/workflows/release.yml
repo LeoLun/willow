@@ -78,8 +78,11 @@ jobs:
           rm -rf out/app-x64.asar.unpacked out/app-arm64.asar.unpacked
           rm -rf "$TEMP_ASAR_DIR/x64/node_modules/better-sqlite3/build"
           rm -rf "$TEMP_ASAR_DIR/arm64/node_modules/better-sqlite3/build"
+          rm -rf "$TEMP_ASAR_DIR/x64/node_modules/better-sqlite3/bin"
+          rm -rf "$TEMP_ASAR_DIR/arm64/node_modules/better-sqlite3/bin"
           find "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64" -name '*.node' -delete
           find "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64" -type l -delete
+          find "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64" -depth -type d -empty -delete
           diff -qr "$TEMP_ASAR_DIR/x64" "$TEMP_ASAR_DIR/arm64"
           test -f "$TEMP_ASAR_DIR/arm64/.vite/build/main.js"
           test -f "$TEMP_ASAR_DIR/arm64/.vite/build/preload.js"
