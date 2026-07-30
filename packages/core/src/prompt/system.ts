@@ -1,14 +1,20 @@
-import { arch, platform, release, type } from "node:os";
+import { arch, homedir, platform, release, type } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 import type { Skill } from "@earendil-works/pi-agent-core";
 import type { AgentsFile, SystemPromptOptions } from "../types";
 import { renderPrompt } from "../utils/render-prompt";
 import systemPrompt from "./system.md?raw";
 
-function buildEnvPrompt(cwd: string): string {
+function buildEnvPrompt(cwd: string, agentDir: string): string {
   const shell = process.env.SHELL ?? process.env.ComSpec ?? "unknown";
+  const globalAgentDirectory = isAbsolute(agentDir)
+    ? resolve(agentDir)
+    : resolve(homedir(), agentDir);
   return [
     `Current date: ${new Date().toISOString().split("T")[0]}`,
     `Current working directory: ${cwd}`,
+    `Project skills directory: ${join(resolve(cwd), ".agents", "skills")}`,
+    `Global skills directory: ${join(globalAgentDirectory, "skills")}`,
     `Operating system: ${type()}`,
     `Platform: ${platform()}`,
     `OS release: ${release()}`,
@@ -71,7 +77,7 @@ function buildAgentsPrompt(agentsFiles: AgentsFile[]): string {
 }
 
 export function getSystemPrompt(options: SystemPromptOptions): string {
-  const envPrompt = buildEnvPrompt(options.cwd);
+  const envPrompt = buildEnvPrompt(options.cwd, options.agentDir);
   return renderPrompt(systemPrompt, {
     WILLOW_ENV: envPrompt,
     WILLOW_SKILLS: buildSkillsPrompt(options.skills),

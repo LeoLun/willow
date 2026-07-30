@@ -21,6 +21,8 @@ import {
   type ComposerModelOption,
   type ComposerOption,
   type ComposerPanelSlotProps,
+  type ComposerPanelKeydownPayload,
+  type ComposerPanelNavigationHandle,
   type ComposerSubmitPayload,
 } from "@/components/prompt-composer";
 import FileSearchPanel from "@/components/prompt-composer/FileSearchPanel.vue";
@@ -50,6 +52,8 @@ const providers = shallowRef<ProviderInfo[]>([]);
 const selectedModel = shallowRef<ModelConfig | undefined>(composerPreferences.value.model);
 const approvalMode = ref<PermissionMode>(composerPreferences.value.approvalMode);
 const reasoningEffort = ref<string | undefined>(composerPreferences.value.reasoningEffort);
+const fileSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
+const skillSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
 
 const approvalOptions: ComposerOption[] = [
   { value: "request-approval", label: "请求批准", icon: ShieldQuestionIcon },
@@ -176,6 +180,11 @@ function insertFileReference(file: FileSearchItem, insert: ComposerPanelSlotProp
 
 function insertSkillReference(skill: SkillInfo, insert: ComposerPanelSlotProps["insert"]): void {
   insert(`[!${skill.name}](${skill.filePath})`);
+}
+
+function handlePanelKeydown(payload: ComposerPanelKeydownPayload): void {
+  const panel = payload.type === "mention" ? fileSearchPanel.value : skillSearchPanel.value;
+  panel?.handlePanelKeydown(payload.key);
 }
 
 function handleSessionTitleUpdated(payload: MessageEventPayload) {
@@ -372,9 +381,11 @@ function removeQueuedMessage(messageId: string): void {
               :stopping="currentSessionStopping"
               @stop="stopMessage"
               @submit="sendMessage"
+              @panel-keydown="handlePanelKeydown"
             >
               <template #mention-panel="{ query, insert }">
                 <FileSearchPanel
+                  ref="fileSearchPanel"
                   :workspace-id="workspaceId"
                   :query="query"
                   @select="insertFileReference($event, insert)"
@@ -382,6 +393,7 @@ function removeQueuedMessage(messageId: string): void {
               </template>
               <template #slash-panel="{ query, insert }">
                 <SkillSearchPanel
+                  ref="skillSearchPanel"
                   :workspace-id="workspaceId"
                   :query="query"
                   @select="insertSkillReference($event, insert)"

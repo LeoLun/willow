@@ -13,8 +13,8 @@ const { state } = useSidebar();
   <header class="drag-region flex shrink-0 items-center justify-between px-4 pt-[12px]">
     <div class="no-drag-region flex h-8 min-w-0 items-center">
       <div
-        v-if="state === 'collapsed'"
-        class="no-drag-region h-full w-32 shrink-0"
+        class="no-drag-region h-full shrink-0 transition-all duration-200 ease-linear"
+        :class="{ 'w-34': state === 'collapsed', 'w-0': state !== 'collapsed' }"
         aria-hidden="true"
       />
       <slot name="left" />

@@ -44,6 +44,20 @@ It's OK to briefly explain terms if you're in doubt, and feel free to clarify te
 
 ## Creating a skill
 
+### Choose the Installation Directory
+
+Resolve the destination before creating any files:
+
+- If the user gives an exact destination, use it.
+- If the user explicitly asks for a global, personal, or cross-project skill, create
+  `<global-skills-directory>/<skill-name>/`.
+- Otherwise, create `<project-skills-directory>/<skill-name>/`.
+
+Use the exact project and global skills directories declared in the working environment. Never
+create a skill directly under the current working directory or invent another skills root. Tell the
+user which destination you selected before writing. After writing, verify that
+`<destination>/SKILL.md` exists and report that exact path.
+
 ### Capture Intent
 
 Start by understanding the user's intent. The current conversation might already contain a workflow the user wants to capture (e.g., they say "turn this into a skill"). If so, extract answers from the conversation history first — the tools used, the sequence of steps, corrections the user made, input/output formats observed. The user may need to fill the gaps, and should confirm before proceeding to the next step.

@@ -35,6 +35,7 @@ export type AgentsFile = { path: string; content: string };
 
 export type SystemPromptOptions = {
   cwd: string;
+  agentDir: string;
   skills: Skill[];
   agentsFiles: AgentsFile[];
   roleAdditional: string;

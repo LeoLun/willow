@@ -335,10 +335,7 @@ async function handleKeydown(event: KeyboardEvent): Promise<void> {
 
   if (
     trigger.value &&
-    (event.key === "ArrowDown" ||
-      event.key === "ArrowUp" ||
-      event.key === "Enter" ||
-      event.key === "Tab")
+    (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter")
   ) {
     event.preventDefault();
     emit("panel-keydown", {

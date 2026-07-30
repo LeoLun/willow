@@ -40,6 +40,7 @@ export class DefaultResourceLoader {
     await Promise.all([this.loadSkills(), this.loadAgentFiles()]);
     this.systemPrompt = getSystemPrompt({
       cwd: this.cwd,
+      agentDir: this.agentDir,
       skills: this.skills,
       agentsFiles: this.agentsFiles,
       roleAdditional: "",

@@ -7,6 +7,7 @@ import type { SystemPromptOptions } from "../src/types";
 function createOptions(overrides: Partial<SystemPromptOptions> = {}): SystemPromptOptions {
   return {
     cwd: "/workspace/project",
+    agentDir: "/users/test/.willow",
     skills: [],
     agentsFiles: [],
     roleAdditional: "",
@@ -92,6 +93,11 @@ describe("getSystemPrompt", () => {
     expect(prompt).toContain("# Working Environment");
     expect(prompt).toContain("Current date: 2026-07-10");
     expect(prompt).toContain("Current working directory: /workspace/project");
+    expect(prompt).toContain("Project skills directory: /workspace/project/.agents/skills");
+    expect(prompt).toContain("Global skills directory: /users/test/.willow/skills");
+    expect(prompt).toContain(
+      "create a named child directory under the project skills directory by default",
+    );
     expect(prompt).toContain(`Operating system: ${type()}`);
     expect(prompt).toContain(`Platform: ${platform()}`);
     expect(prompt).toContain(`OS release: ${release()}`);

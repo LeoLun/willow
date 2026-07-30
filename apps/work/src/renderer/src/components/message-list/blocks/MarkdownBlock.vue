@@ -238,6 +238,11 @@ const markdownPlugins = [
   padding-inline-end: calc(var(--spacing) * 6);
 }
 
+.markdown-new-styling :is(th, td):where(:not(.not-markdown *)):first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
 .markdown-new-styling tr:where(:not(.not-markdown *)):not(:last-child) td {
   border-bottom: 1px solid color-mix(in oklab, currentColor 5%, transparent);
 }

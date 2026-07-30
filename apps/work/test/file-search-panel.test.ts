@@ -2,7 +2,8 @@
 
 import type { FileSearchItem } from "@shared/api";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createApp, h, nextTick, type App } from "vue";
+import { createApp, h, nextTick, ref, shallowRef, type App } from "vue";
+import type { ComposerPanelNavigationHandle } from "../src/renderer/src/components/prompt-composer";
 
 const searchFiles = vi.hoisted(() => vi.fn());
 
@@ -15,19 +16,22 @@ import FileSearchPanel from "../src/renderer/src/components/prompt-composer/File
 const mountedApps: App[] = [];
 
 function mountPanel(query: string, onSelect = vi.fn()) {
+  const currentQuery = ref(query);
+  const panel = shallowRef<ComposerPanelNavigationHandle>();
   const container = document.createElement("div");
   document.body.append(container);
   const app = createApp({
     render: () =>
       h(FileSearchPanel, {
+        ref: panel,
         workspaceId: 1,
-        query,
+        query: currentQuery.value,
         onSelect,
       }),
   });
   app.mount(container);
   mountedApps.push(app);
-  return { container, onSelect };
+  return { container, currentQuery, onSelect, panel };
 }
 
 async function flushSearch(): Promise<void> {
@@ -76,5 +80,63 @@ describe("FileSearchPanel", () => {
 
     expect(searchFiles).toHaveBeenCalledWith({ workspaceId: 1, query: "" });
     expect(mounted.container.textContent).toContain("没有匹配的文件或文件夹");
+  });
+
+  it("highlights, wraps, selects, and resets keyboard navigation", async () => {
+    vi.useFakeTimers();
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    const firstResults: FileSearchItem[] = [
+      { name: "first.ts", relativePath: "src/first.ts", type: "file" },
+      { name: "second.ts", relativePath: "src/second.ts", type: "file" },
+    ];
+    searchFiles.mockResolvedValueOnce({ files: firstResults }).mockResolvedValueOnce({
+      files: [{ name: "next.ts", relativePath: "src/next.ts", type: "file" }],
+    });
+    const mounted = mountPanel("first");
+
+    await flushSearch();
+
+    const items = () => [
+      ...mounted.container.querySelectorAll<HTMLElement>("[data-slot=file-search-item]"),
+    ];
+    expect(items()[0]?.dataset.active).toBe("true");
+    expect(items()[0]?.getAttribute("aria-selected")).toBe("true");
+    expect(
+      mounted.container.querySelector("[role=listbox]")?.getAttribute("aria-activedescendant"),
+    ).toBe(items()[0]?.id);
+
+    mounted.panel.value?.handlePanelKeydown("ArrowUp");
+    await nextTick();
+    expect(items()[1]?.dataset.active).toBe("true");
+
+    mounted.panel.value?.handlePanelKeydown("ArrowDown");
+    await nextTick();
+    expect(items()[0]?.dataset.active).toBe("true");
+
+    items()[1]?.dispatchEvent(new MouseEvent("mouseenter"));
+    await nextTick();
+    mounted.panel.value?.handlePanelKeydown("Enter");
+    expect(mounted.onSelect).toHaveBeenCalledWith(firstResults[1]);
+    expect(scrollIntoView).toHaveBeenCalled();
+
+    mounted.currentQuery.value = "next";
+    await nextTick();
+    await flushSearch();
+    expect(items()).toHaveLength(1);
+    expect(items()[0]?.dataset.active).toBe("true");
+  });
+
+  it("ignores keyboard navigation when there are no results", async () => {
+    vi.useFakeTimers();
+    searchFiles.mockResolvedValueOnce({ files: [] });
+    const mounted = mountPanel("missing");
+
+    await flushSearch();
+    mounted.panel.value?.handlePanelKeydown("ArrowDown");
+    mounted.panel.value?.handlePanelKeydown("Enter");
+
+    expect(mounted.onSelect).not.toHaveBeenCalled();
+    expect(mounted.container.querySelector("[role=listbox]")).toBeNull();
   });
 });

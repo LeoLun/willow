@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { SkillInfo } from "@shared/api";
 import { BoxIcon } from "lucide-vue-next";
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { computed, onBeforeUnmount, ref, shallowRef, useId, watch } from "vue";
 import { electronAPI } from "@/lib/ipc";
+import type { ComposerPanelNavigationHandle } from "./types";
+import { usePanelKeyboardNavigation } from "./use-panel-keyboard-navigation";
 
 const props = defineProps<{
   workspaceId?: number;
@@ -16,6 +18,8 @@ const emit = defineEmits<{
 const skills = shallowRef<SkillInfo[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
+const list = shallowRef<HTMLElement>();
+const listId = useId();
 let generation = 0;
 
 const matchingSkills = computed(() => {
@@ -27,6 +31,16 @@ const matchingSkills = computed(() => {
       skill.description.toLocaleLowerCase().includes(normalizedQuery),
   );
 });
+
+const { activeDescendant, activeIndex, handlePanelKeydown, setActiveIndex } =
+  usePanelKeyboardNavigation({
+    items: matchingSkills,
+    itemId: (index) => `${listId}-option-${index}`,
+    list,
+    select: (skill) => emit("select", skill),
+  });
+
+defineExpose<ComposerPanelNavigationHandle>({ handlePanelKeydown });
 
 async function loadSkills(): Promise<void> {
   const currentWorkspaceId = props.workspaceId;
@@ -84,14 +98,28 @@ onBeforeUnmount(() => {
     >
       当前工作区没有可用的 skill
     </p>
-    <div v-else-if="matchingSkills.length > 0" class="mt-1">
+    <div
+      v-else-if="matchingSkills.length > 0"
+      ref="list"
+      class="mt-1"
+      role="listbox"
+      aria-label="技能"
+      :aria-activedescendant="activeDescendant"
+    >
       <button
-        v-for="skill in matchingSkills"
+        v-for="(skill, index) in matchingSkills"
+        :id="`${listId}-option-${index}`"
         :key="skill.filePath"
         type="button"
         class="grid min-h-7 w-full grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl px-2 text-left text-sm leading-6 transition-colors hover:bg-accent/60"
+        :class="{ 'bg-accent/60': index === activeIndex }"
         data-slot="skill-list-item"
+        :data-active="index === activeIndex"
+        role="option"
+        :aria-selected="index === activeIndex"
+        tabindex="-1"
         :title="skill.filePath"
+        @mouseenter="setActiveIndex(index)"
         @click="emit('select', skill)"
       >
         <BoxIcon class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />

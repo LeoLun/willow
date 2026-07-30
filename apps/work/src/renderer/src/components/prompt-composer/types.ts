@@ -47,6 +47,7 @@ export interface ComposerInsertOptions {
 }
 
 export type ComposerPanelType = "mention" | "slash";
+export type ComposerPanelNavigationKey = "ArrowDown" | "ArrowUp" | "Enter";
 
 export interface ComposerPanelSlotProps {
   query: string;
@@ -57,6 +58,10 @@ export interface ComposerPanelSlotProps {
 export interface ComposerPanelKeydownPayload {
   type: ComposerPanelType;
   query: string;
-  key: "ArrowDown" | "ArrowUp" | "Enter" | "Tab";
+  key: ComposerPanelNavigationKey;
   event: KeyboardEvent;
+}
+
+export interface ComposerPanelNavigationHandle {
+  handlePanelKeydown(key: ComposerPanelNavigationKey): void;
 }

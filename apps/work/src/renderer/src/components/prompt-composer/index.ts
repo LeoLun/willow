@@ -12,6 +12,8 @@ export type {
   ComposerModelOption,
   ComposerOption,
   ComposerPanelKeydownPayload,
+  ComposerPanelNavigationHandle,
+  ComposerPanelNavigationKey,
   ComposerPanelSlotProps,
   ComposerPanelType,
   ComposerSegment,

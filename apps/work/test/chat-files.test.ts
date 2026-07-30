@@ -38,6 +38,14 @@ vi.mock("@/composables/useEventBus", () => ({
   }),
 }));
 
+vi.mock("@/components/layout/BaseHeader.vue", () => ({
+  default: {
+    setup(_: unknown, { slots }: { slots: { left?: () => unknown } }) {
+      return () => slots.left?.();
+    },
+  },
+}));
+
 import ChatBase from "../src/renderer/src/pages/main/ChatBase.vue";
 
 const mountedApps: App[] = [];
@@ -139,7 +147,9 @@ describe("ChatBase file search", () => {
       expect(container.querySelectorAll("[data-slot=file-search-item]")).toHaveLength(1);
     });
 
-    container.querySelector<HTMLButtonElement>("[data-slot=file-search-item]")?.click();
+    container
+      .querySelector<HTMLElement>("[data-slot=prompt-editor]")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await vi.waitFor(() => {
       expect(
         container.querySelector(
@@ -169,7 +179,9 @@ describe("ChatBase file search", () => {
       ).not.toBeNull();
     });
 
-    container.querySelector<HTMLButtonElement>("[data-entry-type=directory]")?.click();
+    container
+      .querySelector<HTMLElement>("[data-slot=prompt-editor]")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await vi.waitFor(() => {
       expect(
         container.querySelector('[data-token-source="[components](<apps/work/src/components/>)"]'),

@@ -439,10 +439,19 @@ describe("PromptComposer", () => {
     expect(mounted.container.querySelector("[data-slot=prompt-panel-scroll]")?.classList).toContain(
       "overflow-y-auto",
     );
-    editor.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-    expect(mounted.panelKeydown).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "mention", query: "wor", key: "ArrowDown" }),
-    );
+    for (const key of ["ArrowDown", "ArrowUp", "Enter"] as const) {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      editor.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(mounted.panelKeydown).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "mention", query: "wor", key }),
+      );
+    }
+
+    const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    editor.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(false);
+    expect(mounted.panelKeydown).toHaveBeenCalledTimes(3);
 
     editor.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await nextTick();

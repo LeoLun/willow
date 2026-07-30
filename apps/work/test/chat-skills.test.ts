@@ -35,6 +35,14 @@ vi.mock("@/composables/useEventBus", () => ({
   }),
 }));
 
+vi.mock("@/components/layout/BaseHeader.vue", () => ({
+  default: {
+    setup(_: unknown, { slots }: { slots: { left?: () => unknown } }) {
+      return () => slots.left?.();
+    },
+  },
+}));
+
 import ChatBase from "../src/renderer/src/pages/main/ChatBase.vue";
 
 const mountedApps: App[] = [];
@@ -126,7 +134,9 @@ describe("ChatBase skills", () => {
       expect(items[0]?.textContent).toContain("review");
     });
 
-    container.querySelector<HTMLButtonElement>("[data-slot=skill-list-item]")?.click();
+    container
+      .querySelector<HTMLElement>("[data-slot=prompt-editor]")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await vi.waitFor(() => {
       expect(
         container.querySelector(`[data-token-source="[!review](${reviewPath})"]`),
