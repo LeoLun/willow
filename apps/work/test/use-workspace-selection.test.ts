@@ -34,6 +34,7 @@ import {
   resolveWorkspaceId,
   useWorkspaceSelection,
 } from "../src/renderer/src/composables/useWorkspaceSelection";
+import { notifyWorkspaceCreated } from "../src/renderer/src/lib/app-state-events";
 
 function workspace(id: number, createdAt: string, pinned = false): WorkspaceInfo {
   return {
@@ -179,6 +180,24 @@ describe("useWorkspaceSelection", () => {
     expect(mocks.replace).toHaveBeenCalledWith({
       name: "home",
       query: { workspaceId: "2" },
+    });
+    mounted.app.unmount();
+  });
+
+  it("refreshes and selects a workspace created while the home page is mounted", async () => {
+    mockWorkspaceLoad([], []);
+    const mounted = mountComposable();
+    await vi.waitFor(() => expect(mounted.selection.loadingWorkspaces.value).toBe(false));
+
+    mockWorkspaceLoad([], [newest]);
+    notifyWorkspaceCreated(newest);
+
+    await vi.waitFor(() => {
+      expect(mounted.selection.selectedWorkspaceId.value).toBe(newest.id);
+      expect(mocks.push).toHaveBeenCalledWith({
+        name: "home",
+        query: { workspaceId: String(newest.id) },
+      });
     });
     mounted.app.unmount();
   });

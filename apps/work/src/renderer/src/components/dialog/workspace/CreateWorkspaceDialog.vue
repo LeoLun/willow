@@ -9,6 +9,7 @@ import {
 } from "@willow/shadcn/components/ui/dialog";
 import { CircleAlert, FolderOpen, LoaderCircle } from "lucide-vue-next";
 import { computed, ref, shallowRef } from "vue";
+import { notifyWorkspaceCreated } from "@/lib/app-state-events";
 import { electronAPI } from "@/lib/ipc";
 
 const emit = defineEmits<{
@@ -50,6 +51,7 @@ async function createWorkspace() {
   errorMessage.value = "";
   try {
     const response = await electronAPI.createWorkspace(directory.value);
+    notifyWorkspaceCreated(response.workspace);
     emit("created", response.workspace);
     emit("close");
   } catch (error) {

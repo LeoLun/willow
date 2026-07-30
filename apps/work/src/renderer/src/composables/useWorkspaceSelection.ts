@@ -1,7 +1,8 @@
 import type { WorkspaceInfo } from "@shared/api";
 import { useLocalStorage } from "@vueuse/core";
-import { computed, onMounted, ref, shallowRef, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter, type LocationQueryRaw } from "vue-router";
+import { onWorkspaceCreated } from "@/lib/app-state-events";
 import { electronAPI } from "@/lib/ipc";
 
 export const LAST_WORKSPACE_ID_STORAGE_KEY = "willow:last-workspace-id";
@@ -61,6 +62,7 @@ export function useWorkspaceSelection() {
   const workspaceLoadError = ref("");
   const catalogLoaded = ref(false);
   let loadSequence = 0;
+  let removeWorkspaceCreatedListener: (() => void) | undefined;
 
   const workspaces = computed(() => [...pinnedWorkspaces.value, ...unpinnedWorkspaces.value]);
   const selectedWorkspaceValue = computed(() =>
@@ -138,6 +140,11 @@ export function useWorkspaceSelection() {
     if (open) void loadWorkspaces();
   }
 
+  async function handleWorkspaceCreated(workspace: WorkspaceInfo) {
+    await loadWorkspaces();
+    await selectWorkspace(workspace.id);
+  }
+
   watch(
     () => [route.name, route.query.workspaceId] as const,
     ([routeName]) => {
@@ -151,8 +158,13 @@ export function useWorkspaceSelection() {
   );
 
   onMounted(() => {
+    removeWorkspaceCreatedListener = onWorkspaceCreated((workspace) => {
+      void handleWorkspaceCreated(workspace);
+    });
     if (route.name === "home") void loadWorkspaces();
   });
+
+  onBeforeUnmount(() => removeWorkspaceCreatedListener?.());
 
   return {
     pinnedWorkspaces,

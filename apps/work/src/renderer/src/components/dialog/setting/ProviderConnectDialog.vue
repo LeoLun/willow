@@ -11,6 +11,7 @@ import { Input } from "@willow/shadcn/components/ui/input";
 import { Label } from "@willow/shadcn/components/ui/label";
 import { CircleAlert, LoaderCircle } from "lucide-vue-next";
 import { computed, ref } from "vue";
+import { notifyProviderConfigurationChanged } from "@/lib/app-state-events";
 import { electronAPI } from "@/lib/ipc";
 import ProviderMark from "./ProviderMark.vue";
 
@@ -38,6 +39,7 @@ async function connectProvider() {
       apiKey: normalizedApiKey.value,
     });
     apiKey.value = "";
+    notifyProviderConfigurationChanged();
     emit("connected");
   } catch {
     errorMessage.value = "连接失败，请检查系统凭证加密是否可用后重试。";

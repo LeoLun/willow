@@ -34,6 +34,7 @@ import { useDialog } from "@/components/dialog";
 import { Button } from "@/components/ui/button";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { electronAPI } from "@/lib/ipc";
+import appIconUrl from "../../../../../../assets/icons/icon.png";
 import { getAvailableProviders, getConnectedProviders } from "./provider-display";
 import ProviderConnectDialog from "./ProviderConnectDialog.vue";
 import ProviderMark from "./ProviderMark.vue";
@@ -561,11 +562,12 @@ onMounted(async () => {
         class="flex min-h-[420px] items-center justify-center"
       >
         <div class="text-center">
-          <div
-            class="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary text-2xl font-semibold text-primary-foreground shadow-sm"
-          >
-            W
-          </div>
+          <img
+            :src="appIconUrl"
+            alt=""
+            class="mx-auto size-16 rounded-2xl shadow-sm"
+            aria-hidden="true"
+          />
           <h2 class="mt-4 text-2xl font-semibold">{{ appInfo?.name ?? "Willow" }}</h2>
           <p class="mt-1 text-xs text-muted-foreground">
             {{ appInfo ? `版本 ${appInfo.version}` : "正在读取版本…" }}

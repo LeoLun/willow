@@ -13,6 +13,8 @@ import { MESSAGE_EVENT } from "@shared/constants";
 import { ShieldCheckIcon, ShieldQuestionIcon, UserCheckIcon } from "lucide-vue-next";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { isNavigationFailure, useRoute, useRouter } from "vue-router";
+import { useDialog } from "@/components/dialog";
+import SettingDialog from "@/components/dialog/setting/Setting.vue";
 import BaseHeader from "@/components/layout/BaseHeader.vue";
 import {
   defaultComposerTokenRules,
@@ -34,10 +36,12 @@ import { useEventBus } from "@/composables/useEventBus";
 import { useMessageStatus } from "@/composables/useMessage";
 import { useMessageQueue } from "@/composables/useMessageQueue";
 import { useToolApproval } from "@/composables/useToolApproval";
+import { onProviderConfigurationChanged } from "@/lib/app-state-events";
 import { electronAPI } from "@/lib/ipc";
 
 const route = useRoute();
 const router = useRouter();
+const { openDialog } = useDialog();
 const { addEventListener, removeEventListener, waitUntilReady } = useEventBus();
 const { isSessionRunning } = useMessageStatus();
 const messageQueue = useMessageQueue();
@@ -138,6 +142,8 @@ const topBarTitle = computed(() =>
 );
 
 let sessionTitleLoadGeneration = 0;
+let modelLoadGeneration = 0;
+let removeProviderConfigurationListener: (() => void) | undefined;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -199,6 +205,41 @@ async function decideApproval(decision: ToolApprovalDecision): Promise<void> {
   await resolveApproval(approval.approvalId, decision);
 }
 
+async function loadModels(): Promise<void> {
+  const generation = ++modelLoadGeneration;
+  loadingModels.value = true;
+  modelLoadError.value = false;
+
+  try {
+    const [userConfig, catalog, configured] = await Promise.all([
+      electronAPI.getUserConfig(),
+      electronAPI.getProviderCatalog(),
+      electronAPI.getConfiguredProviders(),
+    ]);
+    if (generation !== modelLoadGeneration) return;
+
+    const configuredProviderIds = new Set(configured.providerIds);
+    providers.value = catalog.providers.filter(
+      (provider) => configuredProviderIds.has(provider.id) && provider.models.length > 0,
+    );
+    const findAvailableModel = (model: ModelConfig | undefined) =>
+      modelOptions.value.find(
+        (option) =>
+          option.value.providerId === model?.providerId && option.value.modelId === model.modelId,
+      )?.value;
+    selectedModel.value =
+      findAvailableModel(composerPreferences.value.model) ??
+      findAvailableModel(userConfig.largeModel) ??
+      modelOptions.value[0]?.value;
+  } catch (error) {
+    if (generation !== modelLoadGeneration) return;
+    modelLoadError.value = true;
+    console.error("读取模型列表失败:", error);
+  } finally {
+    if (generation === modelLoadGeneration) loadingModels.value = false;
+  }
+}
+
 watch([workspaceId, sessionId], () => void loadSessionTitle(), { immediate: true });
 watch(
   [approvalMode, selectedModel, reasoningEffort],
@@ -221,39 +262,17 @@ watch(
   { immediate: true },
 );
 
-onMounted(async () => {
+onMounted(() => {
   addEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
-
-  try {
-    const [userConfig, catalog, configured] = await Promise.all([
-      electronAPI.getUserConfig(),
-      electronAPI.getProviderCatalog(),
-      electronAPI.getConfiguredProviders(),
-    ]);
-    const configuredProviderIds = new Set(configured.providerIds);
-    providers.value = catalog.providers.filter(
-      (provider) => configuredProviderIds.has(provider.id) && provider.models.length > 0,
-    );
-    const findAvailableModel = (model: ModelConfig | undefined) =>
-      modelOptions.value.find(
-        (option) =>
-          option.value.providerId === model?.providerId && option.value.modelId === model.modelId,
-      )?.value;
-    selectedModel.value =
-      findAvailableModel(composerPreferences.value.model) ??
-      findAvailableModel(userConfig.largeModel) ??
-      modelOptions.value[0]?.value;
-  } catch (error) {
-    modelLoadError.value = true;
-    console.error("读取模型列表失败:", error);
-  } finally {
-    loadingModels.value = false;
-  }
+  removeProviderConfigurationListener = onProviderConfigurationChanged(() => void loadModels());
+  void loadModels();
 });
 
 onBeforeUnmount(() => {
   sessionTitleLoadGeneration += 1;
+  modelLoadGeneration += 1;
   removeEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
+  removeProviderConfigurationListener?.();
 });
 
 function enqueueMessage(
@@ -334,6 +353,17 @@ function stopMessage(): void {
   void messageQueue.stop(currentWorkspaceId, currentSessionId);
 }
 
+function openProviderSettings(): void {
+  openDialog(
+    SettingDialog,
+    { initialTab: "providers" },
+    {
+      contentClass:
+        "h-[min(700px,calc(100vh-2rem))] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[min(950px,calc(100vw-2rem))]",
+    },
+  );
+}
+
 function removeQueuedMessage(messageId: string): void {
   const currentWorkspaceId = workspaceId.value;
   const currentSessionId = sessionId.value;
@@ -405,6 +435,13 @@ function removeQueuedMessage(messageId: string): void {
           <p v-else-if="modelLoadError" class="mt-2 text-sm text-destructive">无法读取模型列表</p>
           <p v-else-if="providers.length === 0" class="mt-2 text-sm text-muted-foreground">
             请先连接模型提供商
+            <button
+              type="button"
+              class="ml-1 cursor-pointer text-blue-500 hover:underline focus-visible:underline focus-visible:outline-none"
+              @click="openProviderSettings"
+            >
+              前往设置
+            </button>
           </p>
           <p v-if="sendError" class="mt-2 text-sm text-destructive" role="alert">
             {{ sendError }}

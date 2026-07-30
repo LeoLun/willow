@@ -46,6 +46,9 @@ vi.mock("@/components/layout/BaseHeader.vue", () => ({
   },
 }));
 
+import { useDialog } from "../src/renderer/src/components/dialog";
+import SettingDialog from "../src/renderer/src/components/dialog/setting/Setting.vue";
+import { notifyProviderConfigurationChanged } from "../src/renderer/src/lib/app-state-events";
 import ChatBase from "../src/renderer/src/pages/main/ChatBase.vue";
 
 const mountedApps: App[] = [];
@@ -120,6 +123,45 @@ afterEach(() => {
 });
 
 describe("ChatBase file search", () => {
+  it("opens settings on the providers tab from the empty model state", async () => {
+    const container = await mountChatBase();
+    await vi.waitFor(() => expect(container.textContent).toContain("请先连接模型提供商"));
+
+    const settingsButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "前往设置",
+    );
+    expect(settingsButton).toBeDefined();
+    settingsButton?.click();
+
+    const { dialogState } = useDialog();
+    expect(dialogState.value?.component).toBe(SettingDialog);
+    expect(dialogState.value?.props).toMatchObject({ initialTab: "providers" });
+    expect(dialogState.value?.open).toBe(true);
+  });
+
+  it("refreshes and selects the first model after a provider is connected", async () => {
+    const container = await mountChatBase();
+    await vi.waitFor(() => expect(mocks.getConfiguredProviders).toHaveBeenCalledTimes(1));
+
+    mocks.getConfiguredProviders.mockResolvedValue({ providerIds: ["openai"] });
+    mocks.getProviderCatalog.mockResolvedValue({
+      providers: [
+        {
+          id: "openai",
+          name: "OpenAI",
+          apiKeyLabel: "API key",
+          models: [{ id: "gpt-5", name: "GPT-5", thinkingLevels: [] }],
+        },
+      ],
+    });
+    notifyProviderConfigurationChanged();
+
+    await vi.waitFor(() => {
+      expect(mocks.getConfiguredProviders).toHaveBeenCalledTimes(2);
+      expect(container.textContent).toContain("GPT-5");
+    });
+  });
+
   it("loads the first files when the add-reference button opens the panel", async () => {
     const container = await mountChatBase();
     container.querySelector<HTMLButtonElement>('[aria-label="添加引用"]')?.click();
