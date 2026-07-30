@@ -15,6 +15,7 @@ const betterSqlite3Source = fileURLToPath(
   new URL("../../node_modules/better-sqlite3", import.meta.url),
 );
 const macSigningIdentity = process.env.WILLOW_MACOS_SIGN_IDENTITY?.trim() || "-";
+const isAdHocMacSigning = macSigningIdentity === "-";
 
 const config = {
   packagerConfig: {
@@ -28,7 +29,13 @@ const config = {
     osxSign: {
       continueOnError: false,
       identity: macSigningIdentity,
-      identityValidation: macSigningIdentity !== "-",
+      identityValidation: !isAdHocMacSigning,
+      optionsForFile: () => ({
+        // Ad-hoc signatures do not have a stable Apple Team ID. On macOS 26,
+        // Hardened Runtime library validation rejects Electron Framework before
+        // the app starts because it cannot match the framework to the main app.
+        hardenedRuntime: !isAdHocMacSigning,
+      }),
     },
     extendInfo: {
       CFBundleAllowMixedLocalizations: true,

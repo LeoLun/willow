@@ -40,6 +40,22 @@ jobs:
         run: |
           cd apps/work
           pnpm run make:mac:arm64
+          APP_PATH="out/Willow-darwin-arm64/Willow.app"
+          test -d "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          if test -z "${WILLOW_MACOS_SIGN_IDENTITY:-}"; then
+            if codesign -dv --verbose=4 "$APP_PATH/Contents/MacOS/Willow" 2>&1 \
+              | grep -q 'flags=.*runtime'; then
+              echo "Ad-hoc builds must not enable Hardened Runtime"
+              exit 1
+            fi
+            if codesign -dv --verbose=4 \
+              "$APP_PATH/Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework" \
+              2>&1 | grep -q 'flags=.*runtime'; then
+              echo "Ad-hoc Electron Framework must not enable Hardened Runtime"
+              exit 1
+            fi
+          fi
           mv out/make/Willow\ Work.dmg out/make/Willow-Work-${{ env.VERSION }}-arm64.dmg || true
           APP_ASAR=$(find out -path "*darwin-arm64*/Contents/Resources/app.asar" -type f -print -quit)
           test -n "$APP_ASAR"
@@ -51,6 +67,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WILLOW_MACOS_SIGN_IDENTITY: ${{ secrets.WILLOW_MACOS_SIGN_IDENTITY }}
 
       # Separate Forge/Vite builds can produce different content-hashed renderer filenames.
       # Build the native-free hot-update ASAR from the single supported architecture instead
