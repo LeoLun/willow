@@ -119,7 +119,7 @@ async function saveApiKey(): Promise<void> {
 
       <p class="flex items-center gap-2 text-xs text-muted-foreground">
         <ShieldCheck class="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-        密钥使用系统安全存储加密，仅保存在本机
+        密钥使用本地 AES 加密，仅保存在本机
       </p>
 
       <div v-if="errorMessage" class="flex items-start gap-2 text-sm text-destructive" role="alert">

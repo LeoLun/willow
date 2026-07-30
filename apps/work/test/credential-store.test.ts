@@ -1,32 +1,30 @@
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Credential } from "@earendil-works/pi-ai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const electronMocks = vi.hoisted(() => ({
-  encryptionAvailable: true,
-  encryptString: vi.fn((plainText: string) => Buffer.from(`encrypted:${plainText}`)),
-  decryptString: vi.fn((encrypted: Buffer) => {
-    const value = encrypted.toString();
-    if (!value.startsWith("encrypted:")) {
-      throw new Error("Unable to decrypt credential");
-    }
-    return value.slice("encrypted:".length);
-  }),
+  userDataPath: "",
 }));
 
 vi.mock("electron", () => ({
-  safeStorage: {
-    isEncryptionAvailable: vi.fn(() => electronMocks.encryptionAvailable),
-    encryptString: electronMocks.encryptString,
-    decryptString: electronMocks.decryptString,
+  app: {
+    getPath: vi.fn(() => electronMocks.userDataPath),
   },
 }));
 
-import { ElectronCredentialStore } from "../src/main/auth/credential-store";
 import { CredentialService } from "../src/main/service/credential.service";
 import type { CredentialDao } from "../src/main/service/dao/credential.dao.server";
+import {
+  CREDENTIAL_KEY_FILE_NAME,
+  LocalCredentialCipher,
+} from "../src/main/utils/credential-cipher";
+import { ElectronCredentialStore } from "../src/main/utils/credential-store";
 
 const apiKey = (key: string): Credential => ({ type: "api_key", key });
 
+let testDirectory: string;
 const storedCredentials = new Map<string, Buffer>();
 const credentialDao = {
   findProviderIds: vi.fn(() => Array.from(storedCredentials.keys())),
@@ -42,7 +40,10 @@ const credentialDao = {
 } as unknown as CredentialDao;
 
 function createStore(): ElectronCredentialStore {
-  return new ElectronCredentialStore(credentialDao);
+  return new ElectronCredentialStore(
+    credentialDao,
+    new LocalCredentialCipher(join(testDirectory, CREDENTIAL_KEY_FILE_NAME)),
+  );
 }
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
@@ -55,19 +56,14 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
 
 describe("ElectronCredentialStore", () => {
   beforeEach(() => {
+    testDirectory = mkdtempSync(join(tmpdir(), "willow-credential-"));
+    electronMocks.userDataPath = testDirectory;
     storedCredentials.clear();
     vi.clearAllMocks();
-    electronMocks.encryptionAvailable = true;
-    electronMocks.encryptString.mockImplementation((plainText) =>
-      Buffer.from(`encrypted:${plainText}`),
-    );
-    electronMocks.decryptString.mockImplementation((encrypted) => {
-      const value = encrypted.toString();
-      if (!value.startsWith("encrypted:")) {
-        throw new Error("Unable to decrypt credential");
-      }
-      return value.slice("encrypted:".length);
-    });
+  });
+
+  afterEach(() => {
+    rmSync(testDirectory, { recursive: true, force: true });
   });
 
   it("returns undefined when a credential does not exist", async () => {
@@ -80,19 +76,18 @@ describe("ElectronCredentialStore", () => {
 
     await expect(store.modify("openai", async () => credential)).resolves.toEqual(credential);
     await expect(store.read("openai")).resolves.toEqual(credential);
-    expect(electronMocks.encryptString).toHaveBeenCalledWith(JSON.stringify(credential));
-    expect(electronMocks.decryptString).toHaveBeenCalledOnce();
     expect(credentialDao.upsert).toHaveBeenCalledWith("openai", expect.any(Buffer));
+    expect(storedCredentials.get("openai")?.includes(Buffer.from("sk-test"))).toBe(false);
   });
 
   it("keeps the current credential when modify returns undefined", async () => {
     const store = createStore();
     const credential = apiKey("sk-current");
     await store.modify("openai", async () => credential);
-    electronMocks.encryptString.mockClear();
+    const encrypted = storedCredentials.get("openai");
 
     await expect(store.modify("openai", async () => undefined)).resolves.toEqual(credential);
-    expect(electronMocks.encryptString).not.toHaveBeenCalled();
+    expect(storedCredentials.get("openai")).toBe(encrypted);
     await expect(store.read("openai")).resolves.toEqual(credential);
   });
 
@@ -119,36 +114,83 @@ describe("ElectronCredentialStore", () => {
     await expect(store.read("openai")).resolves.toEqual(credential);
   });
 
-  it("rejects operations when encryption is unavailable", async () => {
-    const store = createStore();
-    const callback = vi.fn(async () => apiKey("sk-test"));
-    electronMocks.encryptionAvailable = false;
+  it("creates and reuses a private 32-byte local key", () => {
+    const keyPath = join(testDirectory, CREDENTIAL_KEY_FILE_NAME);
+    const firstCipher = new LocalCredentialCipher(keyPath);
+    const firstEncrypted = firstCipher.encrypt("first");
+    const key = readFileSync(keyPath);
 
-    await expect(store.read("openai")).rejects.toThrow("Credential encryption is unavailable");
-    await expect(store.modify("openai", callback)).rejects.toThrow(
-      "Credential encryption is unavailable",
+    expect(key).toHaveLength(32);
+    if (process.platform !== "win32") {
+      expect(statSync(keyPath).mode & 0o777).toBe(0o600);
+    }
+
+    const secondCipher = new LocalCredentialCipher(keyPath);
+    expect(secondCipher.decrypt(firstEncrypted)).toBe("first");
+    expect(readFileSync(keyPath)).toEqual(key);
+  });
+
+  it("rejects an invalid local key file", async () => {
+    writeFileSync(join(testDirectory, CREDENTIAL_KEY_FILE_NAME), Buffer.alloc(31));
+    const store = createStore();
+
+    await expect(store.modify("openai", async () => apiKey("sk-test"))).rejects.toThrow(
+      'Failed to write credential for provider "openai"',
     );
-    await expect(store.delete("openai")).rejects.toThrow("Credential encryption is unavailable");
-    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("uses a random IV for each encrypted value", () => {
+    const cipher = new LocalCredentialCipher(join(testDirectory, CREDENTIAL_KEY_FILE_NAME));
+
+    expect(cipher.encrypt("same-value")).not.toEqual(cipher.encrypt("same-value"));
   });
 
   it("rejects encrypted credentials with invalid data", async () => {
-    storedCredentials.set(
-      "openai",
-      Buffer.from(`encrypted:${JSON.stringify({ type: "unknown" })}`),
-    );
+    const cipher = new LocalCredentialCipher(join(testDirectory, CREDENTIAL_KEY_FILE_NAME));
+    storedCredentials.set("openai", cipher.encrypt(JSON.stringify({ type: "unknown" })));
 
     await expect(createStore().read("openai")).rejects.toThrow(
       'Failed to read credential for provider "openai"',
     );
   });
 
-  it("rejects credentials that cannot be decrypted", async () => {
-    storedCredentials.set("openai", Buffer.from("corrupted"));
+  it.each([
+    ["legacy safeStorage data", Buffer.from("legacy-safe-storage-data")],
+    ["an unsupported version", Buffer.from("WCRD\x02invalid-data", "binary")],
+    ["truncated data", Buffer.from("WCRD\x01short", "binary")],
+  ])("rejects %s", async (_case, encrypted) => {
+    storedCredentials.set("openai", encrypted);
 
     await expect(createStore().read("openai")).rejects.toThrow(
       'Failed to read credential for provider "openai"',
     );
+  });
+
+  it("rejects ciphertext that fails authentication", async () => {
+    const cipher = new LocalCredentialCipher(join(testDirectory, CREDENTIAL_KEY_FILE_NAME));
+    const encrypted = cipher.encrypt(JSON.stringify(apiKey("sk-test")));
+    encrypted[encrypted.length - 1] ^= 1;
+    storedCredentials.set("openai", encrypted);
+
+    await expect(createStore().read("openai")).rejects.toThrow(
+      'Failed to read credential for provider "openai"',
+    );
+  });
+
+  it("deletes a legacy credential without loading the key", async () => {
+    storedCredentials.set("openai", Buffer.from("legacy-safe-storage-data"));
+    writeFileSync(join(testDirectory, CREDENTIAL_KEY_FILE_NAME), Buffer.alloc(31));
+
+    await expect(createStore().delete("openai")).resolves.toBeUndefined();
+    expect(storedCredentials.has("openai")).toBe(false);
+  });
+
+  it("overwrites a legacy credential without decrypting it", async () => {
+    const store = createStore();
+    storedCredentials.set("tavily", Buffer.from("legacy-safe-storage-data"));
+
+    await expect(store.set("tavily", apiKey("tvly-new"))).resolves.toEqual(apiKey("tvly-new"));
+    await expect(store.read("tavily")).resolves.toEqual(apiKey("tvly-new"));
   });
 
   it("serializes modifications for the same provider", async () => {

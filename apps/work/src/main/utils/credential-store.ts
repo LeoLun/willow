@@ -1,6 +1,8 @@
+import { join } from "node:path";
 import type { Credential, CredentialStore } from "@earendil-works/pi-ai";
-import { safeStorage } from "electron";
+import { app } from "electron";
 import type { CredentialDao } from "../service/dao/credential.dao.server";
+import { CREDENTIAL_KEY_FILE_NAME, LocalCredentialCipher } from "./credential-cipher";
 
 /** 校验 API Key 凭证中可选的 provider 环境变量。 */
 function isStringRecord(value: unknown): value is Record<string, string> {
@@ -42,12 +44,15 @@ export class ElectronCredentialStore implements CredentialStore {
   // 每个 provider 使用独立队列，既避免同一凭证并发刷新，又不阻塞其他 provider。
   private readonly chains = new Map<string, Promise<void>>();
 
-  constructor(private readonly credentialDao: CredentialDao) {}
+  constructor(
+    private readonly credentialDao: CredentialDao,
+    private readonly cipher = new LocalCredentialCipher(
+      join(app.getPath("userData"), CREDENTIAL_KEY_FILE_NAME),
+    ),
+  ) {}
 
   /** 读取并解密 provider 对应的凭证；不存在时返回 undefined。 */
   async read(providerId: string): Promise<Credential | undefined> {
-    this.assertEncryptionAvailable();
-
     try {
       return await this.readCredential(providerId);
     } catch (error) {
@@ -55,13 +60,23 @@ export class ElectronCredentialStore implements CredentialStore {
     }
   }
 
+  /** 不读取旧值，直接加密并覆盖 provider 对应的凭证。 */
+  set(providerId: string, credential: Credential): Promise<Credential> {
+    return this.enqueue(providerId, async () => {
+      try {
+        await this.writeCredential(providerId, credential);
+      } catch (error) {
+        throw this.createStorageError("write", providerId, error);
+      }
+      return credential;
+    });
+  }
+
   modify(
     providerId: string,
     fn: (current: Credential | undefined) => Promise<Credential | undefined>,
   ): Promise<Credential | undefined> {
     return this.enqueue(providerId, async () => {
-      this.assertEncryptionAvailable();
-
       let current: Credential | undefined;
       try {
         current = await this.readCredential(providerId);
@@ -87,8 +102,6 @@ export class ElectronCredentialStore implements CredentialStore {
 
   delete(providerId: string): Promise<void> {
     return this.enqueue(providerId, async () => {
-      this.assertEncryptionAvailable();
-
       try {
         this.credentialDao.deleteByProviderId(providerId);
       } catch (error) {
@@ -119,13 +132,6 @@ export class ElectronCredentialStore implements CredentialStore {
     return result;
   }
 
-  /** 禁止在系统安全存储不可用时将凭证降级为明文或仅内存存储。 */
-  private assertEncryptionAvailable(): void {
-    if (!safeStorage.isEncryptionAvailable()) {
-      throw new Error("Credential encryption is unavailable");
-    }
-  }
-
   /** 从数据库读取加密数据，并在解密、解析后校验凭证结构。 */
   private async readCredential(providerId: string): Promise<Credential | undefined> {
     const storedCredential = this.credentialDao.findByProviderId(providerId);
@@ -133,9 +139,7 @@ export class ElectronCredentialStore implements CredentialStore {
       return undefined;
     }
 
-    const credential = JSON.parse(
-      safeStorage.decryptString(storedCredential.encryptedData),
-    ) as unknown;
+    const credential = JSON.parse(this.cipher.decrypt(storedCredential.encryptedData)) as unknown;
     if (!isCredential(credential)) {
       throw new Error("Stored credential has an invalid format");
     }
@@ -145,7 +149,7 @@ export class ElectronCredentialStore implements CredentialStore {
 
   /** 加密凭证后按 provider 写入数据库。 */
   private async writeCredential(providerId: string, credential: Credential): Promise<void> {
-    const encrypted = safeStorage.encryptString(JSON.stringify(credential));
+    const encrypted = this.cipher.encrypt(JSON.stringify(credential));
     this.credentialDao.upsert(providerId, encrypted);
   }
 

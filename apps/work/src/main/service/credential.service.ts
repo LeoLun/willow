@@ -8,7 +8,7 @@ import { CredentialDao } from "./dao/credential.dao.server";
  */
 @Injectable()
 export class CredentialService {
-  private readonly credentialStore: CredentialStore;
+  private readonly credentialStore: ElectronCredentialStore;
 
   constructor(private readonly credentialDao: CredentialDao) {
     this.credentialStore = new ElectronCredentialStore(credentialDao);
@@ -19,9 +19,7 @@ export class CredentialService {
   }
 
   setCredential(providerId: string, credential: Credential) {
-    return this.credentialStore.modify(providerId, (_current: Credential | undefined) => {
-      return Promise.resolve(credential);
-    });
+    return this.credentialStore.set(providerId, credential);
   }
 
   getCredential(providerId: string) {
