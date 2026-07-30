@@ -36,9 +36,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build monorepo packages
-        run: pnpm build
-
       - name: Build and Package Mac App (x64)
         run: |
           cd apps/work
