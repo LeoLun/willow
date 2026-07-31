@@ -14,6 +14,7 @@ vi.mock("electron", () => ({
 import {
   classifyUpdate,
   compareVersions,
+  getAsarDownloadPaths,
   parseStableVersion,
 } from "../src/main/service/app-update.service";
 
@@ -37,5 +38,12 @@ describe("app update version policy", () => {
     expect(classifyUpdate("0.1.0", "1.0.0")).toBe("manual");
     expect(classifyUpdate("1.2.0", "1.1.9")).toBe("none");
     expect(classifyUpdate("1.0.0", "1.1.0-beta.1")).toBe("none");
+  });
+
+  it("keeps the partial download outside Electron's ASAR path handling", () => {
+    expect(getAsarDownloadPaths("/user/updates/v1.0.2")).toEqual({
+      finalPath: "/user/updates/v1.0.2/app.asar",
+      temporaryPath: "/user/updates/v1.0.2/app.asar.part",
+    });
   });
 });

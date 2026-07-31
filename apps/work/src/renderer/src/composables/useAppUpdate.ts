@@ -75,7 +75,31 @@ export function useAppUpdate() {
 
 export function useAppUpdateListener(): void {
   const { setState } = useAppUpdateState();
-  const { addEventListener, removeEventListener } = useEventBus();
-  onMounted(() => addEventListener(APP_UPDATE_EVENT, setState));
-  onBeforeUnmount(() => removeEventListener(APP_UPDATE_EVENT, setState));
+  const { addEventListener, removeEventListener, waitUntilReady } = useEventBus();
+  let receivedEventCount = 0;
+  let mounted = false;
+
+  function handleStateEvent(state: AppUpdateState): void {
+    receivedEventCount += 1;
+    setState(state);
+  }
+
+  onMounted(() => {
+    mounted = true;
+    addEventListener(APP_UPDATE_EVENT, handleStateEvent);
+    void waitUntilReady()
+      .then(async () => {
+        const eventCountBeforeRequest = receivedEventCount;
+        const state = await electronAPI.getUpdateState();
+        if (mounted && receivedEventCount === eventCountBeforeRequest) setState(state);
+      })
+      .catch((error) => {
+        console.error("同步应用更新状态失败:", error);
+      });
+  });
+
+  onBeforeUnmount(() => {
+    mounted = false;
+    removeEventListener(APP_UPDATE_EVENT, handleStateEvent);
+  });
 }

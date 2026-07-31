@@ -87,6 +87,7 @@ describe("AppUpdateButton", () => {
     };
     mocks.hasRunningSessions.value = true;
     const container = mountButton();
+    expect(container.textContent).toContain("重启");
     container.querySelector("button")!.click();
     expect(mocks.openDialog).toHaveBeenCalledOnce();
     expect(mocks.restartToUpdate).not.toHaveBeenCalled();

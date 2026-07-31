@@ -16,6 +16,7 @@ const title = computed(() =>
 );
 
 async function handleClick(): Promise<void> {
+  console.log("handleClick", state.value.status);
   if (state.value.status === "manualAvailable") {
     await openManualUpdate();
   } else if (state.value.status === "ready") {

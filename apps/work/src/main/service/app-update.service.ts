@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { access, copyFile, mkdir, open, readFile, rename, rm } from "node:fs/promises";
+import { copyFile, mkdir, open, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { extractFile, statFile } from "@electron/asar";
 import type { AppUpdateState } from "@shared/api";
 import { APP_UPDATE_EVENT } from "@shared/constants";
 import { Injectable } from "@willow/poetry";
@@ -64,6 +65,30 @@ export function classifyUpdate(
   return current.major === 1 && latest.major === current.major ? "hot" : "manual";
 }
 
+export function getAsarDownloadPaths(versionDirectory: string): {
+  finalPath: string;
+  temporaryPath: string;
+} {
+  return {
+    finalPath: join(versionDirectory, "app.asar"),
+    // Keep partial downloads from Electron's transparent ASAR path handling.
+    temporaryPath: join(versionDirectory, "app.asar.part"),
+  };
+}
+
+export function validateAsar(asarPath: string, version: string): void {
+  const manifest = JSON.parse(extractFile(asarPath, "package.json").toString("utf8")) as {
+    version?: string;
+  };
+  if (manifest.version !== version) throw new Error("ASAR version mismatch");
+  [
+    ".vite/build/main.js",
+    ".vite/build/preload.js",
+    "src/main/db/migrations/meta/_journal.json",
+    "resources/skills",
+  ].forEach((path) => statFile(asarPath, path));
+}
+
 @Injectable()
 export class AppUpdateService {
   private state: AppUpdateState;
@@ -79,7 +104,12 @@ export class AppUpdateService {
     const currentVersion = context?.currentVersion ?? app.getVersion();
     const store = readUpdateStore(app.getPath("userData"));
     this.state = store.staged
-      ? { status: "ready", currentVersion, latestVersion: store.staged.version, progress: 100 }
+      ? {
+          status: "ready",
+          currentVersion,
+          latestVersion: store.staged.version,
+          progress: 100,
+        }
       : { status: "upToDate", currentVersion };
   }
 
@@ -150,8 +180,11 @@ export class AppUpdateService {
   }
 
   private async performCheck(): Promise<AppUpdateState> {
-    if (!app.isPackaged || process.platform !== "darwin") return this.state;
-    this.setState({ status: "checking", currentVersion: this.state.currentVersion });
+    // if (!app.isPackaged || process.platform !== "darwin") return this.state;
+    this.setState({
+      status: "checking",
+      currentVersion: this.state.currentVersion,
+    });
     try {
       const response = await fetch(LATEST_RELEASE_URL, {
         headers: { Accept: "application/json" },
@@ -166,7 +199,10 @@ export class AppUpdateService {
           : classifyUpdate(this.state.currentVersion, release.tag_name);
       const latest = parseStableVersion(release.tag_name);
       if (!latest || kind === "none") {
-        return this.setState({ status: "upToDate", currentVersion: this.state.currentVersion });
+        return this.setState({
+          status: "upToDate",
+          currentVersion: this.state.currentVersion,
+        });
       }
       if (kind === "manual") {
         return this.setState({
@@ -196,7 +232,10 @@ export class AppUpdateService {
         progress: 0,
       });
     } catch {
-      return this.setState({ status: "checkFailed", currentVersion: this.state.currentVersion });
+      return this.setState({
+        status: "checkFailed",
+        currentVersion: this.state.currentVersion,
+      });
     }
   }
 
@@ -205,8 +244,7 @@ export class AppUpdateService {
     if (!release) throw new Error("No hot update is available");
     const userDataPath = app.getPath("userData");
     const versionDirectory = join(getUpdateDirectory(userDataPath), `v${release.version}`);
-    const finalPath = join(versionDirectory, "app.asar");
-    const temporaryPath = `${finalPath}.part`;
+    const { finalPath, temporaryPath } = getAsarDownloadPaths(versionDirectory);
     await mkdir(versionDirectory, { recursive: true });
     await rm(temporaryPath, { force: true });
     this.setState({
@@ -245,7 +283,7 @@ export class AppUpdateService {
       if (downloaded !== release.asar.size || hash.digest("hex") !== checksum) {
         throw new Error("Update integrity check failed");
       }
-      await this.validateAsar(temporaryPath, release.version);
+      validateAsar(temporaryPath, release.version);
       await rename(temporaryPath, finalPath);
       const store = readUpdateStore(userDataPath);
       store.staged = { version: release.version, asarPath: finalPath };
@@ -276,19 +314,6 @@ export class AppUpdateService {
     const value = (await response.text()).trim().split(/\s+/)[0];
     if (!/^[a-f\d]{64}$/i.test(value)) throw new Error("Invalid checksum");
     return value.toLowerCase();
-  }
-
-  private async validateAsar(asarPath: string, version: string): Promise<void> {
-    const manifest = JSON.parse(await readFile(join(asarPath, "package.json"), "utf8")) as {
-      version?: string;
-    };
-    if (manifest.version !== version) throw new Error("ASAR version mismatch");
-    await Promise.all([
-      access(join(asarPath, ".vite", "build", "main.js")),
-      access(join(asarPath, ".vite", "build", "preload.js")),
-      access(join(asarPath, "src", "main", "db", "migrations", "meta", "_journal.json")),
-      access(join(asarPath, "resources", "skills")),
-    ]);
   }
 
   private setState(state: AppUpdateState): AppUpdateState {
