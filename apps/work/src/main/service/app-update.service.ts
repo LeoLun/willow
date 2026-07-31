@@ -180,7 +180,7 @@ export class AppUpdateService {
   }
 
   private async performCheck(): Promise<AppUpdateState> {
-    // if (!app.isPackaged || process.platform !== "darwin") return this.state;
+    if (!app.isPackaged || process.platform !== "darwin") return this.state;
     this.setState({
       status: "checking",
       currentVersion: this.state.currentVersion,
