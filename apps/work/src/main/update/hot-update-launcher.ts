@@ -7,6 +7,7 @@ import {
   type StoredUpdate,
   writeUpdateStore,
 } from "./update-store";
+import { isStableVersionNewer } from "./version";
 
 const RUNTIME_CONTEXT_KEY = Symbol.for("willow.hot-update.runtime");
 
@@ -27,23 +28,59 @@ export function getEffectiveAppPath(): string {
   return getHotUpdateRuntimeContext()?.selected?.asarPath ?? app.getAppPath();
 }
 
-export function selectHotUpdatePayload(userDataPath: string): StoredUpdate | undefined {
+export function selectHotUpdatePayload(
+  userDataPath: string,
+  packagedVersion = app.getVersion(),
+): StoredUpdate | undefined {
   const store = readUpdateStore(userDataPath);
+  let stateChanged = false;
+
+  const isUsableUpdate = (update: StoredUpdate | undefined): boolean =>
+    Boolean(
+      update &&
+      existsSync(update.asarPath) &&
+      isStableVersionNewer(update.version, packagedVersion),
+    );
+
+  if (store.active && !isUsableUpdate(store.active)) {
+    delete store.active;
+    stateChanged = true;
+  }
+
+  if (store.pending && !isUsableUpdate(store.pending)) {
+    if (store.pending.launchAttempted) {
+      restoreDatabaseBackup(userDataPath, store.databaseBackupPath);
+    }
+    delete store.pending;
+    delete store.databaseBackupPath;
+    stateChanged = true;
+  }
 
   if (store.pending) {
     if (store.pending.launchAttempted) {
       restoreDatabaseBackup(userDataPath, store.databaseBackupPath);
-      const rolledBack = { active: store.active };
-      writeUpdateStore(userDataPath, rolledBack);
-      return store.active && existsSync(store.active.asarPath) ? store.active : undefined;
+      delete store.pending;
+      delete store.databaseBackupPath;
+      stateChanged = true;
+    } else {
+      store.pending.launchAttempted = true;
+      stateChanged = true;
     }
-
-    store.pending.launchAttempted = true;
-    writeUpdateStore(userDataPath, store);
-    return existsSync(store.pending.asarPath) ? store.pending : undefined;
   }
 
-  return store.active && existsSync(store.active.asarPath) ? store.active : undefined;
+  const selected = store.pending ?? store.active;
+  const effectiveVersion = selected?.version ?? packagedVersion;
+  if (
+    store.staged &&
+    (!existsSync(store.staged.asarPath) ||
+      !isStableVersionNewer(store.staged.version, effectiveVersion))
+  ) {
+    delete store.staged;
+    stateChanged = true;
+  }
+
+  if (stateChanged) writeUpdateStore(userDataPath, store);
+  return selected;
 }
 
 export function prepareHotUpdateLaunch(userDataPath: string): string | undefined {

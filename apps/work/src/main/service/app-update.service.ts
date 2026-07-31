@@ -8,8 +8,11 @@ import { Injectable } from "@willow/poetry";
 import { app, shell } from "electron";
 import { getHotUpdateRuntimeContext } from "../update/hot-update-launcher";
 import { getUpdateDirectory, readUpdateStore, writeUpdateStore } from "../update/update-store";
+import { classifyUpdate, parseStableVersion } from "../update/version";
 import { DbService } from "./db.service";
 import { EventService } from "./event.service";
+
+export { classifyUpdate, compareVersions, parseStableVersion } from "../update/version";
 
 const LATEST_RELEASE_URL = "https://leolun.github.io/willow/latest.json";
 const MAX_ASAR_BYTES = 250 * 1024 * 1024;
@@ -30,39 +33,11 @@ interface LatestRelease {
   assets: ReleaseAsset[];
 }
 
-interface ParsedVersion {
-  major: number;
-  minor: number;
-  patch: number;
-  normalized: string;
-}
-
 interface AvailableRelease {
   version: string;
   releaseUrl: string;
   asar: ReleaseAsset;
   checksum: ReleaseAsset;
-}
-
-export function parseStableVersion(value: string): ParsedVersion | undefined {
-  const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(value.trim());
-  if (!match) return undefined;
-  const [major, minor, patch] = match.slice(1).map(Number);
-  return { major, minor, patch, normalized: `${major}.${minor}.${patch}` };
-}
-
-export function compareVersions(left: ParsedVersion, right: ParsedVersion): number {
-  return left.major - right.major || left.minor - right.minor || left.patch - right.patch;
-}
-
-export function classifyUpdate(
-  currentValue: string,
-  latestValue: string,
-): "none" | "hot" | "manual" {
-  const current = parseStableVersion(currentValue);
-  const latest = parseStableVersion(latestValue);
-  if (!current || !latest || compareVersions(latest, current) <= 0) return "none";
-  return current.major === 1 && latest.major === current.major ? "hot" : "manual";
 }
 
 export function getAsarDownloadPaths(versionDirectory: string): {

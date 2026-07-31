@@ -73,4 +73,51 @@ describe("hot update store", () => {
       active: { version: "1.0.1", asarPath: activeAsar },
     });
   });
+
+  it("ignores cached updates that are not newer than the packaged app", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "willow-update-"));
+    temporaryDirectories.push(directory);
+    const activeAsar = join(directory, "active.asar");
+    const stagedAsar = join(directory, "staged.asar");
+    await Promise.all([writeFile(activeAsar, "active"), writeFile(stagedAsar, "staged")]);
+    writeUpdateStore(directory, {
+      active: { version: "1.0.2", asarPath: activeAsar },
+      staged: { version: "1.0.3", asarPath: stagedAsar },
+    });
+
+    expect(selectHotUpdatePayload(directory, "1.0.3")).toBeUndefined();
+    expect(readUpdateStore(directory)).toEqual({});
+  });
+
+  it("keeps selecting a cached update that is newer than the packaged app", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "willow-update-"));
+    temporaryDirectories.push(directory);
+    const activeAsar = join(directory, "active.asar");
+    await writeFile(activeAsar, "active");
+    writeUpdateStore(directory, {
+      active: { version: "1.0.4", asarPath: activeAsar },
+    });
+
+    expect(selectHotUpdatePayload(directory, "1.0.3")?.version).toBe("1.0.4");
+  });
+
+  it("restores the database before discarding an attempted update older than the package", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "willow-update-"));
+    temporaryDirectories.push(directory);
+    const pendingAsar = join(directory, "pending.asar");
+    const backup = join(directory, "backup.db");
+    await Promise.all([
+      writeFile(pendingAsar, "pending"),
+      writeFile(backup, "database before update"),
+      writeFile(join(directory, "willow.db"), "migrated database"),
+    ]);
+    writeUpdateStore(directory, {
+      pending: { version: "1.0.2", asarPath: pendingAsar, launchAttempted: true },
+      databaseBackupPath: backup,
+    });
+
+    expect(selectHotUpdatePayload(directory, "1.0.3")).toBeUndefined();
+    expect(await readFile(join(directory, "willow.db"), "utf8")).toBe("database before update");
+    expect(readUpdateStore(directory)).toEqual({});
+  });
 });
