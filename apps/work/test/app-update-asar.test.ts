@@ -31,6 +31,8 @@ async function createUpdateAsar(version: string): Promise<string> {
     ["package.json", JSON.stringify({ version })],
     [".vite/build/main.js", ""],
     [".vite/build/preload.js", ""],
+    ["assets/icons/trayTemplate.png", ""],
+    ["assets/icons/trayTemplate@2x.png", ""],
     ["src/main/db/migrations/meta/_journal.json", "{}"],
     ["resources/skills/example/SKILL.md", "# Example"],
   ] as const;

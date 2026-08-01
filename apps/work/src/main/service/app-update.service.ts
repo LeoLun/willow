@@ -59,6 +59,8 @@ export function validateAsar(asarPath: string, version: string): void {
   [
     ".vite/build/main.js",
     ".vite/build/preload.js",
+    "assets/icons/trayTemplate.png",
+    "assets/icons/trayTemplate@2x.png",
     "src/main/db/migrations/meta/_journal.json",
     "resources/skills",
   ].forEach((path) => statFile(asarPath, path));

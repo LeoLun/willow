@@ -12,6 +12,15 @@ The Work app is an Electron application. `src/main/` owns the main process, `src
 - `pnpm --filter Willow test` runs the app Vitest suite once.
 - `pnpm --filter Willow package` creates an unpacked app; use `make` instead of `package` to build platform installers.
 
+## Main-Process Runtime Assets
+
+- Do not assume files under `assets/` are included in the packaged application. Electron Forge's Vite build can omit assets that are loaded by filesystem path instead of imported into a renderer bundle.
+- Resolve main-process runtime assets relative to the compiled main entry, for example `join(__dirname, "../../assets/icons/example.png")`. Do not use source-tree absolute paths or `process.cwd()` at runtime.
+- For every asset loaded this way, explicitly copy it in `forge.config.mjs`'s `packageAfterCopy` hook to the same relative location under `buildPath`. A runtime path ending in `assets/icons/example.png` requires the packaged file at `join(buildPath, "assets/icons/example.png")`.
+- Copy all required resolution variants together, such as both `name.png` and `name@2x.png`; never rely on the base image causing its Retina companion to be packaged automatically.
+- If the asset is required after an ASAR hot update, add its packaged path to `validateAsar` in `src/main/service/app-update.service.ts` and update `test/app-update-asar.test.ts` in the same change.
+- Packaging-sensitive changes are not verified by dev mode. Build an unpacked app with `pnpm --filter Willow package:mac` and inspect the generated `app.asar` to confirm every runtime asset exists at the exact path expected by the main process.
+
 ## Coding Conventions
 
 Vue files must use Composition API with `<script setup lang="ts">`. Name components in `PascalCase` (`DialogProvider.vue`), composables with a `use` prefix (`useDarkMode.ts`), and services/controllers in kebab-case (`event.service.ts`). Prefer configured aliases such as `@main`, `@shared`, and `@/` over long relative paths.

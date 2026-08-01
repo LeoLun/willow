@@ -47,11 +47,20 @@ const config = {
   hooks: {
     async packageAfterCopy(_forgeConfig, buildPath) {
       const packagedNodeModulesPath = join(buildPath, "node_modules");
+      const packagedIconsPath = join(buildPath, "assets/icons");
       await mkdir(packagedNodeModulesPath, { recursive: true });
+      await mkdir(packagedIconsPath, { recursive: true });
       await cp(betterSqlite3Source, join(packagedNodeModulesPath, "better-sqlite3"), {
         force: true,
         recursive: true,
       });
+      await Promise.all(
+        ["trayTemplate.png", "trayTemplate@2x.png"].map((fileName) =>
+          cp(join(process.cwd(), "assets/icons", fileName), join(packagedIconsPath, fileName), {
+            force: true,
+          }),
+        ),
+      );
       await cp(
         join(process.cwd(), "src/main/db/migrations"),
         join(buildPath, "src/main/db/migrations"),
