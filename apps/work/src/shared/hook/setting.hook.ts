@@ -3,6 +3,8 @@ import type {
   DeleteCredentialResponse,
   DeleteTavilyApiKeyRequest,
   DeleteTavilyApiKeyResponse,
+  GetAutoLaunchRequest,
+  GetAutoLaunchResponse,
   GetAppInfoRequest,
   GetAppInfoResponse,
   GetConfiguredProvidersRequest,
@@ -19,6 +21,8 @@ import type {
   GetUserConfigResponse,
   SetCredentialRequest,
   SetCredentialResponse,
+  SetAutoLaunchRequest,
+  SetAutoLaunchResponse,
   SetThemeRequest,
   SetThemeResponse,
   SetTavilyApiKeyRequest,
@@ -30,6 +34,8 @@ import type {
 export interface ISettingApi {
   getAppInfo(request?: GetAppInfoRequest): Promise<GetAppInfoResponse>;
   setTheme(request: SetThemeRequest): Promise<SetThemeResponse>;
+  getAutoLaunch(request?: GetAutoLaunchRequest): Promise<GetAutoLaunchResponse>;
+  setAutoLaunch(request: SetAutoLaunchRequest): Promise<SetAutoLaunchResponse>;
   getProviderCatalog(request?: GetProviderCatalogRequest): Promise<GetProviderCatalogResponse>;
   getConfiguredProviders(
     request?: GetConfiguredProvidersRequest,

@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import type { GetAppInfoResponse, ModelConfig, ProviderInfo, UserConfigInfo } from "@shared/api";
+import type {
+  AutoLaunchState,
+  GetAppInfoResponse,
+  ModelConfig,
+  ProviderInfo,
+  UserConfigInfo,
+} from "@shared/api";
 import { Badge } from "@willow/shadcn/components/ui/badge";
 import { DialogDescription, DialogTitle } from "@willow/shadcn/components/ui/dialog";
 import { Input } from "@willow/shadcn/components/ui/input";
@@ -13,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@willow/shadcn/components/ui/select";
+import { Switch } from "@willow/shadcn/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@willow/shadcn/components/ui/toggle-group";
 import {
   ChartBar,
@@ -34,7 +41,7 @@ import { useDialog } from "@/components/dialog";
 import { Button } from "@/components/ui/button";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { electronAPI } from "@/lib/ipc";
-import appIconUrl from "../../../../../../assets/icons/icon.png";
+import appIconUrl from "../../../../../../assets/icons/trayTemplate.svg";
 import { getAvailableProviders, getConnectedProviders } from "./provider-display";
 import ProviderConnectDialog from "./ProviderConnectDialog.vue";
 import ProviderMark from "./ProviderMark.vue";
@@ -81,6 +88,14 @@ const userConfig = ref<UserConfigInfo>({});
 const loadingUserConfig = ref(true);
 const savingUserConfig = ref(false);
 const userConfigError = ref("");
+const autoLaunchState = ref<AutoLaunchState>({
+  enabled: false,
+  supported: false,
+  requiresApproval: false,
+});
+const loadingAutoLaunch = ref(true);
+const savingAutoLaunch = ref(false);
+const autoLaunchError = ref("");
 
 const { themeMode } = useDarkMode();
 const { dialogState, openDialog } = useDialog();
@@ -142,6 +157,41 @@ async function loadUserConfig() {
     userConfigError.value = "无法读取模型配置，请重试。";
   } finally {
     loadingUserConfig.value = false;
+  }
+}
+
+async function loadAutoLaunch() {
+  loadingAutoLaunch.value = true;
+  autoLaunchError.value = "";
+  try {
+    autoLaunchState.value = await electronAPI.getAutoLaunch();
+  } catch {
+    autoLaunchState.value = {
+      enabled: false,
+      supported: false,
+      requiresApproval: false,
+    };
+    autoLaunchError.value = "无法读取开机启动设置，请重试。";
+  } finally {
+    loadingAutoLaunch.value = false;
+  }
+}
+
+async function updateAutoLaunch(enabled: boolean) {
+  if (savingAutoLaunch.value || !autoLaunchState.value.supported) return;
+
+  savingAutoLaunch.value = true;
+  autoLaunchError.value = "";
+  try {
+    const state = await electronAPI.setAutoLaunch({ enabled });
+    autoLaunchState.value = state;
+    if (state.enabled !== enabled && !state.requiresApproval) {
+      autoLaunchError.value = "系统未能更新开机启动设置，请重试。";
+    }
+  } catch {
+    autoLaunchError.value = "保存开机启动设置失败，请重试。";
+  } finally {
+    savingAutoLaunch.value = false;
   }
 }
 
@@ -233,9 +283,10 @@ async function disconnectProvider(providerId: string) {
 }
 
 onMounted(async () => {
-  const [, , appInfoResult] = await Promise.allSettled([
+  const [, , , appInfoResult] = await Promise.allSettled([
     loadProviders(),
     loadUserConfig(),
+    loadAutoLaunch(),
     electronAPI.getAppInfo(),
   ]);
   if (appInfoResult.status === "fulfilled") appInfo.value = appInfoResult.value;
@@ -246,7 +297,7 @@ onMounted(async () => {
   <div class="grid h-full min-h-0 grid-cols-[180px_minmax(0,1fr)] bg-background">
     <DialogTitle class="sr-only">设置</DialogTitle>
     <DialogDescription class="sr-only">
-      配置应用外观、AI 提供商、模型、网络搜索、统计和应用信息。
+      配置应用外观、启动行为、AI 提供商、模型、网络搜索、统计和应用信息。
     </DialogDescription>
 
     <aside class="border-r bg-muted/35 p-3 pt-5">
@@ -287,7 +338,7 @@ onMounted(async () => {
         aria-labelledby="setting-tab-general"
       >
         <h2 class="text-base font-semibold">常规</h2>
-        <p class="mt-1 text-xs text-muted-foreground">调整 Willow 的外观。</p>
+        <p class="mt-1 text-xs text-muted-foreground">调整 Willow 的外观和启动行为。</p>
 
         <div class="mt-4">
           <Label class="mb-3 block">外观</Label>
@@ -315,6 +366,47 @@ onMounted(async () => {
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
+
+        <section class="mt-8" aria-labelledby="auto-launch-heading">
+          <Label class="mb-3 block">启动</Label>
+          <div class="rounded-xl border bg-muted/20 p-4">
+            <div class="flex items-center justify-between gap-8">
+              <div>
+                <h3 id="auto-launch-heading" class="text-sm font-semibold">开机自动启动</h3>
+                <p class="mt-1 text-xs text-muted-foreground">登录系统后自动打开 Willow。</p>
+              </div>
+              <Switch
+                :model-value="autoLaunchState.enabled"
+                :disabled="loadingAutoLaunch || savingAutoLaunch || !autoLaunchState.supported"
+                :aria-busy="loadingAutoLaunch || savingAutoLaunch || undefined"
+                aria-label="开机自动启动"
+                data-slot="auto-launch-switch"
+                @update:model-value="updateAutoLaunch"
+              />
+            </div>
+            <p v-if="loadingAutoLaunch" class="mt-3 text-xs text-muted-foreground">
+              正在读取开机启动设置…
+            </p>
+            <p
+              v-else-if="autoLaunchState.requiresApproval"
+              class="mt-3 text-xs text-amber-600 dark:text-amber-400"
+              role="status"
+            >
+              请前往系统设置允许 Willow 在登录时启动。
+            </p>
+            <div
+              v-if="autoLaunchError"
+              class="mt-3 flex items-center gap-2 text-xs text-destructive"
+              role="alert"
+            >
+              <CircleAlert class="size-4 shrink-0" />
+              <span class="flex-1">{{ autoLaunchError }}</span>
+              <Button v-if="!savingAutoLaunch" variant="ghost" size="sm" @click="loadAutoLaunch">
+                重试
+              </Button>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section
@@ -562,12 +654,7 @@ onMounted(async () => {
         class="flex min-h-[420px] items-center justify-center"
       >
         <div class="text-center">
-          <img
-            :src="appIconUrl"
-            alt=""
-            class="mx-auto size-16 rounded-2xl shadow-sm"
-            aria-hidden="true"
-          />
+          <img :src="appIconUrl" alt="" class="mx-auto size-16 dark:invert" aria-hidden="true" />
           <h2 class="mt-4 text-2xl font-semibold">{{ appInfo?.name ?? "Willow" }}</h2>
           <p class="mt-1 text-xs text-muted-foreground">
             {{ appInfo ? `版本 ${appInfo.version}` : "正在读取版本…" }}

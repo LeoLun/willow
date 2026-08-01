@@ -3,13 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const electronMocks = vi.hoisted(() => ({
   handle: vi.fn(),
+  once: vi.fn(),
   removeHandler: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
   BrowserWindow: vi.fn(),
-  app: { on: vi.fn() },
+  Tray: vi.fn(),
+  app: { on: vi.fn(), once: electronMocks.once },
   ipcMain: electronMocks,
+  nativeImage: { createFromPath: vi.fn() },
   shell: { openExternal: vi.fn() },
 }));
 

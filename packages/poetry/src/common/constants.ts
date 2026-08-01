@@ -2,6 +2,7 @@ export const MODULE_METADATA = {
   IMPORTS: "imports",
   PROVIDERS: "providers",
   WINDOWS: "windows",
+  TRAYS: "trays",
   EXPORTS: "exports",
   CONTROLLERS: "controllers",
 };
@@ -18,6 +19,12 @@ export const WINDOW_METADATA = {
   OPEN_DEV_TOOLS: "openDevTools",
 };
 
+export const TRAY_METADATA = {
+  IMAGE: "trayImage",
+  GUID: "trayGuid",
+  TEMPLATE_IMAGE: "trayTemplateImage",
+};
+
 export const ON_METADATA = {
   EVENT: "event",
 };
@@ -27,3 +34,4 @@ export const IPC_METADATA = {
 };
 
 export const WINDOW_INSTANCE_METADATA = "WINDOW_INSTANCE_METADATA";
+export const TRAY_INSTANCE_METADATA = "TRAY_INSTANCE_METADATA";

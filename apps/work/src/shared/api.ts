@@ -50,6 +50,22 @@ export interface SetThemeRequest {
 
 export interface SetThemeResponse {}
 
+export interface AutoLaunchState {
+  enabled: boolean;
+  supported: boolean;
+  requiresApproval: boolean;
+}
+
+export interface GetAutoLaunchRequest {}
+
+export type GetAutoLaunchResponse = AutoLaunchState;
+
+export interface SetAutoLaunchRequest {
+  enabled: boolean;
+}
+
+export type SetAutoLaunchResponse = AutoLaunchState;
+
 export type ThinkingLevel = Exclude<ModelThinkingLevel, "off">;
 
 export interface ProviderModelInfo {

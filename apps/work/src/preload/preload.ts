@@ -14,6 +14,8 @@ import type {
   DeleteCredentialResponse,
   DeleteTavilyApiKeyRequest,
   DeleteTavilyApiKeyResponse,
+  GetAutoLaunchRequest,
+  GetAutoLaunchResponse,
   GetAppInfoRequest,
   GetAppInfoResponse,
   GetBuiltinSkillListRequest,
@@ -54,6 +56,8 @@ import type {
   SetCredentialResponse,
   SetBuiltinSkillEnabledRequest,
   SetBuiltinSkillEnabledResponse,
+  SetAutoLaunchRequest,
+  SetAutoLaunchResponse,
   SetThemeRequest,
   SetThemeResponse,
   SetTavilyApiKeyRequest,
@@ -79,6 +83,7 @@ import {
   DOWNLOAD_APP_UPDATE,
   GET_APP_INFO,
   GET_APP_UPDATE_STATE,
+  GET_AUTO_LAUNCH,
   GET_BUILTIN_SKILL_LIST,
   GET_CONFIGURED_PROVIDERS,
   GET_CREDENTIAL,
@@ -99,6 +104,7 @@ import {
   SEND_MESSAGE,
   SET_CREDENTIAL,
   SET_BUILTIN_SKILL_ENABLED,
+  SET_AUTO_LAUNCH,
   SET_THEME,
   SET_TAVILY_API_KEY,
   SET_USER_CONFIG,
@@ -151,6 +157,10 @@ const ipcObject: IRenderHook = {
     invoke<AppUpdateRequest, AppUpdateResponse>(CONFIRM_UPDATE_BOOT, request),
   setTheme: (request: SetThemeRequest) =>
     invoke<SetThemeRequest, SetThemeResponse>(SET_THEME, request),
+  getAutoLaunch: (request: GetAutoLaunchRequest = {}) =>
+    invoke<GetAutoLaunchRequest, GetAutoLaunchResponse>(GET_AUTO_LAUNCH, request),
+  setAutoLaunch: (request: SetAutoLaunchRequest) =>
+    invoke<SetAutoLaunchRequest, SetAutoLaunchResponse>(SET_AUTO_LAUNCH, request),
   getProviderCatalog: (request: GetProviderCatalogRequest = {}) =>
     invoke<GetProviderCatalogRequest, GetProviderCatalogResponse>(GET_PROVIDER_CATALOG, request),
   getConfiguredProviders: (request: GetConfiguredProvidersRequest = {}) =>

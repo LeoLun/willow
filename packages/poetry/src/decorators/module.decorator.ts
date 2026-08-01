@@ -6,6 +6,7 @@ import { MODULE_METADATA } from "../common/constants";
 interface ModuleMetadata {
   imports?: any[];
   windows?: any[];
+  trays?: any[];
   providers?: any[];
   exports?: any[];
   controllers?: any[];
@@ -16,6 +17,7 @@ export function Module(metadata: ModuleMetadata): ClassDecorator {
     injectable()(target);
     Reflect.defineMetadata(MODULE_METADATA.IMPORTS, metadata.imports, target);
     Reflect.defineMetadata(MODULE_METADATA.WINDOWS, metadata.windows, target);
+    Reflect.defineMetadata(MODULE_METADATA.TRAYS, metadata.trays, target);
     Reflect.defineMetadata(MODULE_METADATA.PROVIDERS, metadata.providers, target);
     Reflect.defineMetadata(MODULE_METADATA.EXPORTS, metadata.exports, target);
     Reflect.defineMetadata(MODULE_METADATA.CONTROLLERS, metadata.controllers, target);

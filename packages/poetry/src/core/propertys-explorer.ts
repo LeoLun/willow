@@ -1,4 +1,9 @@
-import { IPC_METADATA, ON_METADATA, WINDOW_INSTANCE_METADATA } from "../common/constants";
+import {
+  IPC_METADATA,
+  ON_METADATA,
+  TRAY_INSTANCE_METADATA,
+  WINDOW_INSTANCE_METADATA,
+} from "../common/constants";
 import { isFunction } from "../common/utils";
 
 export class PropertysExplorer {
@@ -94,11 +99,13 @@ export class PropertysExplorer {
     // const instanceProperty = instance[propertyName];
     // const prototypeProperty = prototype[propertyName];
     const isWindowInstance = Reflect.getMetadata(WINDOW_INSTANCE_METADATA, prototype, propertyName);
-    if (!isWindowInstance) {
+    const isTrayInstance = Reflect.getMetadata(TRAY_INSTANCE_METADATA, prototype, propertyName);
+    if (!isWindowInstance && !isTrayInstance) {
       return null;
     }
     return {
       propertyName,
+      type: isWindowInstance ? "window" : "tray",
     };
   }
 }

@@ -1,12 +1,14 @@
 import "reflect-metadata";
-import { BrowserWindow, app, ipcMain, shell } from "electron";
+import { BrowserWindow, Tray as ElectronTray, app, ipcMain, nativeImage, shell } from "electron";
 import { Container, interfaces } from "inversify";
-import { MODULE_METADATA, WINDOW_METADATA } from "../common/constants";
+import { MODULE_METADATA, TRAY_METADATA, WINDOW_METADATA } from "../common/constants";
 import { PropertysExplorer } from "./propertys-explorer";
+import { TrayFactoryResolver } from "./tray-factory-resolver";
 import { WindowFactoryResolver } from "./window-factory-resolver";
 
 export class CoreFactoryStatic {
   private container: Container;
+  private trayInstances = new WeakMap<object, ElectronTray>();
 
   constructor() {
     this.container = new Container({ defaultScope: "Singleton" });
@@ -22,6 +24,9 @@ export class CoreFactoryStatic {
     // 注入原生服务
     container.bind(WindowFactoryResolver).toDynamicValue(() => {
       return new WindowFactoryResolver(container);
+    });
+    container.bind(TrayFactoryResolver).toDynamicValue(() => {
+      return new TrayFactoryResolver(container);
     });
 
     // 获取所有的providers
@@ -67,6 +72,27 @@ export class CoreFactoryStatic {
 
         container.onDeactivation(window, async (result: any): Promise<any> => {
           return result.onDestroy && (await result.onDestroy());
+        });
+      });
+
+    const trays = Reflect.getMetadata(MODULE_METADATA.TRAYS, module);
+    trays &&
+      trays.forEach((tray: any) => {
+        container.bind(tray).toSelf();
+        container.onActivation(tray, (_context: interfaces.Context, result: any): any => {
+          this.initTray(tray, result, container);
+          result.onInit && result.onInit();
+          return result;
+        });
+
+        container.onDeactivation(tray, async (result: any): Promise<any> => {
+          try {
+            result.onDestroy && (await result.onDestroy());
+          } finally {
+            const trayInstance = this.trayInstances.get(result);
+            if (trayInstance && !trayInstance.isDestroyed()) trayInstance.destroy();
+            this.trayInstances.delete(result);
+          }
         });
       });
 
@@ -176,7 +202,9 @@ export class CoreFactoryStatic {
     const { propertys, events, ipcMethods } = propertysExplorer.scanForPropertys(instance);
     // 注入窗口对象实例
     for (const property of propertys) {
-      Reflect.set(instance, property.propertyName, browserWindow);
+      if (property.type === "window") {
+        Reflect.set(instance, property.propertyName, browserWindow);
+      }
     }
     for (const event of events) {
       browserWindow.on(event.eventName, (...args) => {
@@ -190,6 +218,43 @@ export class CoreFactoryStatic {
       });
     }
     return;
+  }
+
+  private initTray(tray: any, instance: any, container: Container) {
+    const image = Reflect.getMetadata(TRAY_METADATA.IMAGE, tray);
+    const guid = Reflect.getMetadata(TRAY_METADATA.GUID, tray);
+    const templateImage = Reflect.getMetadata(TRAY_METADATA.TEMPLATE_IMAGE, tray);
+    if (!image) {
+      throw new Error("Tray image is required");
+    }
+
+    const trayImage = typeof image === "string" ? nativeImage.createFromPath(image) : image;
+    if (templateImage) trayImage.setTemplateImage(true);
+    const trayInstance = guid ? new ElectronTray(trayImage, guid) : new ElectronTray(trayImage);
+    this.trayInstances.set(instance, trayInstance);
+
+    const propertysExplorer = new PropertysExplorer();
+    const { propertys, events, ipcMethods } = propertysExplorer.scanForPropertys(instance);
+    for (const property of propertys) {
+      if (property.type === "tray") {
+        Reflect.set(instance, property.propertyName, trayInstance);
+      }
+    }
+    for (const event of events) {
+      trayInstance.on(event.eventName, (...args) => {
+        event.targetCallback.apply(instance, args);
+      });
+    }
+    for (const event of ipcMethods) {
+      ipcMain.handle(event.eventName, (...args) => {
+        return event.targetCallback.apply(instance, args);
+      });
+    }
+
+    app.once("before-quit", () => {
+      if (!trayInstance.isDestroyed()) trayInstance.destroy();
+      if (container.isBound(tray)) void container.unbindAsync(tray);
+    });
   }
 
   private openExternalUrlsInDefaultBrowser(browserWindow: BrowserWindow, appUrl?: string) {

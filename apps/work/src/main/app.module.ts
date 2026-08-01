@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { On, WindowFactoryResolver, Module } from "@willow/poetry";
+import { Module, On, TrayFactoryResolver, WindowFactoryResolver } from "@willow/poetry";
 import { app, screen } from "electron";
 import started from "electron-squirrel-startup";
 import { CheckAppUpdateController } from "./controllers/app-update/check.app-update.controller";
@@ -9,6 +9,8 @@ import { GetAppUpdateStateController } from "./controllers/app-update/get-state.
 import { OpenManualUpdateController } from "./controllers/app-update/open-manual.app-update.controller";
 import { RestartToUpdateController } from "./controllers/app-update/restart.app-update.controller";
 import { GetAppInfoController } from "./controllers/app/get-info.app.controller";
+import { GetAutoLaunchController } from "./controllers/auto-launch/get.auto-launch.controller";
+import { SetAutoLaunchController } from "./controllers/auto-launch/set.auto-launch.controller";
 import { DeleteCredentialController } from "./controllers/credential/delete.credential.controller";
 import { GetConfiguredProvidersController } from "./controllers/credential/get-configured.credential.controller";
 import { GetCredentialController } from "./controllers/credential/get.credential.controller";
@@ -39,9 +41,11 @@ import { GetWorkspaceListController } from "./controllers/workspace/get-list.wor
 import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controller";
 import { SelectWorkspaceDirectoryController } from "./controllers/workspace/select-directory.workspace.controller";
 import { SetWorkspacePinnedController } from "./controllers/workspace/set-pinned.workspace.controller";
+import { MacMenuBar } from "./menu-bar";
 import { AgentService } from "./service/agent.service";
 import { AiToolApprovalService } from "./service/ai-tool-approval.service";
 import { AppUpdateService } from "./service/app-update.service";
+import { AutoLaunchService } from "./service/auto-launch.service";
 import { BuiltinSkillService } from "./service/builtin-skill.service";
 import { CredentialService } from "./service/credential.service";
 import { BuiltinSkillSettingDao } from "./service/dao/builtin-skill-setting.dao.server";
@@ -77,8 +81,10 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
 @Module({
   imports: [],
   windows: [MainWindow],
+  trays: process.platform === "darwin" ? [MacMenuBar] : [],
   providers: [
     DbService,
+    AutoLaunchService,
     AppUpdateService,
     WorkspaceDao,
     SessionDao,
@@ -115,6 +121,8 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     SearchFilesController,
     GetAppInfoController,
     SetThemeController,
+    GetAutoLaunchController,
+    SetAutoLaunchController,
     GetProviderCatalogController,
     GetConfiguredProvidersController,
     GetCredentialController,
@@ -149,6 +157,7 @@ export class AppModule {
 
   constructor(
     private windowFactoryResolver: WindowFactoryResolver,
+    private trayFactoryResolver: TrayFactoryResolver,
     private dbService: DbService,
     private eventController: EventController,
     private eventService: EventService,
@@ -162,6 +171,7 @@ export class AppModule {
   @On("ready")
   async onReady() {
     await this.bootstrapApplication();
+    this.createMenuBar();
   }
 
   @On("before-quit")
@@ -181,6 +191,7 @@ export class AppModule {
     console.log("onActivate");
     if (!this.initSucceeded) {
       await this.bootstrapApplication();
+      this.createMenuBar();
       return;
     }
     this.showMainWindow();
@@ -216,5 +227,11 @@ export class AppModule {
 
     mainWindow.win.show();
     mainWindow.win.focus();
+  }
+
+  private createMenuBar() {
+    if (process.platform === "darwin") {
+      this.trayFactoryResolver.resolveTrayFactory(MacMenuBar);
+    }
   }
 }
