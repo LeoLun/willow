@@ -30,10 +30,6 @@ const summary = computed(() =>
       ? `搜索 ${details.value.query}`
       : "网络搜索",
 );
-const status = computed(() => {
-  if (!props.result) return "搜索中…";
-  return props.result.isError ? "搜索失败" : "搜索完成";
-});
 
 function resultKey(url: string, index: number): string {
   return `${index}:${url}`;
@@ -57,19 +53,19 @@ function markFaviconFailed(key: string): void {
         class="flex w-full items-center gap-1 text-left text-muted-foreground disabled:cursor-default"
         :class="props.result ? 'cursor-pointer' : ''"
         :disabled="!props.result"
-        :aria-label="`${summary}，${status}${props.result ? `，${open ? '收起' : '展开'}搜索结果` : ''}`"
+        :aria-label="`${summary}${props.result ? `，${open ? '收起' : '展开'}搜索结果` : ''}`"
       >
         <SearchIcon
           class="size-4 shrink-0"
           :class="props.result?.isError ? 'text-destructive' : ''"
           aria-hidden="true"
         />
-        <span class="min-w-0 truncate">{{ summary }}</span>
         <span
-          class="shrink-0"
-          :class="props.result?.isError ? 'text-destructive' : 'text-muted-foreground/70'"
+          class="min-w-0 truncate"
+          :class="props.result ? undefined : 'shimmer'"
+          data-slot="tool-summary"
         >
-          {{ status }}
+          {{ summary }}
         </span>
       </button>
     </CollapsibleTrigger>

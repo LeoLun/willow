@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import ContentBlocks from "../blocks/ContentBlocks.vue";
+import MessageToolbar from "../MessageToolbar.vue";
 import type { Message } from "../types";
 
-const props = defineProps<{
-  message: Message;
-}>();
+const props = withDefaults(
+  defineProps<{
+    message: Message;
+    showToolbar?: boolean;
+  }>(),
+  {
+    showToolbar: false,
+  },
+);
 </script>
 
 <template>
@@ -16,6 +23,7 @@ const props = defineProps<{
   >
     <div class="flex max-w-[100%] flex-col gap-2 rounded-2xl text-sm text-card-foreground">
       <ContentBlocks :message="props.message" markdown />
+      <MessageToolbar v-if="props.showToolbar" :message="props.message" />
     </div>
   </article>
 </template>

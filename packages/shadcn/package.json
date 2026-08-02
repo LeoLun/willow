@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "lucide-vue-next": "^0.473.0",
     "reka-ui": "^2.8.0",
+    "shadcn-vue": "^2.8.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.2.2",
     "vue-sonner": "^2.0.9"

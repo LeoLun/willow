@@ -12,6 +12,10 @@ import {
   toMessageList,
   type Message,
 } from "../src/renderer/src/components/message-list";
+import {
+  formatMessageTimestamp,
+  getMessageCopyText,
+} from "../src/renderer/src/components/message-list/message-toolbar";
 
 const mountedApps: ReturnType<typeof createApp>[] = [];
 
@@ -23,10 +27,10 @@ function streamEvent(value: unknown): MessageStreamEvent {
   return value as MessageStreamEvent;
 }
 
-function mountMessageList(messages: Message[]) {
+function mountMessageList(messages: Message[], streaming = false) {
   const container = document.createElement("div");
   document.body.append(container);
-  const app = createApp({ render: () => h(MessageList, { messages }) });
+  const app = createApp({ render: () => h(MessageList, { messages, streaming }) });
   app.mount(container);
   mountedApps.push(app);
   return container;
@@ -44,16 +48,21 @@ function mountReactiveMessageList(message: Message) {
   return { container, currentMessage };
 }
 
-function mountReactiveMessages(messages: Message[]) {
+function mountReactiveMessages(messages: Message[], streaming = false) {
   const container = document.createElement("div");
   const currentMessages = shallowRef(messages);
+  const currentStreaming = shallowRef(streaming);
   document.body.append(container);
   const app = createApp({
-    render: () => h(MessageList, { messages: currentMessages.value }),
+    render: () =>
+      h(MessageList, {
+        messages: currentMessages.value,
+        streaming: currentStreaming.value,
+      }),
   });
   app.mount(container);
   mountedApps.push(app);
-  return { container, currentMessages };
+  return { container, currentMessages, currentStreaming };
 }
 
 afterEach(() => {
@@ -353,6 +362,210 @@ describe("pi-agent message lifecycle", () => {
 });
 
 describe("MessageList", () => {
+  it("formats message timestamps in the local calendar week", () => {
+    const now = new Date(2025, 0, 8, 12, 0);
+
+    expect(formatMessageTimestamp(new Date(2025, 0, 8, 9, 5).getTime(), now)).toBe("09:05");
+    expect(formatMessageTimestamp(new Date(2025, 0, 6, 18, 7).getTime(), now)).toBe("周一 18:07");
+    expect(formatMessageTimestamp(new Date(2025, 0, 12, 23, 9).getTime(), now)).toBe("周日 23:09");
+    expect(formatMessageTimestamp(new Date(2025, 0, 5, 8, 3).getTime(), now)).toBe(
+      "2025年01月05日 08:03",
+    );
+    expect(formatMessageTimestamp(new Date(2024, 11, 31, 7, 2).getTime(), now)).toBe(
+      "2024年12月31日 07:02",
+    );
+  });
+
+  it("shows the user toolbar on interaction and copies only original text content", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2025, 0, 8, 12, 0));
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    try {
+      const message: Message = {
+        id: "user",
+        sourceKey: "user",
+        role: "user",
+        timestamp: new Date(2025, 0, 8, 9, 5).getTime(),
+        status: "completed",
+        content: [
+          { type: "text", text: "查看 [文件](apps/work/a.ts)" },
+          { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+          { type: "thinking", thinking: "不复制", status: "completed" },
+          { type: "text", text: "**保留 Markdown**" },
+        ],
+      };
+      const container = mountMessageList([message]);
+      const toolbar = container.querySelector("[data-slot=message-toolbar]");
+      const copyButton = toolbar?.querySelector<HTMLButtonElement>("[data-slot=message-copy]");
+
+      expect(toolbar?.getAttribute("data-visibility")).toBe("interaction");
+      expect(toolbar?.classList.contains("opacity-0")).toBe(true);
+      expect(toolbar?.classList.contains("group-hover/message:opacity-100")).toBe(true);
+      expect(toolbar?.classList.contains("group-focus-within/message:opacity-100")).toBe(true);
+      expect(toolbar?.querySelector("[data-slot=message-timestamp]")?.textContent?.trim()).toBe(
+        "09:05",
+      );
+      expect(copyButton?.getAttribute("aria-label")).toBe("复制消息");
+      expect(copyButton?.getAttribute("data-copy-state")).toBe("idle");
+      expect(copyButton?.querySelector('[data-icon="copy"]')).not.toBeNull();
+      expect(copyButton?.disabled).toBe(false);
+      expect(getMessageCopyText(message)).toBe("查看 [文件](apps/work/a.ts)\n\n**保留 Markdown**");
+
+      copyButton?.focus();
+      expect(document.activeElement).toBe(copyButton);
+      copyButton?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+      await Promise.resolve();
+      await nextTick();
+      expect(writeText).toHaveBeenCalledWith("查看 [文件](apps/work/a.ts)\n\n**保留 Markdown**");
+      expect(document.activeElement).not.toBe(copyButton);
+      expect(copyButton?.getAttribute("aria-label")).toBe("已复制");
+      expect(copyButton?.getAttribute("data-copy-state")).toBe("copied");
+      expect(copyButton?.classList.contains("bg-accent")).toBe(true);
+      expect(copyButton?.querySelector('[data-icon="check"]')).not.toBeNull();
+      expect(copyButton?.querySelector('[data-icon="copy"]')).toBeNull();
+
+      await vi.advanceTimersByTimeAsync(2_999);
+      await nextTick();
+      expect(copyButton?.getAttribute("data-copy-state")).toBe("copied");
+
+      await vi.advanceTimersByTimeAsync(1);
+      await nextTick();
+      expect(copyButton?.getAttribute("aria-label")).toBe("复制消息");
+      expect(copyButton?.getAttribute("data-copy-state")).toBe("idle");
+      expect(copyButton?.querySelector('[data-icon="copy"]')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps copy disabled for a message without text content", () => {
+    const container = mountMessageList([
+      {
+        id: "user-image",
+        sourceKey: "user-image",
+        role: "user",
+        timestamp: 1,
+        status: "completed",
+        content: [{ type: "image", data: "aGVsbG8=", mimeType: "image/png" }],
+      },
+    ]);
+
+    expect(container.querySelector<HTMLButtonElement>("[data-slot=message-copy]")?.disabled).toBe(
+      true,
+    );
+  });
+
+  it("shows a persistent copy toolbar only on each completed agent loop final response", async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const messages: Message[] = [
+      {
+        id: "user-1",
+        sourceKey: "user-1",
+        role: "user",
+        timestamp: 1,
+        status: "completed",
+        content: [{ type: "text", text: "第一轮" }],
+      },
+      {
+        id: "assistant-1",
+        sourceKey: "assistant-1",
+        role: "assistant",
+        timestamp: 2,
+        status: "completed",
+        content: [
+          { type: "text", text: "调用前" },
+          { type: "toolCall", id: "call-1", name: "read", arguments: { path: "a.ts" } },
+          { type: "text", text: "# 第一轮最终回复" },
+        ],
+      },
+      {
+        id: "tool-1",
+        sourceKey: "tool-1",
+        role: "toolResult",
+        timestamp: 3,
+        status: "completed",
+        content: [{ type: "text", text: "工具结果" }],
+        toolCallId: "call-1",
+        toolName: "read",
+      },
+      {
+        id: "user-2",
+        sourceKey: "user-2",
+        role: "user",
+        timestamp: 4,
+        status: "completed",
+        content: [{ type: "text", text: "第二轮" }],
+      },
+      {
+        id: "assistant-2",
+        sourceKey: "assistant-2",
+        role: "assistant",
+        timestamp: 5,
+        status: "completed",
+        content: [{ type: "text", text: "**第二轮最终回复**" }],
+      },
+    ];
+    const { container, currentStreaming } = mountReactiveMessages(messages, true);
+    await nextTick();
+
+    let assistantMessages = container.querySelectorAll("[data-slot=assistant-message]");
+    expect(assistantMessages).toHaveLength(3);
+    expect(assistantMessages[0]?.querySelector("[data-slot=message-toolbar]")).toBeNull();
+    expect(assistantMessages[1]?.querySelector("[data-slot=message-toolbar]")).not.toBeNull();
+    expect(assistantMessages[2]?.querySelector("[data-slot=message-toolbar]")).toBeNull();
+
+    currentStreaming.value = false;
+    await nextTick();
+    assistantMessages = container.querySelectorAll("[data-slot=assistant-message]");
+    const toolbars = container.querySelectorAll(
+      "[data-slot=assistant-message] [data-slot=message-toolbar]",
+    );
+    expect(toolbars).toHaveLength(2);
+    expect(assistantMessages[2]?.querySelector("[data-slot=message-toolbar]")).not.toBeNull();
+    expect(toolbars[0]?.getAttribute("data-visibility")).toBe("always");
+
+    assistantMessages[1]?.querySelector<HTMLButtonElement>("[data-slot=message-copy]")?.click();
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("# 第一轮最终回复");
+    });
+  });
+
+  it("shows the working indicator at the end only while the agent loop is active", () => {
+    const message: Message = {
+      id: "user",
+      sourceKey: "user",
+      role: "user",
+      timestamp: 1,
+      status: "completed",
+      content: [{ type: "text", text: "开始处理" }],
+    };
+    const runningContainer = mountMessageList([message], true);
+    const working = runningContainer.querySelector("[data-slot=message-list-working]");
+    const messageList = runningContainer.querySelector("[data-slot=message-list]");
+
+    expect(working?.getAttribute("role")).toBe("status");
+    expect(working?.getAttribute("aria-label")).toBe("正在工作中");
+    expect(working?.querySelector('[data-slot="loading"]')).not.toBeNull();
+    expect(
+      working
+        ?.querySelector("[data-slot=message-list-working-label]")
+        ?.classList.contains("shimmer"),
+    ).toBe(true);
+    expect(messageList?.lastElementChild).toBe(working);
+
+    const completedContainer = mountMessageList([message]);
+    expect(completedContainer.querySelector("[data-slot=message-list-working]")).toBeNull();
+  });
+
   it("shows streaming thinking expanded and lets the user collapse it", async () => {
     const container = mountMessageList([
       {
@@ -371,6 +584,14 @@ describe("MessageList", () => {
     expect(trigger?.textContent).toContain("思考中");
     expect(trigger?.getAttribute("aria-expanded")).toBe("true");
     expect(thinkingBlock?.textContent).toContain("正在分析问题");
+    await vi.waitFor(() => {
+      expect(thinkingBlock?.querySelector(".comark-stream")).not.toBeNull();
+    });
+
+    const thinkingContent = thinkingBlock?.querySelector("[data-slot=thinking-content]");
+    expect(thinkingContent?.classList.contains("max-h-[120px]")).toBe(true);
+    expect(thinkingContent?.classList.contains("overflow-y-auto")).toBe(true);
+    expect(thinkingContent?.classList.contains("overscroll-contain")).toBe(true);
 
     trigger?.click();
     await vi.waitFor(() => {
@@ -409,6 +630,103 @@ describe("MessageList", () => {
 
     expect(trigger?.getAttribute("aria-expanded")).toBe("true");
     expect(thinkingBlock?.textContent).toContain("思考内容不可用。");
+    expect(thinkingBlock?.querySelector("[data-slot=markdown-block]")).toBeNull();
+    expect(thinkingBlock?.querySelector(".comark-stream")).toBeNull();
+  });
+
+  it("renders available thinking content with Comark markdown", async () => {
+    const container = mountMessageList([
+      {
+        id: "assistant",
+        sourceKey: "assistant",
+        role: "assistant",
+        timestamp: 1,
+        status: "completed",
+        content: [
+          {
+            type: "thinking",
+            thinking: "# 分析\n\n**重点**\n\n- 第一项\n- 第二项",
+            status: "completed",
+          },
+        ],
+      },
+    ]);
+    await nextTick();
+
+    const thinkingBlock = container.querySelector("[data-slot=thinking-block]");
+    thinkingBlock?.querySelector<HTMLButtonElement>("button")?.click();
+
+    await vi.waitFor(() => {
+      expect(thinkingBlock?.querySelector("h1")?.textContent).toBe("分析");
+    });
+    expect(thinkingBlock?.querySelector("strong")?.textContent).toBe("重点");
+    expect(
+      Array.from(thinkingBlock?.querySelectorAll("li") ?? [], (item) => item.textContent),
+    ).toEqual(["第一项", "第二项"]);
+    expect(thinkingBlock?.querySelector(".comark-stream")).toBeNull();
+  });
+
+  it("follows streaming thinking only while the user remains near the bottom", async () => {
+    const streamingMessage: Message = {
+      id: "assistant",
+      sourceKey: "assistant",
+      role: "assistant",
+      timestamp: 1,
+      status: "streaming",
+      content: [{ type: "thinking", thinking: "第一段", status: "streaming" }],
+    };
+    const { container, currentMessage } = mountReactiveMessageList(streamingMessage);
+
+    const thinkingContent = await vi.waitFor(() => {
+      const element = container.querySelector<HTMLElement>("[data-slot=thinking-content]");
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    let scrollHeight = 300;
+    Object.defineProperties(thinkingContent, {
+      clientHeight: { configurable: true, get: () => 120 },
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+    });
+
+    thinkingContent.scrollTop = 180;
+    thinkingContent.dispatchEvent(new Event("scroll"));
+    scrollHeight = 360;
+    currentMessage.value = {
+      ...streamingMessage,
+      content: [{ type: "thinking", thinking: "第一段\n\n第二段", status: "streaming" }],
+    };
+    await vi.waitFor(() => {
+      expect(thinkingContent.scrollTop).toBe(360);
+    });
+
+    thinkingContent.scrollTop = 80;
+    thinkingContent.dispatchEvent(new Event("scroll"));
+    scrollHeight = 420;
+    currentMessage.value = {
+      ...streamingMessage,
+      content: [{ type: "thinking", thinking: "第一段\n\n第二段\n\n第三段", status: "streaming" }],
+    };
+    await vi.waitFor(() => {
+      expect(thinkingContent.textContent).toContain("第三段");
+    });
+    expect(thinkingContent.scrollTop).toBe(80);
+
+    thinkingContent.scrollTop = 276;
+    thinkingContent.dispatchEvent(new Event("scroll"));
+    scrollHeight = 480;
+    currentMessage.value = {
+      ...streamingMessage,
+      content: [
+        {
+          type: "thinking",
+          thinking: "第一段\n\n第二段\n\n第三段\n\n第四段",
+          status: "streaming",
+        },
+      ],
+    };
+    await vi.waitFor(() => {
+      expect(thinkingContent.scrollTop).toBe(480);
+    });
   });
 
   it("automatically collapses thinking when streaming completes", async () => {
@@ -672,7 +990,35 @@ describe("MessageList", () => {
     });
   });
 
-  it("renders websearch progress and expands only structured result links", async () => {
+  it("shows shimmer while a web search is running", async () => {
+    const container = mountMessageList([
+      {
+        id: "assistant",
+        sourceKey: "assistant",
+        role: "assistant",
+        timestamp: 1,
+        status: "streaming",
+        content: [
+          {
+            type: "toolCall",
+            id: "search-call",
+            name: "websearch",
+            arguments: { query: "Willow 最新消息" },
+          },
+        ],
+      },
+    ]);
+    await nextTick();
+
+    const block = container.querySelector("[data-slot=websearch-result-block]");
+    expect(block?.querySelector("[data-slot=tool-summary]")?.classList.contains("shimmer")).toBe(
+      true,
+    );
+    expect(block?.textContent).not.toContain("搜索中…");
+    expect(block?.querySelector("[data-slot=tool-status]")).toBeNull();
+  });
+
+  it("renders a websearch summary and expands only structured result links", async () => {
     const messages: Message[] = [
       {
         id: "assistant",
@@ -727,7 +1073,8 @@ describe("MessageList", () => {
     const block = container.querySelector("[data-slot=websearch-result-block]");
     const trigger = block?.querySelector<HTMLButtonElement>("button");
     expect(trigger?.textContent).toContain("搜索 Willow 最新消息");
-    expect(trigger?.textContent).toContain("搜索完成");
+    expect(trigger?.textContent).not.toContain("搜索完成");
+    expect(trigger?.textContent).not.toContain("搜索失败");
     expect(container.textContent).not.toContain("Willow 发布新版本");
     expect(container.textContent).not.toContain("模型可见的搜索摘要");
 
@@ -813,8 +1160,10 @@ describe("MessageList", () => {
     await nextTick();
 
     const trigger = container.querySelector<HTMLButtonElement>("[data-slot=tool-message] button");
+    const summary = trigger?.querySelector("[data-slot=tool-summary]");
     expect(trigger?.textContent).toContain("读取 a.ts");
     expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(summary?.classList.contains("shimmer")).toBe(true);
 
     trigger?.click();
     await vi.waitFor(() => {
@@ -828,6 +1177,7 @@ describe("MessageList", () => {
     });
     expect(trigger?.getAttribute("aria-expanded")).toBe("true");
     expect(container.textContent).not.toContain("执行中…");
+    expect(summary?.classList.contains("shimmer")).toBe(false);
   });
 
   it("renders multiple tool calls independently and keeps unmatched results visible", async () => {
@@ -956,7 +1306,7 @@ describe("MessageList", () => {
     expect(container.querySelector("[onerror]")).toBeNull();
   });
 
-  it("auto-closes only the last text node while an assistant message streams", async () => {
+  it("streams thinking while auto-closing only the last text node", async () => {
     const container = mountMessageList([
       {
         id: "assistant",
@@ -978,8 +1328,14 @@ describe("MessageList", () => {
       ).toContain("未完成");
     });
 
-    const caretNodes = container.querySelectorAll('[style*="animation: pulse"]');
-    expect(caretNodes).toHaveLength(1);
-    expect(container.querySelectorAll("[data-slot=markdown-block]")).toHaveLength(2);
+    const textBlocks = container.querySelectorAll(
+      "[data-content-type=text][data-slot=markdown-block]",
+    );
+    expect(textBlocks).toHaveLength(2);
+    expect(textBlocks[0]?.querySelector('[style*="animation: pulse"]')).toBeNull();
+    expect(textBlocks[1]?.querySelectorAll('[style*="animation: pulse"]')).toHaveLength(1);
+    expect(
+      container.querySelectorAll('[data-slot=thinking-block] [style*="animation: pulse"]'),
+    ).toHaveLength(1);
   });
 });

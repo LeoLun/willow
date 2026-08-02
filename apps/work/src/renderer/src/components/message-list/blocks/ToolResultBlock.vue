@@ -70,7 +70,13 @@ const formattedDetails = computed(() =>
           :class="props.result?.isError ? 'text-destructive' : ''"
           aria-hidden="true"
         />
-        <span class="min-w-0 flex-1 truncate">{{ summary }}</span>
+        <span
+          class="min-w-0 flex-1 truncate"
+          :class="props.result ? undefined : 'shimmer'"
+          data-slot="tool-summary"
+        >
+          {{ summary }}
+        </span>
       </button>
     </CollapsibleTrigger>
 
@@ -80,7 +86,7 @@ const formattedDetails = computed(() =>
     >
       <div v-if="formattedDetails">{{ formattedDetails }}</div>
       <ContentBlocks v-if="props.result" :message="props.result" />
-      <p v-else class="text-sm text-muted-foreground">执行中…</p>
+      <p v-else class="shimmer text-sm text-muted-foreground">执行中…</p>
     </CollapsibleContent>
   </Collapsible>
 </template>

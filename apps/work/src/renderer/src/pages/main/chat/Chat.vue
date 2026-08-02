@@ -5,11 +5,24 @@ import { useRoute } from "vue-router";
 import { MessageList } from "@/components/message-list";
 import { useSessionMessages } from "@/composables/useMessage";
 
+const props = withDefaults(
+  defineProps<{
+    streaming?: boolean;
+  }>(),
+  {
+    streaming: false,
+  },
+);
+
 const route = useRoute();
 const messageViewport = shallowRef<HTMLElement>();
+const messageContent = shallowRef<HTMLElement>();
 const composer = shallowRef<HTMLElement>();
 const composerHeight = ref(0);
 let composerResizeObserver: ResizeObserver | undefined;
+let messageResizeObserver: ResizeObserver | undefined;
+let shouldStickToBottom = true;
+let previousScrollTop = 0;
 
 const workspaceId = computed(() => {
   const value = Number(route.query.workspaceId);
@@ -22,23 +35,35 @@ const sessionId = computed(() => {
 });
 
 const { timeline, loading } = useSessionMessages(workspaceId, sessionId);
-const messageContentStyle = computed<StyleValue>(() => ({
-  paddingBottom: `${composerHeight.value + 32}px`,
+const bottomSpacerStyle = computed<StyleValue>(() => ({
+  height: `${composerHeight.value + 32}px`,
 }));
 
 function scrollToBottom(): void {
   const viewport = messageViewport.value;
-  if (viewport) viewport.scrollTop = viewport.scrollHeight;
+  if (!viewport) return;
+  viewport.scrollTop = viewport.scrollHeight;
+  previousScrollTop = viewport.scrollTop;
+  shouldStickToBottom = true;
+}
+
+function updateScrollAnchor(): void {
+  const viewport = messageViewport.value;
+  if (!viewport) return;
+  const nextScrollTop = viewport.scrollTop;
+  if (nextScrollTop < previousScrollTop - 1) {
+    shouldStickToBottom = false;
+  } else if (viewport.scrollHeight - viewport.clientHeight - nextScrollTop <= 1) {
+    shouldStickToBottom = true;
+  }
+  previousScrollTop = nextScrollTop;
 }
 
 function updateComposerHeight(): void {
   const root = composer.value;
   if (!root) return;
 
-  const viewport = messageViewport.value;
-  const wasAtBottom = viewport
-    ? viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= 1
-    : false;
+  const wasAtBottom = shouldStickToBottom;
   const nextHeight = root.offsetHeight;
   if (composerHeight.value === nextHeight) return;
 
@@ -46,19 +71,31 @@ function updateComposerHeight(): void {
   if (wasAtBottom) void nextTick(scrollToBottom);
 }
 
-watch(timeline, async () => {
+watch([timeline, () => props.streaming], async () => {
   await nextTick();
   scrollToBottom();
 });
 
 onMounted(() => {
   updateComposerHeight();
-  if (typeof ResizeObserver === "undefined" || !composer.value) return;
-  composerResizeObserver = new ResizeObserver(updateComposerHeight);
-  composerResizeObserver.observe(composer.value);
+  if (typeof ResizeObserver === "undefined") return;
+
+  if (composer.value) {
+    composerResizeObserver = new ResizeObserver(updateComposerHeight);
+    composerResizeObserver.observe(composer.value);
+  }
+  if (messageContent.value) {
+    messageResizeObserver = new ResizeObserver(() => {
+      if (shouldStickToBottom) scrollToBottom();
+    });
+    messageResizeObserver.observe(messageContent.value);
+  }
 });
 
-onBeforeUnmount(() => composerResizeObserver?.disconnect());
+onBeforeUnmount(() => {
+  composerResizeObserver?.disconnect();
+  messageResizeObserver?.disconnect();
+});
 </script>
 
 <template>
@@ -67,10 +104,12 @@ onBeforeUnmount(() => composerResizeObserver?.disconnect());
       ref="messageViewport"
       class="h-full min-h-0 overflow-y-auto overscroll-contain"
       data-slot="chat-messages"
+      @scroll="updateScrollAnchor"
     >
       <div
+        ref="messageContent"
         class="mx-auto flex min-h-full w-full max-w-3xl flex-col pt-6"
-        :style="messageContentStyle"
+        data-slot="chat-message-content"
       >
         <div
           v-if="loading"
@@ -85,7 +124,13 @@ onBeforeUnmount(() => composerResizeObserver?.disconnect());
           <p class="text-sm font-medium text-foreground">暂无消息</p>
           <p class="text-sm text-muted-foreground">发送一条消息开始会话。</p>
         </div>
-        <MessageList v-else :messages="timeline.messages" />
+        <MessageList v-else :messages="timeline.messages" :streaming="props.streaming" />
+        <div
+          class="shrink-0"
+          data-slot="chat-bottom-spacer"
+          :style="bottomSpacerStyle"
+          aria-hidden="true"
+        ></div>
       </div>
     </div>
 

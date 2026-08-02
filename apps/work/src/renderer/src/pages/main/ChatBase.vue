@@ -382,7 +382,7 @@ function removeQueuedMessage(messageId: string): void {
 
     <div class="min-h-0 flex-1 overflow-hidden">
       <RouterView v-slot="{ Component }">
-        <component :is="Component">
+        <component :is="Component" :streaming="currentSessionStreaming">
           <QueuedMessageList
             v-if="queuedMessages.length > 0"
             :messages="queuedMessages"

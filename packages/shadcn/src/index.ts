@@ -1,4 +1,3 @@
-export { Shimmer } from "./components/ai-elements/shimmer";
 export { Button, buttonVariants } from "./components/ui/button";
 export type { ButtonVariants } from "./components/ui/button";
 export { Badge, badgeVariants } from "./components/ui/badge";
