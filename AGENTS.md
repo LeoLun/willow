@@ -22,6 +22,19 @@ tests.
 - `pnpm format` formats supported files with Oxfmt; `pnpm format:check` verifies formatting without writing.
 - `pnpm --filter @willow/core test` runs the Vitest suite once.
 
+## Development Client Identification
+
+When inspecting or manually verifying the client started by `pnpm dev`, always target this
+repository's Electron executable by its full path: `<repo>/node_modules/electron/dist/Electron.app`.
+Confirm that the renderer URL uses `localhost:5173` and, when process details are available, that
+the renderer has `--app-path=<repo>/apps/work` and uses the `com.willow.work-dev` user-data directory.
+
+Do not identify the development client by the application name `Willow`, the Bundle ID
+`com.willow.work`, or `/Applications/Willow.app`. Multiple installed, packaged, mounted, and
+development builds share those identifiers, and ambiguous matching can open an installed build
+whose renderer is loaded from `Application Support/.../app.asar`. Use an installed or packaged
+Willow build only when the task explicitly requires installation, packaging, or update validation.
+
 ## Coding Style & Naming Conventions
 
 Write strict TypeScript and ESM. Oxfmt enforces 2-space indentation, 100-column lines, double quotes, semicolons, trailing commas, and sorted imports. Prefer workspace imports such as `@willow/core` over long relative paths.
