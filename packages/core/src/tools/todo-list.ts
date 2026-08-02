@@ -94,12 +94,36 @@ export function renderTodoList(todos: readonly TodoItem[], title = "Current todo
 export class TodoListTool extends ToolBase<typeof todoListSchema, TodoListToolDetails> {
   readonly name = TODO_LIST_TOOL_NAME;
   readonly label = "Todo List";
-  readonly description = `Use this tool to maintain a structured TODO list for multi-step work.
+  readonly description = `Use this tool to maintain a structured TODO list while working through a
+multi-step task. Use it proactively when progress tracking helps, especially for long-running
+investigations and implementation work spanning several tool calls.
 
-Call it with todos to replace the full list, with an empty array to clear the list, or omit todos
-to read the current list. Keep titles short and actionable. Before starting tracked work, mark
-exactly one item in_progress. Mark finished work done immediately and avoid updates when nothing
-meaningful changed. Do not use this tool for trivial or purely conversational requests.`;
+When to use:
+- Multi-step tasks that span several tool calls.
+- Investigations across a large codebase.
+- Planning a sequence of edits before making them.
+- New multi-step instructions whose requirements should be tracked explicitly.
+
+When not to use:
+- Single-shot work that completes in one or two tool calls.
+- Trivial requests where tracking adds no clarity.
+- Purely conversational or informational replies.
+
+How to use:
+- Pass todos to replace the full list, omit todos to read it, or pass an empty array to clear it.
+- Keep titles short and actionable.
+- Before starting tracked work, mark exactly one item in_progress.
+- Mark an item done immediately after fully completing it; do not batch completions at the end.
+- Never mark an item done while tests are failing, work is partial, errors remain unresolved, or
+  required files or dependencies are missing.
+- If blocked, keep the blocked item in_progress or add a pending item describing what must be
+  resolved.
+
+Avoid churn:
+- Update the list only after meaningful progress; do not call this tool when nothing changed.
+- If the current state is uncertain, read the list before updating it.
+- If no available tool can move the work forward, explain the blocker to the user instead of
+  repeatedly reordering the same items.`;
   readonly parameters = todoListSchema;
   readonly executionMode = "sequential" as const;
   private todos: TodoItem[];
