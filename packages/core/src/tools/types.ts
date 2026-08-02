@@ -1,4 +1,5 @@
 import type { TruncationResult } from "@earendil-works/pi-agent-core";
+import type { TodoItem, TodoListToolDetails } from "./todo-list.js";
 
 export const TOOL_NAMES = [
   "bash",
@@ -8,6 +9,7 @@ export const TOOL_NAMES = [
   "ls",
   "grep",
   "find",
+  "todoList",
   "webfetch",
   "websearch",
 ] as const;
@@ -146,6 +148,7 @@ export type WillowToolDetails =
   | LsToolDetails
   | GrepToolDetails
   | FindToolDetails
+  | TodoListToolDetails
   | WebFetchToolDetails
   | WebSearchToolDetails;
 
@@ -156,4 +159,5 @@ export type ToolRuntimeOptions = {
   requestApproval?: ToolApprovalHandler;
   sandboxPolicy?: SandboxPolicy;
   tavilyApiKey?: string;
+  initialTodoList?: readonly TodoItem[];
 };

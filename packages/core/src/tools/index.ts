@@ -5,6 +5,7 @@ import { createFindTool } from "./find.js";
 import { createGrepTool } from "./grep.js";
 import { createLsTool } from "./ls.js";
 import { createReadTool } from "./read.js";
+import { createTodoListTool } from "./todo-list.js";
 import type { ToolRuntimeOptions } from "./types.js";
 import { createWebFetchTool } from "./webfetch.js";
 import { createWebSearchTool } from "./websearch.js";
@@ -19,6 +20,7 @@ export function createWillowTools(options: ToolRuntimeOptions): AgentTool[] {
     createLsTool(options),
     createGrepTool(options),
     createFindTool(options),
+    createTodoListTool(options),
     createWebFetchTool(options),
   ];
   if (options.tavilyApiKey?.trim()) tools.push(createWebSearchTool(options));
@@ -33,6 +35,7 @@ export * from "./grep.js";
 export * from "./ls.js";
 export * from "./policy.js";
 export * from "./read.js";
+export * from "./todo-list.js";
 export * from "./types.js";
 export * from "./webfetch.js";
 export * from "./websearch.js";

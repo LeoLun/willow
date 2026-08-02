@@ -3,6 +3,7 @@ import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
 import { AGENT_DIR } from "./constant";
 import { createWillowTools } from "./tools/index.js";
+import { restoreTodoList } from "./tools/todo-list.js";
 import type { AgentCoreOptions, AgentHarnessOptions } from "./types";
 import { DefaultResourceLoader } from "./utils/resource-loader";
 
@@ -56,6 +57,7 @@ export class AgentCore {
       : await this.sessionManager.create({});
 
     const { systemPrompt } = await this.loader.reload();
+    const initialTodoList = restoreTodoList(await session.getBranch());
 
     const sandboxPolicy = this.builtinSkills
       ? {
@@ -77,6 +79,7 @@ export class AgentCore {
         requestApproval: options.requestApproval,
         sandboxPolicy,
         tavilyApiKey: this.tavilyApiKey,
+        initialTodoList,
       }),
       systemPrompt: systemPrompt,
       steeringMode: "all",

@@ -30,10 +30,11 @@ import {
 import FileSearchPanel from "@/components/prompt-composer/FileSearchPanel.vue";
 import QueuedMessageList from "@/components/prompt-composer/QueuedMessageList.vue";
 import SkillSearchPanel from "@/components/prompt-composer/SkillSearchPanel.vue";
+import { TodoListPanel } from "@/components/todo-list";
 import ToolApprovalPanel from "@/components/tool/ToolApprovalPanel.vue";
 import { useComposerPreferences } from "@/composables/useComposerPreferences";
 import { useEventBus } from "@/composables/useEventBus";
-import { useMessageStatus } from "@/composables/useMessage";
+import { useMessageStatus, useSessionMessages } from "@/composables/useMessage";
 import { useMessageQueue } from "@/composables/useMessageQueue";
 import { useToolApproval } from "@/composables/useToolApproval";
 import { onProviderConfigurationChanged } from "@/lib/app-state-events";
@@ -75,6 +76,7 @@ const sessionId = computed(() => {
   const value = route.params.sessionId;
   return typeof value === "string" && value.trim() !== "" ? value : undefined;
 });
+const { todoList } = useSessionMessages(workspaceId, sessionId);
 const { currentApproval, resolveApproval } = useToolApproval(workspaceId, sessionId);
 const currentSessionRunning = computed(() => {
   const currentSessionId = sessionId.value;
@@ -118,7 +120,7 @@ const modelOptions = computed<ComposerModelOption[]>(() =>
     provider.models.map((providerModel) => {
       const reasoningEfforts = providerModel.thinkingLevels.map((level) => ({
         value: level,
-        label: level,
+        label: level.charAt(0).toUpperCase() + level.slice(1),
       }));
       return {
         value: { providerId: provider.id, modelId: providerModel.id },
@@ -388,6 +390,7 @@ function removeQueuedMessage(messageId: string): void {
             :messages="queuedMessages"
             @remove="removeQueuedMessage"
           />
+          <TodoListPanel :items="todoList" />
           <Transition name="approval-panel" mode="out-in">
             <ToolApprovalPanel
               v-if="currentApproval"

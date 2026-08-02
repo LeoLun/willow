@@ -76,4 +76,42 @@ describe("AgentCore model setup", () => {
       allowWrite: ["/existing-write", builtinSkillsDirectory],
     });
   });
+
+  it("restores todo state from the selected session branch", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "willow-core-"));
+    temporaryDirectories.push(cwd);
+    const credentials = {
+      read: vi.fn(async () => ({ type: "api_key" as const, key: "sk-test" })),
+      modify: vi.fn(async (_providerId, update) => update({ type: "api_key", key: "sk-test" })),
+      delete: vi.fn(async () => undefined),
+    } satisfies CredentialStore;
+    const models = builtinModels({ credentials });
+    const sessionRepo = new InMemorySessionRepo();
+    const session = await sessionRepo.create();
+    await session.appendMessage({
+      role: "toolResult",
+      toolCallId: "todo-call",
+      toolName: "todoList",
+      content: [{ type: "text", text: "Todo list updated." }],
+      details: {
+        kind: "todoList",
+        msg: "更新任务列表，共 1 项",
+        todos: [{ title: "继续实现", status: "in_progress" }],
+      },
+      isError: false,
+      timestamp: Date.now(),
+    });
+    const core = new AgentCore({ cwd, models, sessionRepo });
+
+    await core.getAgentHarness({
+      model: models.getModel("deepseek", "deepseek-v4-flash")!,
+      metadata: await session.getMetadata(),
+      permissionMode: "full-access",
+    });
+
+    expect(capturedToolOptions).toHaveLength(1);
+    expect(capturedToolOptions[0].initialTodoList).toEqual([
+      { title: "继续实现", status: "in_progress" },
+    ]);
+  });
 });

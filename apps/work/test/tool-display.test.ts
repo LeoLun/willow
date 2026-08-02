@@ -19,6 +19,9 @@ describe("tool display summaries", () => {
     ["find", { pattern: "**/*.ts" }, "搜索文件 **/*.ts"],
     ["webfetch", { url: "https://example.com/docs" }, "抓取网页 https://example.com/docs"],
     ["websearch", { query: "Willow 最新消息" }, "搜索 Willow 最新消息"],
+    ["todoList", {}, "读取任务列表"],
+    ["todoList", { todos: [] }, "清空任务列表"],
+    ["todoList", { todos: [{ title: "实现工具", status: "in_progress" }] }, "更新任务列表 · 1 项"],
   ])("formats %s calls", (name, input, expected) => {
     expect(formatToolCallTitle(name, input)).toBe(expected);
   });
@@ -53,6 +56,12 @@ describe("tool display summaries", () => {
         query: "Willow 最新消息",
       }),
     ).toBe("搜索 Willow 最新消息");
+    expect(
+      formatToolResultTitle({
+        kind: "todoList",
+        todos: [{ title: "实现工具", status: "done" }],
+      }),
+    ).toBe("更新任务列表 · 1 项");
   });
 
   it("prefers the tool-provided summary and removes it from expanded details", () => {

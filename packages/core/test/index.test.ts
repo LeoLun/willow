@@ -11,6 +11,7 @@ describe("core exports", () => {
       "ls",
       "grep",
       "find",
+      "todoList",
       "webfetch",
       "websearch",
     ]);

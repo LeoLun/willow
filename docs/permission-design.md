@@ -5,7 +5,7 @@
 本文描述 Willow Agent 文件工具的权限模型、执行边界、审批链路和失败语义，作为后续扩展工具、
 审查安全边界及排查审批问题的依据。
 
-当前系统向 Agent 注册以下九个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
+当前系统向 Agent 注册以下十个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
 
 - `bash`：执行 shell 命令；
 - `read`：读取文本文件；
@@ -14,6 +14,7 @@
 - `ls`：列出目录的直接子项；
 - `grep`：搜索文件内容；
 - `find`：按 glob 搜索文件。
+- `todoList`：维护当前会话分支的结构化任务进度；
 - `webfetch`：抓取 HTTP/S 网页并转换为文本、Markdown 或 HTML。
 - `websearch`：通过固定的 Tavily Search API 查询实时网络信息。
 
@@ -154,6 +155,7 @@ type ToolApprovalRequest = {
 | `webfetch` 请求拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
 | `websearch` 请求固定 Tavily 域名 | 配置 Key 后直接请求 | 配置 Key 后直接请求 | 直接请求 |
 | `websearch` 命中拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
+| `todoList` 读写会话内状态 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 内置技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区外写入 | 执行前弹窗 | AI 通过后写入，否则转用户审批 | 直接执行 |
@@ -322,6 +324,16 @@ Bearer Authorization Header，不写入工具输出、details、会话或日志�
 `delegate-approval` 不为每次搜索重复弹出域名审批。两种沙箱模式仍检查
 `SandboxPolicy.deniedDomains`，显式拒绝 `api.tavily.com` 时在发出请求前硬拒绝；`full-access`
 与其他工具一致跳过该策略。搜索保留参数校验、25 秒超时、AbortSignal 和稳定 HTTP 错误语义。
+
+### 8.3 `todoList` 会话状态边界
+
+`todoList` 只维护当前 Agent Harness 中的结构化任务列表，不读取文件、不访问网络，也不启动外部
+应用，因此三种权限模式下均可直接执行，不触发审批。工具调用省略 `todos` 时读取当前列表，传入
+数组时整表替换，传入空数组时清空。
+
+每次成功结果都在 tool result details 中保存完整列表。创建新的 Harness 时，Core 从当前 session
+分支最后一个结构有效、执行成功的 `todoList` 结果恢复状态；因此刷新、继续会话和分支操作沿用
+现有消息持久化语义，无需额外数据库表或会话白名单。
 
 ## 9. 端到端权限传递
 
@@ -514,11 +526,13 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 13. `webfetch` 初始请求和跨域重定向逐跳授权、格式转换、大小限制、超时和中止。
 14. `websearch` 的条件注册、固定域名拒绝、Bearer 鉴权、参数校验、响应解析、超时、中止和密钥
     不泄漏。
+15. `todoList` 的读取、整表替换、清空、顺序执行、历史恢复和损坏结果忽略。
 
 Core 测试位于
 [`packages/core/test/tools.test.ts`](../packages/core/test/tools.test.ts) 和
 [`packages/core/test/webfetch.test.ts`](../packages/core/test/webfetch.test.ts)、
-[`packages/core/test/websearch.test.ts`](../packages/core/test/websearch.test.ts)，主进程审批测试位于
+[`packages/core/test/websearch.test.ts`](../packages/core/test/websearch.test.ts) 和
+[`packages/core/test/todo-list.test.ts`](../packages/core/test/todo-list.test.ts)，主进程审批测试位于
 [`apps/work/test/tool-approval.test.ts`](../apps/work/test/tool-approval.test.ts)。
 
 ## 14. 后续演进建议

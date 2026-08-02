@@ -72,6 +72,21 @@ function assistantMessage(text: string, timestamp: number): AgentMessage {
   });
 }
 
+function todoResultMessage(
+  todos: Array<{ title: string; status: "pending" | "in_progress" | "done" }>,
+  timestamp: number,
+): AgentMessage {
+  return agentMessage({
+    role: "toolResult",
+    toolCallId: `todo-${timestamp}`,
+    toolName: "todoList",
+    content: [{ type: "text", text: "todo result" }],
+    details: { kind: "todoList", msg: "更新任务列表", todos },
+    isError: false,
+    timestamp,
+  });
+}
+
 function messageStart(sessionId: string, text: string, timestamp: number): MessageEventPayload {
   return {
     type: "stream",
@@ -222,6 +237,40 @@ describe("useMessage", () => {
     expect(mounted.messages.timeline.value.messages).toHaveLength(1);
     expect(mounted.messages.timeline.value.messages[0]?.content).toEqual([
       { type: "text", text: "first stream", textSignature: undefined },
+    ]);
+  });
+
+  it("derives todo progress from history and live tool result messages", async () => {
+    const workspaceId = ref<number | undefined>(1);
+    const currentSessionId = nextSessionId("todo-progress");
+    const sessionId = ref<string | undefined>(currentSessionId);
+    mocks.getMessageList.mockResolvedValueOnce({
+      messages: [todoResultMessage([{ title: "分析代码", status: "in_progress" }], 1)],
+    });
+
+    const mounted = mountSessionMessages(workspaceId, sessionId);
+    await flushMessages();
+    expect(mounted.messages.todoList.value).toEqual([{ title: "分析代码", status: "in_progress" }]);
+
+    getMessageListener()({
+      type: "stream",
+      sessionId: currentSessionId,
+      event: streamEvent({
+        type: "message_start",
+        message: todoResultMessage(
+          [
+            { title: "分析代码", status: "done" },
+            { title: "实现功能", status: "in_progress" },
+          ],
+          2,
+        ),
+      }),
+    });
+    await nextTick();
+
+    expect(mounted.messages.todoList.value).toEqual([
+      { title: "分析代码", status: "done" },
+      { title: "实现功能", status: "in_progress" },
     ]);
   });
 

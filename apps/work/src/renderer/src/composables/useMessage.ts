@@ -19,6 +19,7 @@ import {
   createMessageTimeline,
   type MessageTimeline,
 } from "@/components/message-list";
+import { getTodoListFromMessages } from "@/components/todo-list";
 import { electronAPI } from "@/lib/ipc";
 import { useEventBus } from "./useEventBus";
 import { getToolApprovalRevision, hydrateToolApproval } from "./useToolApproval";
@@ -267,5 +268,8 @@ export function useSessionMessages(
   return {
     timeline: computed(() => current.value?.entry.timeline.value ?? emptyTimeline),
     loading: computed(() => current.value?.entry.loading.value ?? false),
+    todoList: computed(() =>
+      getTodoListFromMessages(current.value?.entry.timeline.value.messages ?? []),
+    ),
   };
 }

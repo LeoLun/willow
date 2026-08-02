@@ -8,6 +8,7 @@ import {
   SquareTerminalIcon,
   BookOpenTextIcon,
   GlobeIcon,
+  ListTodoIcon,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -60,6 +61,12 @@ export function formatToolCallTitle(name: string, args: unknown): string {
       return `抓取网页 ${text(input.url)}`;
     case "websearch":
       return `搜索 ${text(input.query)}`;
+    case "todoList":
+      return !Array.isArray(input.todos)
+        ? "读取任务列表"
+        : input.todos.length === 0
+          ? "清空任务列表"
+          : `更新任务列表 · ${input.todos.length} 项`;
     default:
       return `调用工具 · ${name}`;
   }
@@ -85,6 +92,8 @@ export function formatToolCallIcon(name: string): Component {
       return GlobeIcon;
     case "websearch":
       return SearchIcon;
+    case "todoList":
+      return ListTodoIcon;
     default:
       return WrenchIcon;
   }
@@ -112,6 +121,8 @@ export function formatToolResultTitle(details: unknown): string | undefined {
       return `抓取网页 ${value.finalUrl}`;
     case "websearch":
       return `搜索 ${value.query}`;
+    case "todoList":
+      return `更新任务列表 · ${value.todos?.length ?? 0} 项`;
     default:
       return undefined;
   }

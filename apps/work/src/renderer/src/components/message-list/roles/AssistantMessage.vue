@@ -21,7 +21,7 @@ const props = withDefaults(
     :data-message-role="props.message.role"
     :data-message-status="props.message.status"
   >
-    <div class="flex max-w-[100%] flex-col gap-2 rounded-2xl text-sm text-card-foreground">
+    <div class="flex w-full flex-col gap-2 rounded-2xl text-sm text-card-foreground">
       <ContentBlocks :message="props.message" markdown />
       <MessageToolbar v-if="props.showToolbar" :message="props.message" />
     </div>
