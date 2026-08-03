@@ -3,6 +3,7 @@ import {
   formatToolDetails,
   formatToolCallTitle,
   formatToolResultTitle,
+  getAskUserDetails,
   getSafeExternalUrl,
   getSafeFaviconUrl,
   getWebSearchDetails,
@@ -17,11 +18,13 @@ describe("tool display summaries", () => {
     ["ls", { path: "src" }, "查询 src"],
     ["grep", { pattern: "needle" }, "搜索内容 /needle/"],
     ["find", { pattern: "**/*.ts" }, "搜索文件 **/*.ts"],
+    ["processList", { filter: "kdocs-cli" }, "查看进程 · kdocs-cli"],
     ["webfetch", { url: "https://example.com/docs" }, "抓取网页 https://example.com/docs"],
     ["websearch", { query: "Willow 最新消息" }, "搜索 Willow 最新消息"],
     ["todoList", {}, "读取任务列表"],
     ["todoList", { todos: [] }, "清空任务列表"],
     ["todoList", { todos: [{ title: "实现工具", status: "in_progress" }] }, "更新任务列表 · 1 项"],
+    ["askUser", { questions: [{}, {}] }, "询问 2 个问题"],
   ])("formats %s calls", (name, input, expected) => {
     expect(formatToolCallTitle(name, input)).toBe(expected);
   });
@@ -56,12 +59,33 @@ describe("tool display summaries", () => {
         query: "Willow 最新消息",
       }),
     ).toBe("搜索 Willow 最新消息");
+    expect(formatToolResultTitle({ kind: "processList", filter: "kdocs-cli" })).toBe(
+      "查看进程 · kdocs-cli",
+    );
     expect(
       formatToolResultTitle({
         kind: "todoList",
         todos: [{ title: "实现工具", status: "done" }],
       }),
     ).toBe("更新任务列表 · 1 项");
+    expect(formatToolResultTitle({ kind: "askUser", questions: [{}, {}] })).toBe("询问 2 个问题");
+  });
+
+  it("validates askUser details for the dedicated renderer", () => {
+    const details = {
+      kind: "askUser",
+      msg: "询问 1 个问题",
+      questions: [
+        {
+          header: "实现",
+          question: "选择实现方式？",
+          options: [],
+          answers: ["方案 A"],
+        },
+      ],
+    };
+    expect(getAskUserDetails(details)).toEqual(details);
+    expect(getAskUserDetails({ ...details, questions: [{ question: 1 }] })).toBeUndefined();
   });
 
   it("prefers the tool-provided summary and removes it from expanded details", () => {

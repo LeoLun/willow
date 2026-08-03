@@ -19,6 +19,8 @@ export type SandboxGrants = {
   writePaths: string[];
   domains: string[];
   allowAppleEvents: boolean;
+  allowLocalBinding: boolean;
+  allowPty: boolean;
 };
 
 export type PreparedSandboxCommand = {
@@ -35,6 +37,10 @@ function canonicalDirectory(path: string): string {
   return realpathSync(path);
 }
 
+function systemTemporaryDirectories(): string[] {
+  return unique([canonicalDirectory(tmpdir()), canonicalDirectory("/tmp")]);
+}
+
 export function createSandboxRuntimeConfig(
   cwd: string,
   policy: SandboxPolicy | undefined,
@@ -43,27 +49,32 @@ export function createSandboxRuntimeConfig(
 ): SandboxRuntimeConfig {
   const canonicalHome = canonicalDirectory(homedir());
   const globalSkillsDirectory = resolveGlobalSkillsDirectory(agentDir);
+  const temporaryDirectories = systemTemporaryDirectories();
 
   return {
     network: {
       allowedDomains: unique([...(policy?.allowedDomains ?? []), ...grants.domains]),
       deniedDomains: unique(policy?.deniedDomains ?? []),
-      strictAllowlist: true,
-      allowLocalBinding: false,
+      // The callback records unknown hosts while still rejecting the first attempt.
+      // Strict mode would skip that callback, so Willow could not request approval.
+      strictAllowlist: false,
+      allowLocalBinding: grants.allowLocalBinding,
       allowUnauthenticatedSocksProxy: false,
     },
     filesystem: {
       denyRead: [canonicalHome],
       allowRead: unique([
         canonicalDirectory(cwd),
-        canonicalDirectory(tmpdir()),
+        ...temporaryDirectories,
         ...(globalSkillsDirectory ? [globalSkillsDirectory] : []),
         ...sandboxPolicyPaths(cwd, policy?.allowRead),
+        ...sandboxPolicyPaths(cwd, policy?.allowWrite),
         ...grants.readPaths,
+        ...grants.writePaths,
       ]),
       allowWrite: unique([
         canonicalDirectory(cwd),
-        canonicalDirectory(tmpdir()),
+        ...temporaryDirectories,
         ...(globalSkillsDirectory ? [globalSkillsDirectory] : []),
         ...sandboxPolicyPaths(cwd, policy?.allowWrite),
         ...grants.writePaths,
@@ -77,6 +88,7 @@ export function createSandboxRuntimeConfig(
     enableWeakerNestedSandbox: false,
     enableWeakerNetworkIsolation: false,
     allowAppleEvents: grants.allowAppleEvents,
+    allowPty: grants.allowPty,
     allowBrowserProcess: false,
   };
 }

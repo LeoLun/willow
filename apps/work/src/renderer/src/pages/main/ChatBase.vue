@@ -8,6 +8,7 @@ import type {
   SkillInfo,
   ThinkingLevel,
   ToolApprovalDecision,
+  AskUserAnswers,
 } from "@shared/api";
 import { MESSAGE_EVENT } from "@shared/constants";
 import { ShieldCheckIcon, ShieldQuestionIcon, UserCheckIcon } from "lucide-vue-next";
@@ -32,11 +33,13 @@ import QueuedMessageList from "@/components/prompt-composer/QueuedMessageList.vu
 import SkillSearchPanel from "@/components/prompt-composer/SkillSearchPanel.vue";
 import { TodoListPanel } from "@/components/todo-list";
 import ToolApprovalPanel from "@/components/tool/ToolApprovalPanel.vue";
+import UserQuestionPanel from "@/components/tool/UserQuestionPanel.vue";
 import { useComposerPreferences } from "@/composables/useComposerPreferences";
 import { useEventBus } from "@/composables/useEventBus";
 import { useMessageStatus, useSessionMessages } from "@/composables/useMessage";
 import { useMessageQueue } from "@/composables/useMessageQueue";
 import { useToolApproval } from "@/composables/useToolApproval";
+import { useUserQuestion } from "@/composables/useUserQuestion";
 import { onProviderConfigurationChanged } from "@/lib/app-state-events";
 import { electronAPI } from "@/lib/ipc";
 
@@ -78,6 +81,7 @@ const sessionId = computed(() => {
 });
 const { todoList } = useSessionMessages(workspaceId, sessionId);
 const { currentApproval, resolveApproval } = useToolApproval(workspaceId, sessionId);
+const { currentQuestion, resolveQuestion } = useUserQuestion(workspaceId, sessionId);
 const currentSessionRunning = computed(() => {
   const currentSessionId = sessionId.value;
   return currentSessionId ? isSessionRunning(currentSessionId) : false;
@@ -205,6 +209,12 @@ async function decideApproval(decision: ToolApprovalDecision): Promise<void> {
   const approval = currentApproval.value;
   if (!approval) throw new Error("审批请求已失效");
   await resolveApproval(approval.approvalId, decision);
+}
+
+async function answerQuestion(answers?: AskUserAnswers): Promise<void> {
+  const question = currentQuestion.value;
+  if (!question) throw new Error("问题请求已失效");
+  await resolveQuestion(question.requestId, answers);
 }
 
 async function loadModels(): Promise<void> {
@@ -392,8 +402,14 @@ function removeQueuedMessage(messageId: string): void {
           />
           <TodoListPanel :items="todoList" />
           <Transition name="approval-panel" mode="out-in">
+            <UserQuestionPanel
+              v-if="currentQuestion"
+              :key="currentQuestion.requestId"
+              :request="currentQuestion"
+              :on-submit="answerQuestion"
+            />
             <ToolApprovalPanel
-              v-if="currentApproval"
+              v-else-if="currentApproval"
               :key="currentApproval.approvalId"
               :request="currentApproval"
               :on-decision="decideApproval"

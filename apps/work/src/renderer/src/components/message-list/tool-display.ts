@@ -1,4 +1,4 @@
-import type { WebSearchToolDetails, WillowToolDetails } from "@willow/core";
+import type { AskUserToolDetails, WebSearchToolDetails, WillowToolDetails } from "@willow/core";
 import {
   WrenchIcon,
   FilePlusIcon,
@@ -9,6 +9,8 @@ import {
   BookOpenTextIcon,
   GlobeIcon,
   ListTodoIcon,
+  MessageCircleQuestionIcon,
+  ActivityIcon,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -57,6 +59,8 @@ export function formatToolCallTitle(name: string, args: unknown): string {
       return `搜索内容 /${text(input.pattern, "")}/`;
     case "find":
       return `搜索文件 ${text(input.pattern)}`;
+    case "processList":
+      return input.filter ? `查看进程 · ${text(input.filter)}` : "查看系统进程";
     case "webfetch":
       return `抓取网页 ${text(input.url)}`;
     case "websearch":
@@ -67,6 +71,8 @@ export function formatToolCallTitle(name: string, args: unknown): string {
         : input.todos.length === 0
           ? "清空任务列表"
           : `更新任务列表 · ${input.todos.length} 项`;
+    case "askUser":
+      return `询问 ${Array.isArray(input.questions) ? input.questions.length : 0} 个问题`;
     default:
       return `调用工具 · ${name}`;
   }
@@ -88,12 +94,16 @@ export function formatToolCallIcon(name: string): Component {
       return SearchIcon;
     case "find":
       return SearchIcon;
+    case "processList":
+      return ActivityIcon;
     case "webfetch":
       return GlobeIcon;
     case "websearch":
       return SearchIcon;
     case "todoList":
       return ListTodoIcon;
+    case "askUser":
+      return MessageCircleQuestionIcon;
     default:
       return WrenchIcon;
   }
@@ -117,15 +127,41 @@ export function formatToolResultTitle(details: unknown): string | undefined {
       return `搜索内容 /${value.pattern}/`;
     case "find":
       return `搜索文件 ${value.pattern}`;
+    case "processList":
+      return value.filter ? `查看进程 · ${value.filter}` : "查看系统进程";
     case "webfetch":
       return `抓取网页 ${value.finalUrl}`;
     case "websearch":
       return `搜索 ${value.query}`;
     case "todoList":
       return `更新任务列表 · ${value.todos?.length ?? 0} 项`;
+    case "askUser":
+      return `询问 ${value.questions?.length ?? 0} 个问题`;
     default:
       return undefined;
   }
+}
+
+export function getAskUserDetails(details: unknown): AskUserToolDetails | undefined {
+  const value = asRecord(details);
+  if (
+    value.kind !== "askUser" ||
+    typeof value.msg !== "string" ||
+    !Array.isArray(value.questions)
+  ) {
+    return undefined;
+  }
+  const valid = value.questions.every((entry) => {
+    const question = asRecord(entry);
+    return (
+      typeof question.question === "string" &&
+      typeof question.header === "string" &&
+      Array.isArray(question.options) &&
+      Array.isArray(question.answers) &&
+      question.answers.every((answer) => typeof answer === "string")
+    );
+  });
+  return valid ? (value as unknown as AskUserToolDetails) : undefined;
 }
 
 export function formatToolDetails(details: unknown): string {

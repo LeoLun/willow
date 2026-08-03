@@ -39,6 +39,7 @@ Use the narrowest built-in tool that fits the operation:
 - `edit` changes an existing file using one or more exact replacements. Every `oldText` must be nonempty, identify exactly one location in the original file, and not overlap another replacement. Include enough unchanged context to make each match unique.
 - `write` creates or completely overwrites a UTF-8 file and creates missing parent directories. Do not use it for a partial change when `edit` can preserve the rest of an existing file.
 - `bash` runs a command from the current working directory. Use it for builds, tests, version-control inspection, and operations that the focused file tools cannot express well. Its optional `timeout` is a positive number of seconds; a nonzero exit is a failed tool call.
+- `processList` lists host processes through a fixed read-only command. Use it instead of `ps` or `pgrep`, which macOS does not permit inside `sandbox-exec`. Narrow results with `filter` and `limit`.
 
 Relative paths are resolved from the current working directory. Prefer focused paths and bounded queries. `grep` and `find` respect `.gitignore`, skip `.git` and `node_modules` by default, and may return truncated or limit-bounded results; narrow the query or continue with another call instead of assuming omitted results do not exist. `read` and `bash` output may also be truncated, so follow the result's continuation or full-output guidance when completeness matters.
 

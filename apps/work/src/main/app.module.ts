@@ -19,6 +19,7 @@ import { EventController } from "./controllers/event.controller";
 import { SearchFilesController } from "./controllers/file-search/search.file-search.controller";
 import { GetMessageListController } from "./controllers/message/get-list.message.controller";
 import { ResolveToolApprovalController } from "./controllers/message/resolve-tool-approval.message.controller";
+import { ResolveUserQuestionController } from "./controllers/message/resolve-user-question.message.controller";
 import { SendMessageController } from "./controllers/message/send.message.controller";
 import { StopMessageController } from "./controllers/message/stop.message.controller";
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
@@ -67,6 +68,7 @@ import { TavilyService } from "./service/tavily.service";
 import { TitleService } from "./service/title.service";
 import { ToolApprovalService } from "./service/tool-approval.service";
 import { UserConfigService } from "./service/user-config.service";
+import { UserQuestionService } from "./service/user-question.service";
 import { WorkspaceService } from "./service/workspace.service";
 import { configureMainWindowBounds, MainWindow } from "./window/main.window";
 
@@ -106,6 +108,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     FileSearchService,
     MessageService,
     ToolApprovalService,
+    UserQuestionService,
     ProviderCatalogService,
     UserConfigService,
     WorkspaceService,
@@ -143,6 +146,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     StopMessageController,
     GetMessageListController,
     ResolveToolApprovalController,
+    ResolveUserQuestionController,
     GetWorkspaceListController,
     CreateWorkspaceController,
     SelectWorkspaceDirectoryController,

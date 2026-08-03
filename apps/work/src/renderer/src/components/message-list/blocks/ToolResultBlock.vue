@@ -12,6 +12,7 @@ import {
   formatToolResultTitle,
 } from "../tool-display";
 import type { Message, ToolCallContent } from "../types";
+import AskUserResultBlock from "./AskUserResultBlock.vue";
 import ContentBlocks from "./ContentBlocks.vue";
 import WebSearchResultBlock from "./WebSearchResultBlock.vue";
 
@@ -29,6 +30,15 @@ const isWebSearch = computed(
       props.result.details !== null &&
       "kind" in props.result.details &&
       props.result.details.kind === "websearch"),
+);
+const isAskUser = computed(
+  () =>
+    props.toolCall?.name === "askUser" ||
+    props.result?.toolName === "askUser" ||
+    (typeof props.result?.details === "object" &&
+      props.result.details !== null &&
+      "kind" in props.result.details &&
+      props.result.details.kind === "askUser"),
 );
 const summary = computed(
   () =>
@@ -52,6 +62,7 @@ const formattedDetails = computed(() =>
 
 <template>
   <WebSearchResultBlock v-if="isWebSearch" :tool-call="props.toolCall" :result="props.result" />
+  <AskUserResultBlock v-else-if="isAskUser" :tool-call="props.toolCall" :result="props.result" />
   <Collapsible
     v-else
     v-model:open="open"

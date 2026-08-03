@@ -66,7 +66,9 @@ describe("AiToolApprovalService", () => {
   });
 
   it("approves only a strict allow response and sends bounded task context", async () => {
-    prompt.mockResolvedValue(response('{"decision":"allow","reason":" Required for the task. "}'));
+    prompt.mockResolvedValue(
+      response('{"decision":"allow","reason":" 此操作是完成任务所必需的。 "}'),
+    );
 
     await expect(
       service.review({
@@ -76,7 +78,7 @@ describe("AiToolApprovalService", () => {
         userMessage: "Fetch the requested URL",
         request,
       }),
-    ).resolves.toEqual({ status: "approved", reason: "Required for the task." });
+    ).resolves.toEqual({ status: "approved", reason: "此操作是完成任务所必需的。" });
     expect(getSimpleAgent).toHaveBeenCalledWith(
       expect.objectContaining({ source: "approval", workspaceId: 1, sessionId: "session" }),
     );
@@ -92,7 +94,7 @@ describe("AiToolApprovalService", () => {
 
   it("returns a normalized rejection reason for user fallback", async () => {
     prompt.mockResolvedValue(
-      response('{"decision":"deny","reason":"Too broad.\\n  Ask the user."}'),
+      response('{"decision":"deny","reason":"操作范围过大。\\n  请由用户确认。"}'),
     );
 
     await expect(
@@ -105,7 +107,24 @@ describe("AiToolApprovalService", () => {
       }),
     ).resolves.toEqual({
       status: "rejected",
-      reason: "Too broad. Ask the user.",
+      reason: "操作范围过大。 请由用户确认。",
+    });
+  });
+
+  it("fails closed when the model does not explain its decision in Chinese", async () => {
+    prompt.mockResolvedValue(response('{"decision":"deny","reason":"Too broad."}'));
+
+    await expect(
+      service.review({
+        workspaceId: 1,
+        sessionId: "session",
+        workspacePath: "/workspace",
+        userMessage: "Clean files",
+        request,
+      }),
+    ).resolves.toEqual({
+      status: "failed",
+      reason: "AI 审批未使用中文说明理由，请由用户确认。",
     });
   });
 

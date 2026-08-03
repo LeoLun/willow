@@ -1,5 +1,6 @@
 import type { SessionMetadata, SessionRepo, Skill } from "@earendil-works/pi-agent-core";
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
+import type { AskUserHandler } from "./tools/ask-user.js";
 import type { PermissionMode, SandboxPolicy, ToolApprovalHandler } from "./tools/types.js";
 
 export interface AgentOptions {
@@ -28,6 +29,7 @@ export type AgentHarnessOptions = {
   metadata?: SessionMetadata;
   permissionMode?: PermissionMode;
   requestApproval?: ToolApprovalHandler;
+  requestUser?: AskUserHandler;
   sandboxPolicy?: SandboxPolicy;
 };
 

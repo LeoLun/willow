@@ -5,7 +5,7 @@
 本文描述 Willow Agent 文件工具的权限模型、执行边界、审批链路和失败语义，作为后续扩展工具、
 审查安全边界及排查审批问题的依据。
 
-当前系统向 Agent 注册以下十个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
+当前系统向 Agent 注册以下十二个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
 
 - `bash`：执行 shell 命令；
 - `read`：读取文本文件；
@@ -14,9 +14,11 @@
 - `ls`：列出目录的直接子项；
 - `grep`：搜索文件内容；
 - `find`：按 glob 搜索文件。
+- `processList`：通过固定只读命令列出宿主进程；
 - `todoList`：维护当前会话分支的结构化任务进度；
 - `webfetch`：抓取 HTTP/S 网页并转换为文本、Markdown 或 HTML。
 - `websearch`：通过固定的 Tavily Search API 查询实时网络信息。
+- `askUser`：暂停当前工具调用，通过桌面端向用户提出 1-4 个结构化问题并等待回答。
 
 核心实现位于 [`packages/core/src/tools/`](../packages/core/src/tools/)，桌面应用的 AI 初审、用户审批
 服务与界面位于
@@ -39,8 +41,8 @@
    或尚未创建的路径绕过边界。
 5. **单次授权**：AI 或用户批准只对当前工具调用有效，不产生会话白名单或永久规则。
 6. **敏感写入硬拒绝**：`.env`、私钥等敏感模式在沙箱模式下不能通过普通审批放行。
-7. **最小扩权**：shell 获批后只增加当前路径、域名或当前调用所需的 Apple Events 能力，并继续
-   在沙箱中完整重跑。
+7. **最小扩权**：shell 获批后只增加当前路径、域名、Apple Events、localhost 监听或伪终端
+   能力，并继续在沙箱中完整重跑；进程枚举使用独立的固定命令工具，不让任意 shell 裸跑。
 8. **安全失败**：缺少审批回调、对话框关闭、任务中止或无效审批都按拒绝处理。
 9. **模式按消息确定**：权限选择随每次发送消息传递，不持久化为工作区级策略。
 
@@ -62,6 +64,10 @@ type ToolApprovalReason =
   | "outside-workspace-write"
   | "network-domain"
   | "application-launch"
+  | "executable-install"
+  | "process-inspection"
+  | "local-network-listen"
+  | "interactive-terminal"
   | "sandbox-denied";
 ```
 
@@ -102,9 +108,9 @@ type ToolApprovalRequest = {
 - `webfetch` 在每次网络请求前检查严格域名白名单，未允许域名先请求用户批准；
 - `websearch` 仅访问已配置集成的固定域名 `api.tavily.com`，不逐次请求域名批准，但仍硬拒绝
   `deniedDomains` 中显式禁止的 Tavily 域名；
-- 未允许的网络域名、可识别的写路径或结构化的应用启动能力被拒绝后，请求用户批准；
-- 用户允许后，只把该域名、路径或 Apple Events 能力加入当前调用的临时授权，并在沙箱内完整
-  重跑；
+- 未允许的网络域名、可识别的读写路径、结构化的应用启动、localhost 监听或伪终端能力被拒绝
+  后，请求用户批准；
+- 用户允许后，只把该域名、路径或对应能力加入当前调用的临时授权，并在沙箱内完整重跑；
 - `write/edit` 写入工作区外路径前请求批准；
 - `read/ls/grep/find` 读取工作区外路径前请求批准；
 - 敏感写入和无法映射到具体资源的 shell 拒绝不会提供裸跑逃逸；
@@ -146,8 +152,14 @@ type ToolApprovalRequest = {
 | --- | --- | --- | --- |
 | `bash` 可在沙箱内完成 | 沙箱执行 | 沙箱执行 | 直接执行 |
 | `bash` 请求未允许域名 | 允许该域名后在沙箱内重跑 | AI 通过后按域名重跑，否则转用户审批 | 不经过沙箱 |
+| `bash` 读取可识别的未允许路径 | 允许该路径后在沙箱内重跑 | AI 通过后按路径重跑，否则转用户审批 | 不经过沙箱 |
 | `bash` 写入可识别的未允许路径 | 允许该路径后在沙箱内重跑 | AI 通过后按路径重跑，否则转用户审批 | 不经过沙箱 |
+| `bash` 写入 `~/.local/bin` 或 `~/bin` | 以可执行文件安装风险明确审批后重跑 | AI 初审，未明确请求持久化安装时转用户 | 不经过沙箱 |
 | `bash` 请求启动或控制外部应用 | 允许 Apple Events 后在沙箱内重跑 | AI 通过后按当前调用重跑，否则转用户审批 | 不经过沙箱 |
+| `bash` 监听 localhost | 允许当前调用使用回环监听后重跑 | AI 通过后重跑，否则转用户审批 | 不经过沙箱 |
+| `bash` 请求伪终端 | 仅 `interactive: true` 时审批并重跑 | AI 通过后重跑，否则转用户审批 | 直接执行，不额外创建 PTY |
+| `bash` 执行 `ps/pgrep` | 失败并提示改用 `processList` | 同左 | 直接执行 |
+| `processList` 枚举宿主进程 | 执行前请求用户审批 | AI 通过后执行，否则转用户审批 | 直接执行固定命令 |
 | `bash` 未知沙箱拒绝 | 失败，不提供裸跑 | 失败，不提供裸跑 | 不经过沙箱 |
 | `webfetch` 请求允许域名 | 直接请求 | 直接请求 | 直接请求 |
 | `webfetch` 请求未允许域名 | 请求前弹窗 | AI 通过后请求，否则转用户审批 | 直接请求 |
@@ -156,6 +168,7 @@ type ToolApprovalRequest = {
 | `websearch` 请求固定 Tavily 域名 | 配置 Key 后直接请求 | 配置 Key 后直接请求 | 直接请求 |
 | `websearch` 命中拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
 | `todoList` 读写会话内状态 | 直接执行 | 直接执行 | 直接执行 |
+| `askUser` 等待用户回答 | 直接请求用户回答 | 直接请求用户回答 | 直接请求用户回答 |
 | `write/edit` 工作区或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 内置技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区外写入 | 执行前弹窗 | AI 通过后写入，否则转用户审批 | 直接执行 |
@@ -175,15 +188,17 @@ type ToolApprovalRequest = {
 非 `full-access` 模式通过 `@carderne/sandbox-runtime` 生成 macOS Seatbelt Profile，并启动
 受控 HTTP/SOCKS 代理。基础策略为：
 
-- 用户主目录默认禁止读取，再只读放行 canonical workspace、系统临时目录、由
+- 用户主目录默认禁止读取，再只读放行 canonical workspace、Node.js `os.tmpdir()` 返回的系统
+  临时目录、canonical `/tmp`、由
   `AgentCore.agentDir` 解析出的全局 `skills` 目录（默认 `~/.willow/skills`）、由
   `AgentCoreOptions.builtinSkills` 指定的内置技能目录和明确配置路径；
-- 写入只允许 canonical workspace、系统临时目录、全局 `skills` 目录、由
+- 写入只允许 canonical workspace、Node.js `os.tmpdir()` 返回的系统临时目录、canonical
+  `/tmp`、全局 `skills` 目录、由
   `AgentCoreOptions.builtinSkills` 指定的内置技能目录和明确配置路径；
 - `.env`、`.env.*`、`*.pem`、`*.key` 及 runtime mandatory deny 路径禁止写入；
 - 网络采用域名 allowlist，未匹配域名由 runtime ask callback 报告并拒绝；
-- Apple Events、浏览器进程能力、弱嵌套沙箱和弱网络隔离默认关闭；Apple Events 仅能通过当前
-  bash 工具调用的一次性审批开启。
+- Apple Events、localhost 监听、伪终端、浏览器进程能力、弱嵌套沙箱和弱网络隔离默认关闭；
+  前三项只能通过当前 bash 工具调用的一次性审批开启。
 
 `SandboxManager` 是进程级单例，因此 Core 将沙箱初始化、命令执行和 reset 串行化，防止并发
 Harness 的工作区策略互相覆盖。
@@ -195,15 +210,17 @@ Harness 的工作区策略互相覆盖。
 
 ### 6.2 资源拒绝与沙箱内重跑
 
-网络代理 callback 会返回未允许的具体 host。shell 重定向错误和 macOS violation monitor 用于
-提取被拒绝的具体写路径。violation monitor 还会识别 `lsopen`、`appleevent-send` 以及
-LaunchServices/Apple Events 的固定 Mach 服务拒绝。识别到资源或应用启动能力后：
+网络代理 callback 会返回未允许的具体 host。Core 仅在命令失败、stderr 拒绝路径与结构化
+violation 的 canonical path 一致时提取读写目标，避免把 PATH metadata 探测或可伪造输出误判为
+权限请求。violation monitor 还识别 Apple Events、localhost bind/inbound 和伪终端设备拒绝。
+识别到具体资源或能力后：
 
-1. 域名构造 `reason: "network-domain"`，写路径构造
-   `reason: "outside-workspace-write"`，应用启动构造 `reason: "application-launch"`；
+1. 域名、读路径、写路径、用户可执行文件安装、应用启动、localhost 监听和伪终端分别构造明确
+   的审批 reason；
 2. 设置 `mayHavePartialEffects: true`；
 3. 按当前权限模式进入用户审批或 AI 初审；
-4. 获准后只将该 host、canonical path 或 Apple Events 能力加入当前 `toolCallId` 的内存授权；
+4. 获准后只将该 host、canonical path 或对应能力加入当前 `toolCallId` 的内存授权；`allowWrite`
+   同时允许读取同一精确目标，以支持 chmod、metadata 检查和安装后验证；
 5. reset 并按扩展后的策略重新初始化 runtime；
 6. 在新的沙箱中完整重跑原始命令。
 
@@ -213,6 +230,11 @@ Apple Events 是 macOS 提供给 `open` 和 `osascript` 的共同能力，因此
 
 无法识别为具体资源或能力的拒绝作为普通命令错误返回，不再提供脱离沙箱重跑。单个命令最多处理
 16 次资源扩权，防止重定向或恶意命令产生无限审批循环。
+
+`interactive: true` 使用系统 `script` 在沙箱内部创建伪终端，仅用于需要 TTY 检测的命令；Willow
+不把用户键盘输入转发给该终端。`allowLocalBinding` 只开放回环监听/访问，外部网络仍经过域名
+allowlist。macOS 即使在 `(allow default)` profile 下也拒绝沙箱内执行 `/bin/ps`，因此 bash 不为
+进程枚举提供扩权或裸跑重试，而是提示使用固定命令的 `processList`。
 
 ### 6.3 输出、超时与中止
 
@@ -335,6 +357,37 @@ Bearer Authorization Header，不写入工具输出、details、会话或日志�
 分支最后一个结构有效、执行成功的 `todoList` 结果恢复状态；因此刷新、继续会话和分支操作沿用
 现有消息持久化语义，无需额外数据库表或会话白名单。
 
+### 8.4 `askUser` 交互边界
+
+`askUser` 不读取文件、不访问网络，也不受权限模式影响。工具通过 `AgentHarnessOptions.requestUser`
+把问题与当前 `toolCallId` 交给宿主，并等待回答或取消。每次调用可包含 1-4 个问题，每题包含
+2-4 个选项，并可声明多选；桌面端统一补充“其他”自定义回答入口。问题文本在单次调用内必须唯一，
+同一问题的选项标签也必须唯一。
+
+桌面端按 FIFO 展示问题，并按 `workspaceId + sessionId` 隔离状态。派发问题前，主进程先写入
+`willow.user-question` custom entry，保存问题 payload、模型、权限模式和原用户消息；回答或跳过后
+写入对应的 `answered` entry。读取历史时按当前 branch 重放这些 entry，恢复最早的未决询问。
+
+客户端重启后，原问题 Promise 和 Agent Harness 已不存在。用户提交恢复出的询问时，
+`MessageService` 使用持久化上下文重建 Harness，将回答只注入匹配原 `toolCallId` 的一次
+`askUser` 重放，追加缺失的 tool result，然后调用 `continue()` 继续生成。提交接口先返回，续跑在
+后台完成，状态仍通过原消息事件流反馈。
+
+等待期间中止 Agent 时，`AbortSignal` 会把问题持久化为已跳过并释放队列；缺少 `requestUser`
+handler 时工具明确失败。成功结果的 details 保存每个问题及其选择/自定义回答，用于会话中的工具
+详情展示；用户跳过时返回空答案而非推断默认项。
+
+### 8.5 `processList` 进程查看边界
+
+`processList` 不接受可执行文件或任意参数，只能调用固定的
+`/bin/ps -axo pid=,ppid=,user=,etime=,command=`。可选 `filter` 在 Core 内做不区分大小写的文本
+过滤，`limit` 限制为 1-200，默认返回 50 行。`request-approval` 和 `delegate-approval` 在执行前
+以 `process-inspection` 请求单次授权；`full-access` 跳过 Willow 审批。中止信号直接传给固定
+子进程，输出缓冲上限为 2MB。
+
+该工具是 macOS `sandbox-exec` 无法运行 `/bin/ps` 时的窄能力替代，不接受 shell 片段，也不会
+复用 `allowBrowserProcess` 或把任意 bash 命令移到沙箱外执行。
+
 ## 9. 端到端权限传递
 
 权限模式由 renderer 的 Prompt Composer 选择，并随当前消息传递：
@@ -355,6 +408,7 @@ flowchart LR
 - `MessageService` 对缺失值应用 `request-approval` 默认值；
 - 模式在创建本次消息对应的 Agent Harness 时固定；
 - renderer 会保留当前选择供下一条消息使用，但不会写入工作区配置。
+- `askUser` 使用独立的 `requestUser` 回调与用户问题事件，不进入工具权限审批或 AI 初审。
 
 ## 10. 审批生命周期
 
@@ -479,6 +533,8 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 | `full-access` 在非 macOS | 正常创建，受系统进程权限约束 |
 | shell 超时或中止 | 终止进程组并返回错误 |
 | shell 非零退出且非沙箱拒绝 | 作为普通命令错误返回 |
+| bash 请求进程枚举 | 明确提示使用 `processList`，不审批裸跑 |
+| `processList` 未获授权 | 执行固定 `/bin/ps` 前安全拒绝 |
 
 ## 12. 信任边界与非目标
 
@@ -487,6 +543,7 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 明确的非目标和限制：
 
 - 不分析 shell AST，也不在执行前预测命令需要哪些权限；
+- 不允许 bash 在沙箱外运行 `ps/pgrep`；宿主进程枚举仅通过固定参数的 `processList`；
 - 不为单个 shell 子命令授权；资源获批后仍会完整重跑整条命令；
 - Apple Events 获批后对当前工具调用中的完整命令生效，不能限制为只执行 `open`；它也能支持
   `osascript` 控制外部应用，因此必须作为独立能力明确展示；
@@ -527,6 +584,10 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 14. `websearch` 的条件注册、固定域名拒绝、Bearer 鉴权、参数校验、响应解析、超时、中止和密钥
     不泄漏。
 15. `todoList` 的读取、整表替换、清空、顺序执行、历史恢复和损坏结果忽略。
+16. `askUser` 的参数唯一性、回答/跳过结果、FIFO、会话隔离、AbortSignal 清理、未决询问持久化、
+    客户端重启后的工具重放与续跑，以及详情渲染。
+17. bash 读路径、可执行文件安装、localhost、PTY 和噪声 violation 关联，以及 `processList` 的
+    审批、固定参数、过滤、限制与中止。
 
 Core 测试位于
 [`packages/core/test/tools.test.ts`](../packages/core/test/tools.test.ts) 和

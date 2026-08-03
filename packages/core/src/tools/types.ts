@@ -1,4 +1,6 @@
 import type { TruncationResult } from "@earendil-works/pi-agent-core";
+import type { AskUserHandler, AskUserToolDetails } from "./ask-user.js";
+import type { ProcessListToolDetails } from "./process-list.js";
 import type { TodoItem, TodoListToolDetails } from "./todo-list.js";
 
 export const TOOL_NAMES = [
@@ -9,9 +11,11 @@ export const TOOL_NAMES = [
   "ls",
   "grep",
   "find",
+  "processList",
   "todoList",
   "webfetch",
   "websearch",
+  "askUser",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -25,6 +29,10 @@ export type ToolApprovalReason =
   | "outside-workspace-write"
   | "network-domain"
   | "application-launch"
+  | "executable-install"
+  | "process-inspection"
+  | "local-network-listen"
+  | "interactive-terminal"
   | "sandbox-denied";
 
 export type ToolApprovalRequest = {
@@ -148,15 +156,18 @@ export type WillowToolDetails =
   | LsToolDetails
   | GrepToolDetails
   | FindToolDetails
+  | ProcessListToolDetails
   | TodoListToolDetails
   | WebFetchToolDetails
-  | WebSearchToolDetails;
+  | WebSearchToolDetails
+  | AskUserToolDetails;
 
 export type ToolRuntimeOptions = {
   cwd: string;
   agentDir?: string;
   permissionMode: PermissionMode;
   requestApproval?: ToolApprovalHandler;
+  requestUser?: AskUserHandler;
   sandboxPolicy?: SandboxPolicy;
   tavilyApiKey?: string;
   initialTodoList?: readonly TodoItem[];

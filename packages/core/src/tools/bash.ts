@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SandboxViolationEvent } from "@carderne/sandbox-runtime";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import { Type, type Static } from "typebox";
 import { ToolBase, type ToolExecutionContext } from "./base.js";
-import { canonicalMutationPath, isSensitiveWritePath } from "./policy.js";
+import { canonicalMutationPath, isPathInside, isSensitiveWritePath } from "./policy.js";
 import { type SandboxGrants, withPreparedSandbox } from "./sandbox-runtime.js";
 import { throwIfAborted } from "./shared.js";
 import type { BashToolDetails, ToolRuntimeOptions } from "./types.js";
@@ -21,6 +21,12 @@ const bashSchema = Type.Object({
   command: Type.String({ description: "Bash command to execute" }),
   timeout: Type.Optional(
     Type.Number({ description: "Timeout in seconds (optional, no default timeout)" }),
+  ),
+  interactive: Type.Optional(
+    Type.Boolean({
+      description:
+        "Run with pseudo-terminal semantics for commands that require a TTY. User input is not forwarded.",
+    }),
   ),
 });
 
@@ -42,6 +48,20 @@ const APPLICATION_LAUNCH_DENIAL_MARKERS = [
   "mach-lookup com.apple.coreservices.coreservicesd",
   "mach-lookup com.apple.coreservices.quarantine-resolver",
 ] as const;
+const USER_EXECUTABLE_DIRECTORIES = [join(homedir(), ".local", "bin"), join(homedir(), "bin")];
+
+type FilesystemViolation = {
+  operation: string;
+  path: string;
+};
+
+function quoteShellArgument(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+function interactiveCommand(command: string): string {
+  return `/usr/bin/script -q /dev/null /bin/bash -c ${quoteShellArgument(command)}`;
+}
 
 function killProcess(pid: number | undefined): void {
   if (!pid) return;
@@ -155,12 +175,16 @@ async function runSandboxedShell(options: {
   grants: SandboxGrants;
   signal?: AbortSignal;
   onUpdate?: AgentToolUpdateCallback<BashToolDetails>;
+  interactive?: boolean;
 }): Promise<ShellResult> {
+  const sandboxCommand = options.interactive
+    ? interactiveCommand(options.command)
+    : options.command;
   return await withPreparedSandbox(
     {
       cwd: options.cwd,
       agentDir: options.agentDir,
-      command: options.command,
+      command: sandboxCommand,
       policy: options.policy,
       grants: options.grants,
       signal: options.signal,
@@ -184,26 +208,96 @@ async function runSandboxedShell(options: {
   );
 }
 
-function extractViolationWritePath(
+function extractFilesystemViolations(
   violations: readonly SandboxViolationEvent[],
-): string | undefined {
+  access: "read" | "write",
+): FilesystemViolation[] {
+  const matches: FilesystemViolation[] = [];
   for (const violation of violations) {
     const match = violation.line.match(
-      /deny(?:\(\d+\))?\s+file-write[^\s]*\s+(?:"([^"]+)"|([^\s]+))/i,
+      new RegExp(`deny(?:\\(\\d+\\))?\\s+(file-${access}[^\\s]*)\\s+(?:"([^"]+)"|([^\\s]+))`, "i"),
     );
-    const path = match?.[1] ?? match?.[2];
-    if (path?.startsWith("/")) return path;
+    const path = match?.[2] ?? match?.[3];
+    if (match?.[1] && path?.startsWith("/")) {
+      matches.push({ operation: match[1], path });
+    }
+  }
+  return matches;
+}
+
+async function deniedOutputPaths(cwd: string, output: string): Promise<string[]> {
+  const paths: string[] = [];
+  const pattern =
+    /(?:^|\n)[^:\n]+:\s+(?:line \d+:\s+)?([^\n:]+):\s+(?:Operation not permitted|Permission denied)(?=\n|$)/gi;
+  for (const match of output.matchAll(pattern)) {
+    const path = match[1]?.trim();
+    if (!path) continue;
+    try {
+      paths.push(await canonicalMutationPath(cwd, path));
+    } catch {
+      // An unresolvable stderr path cannot safely justify a sandbox grant.
+    }
+  }
+  return [...new Set(paths)];
+}
+
+async function selectFilesystemViolation(
+  cwd: string,
+  result: ShellResult,
+  access: "read" | "write",
+): Promise<FilesystemViolation | undefined> {
+  if (result.exitCode === 0) return undefined;
+  const outputPaths = await deniedOutputPaths(cwd, result.output);
+  if (outputPaths.length === 0) return undefined;
+  for (const violation of extractFilesystemViolations(result.violations ?? [], access)) {
+    const canonicalPath = await canonicalMutationPath(cwd, violation.path);
+    if (outputPaths.includes(canonicalPath)) return { ...violation, path: canonicalPath };
   }
   return undefined;
 }
 
-function extractBlockedWritePath(result: ShellResult): string | undefined {
-  const violationPath = extractViolationWritePath(result.violations ?? []);
-  if (violationPath) return violationPath;
-  const match = result.output.match(
-    /(?:\/bin\/bash|bash|sh): (?:line \d+: )?([^\n:]+): (?:Operation not permitted|Permission denied)/i,
+function hasDeniedOperation(
+  violations: readonly SandboxViolationEvent[],
+  pattern: RegExp,
+): boolean {
+  return violations.some((violation) => {
+    const match = violation.line.match(/deny(?:\(\d+\))?\s+([^\s]+)/i);
+    return match ? pattern.test(match[1]) : false;
+  });
+}
+
+function hasProcessInspectionViolation(
+  violations: readonly SandboxViolationEvent[],
+  output: string,
+): boolean {
+  return (
+    hasDeniedOperation(violations, /^process-info/i) ||
+    (/\/bin\/(?:ps|pgrep): Operation not permitted/i.test(output) &&
+      violations.some((violation) =>
+        /deny(?:\(\d+\))?\s+sysctl-read\s+kern\.iossupportversion/i.test(violation.line),
+      ))
   );
-  return match?.[1]?.trim();
+}
+
+function hasLocalBindingViolation(violations: readonly SandboxViolationEvent[]): boolean {
+  return hasDeniedOperation(violations, /^network-(?:bind|inbound)$/i);
+}
+
+function hasPtyViolation(violations: readonly SandboxViolationEvent[]): boolean {
+  return violations.some(
+    (violation) =>
+      /deny(?:\(\d+\))?\s+file-(?:ioctl|read|write)[^\s]*\s+/i.test(violation.line) &&
+      /\/dev\/(?:ptmx|ttys\w*)/i.test(violation.line),
+  );
+}
+
+async function isUserExecutableInstallPath(cwd: string, path: string): Promise<boolean> {
+  const target = await canonicalMutationPath(cwd, path);
+  for (const directory of USER_EXECUTABLE_DIRECTORIES) {
+    const canonicalDirectory = await canonicalMutationPath(cwd, directory);
+    if (isPathInside(canonicalDirectory, target)) return true;
+  }
+  return false;
 }
 
 function hasApplicationLaunchViolation(violations: readonly SandboxViolationEvent[]): boolean {
@@ -248,6 +342,13 @@ async function formatResult(
   };
 }
 
+function sandboxViolationDiagnostics(result: ShellResult): string {
+  const lines = [...new Set((result.violations ?? []).map((violation) => violation.line))].slice(
+    -10,
+  );
+  return lines.length > 0 ? `\n\nSandbox violations:\n${lines.join("\n")}` : "";
+}
+
 export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
   readonly name = "bash";
   readonly label = "bash";
@@ -282,6 +383,8 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
         writePaths: [],
         domains: [],
         allowAppleEvents: false,
+        allowLocalBinding: false,
+        allowPty: false,
       };
       let approvals = 0;
       while (true) {
@@ -294,6 +397,7 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
           grants,
           signal,
           onUpdate,
+          interactive: input.interactive,
         });
 
         const deniedDomain = result.deniedDomains?.find(
@@ -313,33 +417,8 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
           continue;
         }
 
-        const blockedWritePath = extractBlockedWritePath(result);
-        if (blockedWritePath) {
-          const canonicalPath = await canonicalMutationPath(this.options.cwd, blockedWritePath);
-          if (
-            grants.writePaths.includes(canonicalPath) ||
-            (await isSensitiveWritePath(
-              this.options.cwd,
-              canonicalPath,
-              this.options.sandboxPolicy,
-            ))
-          ) {
-            throw new Error(`Sensitive or hard-blocked write denied for ${canonicalPath}`);
-          }
-          if (approvals >= MAX_SANDBOX_APPROVALS) {
-            throw new Error("Too many sandbox permission requests for one command");
-          }
-          await this.requestPermission(context, {
-            reason: "outside-workspace-write",
-            display: canonicalPath,
-            mayHavePartialEffects: true,
-          });
-          grants.writePaths.push(canonicalPath);
-          approvals += 1;
-          continue;
-        }
-
-        if (!grants.allowAppleEvents && hasApplicationLaunchViolation(result.violations ?? [])) {
+        const violations = result.violations ?? [];
+        if (!grants.allowAppleEvents && hasApplicationLaunchViolation(violations)) {
           if (approvals >= MAX_SANDBOX_APPROVALS) {
             throw new Error("Too many sandbox permission requests for one command");
           }
@@ -352,13 +431,98 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
           approvals += 1;
           continue;
         }
+
+        if (hasProcessInspectionViolation(violations, result.output)) {
+          throw new Error(
+            "Process inspection is unavailable inside the macOS bash sandbox; use the processList tool instead",
+          );
+        }
+
+        if (!grants.allowLocalBinding && hasLocalBindingViolation(violations)) {
+          if (approvals >= MAX_SANDBOX_APPROVALS) {
+            throw new Error("Too many sandbox permission requests for one command");
+          }
+          await this.requestPermission(context, {
+            reason: "local-network-listen",
+            display: input.command,
+            mayHavePartialEffects: true,
+          });
+          grants.allowLocalBinding = true;
+          approvals += 1;
+          continue;
+        }
+
+        if (!grants.allowPty && input.interactive && hasPtyViolation(violations)) {
+          if (approvals >= MAX_SANDBOX_APPROVALS) {
+            throw new Error("Too many sandbox permission requests for one command");
+          }
+          await this.requestPermission(context, {
+            reason: "interactive-terminal",
+            display: input.command,
+            mayHavePartialEffects: true,
+          });
+          grants.allowPty = true;
+          approvals += 1;
+          continue;
+        }
+
+        const blockedRead = await selectFilesystemViolation(this.options.cwd, result, "read");
+        if (blockedRead) {
+          const canonicalPath = blockedRead.path;
+          if (grants.readPaths.includes(canonicalPath)) {
+            throw new Error(
+              `Read grant was insufficient for ${canonicalPath} (${blockedRead.operation})`,
+            );
+          }
+          if (approvals >= MAX_SANDBOX_APPROVALS) {
+            throw new Error("Too many sandbox permission requests for one command");
+          }
+          await this.requestPermission(context, {
+            reason: "outside-workspace-read",
+            display: canonicalPath,
+            mayHavePartialEffects: true,
+          });
+          grants.readPaths.push(canonicalPath);
+          approvals += 1;
+          continue;
+        }
+
+        const blockedWrite = await selectFilesystemViolation(this.options.cwd, result, "write");
+        if (blockedWrite) {
+          const canonicalPath = blockedWrite.path;
+          if (
+            await isSensitiveWritePath(this.options.cwd, canonicalPath, this.options.sandboxPolicy)
+          ) {
+            throw new Error(`Sensitive write denied for ${canonicalPath}`);
+          }
+          if (grants.writePaths.includes(canonicalPath)) {
+            throw new Error(
+              `Write grant was insufficient for ${canonicalPath} (${blockedWrite.operation})`,
+            );
+          }
+          if (approvals >= MAX_SANDBOX_APPROVALS) {
+            throw new Error("Too many sandbox permission requests for one command");
+          }
+          await this.requestPermission(context, {
+            reason: (await isUserExecutableInstallPath(this.options.cwd, canonicalPath))
+              ? "executable-install"
+              : "outside-workspace-write",
+            display: canonicalPath,
+            mayHavePartialEffects: true,
+          });
+          grants.writePaths.push(canonicalPath);
+          approvals += 1;
+          continue;
+        }
         break;
       }
     }
 
     const formatted = await formatResult(input.command, shouldSandbox, result);
     if (result.exitCode !== 0) {
-      throw new Error(`${formatted.text}\n\nCommand exited with code ${result.exitCode}`);
+      throw new Error(
+        `${formatted.text}${sandboxViolationDiagnostics(result)}\n\nCommand exited with code ${result.exitCode}`,
+      );
     }
     return this.buildResponse([{ type: "text", text: formatted.text }], formatted.details);
   }

@@ -45,17 +45,15 @@ function hasCopyableText(message: Message): boolean {
 }
 
 function markFinalAssistant(items: DisplayItem[], start: number, end: number): void {
-  for (let index = end - 1; index >= start; index -= 1) {
-    const item = items[index];
-    if (
-      item?.type === "message" &&
-      item.message.role === "assistant" &&
-      item.message.status === "completed" &&
-      hasCopyableText(item.message)
-    ) {
-      item.showToolbar = true;
-      return;
-    }
+  const item = items[end - 1];
+  if (
+    end > start &&
+    item?.type === "message" &&
+    item.message.role === "assistant" &&
+    item.message.status === "completed" &&
+    hasCopyableText(item.message)
+  ) {
+    item.showToolbar = true;
   }
 }
 

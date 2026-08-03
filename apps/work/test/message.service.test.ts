@@ -10,6 +10,7 @@ import { MessageService } from "../src/main/service/message.service";
 import type { SessionService } from "../src/main/service/session.service";
 import type { TitleService } from "../src/main/service/title.service";
 import type { ToolApprovalService } from "../src/main/service/tool-approval.service";
+import type { UserQuestionService } from "../src/main/service/user-question.service";
 import { MESSAGE_EVENT } from "../src/shared/constants";
 
 const model = { id: "model" } as Model<any>;
@@ -82,6 +83,9 @@ describe("MessageService", () => {
   const requestApproval = vi.fn<ToolApprovalService["request"]>();
   const getPendingApproval = vi.fn<ToolApprovalService["getPendingApproval"]>();
   const resolveApproval = vi.fn<ToolApprovalService["resolve"]>();
+  const requestQuestion = vi.fn<UserQuestionService["request"]>();
+  const getPendingQuestion = vi.fn<UserQuestionService["getPendingQuestion"]>();
+  const resolveQuestion = vi.fn<UserQuestionService["resolve"]>();
 
   const sessionService = {
     getSession,
@@ -100,6 +104,11 @@ describe("MessageService", () => {
     request: requestApproval,
     resolve: resolveApproval,
   } as unknown as ToolApprovalService;
+  const userQuestionService = {
+    getPendingQuestion,
+    request: requestQuestion,
+    resolve: resolveQuestion,
+  } as unknown as UserQuestionService;
 
   let service: MessageService;
 
@@ -116,6 +125,7 @@ describe("MessageService", () => {
       titleService,
       aiToolApprovalService,
       toolApprovalService,
+      userQuestionService,
     );
     findById.mockReturnValue({
       id: 1,
@@ -131,6 +141,7 @@ describe("MessageService", () => {
     });
     getModel.mockReturnValue(model);
     getPendingApproval.mockResolvedValue(undefined);
+    getPendingQuestion.mockResolvedValue(undefined);
   });
 
   it("opens the persisted session and forwards only message stream events", async () => {
@@ -164,6 +175,7 @@ describe("MessageService", () => {
       metadata: expect.objectContaining({ id: "session" }),
       permissionMode: "request-approval",
       requestApproval: expect.any(Function),
+      requestUser: expect.any(Function),
     });
     expect(harness.prompt).toHaveBeenCalledWith("Hello");
     expect(sendEvent).toHaveBeenNthCalledWith(1, MESSAGE_EVENT, {
@@ -317,9 +329,95 @@ describe("MessageService", () => {
     await expect(service.getMessageList(1, "session")).resolves.toEqual({
       messages,
       pendingToolApproval: undefined,
+      pendingUserQuestion: undefined,
     });
     expect(getMessageList).toHaveBeenCalledWith(1, "session");
     expect(getPendingApproval).toHaveBeenCalledWith(1, "session");
+    expect(getPendingQuestion).toHaveBeenCalledWith(1, "session");
+  });
+
+  it("rebuilds and continues a session after answering a persisted question", async () => {
+    const questions = [
+      {
+        header: "范围",
+        question: "处理哪些内容？",
+        options: [
+          { label: "全部", description: "处理全部内容" },
+          { label: "部分", description: "仅处理部分内容" },
+        ],
+      },
+    ];
+    const answers = { "处理哪些内容？": ["全部"] };
+    const execute = vi.fn(async (toolCallId: string) => {
+      const requestUser = getAgentHarness.mock.calls.at(-1)?.[0].requestUser;
+      const replayedAnswers = await requestUser?.({ toolCallId, questions });
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({ answers: replayedAnswers }) }],
+        details: {
+          kind: "askUser",
+          msg: "询问 1 个问题",
+          questions: [{ ...questions[0], answers: replayedAnswers?.[questions[0].question] ?? [] }],
+        },
+      };
+    });
+    const appendMessage = vi.fn(async () => undefined);
+    const continueRun = vi.fn(async () => assistantMessage);
+    const recoveredHarness = createHarness();
+    Object.assign(recoveredHarness.harness as object, {
+      appendMessage,
+      continue: continueRun,
+      getTools: () => [{ name: "askUser", execute }],
+    });
+    getAgentHarness.mockResolvedValue(recoveredHarness.harness);
+    const question = {
+      model: modelConfig,
+      permissionMode: "request-approval" as const,
+      userMessage: "Ask before continuing",
+      payload: {
+        requestId: "question-recovered",
+        workspaceId: 1,
+        sessionId: "session",
+        toolCallId: "ask-call-recovered",
+        questions,
+      },
+    };
+    resolveQuestion.mockResolvedValue({ question, live: false });
+
+    await expect(
+      service.resolveUserQuestion({
+        requestId: question.payload.requestId,
+        workspaceId: question.payload.workspaceId,
+        sessionId: question.payload.sessionId,
+        answers,
+      }),
+    ).resolves.toBe(true);
+
+    expect(resolveQuestion).toHaveBeenCalledWith(
+      1,
+      "session",
+      "question-recovered",
+      answers,
+      "recovered",
+    );
+    await vi.waitFor(() => expect(continueRun).toHaveBeenCalledOnce());
+    expect(execute).toHaveBeenCalledWith("ask-call-recovered", { questions });
+    expect(requestQuestion).not.toHaveBeenCalled();
+    expect(appendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "toolResult",
+        toolCallId: "ask-call-recovered",
+        toolName: "askUser",
+        isError: false,
+        details: expect.objectContaining({
+          questions: [expect.objectContaining({ answers: ["全部"] })],
+        }),
+      }),
+    );
+    expect(sendEvent).toHaveBeenCalledWith(MESSAGE_EVENT, {
+      type: "status",
+      sessionId: "session",
+      status: "completed",
+    });
   });
 
   it("starts title creation for an untitled session", async () => {

@@ -77,6 +77,7 @@ export class AgentCore {
         agentDir: this.agentDir,
         permissionMode,
         requestApproval: options.requestApproval,
+        requestUser: options.requestUser,
         sandboxPolicy,
         tavilyApiKey: this.tavilyApiKey,
         initialTodoList,

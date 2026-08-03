@@ -2,7 +2,7 @@
 
 ## 1. 文档定位
 
-本文说明 `packages/core/src/tools/` 中八个内置工具的注册方式、执行流程、输出结构、中止语义和
+本文说明 `packages/core/src/tools/` 中的内置工具注册方式、执行流程、输出结构、中止语义和
 权限检查实现。
 
 权限模型的规范性定义仍以
@@ -18,7 +18,11 @@
 - `ls`：列出目录的直接子项；
 - `grep`：递归搜索文件内容；
 - `find`：按 glob 递归查找文件。
+- `processList`：通过固定只读命令列出宿主进程；
+- `todoList`：维护当前会话分支的任务列表；
 - `webfetch`：抓取 HTTP/S 网页并转换为文本、Markdown 或 HTML。
+- `websearch`：使用配置的 Tavily 服务搜索；
+- `askUser`：向用户提出结构化问题并等待回答。
 
 ## 2. 工具创建与注册
 
@@ -59,7 +63,10 @@ Harness。`full-access` 不依赖该沙箱，可以继续创建。
   createLsTool(options),
   createGrepTool(options),
   createFindTool(options),
+  createProcessListTool(options),
+  createTodoListTool(options),
   createWebFetchTool(options),
+  // 配置 Tavily Key 时插入 websearch，最后注册 askUser
 ]
 ```
 
@@ -70,7 +77,7 @@ Harness。`full-access` 不依赖该沙箱，可以继续创建。
 - `execute(toolCallId, input, signal, onUpdate?)`；
 - 供 Work App 展示和统计的结构化 `details`。
 
-八个内置工具都继承 `ToolBase`。基类的公共 `execute()` 固定按以下顺序编排调用：
+所有内置工具都继承 `ToolBase`。基类的公共 `execute()` 固定按以下顺序编排调用：
 
 1. 检查 `AbortSignal`；
 2. 使用工具的 TypeBox Schema 校验输入结构；
@@ -223,13 +230,17 @@ Map<string, Promise<void>>
 ```
 
 `timeout` 以秒为单位，必须是正有限数；未提供时不设置默认超时。
+`interactive` 为可选布尔值；为 true 时使用系统 `script` 在沙箱内建立伪终端语义，但不转发用户
+键盘输入。
 
 ### 5.2 沙箱策略
 
 在 `request-approval` 和 `delegate-approval` 模式下，Core 通过
 `@carderne/sandbox-runtime` 初始化 macOS Seatbelt 沙箱和受控网络代理。用户主目录默认禁止
-读取，再放行 canonical workspace、系统临时目录以及当前调用已批准的路径；写入只允许上述
-路径，并叠加敏感文件 deny rules。网络使用域名 allowlist，未允许域名由代理 callback 报告。
+读取，再放行 canonical workspace、Node.js `os.tmpdir()` 返回的系统临时目录、canonical
+`/tmp` 以及当前调用已批准的路径；写入只允许上述路径，并叠加敏感文件 deny rules。写入允许根
+同时进入读取 allowlist，以支持安装后的 metadata 校验。网络使用域名 allowlist，未允许域名由
+代理 callback 报告；localhost 监听与伪终端默认关闭，只能按当前工具调用审批开启。
 
 `SandboxManager` 是进程级单例，因此 Core 将 runtime 初始化、命令执行、清理和 reset 串行化，
 防止多个 Harness 的策略相互覆盖。
@@ -242,7 +253,14 @@ Map<string, Promise<void>>
 
 ### 5.3 资源拒绝和沙箱内重跑
 
-Core 不解析 shell AST，也不会预判各个子命令所需权限，而是先在沙箱中运行完整命令。
+Core 不解析 shell AST，也不会预判各个子命令所需权限，而是先在沙箱中运行完整命令。文件路径
+只有在命令失败、stderr 拒绝路径与结构化 Seatbelt violation 的 canonical path 相同时才进入
+审批，避免 PATH metadata 探测或伪造输出触发扩权。
+
+读路径使用 `outside-workspace-read`，普通写路径使用 `outside-workspace-write`；写入
+`~/.local/bin` 或 `~/bin` 使用风险更明确的 `executable-install`。Apple Events、localhost
+监听和伪终端分别使用独立审批原因。相同路径获批后仍被拒绝时，错误区分为 sensitive policy 与
+grant insufficient，不再统一误报为二进制内容或敏感写入。
 
 未允许域名会构造 `network-domain` 审批；shell 重定向输出或 macOS violation monitor
 识别出的写路径会构造 `outside-workspace-write` 审批。批准后只将该域名或 canonical path
@@ -274,6 +292,13 @@ stdout 和 stderr 被合并。每次收到数据都会通过 `onUpdate` 发送�
 - 最多 50KB。
 
 发生截断时，完整输出写到系统临时目录中的 `output.log`，路径通过 `fullOutputPath` 返回。
+
+### 5.6 `processList` 替代进程枚举
+
+macOS 即使使用 `(allow default)` profile 也拒绝在 `sandbox-exec` 内执行 `/bin/ps`。因此 bash
+遇到该限制时明确提示使用 `processList`，不会审批后裸跑。`processList` 在执行固定的
+`/bin/ps -axo pid=,ppid=,user=,etime=,command=` 前请求 `process-inspection`，只允许 Core 内部的
+文本过滤和 1-200 行限制，不接受任意命令或 ps 参数。
 
 `details` 包含：
 
@@ -591,7 +616,10 @@ Markdown；非 HTML 响应保持原文本。
 | 工具或行为 | `request-approval` | `delegate-approval` | `full-access` |
 | --- | --- | --- | --- |
 | `bash` 可在沙箱完成 | 沙箱执行 | 沙箱执行 | 直接执行 |
-| `bash` 请求未允许域名/写路径 | 允许该资源后在沙箱内重跑 | AI 或用户允许后在沙箱内重跑 | 不经过沙箱 |
+| `bash` 请求未允许域名/读写路径 | 允许该资源后在沙箱内重跑 | AI 或用户允许后在沙箱内重跑 | 不经过沙箱 |
+| `bash` 请求 localhost/PTY/Apple Events | 允许当前能力后在沙箱内重跑 | AI 或用户允许后在沙箱内重跑 | 直接执行 |
+| `bash` 请求进程枚举 | 提示使用 `processList` | 提示使用 `processList` | 直接执行 |
+| `processList` | 批准后执行固定只读命令 | AI 或用户批准后执行 | 直接执行 |
 | `bash` 未知拒绝 | 安全失败 | 安全失败 | 不经过沙箱 |
 | `webfetch` 访问允许域名 | 直接请求 | 直接请求 | 直接请求 |
 | `webfetch` 访问未允许域名 | 请求前调用审批回调 | 请求前调用审批回调 | 直接请求 |

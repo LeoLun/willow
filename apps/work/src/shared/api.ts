@@ -1,8 +1,14 @@
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, ModelThinkingLevel } from "@earendil-works/pi-ai";
-import type { PermissionMode, ToolApprovalDecision, ToolApprovalRequest } from "@willow/core";
+import type {
+  AskUserAnswers,
+  AskUserRequest,
+  PermissionMode,
+  ToolApprovalDecision,
+  ToolApprovalRequest,
+} from "@willow/core";
 
-export type { PermissionMode, ToolApprovalDecision };
+export type { AskUserAnswers, PermissionMode, ToolApprovalDecision };
 
 export interface ApiResponse<K> {
   code: number;
@@ -402,6 +408,7 @@ export interface GetMessageListRequest {
 export interface GetMessageListResponse {
   messages: AgentMessage[];
   pendingToolApproval?: ToolApprovalEventPayload;
+  pendingUserQuestion?: UserQuestionEventPayload;
 }
 
 export type AiApprovalReview = {
@@ -429,5 +436,27 @@ export interface ResolveToolApprovalRequest {
 }
 
 export interface ResolveToolApprovalResponse {
+  resolved: boolean;
+}
+
+export type UserQuestionEventPayload = AskUserRequest & {
+  requestId: string;
+  workspaceId: number;
+  sessionId: string;
+};
+
+export type UserQuestionResolvedEventPayload = Pick<
+  UserQuestionEventPayload,
+  "requestId" | "workspaceId" | "sessionId"
+>;
+
+export interface ResolveUserQuestionRequest {
+  requestId: string;
+  workspaceId: number;
+  sessionId: string;
+  answers?: AskUserAnswers;
+}
+
+export interface ResolveUserQuestionResponse {
   resolved: boolean;
 }

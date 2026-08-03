@@ -7,9 +7,10 @@ import type {
   ModelConfig,
   PermissionMode,
   ResolveToolApprovalRequest,
+  ResolveUserQuestionRequest,
 } from "@shared/api";
 import { MESSAGE_EVENT } from "@shared/constants";
-import type { ToolApprovalHandler } from "@willow/core";
+import type { AskUserAnswers, AskUserHandler, ToolApprovalHandler } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import { AgentService } from "./agent.service";
 import { AiToolApprovalService } from "./ai-tool-approval.service";
@@ -18,6 +19,7 @@ import { EventService } from "./event.service";
 import { SessionService } from "./session.service";
 import { TitleService } from "./title.service";
 import { ToolApprovalService } from "./tool-approval.service";
+import { UserQuestionService } from "./user-question.service";
 
 export type SendMessageInput = {
   workspaceId: number;
@@ -50,6 +52,7 @@ export class MessageService {
     private readonly titleService: TitleService,
     private readonly aiToolApprovalService: AiToolApprovalService,
     private readonly toolApprovalService: ToolApprovalService,
+    private readonly userQuestionService: UserQuestionService,
   ) {}
 
   async sendMessage(input: SendMessageInput): Promise<AssistantMessage> {
@@ -93,6 +96,13 @@ export class MessageService {
         userMessage: content,
         model: input.model,
         permissionMode,
+      }),
+      requestUser: this.createUserQuestionHandler({
+        workspaceId: input.workspaceId,
+        sessionId: input.sessionId,
+        model: input.model,
+        permissionMode,
+        userMessage: content,
       }),
     });
     const unsubscribe = harness.subscribe((event) => {
@@ -155,11 +165,55 @@ export class MessageService {
   }
 
   async getMessageList(workspaceId: number, sessionId: string): Promise<GetMessageListResponse> {
-    const [messages, approval] = await Promise.all([
+    const [messages, approval, question] = await Promise.all([
       this.sessionService.getMessageList(workspaceId, sessionId),
       this.toolApprovalService.getPendingApproval(workspaceId, sessionId),
+      this.userQuestionService.getPendingQuestion(workspaceId, sessionId),
     ]);
-    return { messages, pendingToolApproval: approval?.payload };
+    return {
+      messages,
+      pendingToolApproval: approval?.payload,
+      pendingUserQuestion: question?.payload,
+    };
+  }
+
+  async resolveUserQuestion(request: ResolveUserQuestionRequest): Promise<boolean> {
+    const key = this.taskKey(request.workspaceId, request.sessionId);
+    if (this.busySessions.has(key)) {
+      const resolution = await this.userQuestionService.resolve(
+        request.workspaceId,
+        request.sessionId,
+        request.requestId,
+        request.answers,
+      );
+      return resolution?.live ?? false;
+    }
+
+    this.busySessions.add(key);
+    let continuingInBackground = false;
+    try {
+      const resolution = await this.userQuestionService.resolve(
+        request.workspaceId,
+        request.sessionId,
+        request.requestId,
+        request.answers,
+        "recovered",
+      );
+      if (!resolution) return false;
+      if (!resolution.live) {
+        void this.resumeUserQuestion(resolution.question, request.answers, key)
+          .catch((error) => {
+            console.error("Failed to resume persisted user question:", error);
+          })
+          .finally(() => {
+            this.busySessions.delete(key);
+          });
+        continuingInBackground = true;
+      }
+      return true;
+    } finally {
+      if (!continuingInBackground) this.busySessions.delete(key);
+    }
   }
 
   async resolveToolApproval(request: ResolveToolApprovalRequest): Promise<boolean> {
@@ -273,6 +327,27 @@ export class MessageService {
     };
   }
 
+  private createUserQuestionHandler(options: {
+    workspaceId: number;
+    sessionId: string;
+    model: ModelConfig;
+    permissionMode: PermissionMode;
+    userMessage: string;
+  }): AskUserHandler {
+    return (request, signal) =>
+      this.userQuestionService.request(
+        options.workspaceId,
+        options.sessionId,
+        request,
+        {
+          model: options.model,
+          permissionMode: options.permissionMode,
+          userMessage: options.userMessage,
+        },
+        signal,
+      );
+  }
+
   private taskKey(workspaceId: number, sessionId: string): string {
     return `${workspaceId}:${sessionId}`;
   }
@@ -314,6 +389,13 @@ export class MessageService {
         }
         return fallbackApproval(request, signal);
       },
+      requestUser: this.createUserQuestionHandler({
+        workspaceId: payload.workspaceId,
+        sessionId: payload.sessionId,
+        model: approval.model,
+        permissionMode: approval.permissionMode,
+        userMessage: approval.userMessage,
+      }),
     });
     const unsubscribe = harness.subscribe((event) => {
       if (this.isMessageStreamEvent(event)) {
@@ -357,6 +439,123 @@ export class MessageService {
     }
   }
 
+  private async resumeUserQuestion(
+    question: import("./user-question.service").PersistedUserQuestion,
+    answers: AskUserAnswers | undefined,
+    key: string,
+  ): Promise<void> {
+    const { payload } = question;
+    const workspace = this.workspaceDao.findById(payload.workspaceId);
+    if (!workspace) throw new Error(`Workspace not found: ${payload.workspaceId}`);
+
+    const session = this.sessionService.getSession(payload.workspaceId, payload.sessionId);
+    const model = this.agentService.getModel(question.model.providerId, question.model.modelId);
+    const fallbackApproval = this.createApprovalHandler({
+      workspaceId: payload.workspaceId,
+      sessionId: payload.sessionId,
+      workspacePath: workspace.path,
+      userMessage: question.userMessage,
+      model: question.model,
+      permissionMode: question.permissionMode,
+    });
+    const fallbackQuestion = this.createUserQuestionHandler({
+      workspaceId: payload.workspaceId,
+      sessionId: payload.sessionId,
+      model: question.model,
+      permissionMode: question.permissionMode,
+      userMessage: question.userMessage,
+    });
+    let replayQuestionAvailable = true;
+    const harness = await this.agentService.getAgentHarness({
+      workspaceId: payload.workspaceId,
+      cwd: workspace.path,
+      model,
+      metadata: session,
+      permissionMode: question.permissionMode,
+      requestApproval: fallbackApproval,
+      requestUser: async (request, signal) => {
+        if (replayQuestionAvailable && request.toolCallId === payload.toolCallId) {
+          replayQuestionAvailable = false;
+          return answers;
+        }
+        return fallbackQuestion(request, signal);
+      },
+    });
+    const unsubscribe = harness.subscribe((event) => {
+      if (this.isMessageStreamEvent(event)) {
+        this.emit({ type: "stream", sessionId: payload.sessionId, event });
+      }
+    });
+    const task: ActiveTask = { harness, unsubscribe, stopped: false };
+    this.activeTasks.set(key, task);
+    this.emit({ type: "status", sessionId: payload.sessionId, status: "started" });
+
+    try {
+      const toolResult = await this.replayUserQuestion(harness, question);
+      await harness.appendMessage(toolResult);
+      this.emit({
+        type: "stream",
+        sessionId: payload.sessionId,
+        event: { type: "message_start", message: toolResult },
+      });
+      this.emit({
+        type: "stream",
+        sessionId: payload.sessionId,
+        event: { type: "message_end", message: toolResult },
+      });
+      await harness.continue();
+      if (!task.stopped) {
+        this.emit({ type: "status", sessionId: payload.sessionId, status: "completed" });
+      }
+    } catch (error) {
+      if (!task.stopped) {
+        this.emit({
+          type: "status",
+          sessionId: payload.sessionId,
+          status: "failed",
+          error: "Message generation failed",
+        });
+      }
+      throw error;
+    } finally {
+      unsubscribe();
+      if (this.activeTasks.get(key) === task) this.activeTasks.delete(key);
+    }
+  }
+
+  private async replayUserQuestion(
+    harness: AgentHarness,
+    question: import("./user-question.service").PersistedUserQuestion,
+  ): Promise<ToolResultMessage> {
+    const { payload } = question;
+    const tool = harness.getTools().find((candidate) => candidate.name === "askUser");
+    if (!tool) {
+      return this.createToolResult(
+        { toolCallId: payload.toolCallId, toolName: "askUser" },
+        "无法恢复工具：askUser",
+        true,
+      );
+    }
+    try {
+      const result = await tool.execute(payload.toolCallId, { questions: payload.questions });
+      return {
+        role: "toolResult",
+        toolCallId: payload.toolCallId,
+        toolName: "askUser",
+        content: result.content ?? [],
+        details: result.details,
+        isError: false,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      return this.createToolResult(
+        { toolCallId: payload.toolCallId, toolName: "askUser" },
+        error instanceof Error ? error.message : String(error),
+        true,
+      );
+    }
+  }
+
   private async replayToolCall(
     harness: AgentHarness,
     approval: import("./tool-approval.service").PersistedToolApproval,
@@ -392,7 +591,7 @@ export class MessageService {
   }
 
   private createToolResult(
-    payload: import("@shared/api").ToolApprovalEventPayload,
+    payload: { toolCallId: string; toolName: string },
     message: string,
     isError: boolean,
   ): ToolResultMessage {

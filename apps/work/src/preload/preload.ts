@@ -48,6 +48,8 @@ import type {
   RenameWorkspaceResponse,
   ResolveToolApprovalRequest,
   ResolveToolApprovalResponse,
+  ResolveUserQuestionRequest,
+  ResolveUserQuestionResponse,
   SearchFilesRequest,
   SearchFilesResponse,
   SendMessageRequest,
@@ -99,6 +101,7 @@ import {
   OPEN_MANUAL_UPDATE,
   RENAME_WORKSPACE,
   RESOLVE_TOOL_APPROVAL,
+  RESOLVE_USER_QUESTION,
   RESTART_TO_UPDATE,
   SEARCH_FILES,
   SEND_MESSAGE,
@@ -212,6 +215,8 @@ const ipcObject: IRenderHook = {
     invoke<GetMessageListRequest, GetMessageListResponse>(GET_MESSAGE_LIST, request),
   resolveToolApproval: (request: ResolveToolApprovalRequest) =>
     invoke<ResolveToolApprovalRequest, ResolveToolApprovalResponse>(RESOLVE_TOOL_APPROVAL, request),
+  resolveUserQuestion: (request: ResolveUserQuestionRequest) =>
+    invoke<ResolveUserQuestionRequest, ResolveUserQuestionResponse>(RESOLVE_USER_QUESTION, request),
   getWorkspaceList: (request: GetWorkspaceListRequest) =>
     invoke<GetWorkspaceListRequest, GetWorkspaceListResponse>(GET_WORKSPACE_LIST, request),
   createWorkspace: (request: CreateWorkspaceRequest) =>

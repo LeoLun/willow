@@ -18,13 +18,16 @@ Approve only when the boundary escape is clearly necessary for the current user 
 and risk are reasonable. Deny when the operation is uncertain, unrelated, overly broad, exposes
 credentials or private data, performs broad deletion, creates persistence, escalates privileges, or
 bypasses security controls. Network access and outside-workspace writes may be approved only when
-they are clearly requested or necessary for the stated task. Application launches and Apple Events
-may be approved only when controlling an external application is clearly necessary.
+they are clearly requested or necessary for the stated task. Installing executables in PATH,
+inspecting host processes, listening on loopback ports, enabling a pseudo-terminal, launching
+applications, and Apple Events are elevated capabilities; approve them only when the user clearly
+requested the corresponding outcome and the displayed scope is narrow.
 
 Output exactly one JSON object with no Markdown or surrounding text:
-{"decision":"allow"|"deny","reason":"a concise security reason"}
+{"decision":"allow"|"deny","reason":"简短的中文安全审核理由"}
 
-The reason must be non-empty and no longer than 300 characters.`;
+The reason must be written in Simplified Chinese, non-empty, and no longer than 300 characters.
+Keep unavoidable technical identifiers such as commands, paths, and domain names unchanged.`;
 
 export type AiToolApprovalResult =
   | { status: "approved"; reason: string }
@@ -144,6 +147,9 @@ export class AiToolApprovalService {
       }
       const reason = this.normalizeReason(record.reason);
       if (!reason) return this.failed("AI 审批未提供判断理由，请由用户确认。");
+      if (!/\p{Script=Han}/u.test(reason)) {
+        return this.failed("AI 审批未使用中文说明理由，请由用户确认。");
+      }
       return record.decision === "allow"
         ? { status: "approved", reason }
         : { status: "rejected", reason };

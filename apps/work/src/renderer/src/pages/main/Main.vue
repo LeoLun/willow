@@ -4,9 +4,11 @@ import AppSidebar from "@/components/layout/AppSidebar.vue";
 import { useAppUpdateListener } from "@/composables/useAppUpdate";
 import { useMessageListener } from "@/composables/useMessage";
 import { useToolApprovalListener } from "@/composables/useToolApproval";
+import { useUserQuestionListener } from "@/composables/useUserQuestion";
 
 useMessageListener();
 useToolApprovalListener();
+useUserQuestionListener();
 useAppUpdateListener();
 </script>
 

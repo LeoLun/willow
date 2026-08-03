@@ -539,6 +539,44 @@ describe("MessageList", () => {
     });
   });
 
+  it("does not show a copy toolbar when a completed loop ends with a tool", () => {
+    const container = mountMessageList([
+      {
+        id: "user",
+        sourceKey: "user",
+        role: "user",
+        timestamp: 1,
+        status: "completed",
+        content: [{ type: "text", text: "检查文件" }],
+      },
+      {
+        id: "assistant",
+        sourceKey: "assistant",
+        role: "assistant",
+        timestamp: 2,
+        status: "completed",
+        content: [
+          { type: "text", text: "我来检查。" },
+          { type: "toolCall", id: "call", name: "read", arguments: { path: "a.ts" } },
+        ],
+      },
+      {
+        id: "tool",
+        sourceKey: "tool",
+        role: "toolResult",
+        timestamp: 3,
+        status: "completed",
+        content: [{ type: "text", text: "文件内容" }],
+        toolCallId: "call",
+        toolName: "read",
+      },
+    ]);
+
+    expect(
+      container.querySelector("[data-slot=assistant-message] [data-slot=message-toolbar]"),
+    ).toBeNull();
+  });
+
   it("shows the working indicator at the end only while the agent loop is active", () => {
     const message: Message = {
       id: "user",
@@ -1016,6 +1054,71 @@ describe("MessageList", () => {
     );
     expect(block?.textContent).not.toContain("搜索中…");
     expect(block?.querySelector("[data-slot=tool-status]")).toBeNull();
+  });
+
+  it("summarizes askUser calls and expands each recorded answer", async () => {
+    const messages: Message[] = [
+      {
+        id: "assistant-ask",
+        sourceKey: "assistant-ask",
+        role: "assistant",
+        timestamp: 1,
+        status: "completed",
+        content: [
+          {
+            type: "toolCall",
+            id: "ask-call",
+            name: "askUser",
+            arguments: {
+              questions: [
+                {
+                  header: "实现",
+                  question: "选择实现方式？",
+                  options: [
+                    { label: "方案 A", description: "改动较小" },
+                    { label: "方案 B", description: "扩展性更好" },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        id: "tool-ask",
+        sourceKey: "tool-ask",
+        role: "toolResult",
+        timestamp: 2,
+        status: "completed",
+        content: [{ type: "text", text: "model-only answer" }],
+        toolCallId: "ask-call",
+        toolName: "askUser",
+        details: {
+          kind: "askUser",
+          msg: "询问 1 个问题",
+          questions: [
+            {
+              header: "实现",
+              question: "选择实现方式？",
+              options: [],
+              answers: ["方案 A"],
+            },
+          ],
+        },
+      },
+    ];
+    const container = mountMessageList(messages);
+    await nextTick();
+
+    const block = container.querySelector("[data-slot=ask-user-result-block]");
+    const trigger = block?.querySelector<HTMLButtonElement>("button");
+    expect(trigger?.textContent).toContain("询问 1 个问题");
+    expect(container.textContent).not.toContain("选择实现方式？");
+
+    trigger?.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("选择实现方式？"));
+    expect(container.querySelector("[data-slot=ask-user-answer]")?.textContent).toContain("方案 A");
+    expect(container.textContent).not.toContain("model-only answer");
   });
 
   it("renders a websearch summary and expands only structured result links", async () => {

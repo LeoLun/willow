@@ -62,6 +62,9 @@ describe("ToolApprovalPanel", () => {
     expect(
       mounted.container.querySelector("[data-slot=ai-approval-review]")?.textContent,
     ).toContain("AI 未批准");
+    expect(
+      mounted.container.querySelector("[data-slot=ai-approval-review] > div")?.classList,
+    ).toContain("items-start");
     expect(mounted.container.textContent).toContain(
       '<img src=x onerror="window.hacked=true"> Too broad.',
     );
@@ -183,5 +186,23 @@ describe("ToolApprovalPanel", () => {
     expect(mounted.container.textContent).toContain(
       "仅为本次工具调用开启应用启动与 Apple Events 能力",
     );
+  });
+
+  it.each([
+    ["executable-install", "安装或替换用户可执行文件", "持久化代码执行入口"],
+    ["process-inspection", "查看沙箱外的进程信息", "不开放浏览器所需的完整 Mach IPC"],
+    ["local-network-listen", "监听本机回环网络端口", "外部网络仍受域名允许列表限制"],
+    ["interactive-terminal", "启用交互式终端能力", "不会接收用户键盘输入"],
+  ] as const)("describes the %s capability and its scope", (reason, label, scope) => {
+    const mounted = mountPanel(
+      createRequest({
+        reason,
+        display: "scoped capability",
+        mayHavePartialEffects: true,
+      }),
+    );
+
+    expect(mounted.container.textContent).toContain(label);
+    expect(mounted.container.textContent).toContain(scope);
   });
 });

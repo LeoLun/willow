@@ -23,6 +23,7 @@ import { getTodoListFromMessages } from "@/components/todo-list";
 import { electronAPI } from "@/lib/ipc";
 import { useEventBus } from "./useEventBus";
 import { getToolApprovalRevision, hydrateToolApproval } from "./useToolApproval";
+import { getUserQuestionRevision, hydrateUserQuestion } from "./useUserQuestion";
 
 export const MESSAGE_CACHE_IDLE_TTL_MS = 30 * 60 * 1000;
 export const MESSAGE_CACHE_INACTIVE_LIMIT = 20;
@@ -146,12 +147,14 @@ const useMessageState = createGlobalState(() => {
   ): Promise<void> {
     const generation = ++entry.loadGeneration;
     const approvalRevision = getToolApprovalRevision(workspaceId, sessionId);
+    const questionRevision = getUserQuestionRevision(workspaceId, sessionId);
     entry.loading.value = true;
 
     try {
       const response = await electronAPI.getMessageList({ workspaceId, sessionId });
       if (entries.get(sessionId) !== entry || generation !== entry.loadGeneration) return;
       hydrateToolApproval(workspaceId, sessionId, response.pendingToolApproval, approvalRevision);
+      hydrateUserQuestion(workspaceId, sessionId, response.pendingUserQuestion, questionRevision);
 
       let nextTimeline = createMessageTimeline(response.messages);
       for (const event of entry.bufferedEvents) {

@@ -17,15 +17,36 @@ const reasonLabel = computed(() => {
     "outside-workspace-write": "写入目标位于工作区外",
     "network-domain": "目标域名不在网络允许列表中",
     "application-launch": "启动或控制外部应用",
+    "executable-install": "安装或替换用户可执行文件",
+    "process-inspection": "查看沙箱外的进程信息",
+    "local-network-listen": "监听本机回环网络端口",
+    "interactive-terminal": "启用交互式终端能力",
     "sandbox-denied": "沙箱拒绝了命令",
   } satisfies Record<ToolApprovalEventPayload["reason"], string>;
   return labels[props.request.reason];
 });
-const partialEffectsMessage = computed(() =>
-  props.request.reason === "application-launch"
-    ? "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅为本次工具调用开启应用启动与 Apple Events 能力，并在沙箱中完整重跑该命令。"
-    : "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整重跑该命令。",
-);
+const partialEffectsMessage = computed(() => {
+  const messages = {
+    "application-launch":
+      "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅为本次工具调用开启应用启动与 Apple Events 能力，并在沙箱中完整重跑该命令。",
+    "executable-install":
+      "该路径通常位于 PATH 中，写入后可能形成持久化代码执行入口；允许后仅对本次工具调用放行该目标，并在沙箱中完整重跑命令。",
+    "process-inspection":
+      "允许后将仅为本次工具调用开放进程信息读取，不开放浏览器所需的完整 Mach IPC 或 IOKit 权限。",
+    "local-network-listen":
+      "允许后将仅为本次工具调用开放本机回环监听与访问，外部网络仍受域名允许列表限制。",
+    "interactive-terminal": "允许后将仅为本次工具调用开放伪终端设备；终端不会接收用户键盘输入。",
+    "outside-workspace-read":
+      "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整重跑该命令。",
+    "outside-workspace-write":
+      "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整重跑该命令。",
+    "network-domain":
+      "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整重跑该命令。",
+    "sandbox-denied":
+      "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整重跑该命令。",
+  } satisfies Record<ToolApprovalEventPayload["reason"], string>;
+  return messages[props.request.reason];
+});
 
 async function decide(decision: ToolApprovalDecision): Promise<void> {
   if (submitting.value) return;
@@ -65,23 +86,28 @@ async function decide(decision: ToolApprovalDecision): Promise<void> {
         >{{ request.display }}</pre
       >
 
-      <div
-        v-if="request.aiReview"
-        class="border-warning/30 bg-warning/5 grid gap-2 rounded-lg border p-3 text-sm"
-        data-slot="ai-approval-review"
-      >
-        <div class="flex items-center gap-2 font-medium">
-          <Bot class="size-4" aria-hidden="true" />
-          {{ request.aiReview.status === "rejected" ? "AI 未批准" : "AI 审批不可用" }}
-        </div>
-        <p class="break-words text-muted-foreground">{{ request.aiReview.reason }}</p>
-      </div>
-
-      <div
-        v-if="request.mayHavePartialEffects"
-        class="border-warning/30 bg-warning/5 rounded-lg border p-3 text-sm"
+      <p
+        v-if="request.mayHavePartialEffects || request.reason === 'process-inspection'"
+        class="text-xs leading-5 text-muted-foreground"
+        data-slot="tool-approval-partial-effects"
       >
         {{ partialEffectsMessage }}
+      </p>
+
+      <div
+        v-if="request.aiReview"
+        class="border-warning/30 bg-warning/5 grid gap-2 text-xs"
+        data-slot="ai-approval-review"
+      >
+        <div class="flex items-start gap-1.5 leading-5">
+          <Bot class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <p class="min-w-0 break-words">
+            <span
+              >{{ request.aiReview.status === "rejected" ? "AI 未批准" : "AI 审批不可用" }}：</span
+            >
+            <span class="text-muted-foreground">{{ request.aiReview.reason }}</span>
+          </p>
+        </div>
       </div>
 
       <div

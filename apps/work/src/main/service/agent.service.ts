@@ -7,7 +7,12 @@ import {
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { AssistantMessage, Model, MutableModels } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
-import { AgentCore, type AgentCoreOptions, type ToolApprovalHandler } from "@willow/core";
+import {
+  AgentCore,
+  type AgentCoreOptions,
+  type AskUserHandler,
+  type ToolApprovalHandler,
+} from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import type { StatisticsRunSource } from "../db/schema";
 import { BuiltinSkillService } from "./builtin-skill.service";
@@ -22,6 +27,7 @@ type AgentServiceOptions = Omit<AgentCoreOptions, "models" | "sessionRepo" | "ta
   metadata: SessionMetadata;
   permissionMode: import("@willow/core").PermissionMode;
   requestApproval: ToolApprovalHandler;
+  requestUser: AskUserHandler;
 };
 
 type SimpleAgentOptions = {
@@ -93,6 +99,7 @@ export class AgentService {
     metadata,
     permissionMode,
     requestApproval,
+    requestUser,
     ...options
   }: AgentServiceOptions) {
     const sessionRepo = this.sessionManagerFactory.create(workspaceId);
@@ -111,6 +118,7 @@ export class AgentService {
       metadata,
       permissionMode,
       requestApproval,
+      requestUser,
     });
     return this.interceptStatistics(harness, {
       source: "chat",

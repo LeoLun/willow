@@ -11,9 +11,11 @@ describe("core exports", () => {
       "ls",
       "grep",
       "find",
+      "processList",
       "todoList",
       "webfetch",
       "websearch",
+      "askUser",
     ]);
   });
 

@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
@@ -5,10 +6,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const sandbox = vi.hoisted(() => {
   let config: {
-    network: { allowedDomains: string[] };
+    network: {
+      allowedDomains: string[];
+      strictAllowlist?: boolean;
+      allowLocalBinding: boolean;
+    };
     filesystem: { allowRead: string[]; allowWrite: string[]; denyWrite: string[] };
     allowAppleEvents: boolean;
     allowBrowserProcess: boolean;
+    allowPty: boolean;
   };
   let ask: ((input: { host: string; port?: number }) => Promise<boolean>) | undefined;
   let violations: { line: string; command: string; timestamp: Date }[] = [];
@@ -24,7 +30,9 @@ const sandbox = vi.hoisted(() => {
       violations = [];
       if (command === "network-attempt") {
         if (!config.network.allowedDomains.includes("example.com")) {
-          await ask?.({ host: "example.com", port: 443 });
+          if (!config.network.strictAllowlist) {
+            await ask?.({ host: "example.com", port: 443 });
+          }
           return "printf 'network denied' >&2; exit 1";
         }
         return "printf 'network allowed'";
@@ -32,15 +40,91 @@ const sandbox = vi.hoisted(() => {
       if (command.startsWith("write-attempt:")) {
         const path = command.slice("write-attempt:".length);
         if (!config.filesystem.allowWrite.includes(path)) {
+          violations = [
+            {
+              line: `bash(123) deny(1) file-write-create "${path}"`,
+              command,
+              timestamp: new Date(),
+            },
+          ];
           return `printf 'bash: ${path}: Operation not permitted\\n' >&2; exit 1`;
         }
         return `printf 'allowed' > ${JSON.stringify(path)}`;
       }
+      if (command.startsWith("install-attempt:")) {
+        const path = command.slice("install-attempt:".length);
+        if (!config.filesystem.allowWrite.includes(path)) {
+          violations = [
+            {
+              line: `bash(123) deny(1) file-write-create "${path}"`,
+              command,
+              timestamp: new Date(),
+            },
+          ];
+          return `printf 'bash: ${path}: Operation not permitted\\n' >&2; exit 1`;
+        }
+        return "printf 'allowed'";
+      }
+      if (command.startsWith("stubborn-write:")) {
+        const path = command.slice("stubborn-write:".length);
+        violations = [
+          {
+            line: `bash(123) deny(1) file-write-create "${path}"`,
+            command,
+            timestamp: new Date(),
+          },
+        ];
+        return `printf 'bash: ${path}: Operation not permitted\\n' >&2; exit 1`;
+      }
       if (command.startsWith("read-attempt:")) {
         const path = command.slice("read-attempt:".length);
-        return config.filesystem.allowRead.includes(path)
-          ? "printf 'allowed'"
-          : `printf 'bash: ${path}: Operation not permitted\\n' >&2; exit 1`;
+        if (!config.filesystem.allowRead.includes(path)) {
+          violations = [
+            {
+              line: `bash(123) deny(1) file-read-data "${path}"`,
+              command,
+              timestamp: new Date(),
+            },
+          ];
+          return `printf 'bash: ${path}: Operation not permitted\\n' >&2; exit 1`;
+        }
+        return "printf 'allowed'";
+      }
+      if (command === "process-attempt") {
+        violations = [
+          {
+            line: "ps(123) deny(1) process-info-pidinfo",
+            command,
+            timestamp: new Date(),
+          },
+        ];
+        return "printf 'process denied' >&2; exit 1";
+      }
+      if (command === "local-binding-attempt") {
+        if (!config.network.allowLocalBinding) {
+          violations = [
+            {
+              line: "node(123) deny(1) network-bind *:3210",
+              command,
+              timestamp: new Date(),
+            },
+          ];
+          return "printf 'binding denied' >&2; exit 1";
+        }
+        return "printf 'binding allowed'";
+      }
+      if (command.includes("pty-attempt")) {
+        if (!config.allowPty) {
+          violations = [
+            {
+              line: 'script(123) deny(1) file-write-data "/dev/ptmx"',
+              command,
+              timestamp: new Date(),
+            },
+          ];
+          return "printf 'pty denied' >&2; exit 1";
+        }
+        return "printf 'pty allowed'";
       }
       if (command === "application-attempt" || command === "application-hard-failure") {
         if (!config.allowAppleEvents) {
@@ -57,13 +141,25 @@ const sandbox = vi.hoisted(() => {
           ? "printf 'application allowed'"
           : "printf 'application still failed' >&2; exit 1";
       }
+      if (command === "output-only-process-denial") {
+        return "printf '/bin/bash: /bin/ps: Operation not permitted' >&2; exit 1";
+      }
       if (command.startsWith("multi-attempt:")) {
         const path = command.slice("multi-attempt:".length);
         if (!config.network.allowedDomains.includes("example.com")) {
-          await ask?.({ host: "example.com", port: 443 });
+          if (!config.network.strictAllowlist) {
+            await ask?.({ host: "example.com", port: 443 });
+          }
           return "printf 'network denied' >&2; exit 1";
         }
         if (!config.filesystem.allowWrite.includes(path)) {
+          violations = [
+            {
+              line: `bash(123) deny(1) file-write-create "${path}"`,
+              command,
+              timestamp: new Date(),
+            },
+          ];
           return `printf 'bash: ${path}: Operation not permitted\\n' >&2; exit 1`;
         }
         if (!config.allowAppleEvents) {
@@ -128,6 +224,24 @@ async function workspaceTemporaryDirectory(prefix: string): Promise<string> {
 }
 
 describe("bash sandbox policy", () => {
+  it("allows read and write access to both system temporary directory roots", async () => {
+    const cwd = await temporaryDirectory("willow-temporary-policy-");
+    const slashTmp = realpathSync("/tmp");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const result = await createBashTool({
+      cwd,
+      permissionMode: "request-approval",
+      requestApproval,
+    }).execute("temporary-directories", { command: `read-attempt:${slashTmp}` });
+
+    const expectedRoots = [realpathSync(tmpdir()), slashTmp];
+    expect(sandbox.configs).toHaveLength(1);
+    expect(sandbox.configs[0].filesystem.allowRead).toEqual(expect.arrayContaining(expectedRoots));
+    expect(sandbox.configs[0].filesystem.allowWrite).toEqual(expect.arrayContaining(expectedRoots));
+    expect(requestApproval).not.toHaveBeenCalled();
+    expect(result.content).toEqual([{ type: "text", text: "allowed" }]);
+  });
+
   it("allows read and write access to the global Willow skills directory", async () => {
     const cwd = await temporaryDirectory("willow-global-skills-policy-");
     const agentDir = ".custom-willow";
@@ -172,6 +286,7 @@ describe("bash sandbox policy", () => {
     );
     expect(sandbox.configs).toHaveLength(2);
     expect(sandbox.configs[0].network.allowedDomains).toEqual([]);
+    expect(sandbox.configs[0].network.strictAllowlist).toBe(false);
     expect(sandbox.configs[1].network.allowedDomains).toEqual(["example.com"]);
     expect(result.content).toEqual([{ type: "text", text: "network allowed" }]);
     expect(result.details.sandboxed).toBe(true);
@@ -199,6 +314,108 @@ describe("bash sandbox policy", () => {
     expect(sandbox.configs[1].filesystem.allowWrite).toContain(outside);
     expect(await readFile(outside, "utf8")).toBe("allowed");
     expect(result.details.sandboxed).toBe(true);
+  });
+
+  it("approves one read path and retries inside the expanded sandbox", async () => {
+    const cwd = await temporaryDirectory("willow-read-policy-");
+    const outside = join(await workspaceTemporaryDirectory(".willow-read-outside-"), "input.txt");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
+    const result = await createBashTool({
+      cwd,
+      permissionMode: "request-approval",
+      requestApproval,
+    }).execute("read", { command: `read-attempt:${outside}` });
+
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCallId: "read",
+        reason: "outside-workspace-read",
+        display: outside,
+      }),
+      undefined,
+    );
+    expect(sandbox.configs).toHaveLength(2);
+    expect(sandbox.configs[1].filesystem.allowRead).toContain(outside);
+    expect(result.content).toEqual([{ type: "text", text: "allowed" }]);
+  });
+
+  it("labels writes to user PATH directories as executable installation", async () => {
+    const cwd = await temporaryDirectory("willow-executable-policy-");
+    const executable = join(homedir(), ".local", "bin", "willow-test-cli");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
+    const result = await createBashTool({
+      cwd,
+      permissionMode: "request-approval",
+      requestApproval,
+    }).execute("install", { command: `install-attempt:${executable}` });
+
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "executable-install", display: executable }),
+      undefined,
+    );
+    expect(result.content).toEqual([{ type: "text", text: "allowed" }]);
+  });
+
+  it("routes process inspection to its dedicated tool and separately approves shell capabilities", async () => {
+    const cwd = await temporaryDirectory("willow-capabilities-policy-");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
+
+    await expect(
+      createBashTool({
+        cwd,
+        permissionMode: "request-approval",
+        requestApproval,
+      }).execute("process", { command: "process-attempt" }),
+    ).rejects.toThrow("use the processList tool instead");
+    const bindingResult = await createBashTool({
+      cwd,
+      permissionMode: "request-approval",
+      requestApproval,
+    }).execute("binding", { command: "local-binding-attempt" });
+    const ptyResult = await createBashTool({
+      cwd,
+      permissionMode: "request-approval",
+      requestApproval,
+    }).execute("pty", { command: "pty-attempt", interactive: true });
+
+    expect(requestApproval.mock.calls.map(([request]) => request.reason)).toEqual([
+      "local-network-listen",
+      "interactive-terminal",
+    ]);
+    expect(bindingResult.content).toEqual([{ type: "text", text: "binding allowed" }]);
+    expect(ptyResult.content).toEqual([{ type: "text", text: "pty allowed" }]);
+    expect(sandbox.configs[2].network.allowLocalBinding).toBe(true);
+    expect(sandbox.configs[4].allowPty).toBe(true);
+    expect(sandbox.configs[4].allowBrowserProcess).toBe(false);
+  });
+
+  it("reports an insufficient write grant separately from a sensitive write", async () => {
+    const cwd = await temporaryDirectory("willow-stubborn-write-policy-");
+    const outside = join(await workspaceTemporaryDirectory(".willow-stubborn-write-"), "file.txt");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
+
+    await expect(
+      createBashTool({
+        cwd,
+        permissionMode: "request-approval",
+        requestApproval,
+      }).execute("stubborn", { command: `stubborn-write:${outside}` }),
+    ).rejects.toThrow(`Write grant was insufficient for ${outside} (file-write-create)`);
+    expect(requestApproval).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not classify an output-only process denial as a write request", async () => {
+    const cwd = await temporaryDirectory("willow-output-denial-policy-");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
+
+    await expect(
+      createBashTool({
+        cwd,
+        permissionMode: "request-approval",
+        requestApproval,
+      }).execute("output-denial", { command: "output-only-process-denial" }),
+    ).rejects.toThrow("Command exited with code 1");
+    expect(requestApproval).not.toHaveBeenCalled();
   });
 
   it("approves application launch and retries with Apple Events enabled", async () => {
