@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { Button } from "@willow/shadcn/components/ui/button";
 import { computed } from "vue";
 import { useDialog } from "@/components/dialog";
 import RestartUpdateDialog from "@/components/dialog/update/RestartUpdateDialog.vue";
-import { Button } from "@/components/ui/button";
 import { useAppUpdate } from "@/composables/useAppUpdate";
 import { useMessageStatus } from "@/composables/useMessage";
 
@@ -17,6 +17,7 @@ const title = computed(() =>
 
 async function handleClick(): Promise<void> {
   console.log("handleClick", state.value.status);
+
   if (state.value.status === "manualAvailable") {
     await openManualUpdate();
   } else if (state.value.status === "ready") {
@@ -38,9 +39,8 @@ async function handleClick(): Promise<void> {
 <template>
   <Button
     v-if="visible"
-    variant="borderless"
-    shape="capsule"
-    :class="state.status === 'downloading' ? 'size-9 shrink-0 px-0' : 'shrink-0 px-4'"
+    :size="state.status === 'downloading' ? 'icon-sm' : 'sm'"
+    :variant="state.status === 'downloading' ? 'ghost' : 'default'"
     :title="title"
     :disabled="state.status === 'downloading'"
     @click="handleClick"
@@ -74,7 +74,6 @@ async function handleClick(): Promise<void> {
           :stroke-dashoffset="progressOffset"
         />
       </svg>
-      <span class="sr-only">下载进度 {{ progress }}%</span>
     </template>
     <template v-else>{{ state.status === "ready" ? "重启" : "更新" }}</template>
   </Button>
