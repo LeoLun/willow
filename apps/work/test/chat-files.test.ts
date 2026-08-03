@@ -10,11 +10,13 @@ const mocks = vi.hoisted(() => ({
   getConfiguredProviders: vi.fn(),
   getProviderCatalog: vi.fn(),
   getSessionList: vi.fn(),
+  getMessageList: vi.fn(),
   getSkillList: vi.fn(),
   getUserConfig: vi.fn(),
   removeEventListener: vi.fn(),
   resolveToolApproval: vi.fn(),
   searchFiles: vi.fn(),
+  selectLocalFiles: vi.fn(),
   waitUntilReady: vi.fn(),
 }));
 
@@ -23,10 +25,12 @@ vi.mock("@/lib/ipc", () => ({
     getConfiguredProviders: mocks.getConfiguredProviders,
     getProviderCatalog: mocks.getProviderCatalog,
     getSessionList: mocks.getSessionList,
+    getMessageList: mocks.getMessageList,
     getSkillList: mocks.getSkillList,
     getUserConfig: mocks.getUserConfig,
     resolveToolApproval: mocks.resolveToolApproval,
     searchFiles: mocks.searchFiles,
+    selectLocalFiles: mocks.selectLocalFiles,
   },
 }));
 
@@ -110,10 +114,12 @@ beforeEach(() => {
   mocks.getConfiguredProviders.mockResolvedValue({ providerIds: [] });
   mocks.getProviderCatalog.mockResolvedValue({ providers: [] });
   mocks.getSessionList.mockResolvedValue({ sessions: [] });
+  mocks.getMessageList.mockResolvedValue({ messages: [] });
   mocks.getSkillList.mockResolvedValue({ skills: [] });
   mocks.getUserConfig.mockResolvedValue({});
   mocks.resolveToolApproval.mockResolvedValue({ resolved: true });
   mocks.searchFiles.mockResolvedValue({ files: [] });
+  mocks.selectLocalFiles.mockResolvedValue({ files: [] });
   mocks.waitUntilReady.mockResolvedValue(undefined);
 });
 
@@ -162,12 +168,12 @@ describe("ChatBase file search", () => {
     });
   });
 
-  it("loads the first files when the add-reference button opens the panel", async () => {
+  it("opens the local file selector from the add button", async () => {
     const container = await mountChatBase();
-    container.querySelector<HTMLButtonElement>('[aria-label="添加引用"]')?.click();
+    container.querySelector<HTMLButtonElement>('[aria-label="添加本地文件"]')?.click();
 
     await vi.waitFor(() => {
-      expect(mocks.searchFiles).toHaveBeenCalledWith({ workspaceId: 1, query: "" });
+      expect(mocks.selectLocalFiles).toHaveBeenCalledOnce();
     });
   });
 

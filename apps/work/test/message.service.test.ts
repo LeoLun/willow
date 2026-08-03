@@ -6,12 +6,18 @@ import type { AgentService } from "../src/main/service/agent.service";
 import type { AiToolApprovalService } from "../src/main/service/ai-tool-approval.service";
 import type { WorkspaceDao } from "../src/main/service/dao/workspace.dao.server";
 import type { EventService } from "../src/main/service/event.service";
+import type { LocalFileService } from "../src/main/service/local-file.service";
 import { MessageService } from "../src/main/service/message.service";
 import type { SessionService } from "../src/main/service/session.service";
 import type { TitleService } from "../src/main/service/title.service";
 import type { ToolApprovalService } from "../src/main/service/tool-approval.service";
 import type { UserQuestionService } from "../src/main/service/user-question.service";
 import { MESSAGE_EVENT } from "../src/shared/constants";
+import {
+  appendLocalFileBlock,
+  LOCAL_FILE_GRANT_CUSTOM_TYPE,
+  parseLocalFilePrompt,
+} from "../src/shared/local-file";
 
 const model = { id: "model" } as Model<any>;
 const modelConfig = { providerId: "openai", modelId: "large" };
@@ -74,10 +80,14 @@ function createHarness(prompt = vi.fn(async () => assistantMessage)) {
 describe("MessageService", () => {
   const getSession = vi.fn<SessionService["getSession"]>();
   const getMessageList = vi.fn<SessionService["getMessageList"]>();
+  const getBranch = vi.fn<SessionService["getBranch"]>();
+  const appendCustomEntry = vi.fn<SessionService["appendCustomEntry"]>();
   const getModel = vi.fn<AgentService["getModel"]>();
   const getAgentHarness = vi.fn<AgentService["getAgentHarness"]>();
   const sendEvent = vi.fn<EventService["sendEvent"]>();
   const findById = vi.fn<WorkspaceDao["findById"]>();
+  const inspectLocalFiles = vi.fn<LocalFileService["inspect"]>();
+  const loadImages = vi.fn<LocalFileService["loadImages"]>();
   const startTitleCreation = vi.fn<TitleService["startTitleCreation"]>();
   const review = vi.fn<AiToolApprovalService["review"]>();
   const requestApproval = vi.fn<ToolApprovalService["request"]>();
@@ -88,6 +98,8 @@ describe("MessageService", () => {
   const resolveQuestion = vi.fn<UserQuestionService["resolve"]>();
 
   const sessionService = {
+    appendCustomEntry,
+    getBranch,
     getSession,
     getMessageList,
   } as unknown as SessionService;
@@ -97,6 +109,10 @@ describe("MessageService", () => {
   } as unknown as AgentService;
   const eventService = { sendEvent } as unknown as EventService;
   const workspaceDao = { findById } as unknown as WorkspaceDao;
+  const localFileService = {
+    inspect: inspectLocalFiles,
+    loadImages,
+  } as unknown as LocalFileService;
   const titleService = { startTitleCreation } as unknown as TitleService;
   const aiToolApprovalService = { review } as unknown as AiToolApprovalService;
   const toolApprovalService = {
@@ -122,6 +138,7 @@ describe("MessageService", () => {
       agentService,
       eventService,
       workspaceDao,
+      localFileService,
       titleService,
       aiToolApprovalService,
       toolApprovalService,
@@ -140,6 +157,12 @@ describe("MessageService", () => {
       createdAt: new Date(0).toISOString(),
     });
     getModel.mockReturnValue(model);
+    getBranch.mockResolvedValue([]);
+    appendCustomEntry.mockResolvedValue("entry-id");
+    inspectLocalFiles.mockImplementation(async (paths) =>
+      paths.map((path) => ({ path, name: path.split("/").at(-1) ?? path, fileType: "TXT" })),
+    );
+    loadImages.mockResolvedValue([]);
     getPendingApproval.mockResolvedValue(undefined);
     getPendingQuestion.mockResolvedValue(undefined);
   });
@@ -173,6 +196,7 @@ describe("MessageService", () => {
       cwd: "/workspace/willow",
       model,
       metadata: expect.objectContaining({ id: "session" }),
+      sandboxPolicy: { allowWrite: [] },
       permissionMode: "request-approval",
       requestApproval: expect.any(Function),
       requestUser: expect.any(Function),
@@ -188,6 +212,129 @@ describe("MessageService", () => {
       sessionId: "session",
       status: "completed",
     });
+  });
+
+  it("persists attachments and grants current and inherited files to the session sandbox", async () => {
+    getSession.mockReturnValue({
+      id: "session",
+      databaseId: 1,
+      workspaceId: 1,
+      title: "",
+      createdAt: new Date(0).toISOString(),
+    });
+    const inheritedGrant = {
+      requestId: "previous-request",
+      files: [{ path: "/outside/old.md", name: "old.md", fileType: "MD" }],
+    };
+    getBranch.mockResolvedValue([
+      {
+        type: "custom",
+        customType: LOCAL_FILE_GRANT_CUSTOM_TYPE,
+        data: inheritedGrant,
+      },
+      {
+        type: "message",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: appendLocalFileBlock("Earlier", inheritedGrant) }],
+          timestamp: 1,
+        },
+      },
+      {
+        type: "custom",
+        customType: LOCAL_FILE_GRANT_CUSTOM_TYPE,
+        data: {
+          requestId: "orphan",
+          files: [{ path: "/outside/orphan.txt", name: "orphan.txt", fileType: "TXT" }],
+        },
+      },
+    ] as never);
+    inspectLocalFiles.mockResolvedValue([
+      { path: "/outside/new.txt", name: "new.txt", fileType: "TXT" },
+    ]);
+    const harness = createHarness();
+    getAgentHarness.mockResolvedValue(harness.harness);
+
+    await service.sendMessage({
+      workspaceId: 1,
+      sessionId: "session",
+      content: "Review these files",
+      model: modelConfig,
+      attachments: [{ path: "/link/new.txt", name: "ignored", fileType: "ignored" }],
+    });
+
+    expect(inspectLocalFiles).toHaveBeenCalledWith(["/link/new.txt"]);
+    const persistedGrant = appendCustomEntry.mock.calls[0]?.[3];
+    expect(appendCustomEntry).toHaveBeenCalledWith(
+      1,
+      "session",
+      LOCAL_FILE_GRANT_CUSTOM_TYPE,
+      expect.objectContaining({
+        files: [{ path: "/outside/new.txt", name: "new.txt", fileType: "TXT" }],
+      }),
+    );
+    expect(getAgentHarness).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sandboxPolicy: { allowWrite: ["/outside/old.md", "/outside/new.txt"] },
+      }),
+    );
+    const prompt = harness.prompt.mock.calls[0]?.[0] as string;
+    expect(parseLocalFilePrompt(prompt)).toEqual({
+      content: "Review these files",
+      grant: persistedGrant,
+    });
+    expect(prompt).not.toContain("orphan.txt");
+    expect(startTitleCreation).toHaveBeenCalledWith({
+      workspaceId: 1,
+      sessionId: "session",
+      content: "Review these files",
+    });
+  });
+
+  it("passes images directly to core and includes all attachments in the local-file grant", async () => {
+    const imageAttachment = {
+      path: "/outside/photo.png",
+      name: "photo.png",
+      fileType: "PNG",
+      mimeType: "image/png",
+    };
+    const documentAttachment = {
+      path: "/outside/notes.md",
+      name: "notes.md",
+      fileType: "MD",
+    };
+    const image = { type: "image" as const, data: "iVBORw==", mimeType: "image/png" };
+    inspectLocalFiles.mockResolvedValue([imageAttachment, documentAttachment]);
+    loadImages.mockResolvedValue([image]);
+    const harness = createHarness();
+    getAgentHarness.mockResolvedValue(harness.harness);
+
+    await service.sendMessage({
+      workspaceId: 1,
+      sessionId: "session",
+      content: "Describe the image and review the notes",
+      model: modelConfig,
+      attachments: [imageAttachment, documentAttachment],
+    });
+
+    expect(loadImages).toHaveBeenCalledWith([imageAttachment]);
+    expect(appendCustomEntry).toHaveBeenCalledWith(
+      1,
+      "session",
+      LOCAL_FILE_GRANT_CUSTOM_TYPE,
+      expect.objectContaining({ files: [imageAttachment, documentAttachment] }),
+    );
+    expect(getAgentHarness).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sandboxPolicy: { allowWrite: [imageAttachment.path, documentAttachment.path] },
+      }),
+    );
+    const prompt = harness.prompt.mock.calls[0]?.[0] as string;
+    expect(parseLocalFilePrompt(prompt)).toEqual({
+      content: "Describe the image and review the notes",
+      grant: expect.objectContaining({ files: [imageAttachment, documentAttachment] }),
+    });
+    expect(harness.prompt).toHaveBeenCalledWith(prompt, { images: [image] });
   });
 
   it("forwards message events and filters harness-only events", async () => {
@@ -741,7 +888,7 @@ describe("MessageService", () => {
         content: "  ",
         model: modelConfig,
       }),
-    ).rejects.toThrow("non-empty string");
+    ).rejects.toThrow("text or an attachment");
     expect(getAgentHarness).not.toHaveBeenCalled();
 
     findById.mockReturnValueOnce(undefined);

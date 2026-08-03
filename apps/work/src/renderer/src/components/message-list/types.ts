@@ -8,9 +8,18 @@ export type MessageContent =
       textSignature?: string;
     }
   | {
+      type: "localFile";
+      path: string;
+      name: string;
+      fileType: string;
+      mimeType?: string;
+    }
+  | {
       type: "image";
       data: string;
       mimeType: string;
+      name?: string;
+      fileType?: string;
     }
   | {
       type: "thinking";

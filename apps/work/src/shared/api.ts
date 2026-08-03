@@ -7,6 +7,9 @@ import type {
   ToolApprovalDecision,
   ToolApprovalRequest,
 } from "@willow/core";
+import type { LocalFileAttachment } from "./local-file";
+
+export type { LocalFileAttachment } from "./local-file";
 
 export type { AskUserAnswers, PermissionMode, ToolApprovalDecision };
 
@@ -144,6 +147,20 @@ export interface SearchFilesRequest {
 
 export interface SearchFilesResponse {
   files: FileSearchItem[];
+}
+
+export interface SelectLocalFilesRequest {}
+
+export interface SelectLocalFilesResponse {
+  files: LocalFileAttachment[];
+}
+
+export interface InspectLocalFilesRequest {
+  paths: string[];
+}
+
+export interface InspectLocalFilesResponse {
+  files: LocalFileAttachment[];
 }
 
 export interface GetCredentialRequest {
@@ -385,6 +402,7 @@ export interface SendMessageRequest {
   content: string;
   model: ModelConfig;
   approvalMode?: PermissionMode;
+  attachments?: LocalFileAttachment[];
 }
 
 export interface SendMessageResponse {

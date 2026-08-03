@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { ComposerTokenRule } from "@/components/prompt-composer";
+import LocalFileCard from "@/components/prompt-composer/LocalFileCard.vue";
 import TokenizedText from "@/components/prompt-composer/TokenizedText.vue";
 import { getImageSource } from "../message";
 import type { Message } from "../types";
@@ -60,6 +61,13 @@ function isStreamingMarkdown(index: number): boolean {
       :src="getImageSource(content)"
       alt="消息图片"
       data-content-type="image"
+    />
+
+    <LocalFileCard
+      v-else-if="content.type === 'localFile'"
+      :file="content"
+      class="mt-2"
+      data-content-type="local-file"
     />
 
     <ThinkingBlock

@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
 
-import type { ModelConfig } from "@shared/api";
+import type { LocalFileAttachment, ModelConfig } from "@shared/api";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, h, nextTick, ref } from "vue";
+
+const ipcMocks = vi.hoisted(() => ({
+  getPathForFile: vi.fn(),
+  inspectLocalFiles: vi.fn(),
+  selectLocalFiles: vi.fn(),
+}));
+
+vi.mock("@/lib/ipc", () => ({
+  electronAPI: ipcMocks,
+}));
 import {
   defaultComposerTokenRules,
   parseComposerContent,
@@ -23,6 +33,7 @@ const mountedApps: ReturnType<typeof createApp>[] = [];
 function mountComposer(
   options: {
     content?: string;
+    attachments?: LocalFileAttachment[];
     withPanels?: boolean;
     model?: ModelConfig;
     models?: ComposerModelOption[];
@@ -33,6 +44,7 @@ function mountComposer(
   } = {},
 ) {
   const content = ref(options.content ?? "");
+  const attachments = ref(options.attachments ?? []);
   const model = ref<ModelConfig>(options.model ?? { providerId: "provider", modelId: "model" });
   const models = ref(options.models ?? []);
   const reasoningEffort = ref<string | undefined>(options.reasoningEffort);
@@ -52,6 +64,7 @@ function mountComposer(
           PromptComposer,
           {
             content: content.value,
+            attachments: attachments.value,
             model: model.value,
             models: models.value,
             reasoningEffort: reasoningEffort.value,
@@ -61,6 +74,9 @@ function mountComposer(
             tokenRules: [...defaultComposerTokenRules],
             "onUpdate:content": (value: string) => {
               content.value = value;
+            },
+            "onUpdate:attachments": (value: LocalFileAttachment[]) => {
+              attachments.value = value;
             },
             "onUpdate:model": (value: ModelConfig | undefined) => {
               model.value = value ?? model.value;
@@ -101,6 +117,7 @@ function mountComposer(
   return {
     container,
     content,
+    attachments,
     model,
     models,
     reasoningEffort,
@@ -458,12 +475,111 @@ describe("PromptComposer", () => {
     expect(mounted.container.querySelector("[data-test=mention-panel]")).toBeNull();
   });
 
-  it("opens an empty mention panel from the plus button", async () => {
+  it("opens the system file selector from the plus button", async () => {
+    ipcMocks.selectLocalFiles.mockResolvedValueOnce({ files: [] });
     const mounted = mountComposer({ withPanels: true });
-    const plus = mounted.container.querySelector<HTMLButtonElement>("[aria-label='添加引用']")!;
+    const plus = mounted.container.querySelector<HTMLButtonElement>("[aria-label='添加本地文件']")!;
     plus.click();
+    await vi.waitFor(() => expect(ipcMocks.selectLocalFiles).toHaveBeenCalledOnce());
+    expect(mounted.container.querySelector("[data-test=mention-panel]")).toBeNull();
+  });
+
+  it("adds, deduplicates, renders, and removes selected local files", async () => {
+    const file = { path: "/tmp/draft.md", name: "draft.md", fileType: "MD" };
+    ipcMocks.selectLocalFiles.mockResolvedValueOnce({ files: [file, file] });
+    const mounted = mountComposer();
+    mounted.container.querySelector<HTMLButtonElement>("[aria-label='添加本地文件']")!.click();
+
+    await vi.waitFor(() => expect(mounted.attachments.value).toEqual([file]));
+    const card = mounted.container.querySelector<HTMLElement>("[data-slot=local-file-card]")!;
+    expect(card.textContent).toContain("draft.md");
+    expect(card.textContent).not.toContain("MD");
+    expect(card.title).toBe("/tmp/draft.md");
+    expect(card.classList).toContain("group");
+    expect(card.getAttribute("data-variant")).toBe("compact");
+
+    const removeButton = mounted.container.querySelector<HTMLButtonElement>(
+      "[aria-label='移除文件：draft.md']",
+    )!;
+    expect([...removeButton.classList]).toEqual(
+      expect.arrayContaining(["group-hover:opacity-100", "focus-visible:opacity-100"]),
+    );
+
+    removeButton.click();
     await nextTick();
-    expect(mounted.container.querySelector("[data-test=mention-panel]")?.textContent).toBe("");
+    expect(mounted.attachments.value).toEqual([]);
+  });
+
+  it("lays out compact attachments in one horizontally scrollable row", () => {
+    const files = Array.from({ length: 9 }, (_, index) => ({
+      path: `/tmp/file-${index}.txt`,
+      name: `file-${index}.txt`,
+      fileType: "TXT",
+    }));
+    const mounted = mountComposer({ attachments: files });
+    const list = mounted.container.querySelector<HTMLElement>(
+      "[data-slot=local-file-attachment-list]",
+    )!;
+    const grid = list.firstElementChild as HTMLElement;
+    const cards = mounted.container.querySelectorAll<HTMLElement>("[data-slot=local-file-card]");
+
+    expect([...list.classList]).toEqual(
+      expect.arrayContaining(["overflow-x-auto", "overflow-y-hidden"]),
+    );
+    expect([...grid.classList]).toEqual(expect.arrayContaining(["flex", "w-max", "flex-nowrap"]));
+    expect(cards).toHaveLength(9);
+    expect([...(cards[0]?.classList ?? [])]).toEqual(
+      expect.arrayContaining(["h-9", "w-fit", "shrink-0"]),
+    );
+  });
+
+  it("pastes local files without inserting clipboard text", async () => {
+    const mounted = mountComposer({ content: "start" });
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const file = new File(["draft"], "draft.md", { type: "text/markdown" });
+    ipcMocks.getPathForFile.mockReturnValueOnce("/tmp/draft.md");
+    ipcMocks.inspectLocalFiles.mockResolvedValueOnce({
+      files: [{ path: "/tmp/draft.md", name: "draft.md", fileType: "MD" }],
+    });
+    const paste = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, "clipboardData", {
+      value: { files: [file], getData: () => "ignored text" },
+    });
+
+    editor.dispatchEvent(paste);
+    await vi.waitFor(() => expect(mounted.attachments.value).toHaveLength(1));
+    expect(mounted.content.value).toBe("start");
+    expect(ipcMocks.inspectLocalFiles).toHaveBeenCalledWith({ paths: ["/tmp/draft.md"] });
+  });
+
+  it("submits attachments with text and clears both models", async () => {
+    const file = { path: "/tmp/draft.md", name: "draft.md", fileType: "MD" };
+    const mounted = mountComposer({ content: "Review", attachments: [file] });
+    mounted.container.querySelector<HTMLButtonElement>("[data-action=submit]")!.click();
+
+    expect(mounted.submissions).toEqual([
+      expect.objectContaining({ content: "Review", attachments: [file] }),
+    ]);
+    await nextTick();
+    expect(mounted.content.value).toBe("");
+    expect(mounted.attachments.value).toEqual([]);
+  });
+
+  it("submits an image attachment without requiring text", async () => {
+    const image = {
+      path: "/tmp/photo.png",
+      name: "photo.png",
+      fileType: "PNG",
+      mimeType: "image/png",
+    };
+    const mounted = mountComposer({ attachments: [image] });
+    const submit = mounted.container.querySelector<HTMLButtonElement>("[data-action=submit]")!;
+
+    expect(submit.disabled).toBe(false);
+    submit.click();
+    expect(mounted.submissions).toEqual([
+      expect.objectContaining({ content: "", attachments: [image] }),
+    ]);
   });
 
   it("replaces a mention trigger through the injected callback", async () => {

@@ -10,6 +10,7 @@ import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import {
   AgentCore,
   type AgentCoreOptions,
+  type AgentHarnessOptions,
   type AskUserHandler,
   type ToolApprovalHandler,
 } from "@willow/core";
@@ -28,6 +29,7 @@ type AgentServiceOptions = Omit<AgentCoreOptions, "models" | "sessionRepo" | "ta
   permissionMode: import("@willow/core").PermissionMode;
   requestApproval: ToolApprovalHandler;
   requestUser: AskUserHandler;
+  sandboxPolicy?: AgentHarnessOptions["sandboxPolicy"];
 };
 
 type SimpleAgentOptions = {
@@ -100,6 +102,7 @@ export class AgentService {
     permissionMode,
     requestApproval,
     requestUser,
+    sandboxPolicy,
     ...options
   }: AgentServiceOptions) {
     const sessionRepo = this.sessionManagerFactory.create(workspaceId);
@@ -119,6 +122,7 @@ export class AgentService {
       permissionMode,
       requestApproval,
       requestUser,
+      sandboxPolicy,
     });
     return this.interceptStatistics(harness, {
       source: "chat",

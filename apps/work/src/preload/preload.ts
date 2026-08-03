@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+import { contextBridge, ipcRenderer, type IpcRendererEvent, webUtils } from "electron";
 import type { IRenderHook } from "../shared";
 import type {
   ApiResponse,
@@ -26,6 +26,8 @@ import type {
   GetCredentialResponse,
   GetMessageListRequest,
   GetMessageListResponse,
+  InspectLocalFilesRequest,
+  InspectLocalFilesResponse,
   GetProviderCatalogRequest,
   GetProviderCatalogResponse,
   GetStatisticsRequest,
@@ -52,6 +54,8 @@ import type {
   ResolveUserQuestionResponse,
   SearchFilesRequest,
   SearchFilesResponse,
+  SelectLocalFilesRequest,
+  SelectLocalFilesResponse,
   SendMessageRequest,
   SendMessageResponse,
   SetCredentialRequest,
@@ -104,7 +108,9 @@ import {
   RESOLVE_USER_QUESTION,
   RESTART_TO_UPDATE,
   SEARCH_FILES,
+  INSPECT_LOCAL_FILES,
   SEND_MESSAGE,
+  SELECT_LOCAL_FILES,
   SET_CREDENTIAL,
   SET_BUILTIN_SKILL_ENABLED,
   SET_AUTO_LAUNCH,
@@ -207,6 +213,11 @@ const ipcObject: IRenderHook = {
     ),
   searchFiles: (request: SearchFilesRequest) =>
     invoke<SearchFilesRequest, SearchFilesResponse>(SEARCH_FILES, request),
+  selectLocalFiles: (request: SelectLocalFilesRequest = {}) =>
+    invoke<SelectLocalFilesRequest, SelectLocalFilesResponse>(SELECT_LOCAL_FILES, request),
+  inspectLocalFiles: (request: InspectLocalFilesRequest) =>
+    invoke<InspectLocalFilesRequest, InspectLocalFilesResponse>(INSPECT_LOCAL_FILES, request),
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
   sendMessage: (request: SendMessageRequest) =>
     invoke<SendMessageRequest, SendMessageResponse>(SEND_MESSAGE, request),
   stopMessage: (request: StopMessageRequest) =>

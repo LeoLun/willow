@@ -72,7 +72,7 @@ const formattedDetails = computed(() =>
     <CollapsibleTrigger as-child>
       <button
         type="button"
-        class="flex w-full cursor-pointer items-center gap-1.5 text-left text-muted-foreground"
+        class="flex w-full cursor-pointer items-center gap-1 text-left text-muted-foreground"
         :aria-label="`${summary}，${open ? '收起' : '展开'}执行结果`"
       >
         <component

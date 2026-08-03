@@ -63,6 +63,9 @@ const emit = defineEmits<{
             :title="message.payload.content"
           >
             {{ message.payload.content }}
+            <span v-if="message.payload.attachments?.length" class="text-muted-foreground">
+              · {{ message.payload.attachments.length }} 个文件
+            </span>
           </p>
           <button
             type="button"

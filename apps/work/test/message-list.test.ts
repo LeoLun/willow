@@ -2,6 +2,7 @@
 
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { MessageStreamEvent } from "@shared/api";
+import { appendLocalFileBlock } from "@shared/local-file";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, h, nextTick, shallowRef } from "vue";
 import {
@@ -171,6 +172,122 @@ describe("pi-agent message conversion", () => {
     const messages = toMessageList([duplicate, duplicate]);
 
     expect(messages.map((message) => message.id)).toEqual(["user:5::0", "user:5::1"]);
+  });
+
+  it("separates persisted local file metadata from visible user text", () => {
+    const content = appendLocalFileBlock("Review this", {
+      requestId: "request-1",
+      files: [{ path: "/tmp/design.md", name: "design.md", fileType: "MD" }],
+    });
+    const message = toMessage(
+      agentMessage({
+        role: "user",
+        content: [{ type: "text", text: content }],
+        timestamp: 6,
+      }),
+    );
+
+    expect(message.content).toEqual([
+      { type: "text", text: "Review this" },
+      { type: "localFile", path: "/tmp/design.md", name: "design.md", fileType: "MD" },
+    ]);
+    const container = mountMessageList([message]);
+    expect(container.textContent).toContain("Review this");
+    expect(container.textContent).toContain("design.md");
+    expect(container.textContent).not.toContain("willow_local_files");
+    expect(container.querySelector('[data-slot="user-message-attachments"]')?.textContent).toBe(
+      "design.md",
+    );
+    const attachmentList = container.querySelector<HTMLElement>(
+      '[data-slot="user-message-attachments"]',
+    )!;
+    expect([...attachmentList.classList]).toEqual(
+      expect.arrayContaining(["overflow-x-auto", "overflow-y-hidden"]),
+    );
+    expect([...(attachmentList.firstElementChild?.classList ?? [])]).toEqual(
+      expect.arrayContaining(["flex", "w-max", "flex-nowrap"]),
+    );
+    expect(
+      container.querySelector('[data-slot="local-file-card"]')?.getAttribute("data-variant"),
+    ).toBe("compact");
+    expect(container.querySelector('[data-slot="user-message-body"]')?.textContent).toBe(
+      "Review this",
+    );
+  });
+
+  it("renders a file-only user message without an empty text bubble", () => {
+    const content = appendLocalFileBlock("", {
+      requestId: "request-2",
+      files: [{ path: "/tmp/plan.md", name: "plan.md", fileType: "MD" }],
+    });
+    const container = mountMessageList([
+      toMessage(agentMessage({ role: "user", content, timestamp: 7 })),
+    ]);
+
+    expect(container.querySelector('[data-slot="user-message-attachments"]')?.textContent).toBe(
+      "plan.md",
+    );
+    expect(container.querySelector('[data-slot="user-message-body"]')).toBeNull();
+  });
+
+  it("keeps malformed attachment markers visible as plain text", () => {
+    const content = "Review\n\n<willow_local_files>\nnot-json\n</willow_local_files>";
+    const message = toMessage(agentMessage({ role: "user", content, timestamp: 7 }));
+    expect(message.content).toEqual([{ type: "text", text: content }]);
+  });
+
+  it("renders user message images using LocalFileCard with thumbnail", () => {
+    const message: Message = {
+      id: "user-img",
+      sourceKey: "user-img",
+      role: "user",
+      timestamp: 8,
+      status: "completed",
+      content: [
+        { type: "text", text: "图片内容是什么" },
+        { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+      ],
+    };
+    const container = mountMessageList([message]);
+    expect(container.querySelector('[data-slot="user-message-attachments"]')).not.toBeNull();
+    const fileCard = container.querySelector('[data-slot="local-file-card"]');
+    expect(fileCard).not.toBeNull();
+    const img = fileCard?.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute("src")).toContain("data:image/png;base64,aGVsbG8=");
+  });
+
+  it("deduplicates localFile and image content for the same attachment into a single card", () => {
+    const message: Message = {
+      id: "user-dedup",
+      sourceKey: "user-dedup",
+      role: "user",
+      timestamp: 9,
+      status: "completed",
+      content: [
+        { type: "text", text: "图片内容是什么" },
+        {
+          type: "localFile",
+          path: "/tmp/codex.png",
+          name: "codex.png",
+          fileType: "PNG",
+        },
+        {
+          type: "image",
+          data: "aGVsbG8=",
+          mimeType: "image/png",
+          name: "codex.png",
+          fileType: "PNG",
+        },
+      ],
+    };
+    const container = mountMessageList([message]);
+    const cards = container.querySelectorAll('[data-slot="local-file-card"]');
+    expect(cards).toHaveLength(1);
+    expect(cards[0].textContent).toContain("codex.png");
+    expect(cards[0].querySelector("img")?.getAttribute("src")).toContain(
+      "data:image/png;base64,aGVsbG8=",
+    );
   });
 });
 

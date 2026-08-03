@@ -1,5 +1,6 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { MessageStreamEvent } from "@shared/api";
+import { parseLocalFilePrompt } from "@shared/local-file";
 import type {
   Message,
   MessageContent,
@@ -61,7 +62,15 @@ function toContent(value: unknown, thinkingStatus: ThinkingStatus = "completed")
     typeof content.data === "string" &&
     typeof content.mimeType === "string"
   ) {
-    return { type: "image", data: content.data, mimeType: content.mimeType };
+    return {
+      type: "image",
+      data: content.data,
+      mimeType: content.mimeType,
+      ...(typeof content.name === "string" && content.name !== "" ? { name: content.name } : {}),
+      ...(typeof content.fileType === "string" && content.fileType !== ""
+        ? { fileType: content.fileType }
+        : {}),
+    };
   }
 
   if (content.type === "thinking" && typeof content.thinking === "string") {
@@ -93,16 +102,48 @@ function toContent(value: unknown, thinkingStatus: ThinkingStatus = "completed")
   return toUnknownContent(value, content.type);
 }
 
+function toUserTextContent(text: string, textSignature?: string): MessageContent[] {
+  const parsed = parseLocalFilePrompt(text);
+  if (!parsed.grant) {
+    if (text === "") return [];
+    return [{ type: "text", text, ...(textSignature ? { textSignature } : {}) }];
+  }
+  return [
+    ...(parsed.content
+      ? ([
+          {
+            type: "text",
+            text: parsed.content,
+            ...(textSignature ? { textSignature } : {}),
+          },
+        ] satisfies MessageContent[])
+      : []),
+    ...parsed.grant.files.map((file) => ({ type: "localFile" as const, ...file })),
+  ];
+}
+
 function toContentList(
   message: AgentMessageLike,
   role: MessageRole,
   thinkingStatuses?: ReadonlyMap<number, ThinkingStatus>,
 ): MessageContent[] {
   if (role === "user" && typeof message.content === "string") {
-    return [{ type: "text", text: message.content }];
+    return toUserTextContent(message.content);
   }
   if (!Array.isArray(message.content)) {
     return [toUnknownContent(message.content, "content")];
+  }
+  if (role === "user") {
+    return message.content.flatMap((value) => {
+      const content = asObject(value) as ContentLike | undefined;
+      if (content?.type === "text" && typeof content.text === "string") {
+        return toUserTextContent(
+          content.text,
+          typeof content.textSignature === "string" ? content.textSignature : undefined,
+        );
+      }
+      return [toContent(value)];
+    });
   }
   return message.content.map((content, index) => toContent(content, thinkingStatuses?.get(index)));
 }

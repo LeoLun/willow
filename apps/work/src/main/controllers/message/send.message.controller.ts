@@ -29,8 +29,12 @@ export class SendMessageController extends IPCBaseController<
   checkParams(request: SendMessageRequest): Error | undefined {
     const error = checkMessageSessionParams(request);
     if (error) return error;
-    if (typeof request.content !== "string" || request.content.trim() === "") {
-      return new Error("content must be a non-empty string");
+    if (
+      typeof request.content !== "string" ||
+      (request.content.trim() === "" &&
+        (!Array.isArray(request.attachments) || request.attachments.length === 0))
+    ) {
+      return new Error("message must include text or an attachment");
     }
     if (
       !request.model ||
@@ -48,6 +52,26 @@ export class SendMessageController extends IPCBaseController<
       request.approvalMode !== "full-access"
     ) {
       return new Error("approvalMode must be a supported permission mode");
+    }
+    if (request.attachments !== undefined) {
+      if (!Array.isArray(request.attachments)) {
+        return new Error("attachments must be an array");
+      }
+      for (const attachment of request.attachments) {
+        if (
+          !attachment ||
+          typeof attachment.path !== "string" ||
+          attachment.path.trim() === "" ||
+          typeof attachment.name !== "string" ||
+          attachment.name.trim() === "" ||
+          typeof attachment.fileType !== "string" ||
+          attachment.fileType.trim() === "" ||
+          (attachment.mimeType !== undefined &&
+            (typeof attachment.mimeType !== "string" || attachment.mimeType.trim() === ""))
+        ) {
+          return new Error("attachments must contain valid local files");
+        }
+      }
     }
     return undefined;
   }

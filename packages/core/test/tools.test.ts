@@ -283,6 +283,39 @@ describe("filesystem tools", () => {
     );
   });
 
+  it("limits an explicit writable file grant to that exact file", async () => {
+    const parent = await temporaryDirectory("willow-exact-file-grant-");
+    const cwd = join(parent, "workspace");
+    const outside = join(parent, "outside");
+    await mkdir(cwd);
+    await mkdir(outside);
+    const granted = join(outside, "granted.txt");
+    const sibling = join(outside, "sibling.txt");
+    await writeFile(granted, "before", "utf8");
+    await writeFile(sibling, "secret", "utf8");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const runtime = {
+      cwd,
+      permissionMode: "request-approval" as const,
+      requestApproval,
+      sandboxPolicy: { allowWrite: [granted] },
+    };
+
+    await expect(
+      createReadTool(runtime).execute("read-granted", { path: granted }),
+    ).resolves.toEqual(expect.objectContaining({ content: [{ type: "text", text: "before" }] }));
+    await createWriteTool(runtime).execute("write-granted", { path: granted, content: "after" });
+    await expect(
+      createReadTool(runtime).execute("read-sibling", { path: sibling }),
+    ).rejects.toThrow("Permission denied");
+    await expect(
+      createWriteTool(runtime).execute("write-sibling", { path: sibling, content: "changed" }),
+    ).rejects.toThrow("Permission denied");
+    expect(await readFile(granted, "utf8")).toBe("after");
+    expect(await readFile(sibling, "utf8")).toBe("secret");
+    expect(requestApproval).toHaveBeenCalledTimes(2);
+  });
+
   it("allows read-only tools inside global skills without allowing symlink escapes", async () => {
     const parent = await temporaryDirectory("willow-global-skills-read-");
     const cwd = join(parent, "workspace");

@@ -87,7 +87,7 @@ describe("message controllers", () => {
     expect(getMessageList).not.toHaveBeenCalled();
   });
 
-  it("rejects empty message content without calling the service", async () => {
+  it("rejects a message without text or attachments", async () => {
     await expect(
       sendController.run(event, {
         workspaceId: 1,
@@ -95,8 +95,34 @@ describe("message controllers", () => {
         content: "  ",
         model: { providerId: "openai", modelId: "large" },
       }),
-    ).resolves.toEqual({ code: 400, msg: "content must be a non-empty string" });
+    ).resolves.toEqual({ code: 400, msg: "message must include text or an attachment" });
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("allows an attachment-only message", async () => {
+    const message = { role: "assistant", content: [] } as unknown as AssistantMessage;
+    sendMessage.mockResolvedValueOnce(message);
+    const request: SendMessageRequest = {
+      workspaceId: 1,
+      sessionId: "session",
+      content: "",
+      model: { providerId: "openai", modelId: "large" },
+      attachments: [
+        {
+          path: "/tmp/photo.png",
+          name: "photo.png",
+          fileType: "PNG",
+          mimeType: "image/png",
+        },
+      ],
+    };
+
+    await expect(sendController.run(event, request)).resolves.toEqual({
+      code: 0,
+      data: { message },
+      msg: "ok",
+    });
+    expect(sendMessage).toHaveBeenCalledWith(request);
   });
 
   it("rejects an invalid model without calling the service", async () => {
@@ -127,6 +153,19 @@ describe("message controllers", () => {
       code: 400,
       msg: "approvalMode must be a supported permission mode",
     });
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed attachments without calling the service", async () => {
+    await expect(
+      sendController.run(event, {
+        workspaceId: 1,
+        sessionId: "session",
+        content: "Hello",
+        model: { providerId: "openai", modelId: "large" },
+        attachments: [{ path: "", name: "file", fileType: "TXT" }],
+      }),
+    ).resolves.toEqual({ code: 400, msg: "attachments must contain valid local files" });
     expect(sendMessage).not.toHaveBeenCalled();
   });
 

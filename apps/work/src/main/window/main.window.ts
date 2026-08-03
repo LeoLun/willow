@@ -19,7 +19,6 @@ const option: WindowMetadata = {
       ? { icon: join(__dirname, "../../assets/icons/icon-dev.png") }
       : {}),
   },
-  openDevTools: !app.isPackaged,
 };
 
 export function configureMainWindowBounds(workArea: Rectangle) {
@@ -44,8 +43,6 @@ export class MainWindow implements OnInit, OnDestroy {
   };
 
   onInit() {
-    console.log("OnInit");
-    console.log("win", this.win);
     app.on("before-quit", this.markQuitting);
 
     this.win.webContents.on("console-message", (event, level, message, line, sourceId) => {
@@ -54,7 +51,6 @@ export class MainWindow implements OnInit, OnDestroy {
   }
 
   onDestroy() {
-    console.log("onDestroy");
     app.off("before-quit", this.markQuitting);
   }
 

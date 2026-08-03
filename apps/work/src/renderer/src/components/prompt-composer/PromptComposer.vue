@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { ModelConfig } from "@shared/api";
-import type { PermissionMode } from "@shared/api";
+import type { LocalFileAttachment, ModelConfig, PermissionMode } from "@shared/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +23,9 @@ import {
 } from "vue";
 import { baseShadowStyles } from "@/components/ui/base-shadow";
 import BorderBeam from "@/components/ui/BorderBeam.vue";
+import { electronAPI } from "@/lib/ipc";
 import { getSourceSelection, restoreSourceSelection, serializeComposerDom } from "./editor-dom";
+import LocalFileCard from "./LocalFileCard.vue";
 import { parseComposerContent } from "./token-parser";
 import type {
   ComposerInsertOptions,
@@ -67,6 +68,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const content = defineModel<string>("content", { default: "" });
+const attachments = defineModel<LocalFileAttachment[]>("attachments", { default: () => [] });
 const approvalMode = defineModel<PermissionMode | undefined>("approvalMode");
 const model = defineModel<ModelConfig | undefined>("model");
 const reasoningEffort = defineModel<string | undefined>("reasoningEffort");
@@ -86,6 +88,8 @@ const slots = useSlots();
 const editor = ref<HTMLElement>();
 const composing = ref(false);
 const editorFocused = ref(false);
+const selectingFiles = ref(false);
+const attachmentError = ref("");
 const trigger = ref<TriggerState>();
 let lastSelection = { start: 0, end: 0 };
 const renderedTokens = new Set<HTMLElement>();
@@ -111,7 +115,7 @@ const reasoningLabel = computed(
 );
 const canSubmit = computed(
   () =>
-    content.value.trim() !== "" &&
+    (content.value.trim() !== "" || attachments.value.length > 0) &&
     !props.disabled &&
     !props.submitting &&
     (props.approvalOptions.length === 0 || approvalMode.value !== undefined) &&
@@ -119,7 +123,9 @@ const canSubmit = computed(
     (reasoningOptions.value.length === 0 ||
       reasoningOptions.value.some((option) => option.value === reasoningEffort.value)),
 );
-const showStopAction = computed(() => content.value.trim() === "" && props.streaming);
+const showStopAction = computed(
+  () => content.value.trim() === "" && attachments.value.length === 0 && props.streaming,
+);
 const actionDisabled = computed(() =>
   showStopAction.value ? props.disabled || props.stopping : !canSubmit.value,
 );
@@ -286,20 +292,28 @@ async function insertFromPanel(text: string, options: ComposerInsertOptions = {}
   await setContentAndSelection(value, selection.start + inserted.length);
 }
 
-function openMentionPanel(): void {
-  if (props.disabled) return;
-  const root = editor.value;
-  if (root) {
-    const selection = getSourceSelection(root);
-    if (selection) lastSelection = selection;
+function addAttachments(files: readonly LocalFileAttachment[]): void {
+  const next = new Map(attachments.value.map((file) => [file.path, file]));
+  for (const file of files) next.set(file.path, file);
+  attachments.value = [...next.values()];
+}
+
+async function selectFiles(): Promise<void> {
+  if (props.disabled || selectingFiles.value) return;
+  selectingFiles.value = true;
+  attachmentError.value = "";
+  try {
+    const response = await electronAPI.selectLocalFiles();
+    addAttachments(response.files);
+  } catch (error) {
+    attachmentError.value = error instanceof Error ? error.message : "选择文件失败，请重试。";
+  } finally {
+    selectingFiles.value = false;
   }
-  trigger.value = {
-    type: "mention",
-    query: "",
-    start: lastSelection.start,
-    end: lastSelection.end,
-  };
-  root?.focus();
+}
+
+function removeAttachment(path: string): void {
+  attachments.value = attachments.value.filter((file) => file.path !== path);
 }
 
 function submit(): void {
@@ -307,12 +321,14 @@ function submit(): void {
   closePanel();
   const payload: ComposerSubmitPayload = {
     content: content.value.trim(),
+    attachments: attachments.value.map((file) => ({ ...file })),
     approvalMode: approvalMode.value,
     model: model.value,
     reasoningEffort: reasoningEffort.value,
   };
   emit("submit", payload);
   content.value = "";
+  attachments.value = [];
   lastSelection = { start: 0, end: 0 };
 }
 
@@ -364,6 +380,20 @@ async function handleKeydown(event: KeyboardEvent): Promise<void> {
 }
 
 async function handlePaste(event: ClipboardEvent): Promise<void> {
+  const pastedFiles = [...(event.clipboardData?.files ?? [])];
+  if (pastedFiles.length > 0) {
+    event.preventDefault();
+    attachmentError.value = "";
+    try {
+      const paths = pastedFiles.map((file) => electronAPI.getPathForFile(file)).filter(Boolean);
+      if (paths.length === 0) throw new Error("无法读取粘贴文件的本地路径");
+      const response = await electronAPI.inspectLocalFiles({ paths });
+      addAttachments(response.files);
+    } catch (error) {
+      attachmentError.value = error instanceof Error ? error.message : "粘贴文件失败，请重试。";
+    }
+    return;
+  }
   event.preventDefault();
   await insertAtSelection(event.clipboardData?.getData("text/plain") ?? "");
 }
@@ -433,6 +463,27 @@ watch(content, (value) => {
     :data-disabled="props.disabled || undefined"
   >
     <div
+      v-if="attachments.length > 0"
+      class="mx-3 mt-3 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      data-slot="local-file-attachment-list"
+    >
+      <div class="flex w-max min-w-full flex-nowrap gap-1.5">
+        <LocalFileCard
+          v-for="file in attachments"
+          :key="file.path"
+          :file="file"
+          compact
+          removable
+          @remove="removeAttachment(file.path)"
+        />
+      </div>
+    </div>
+
+    <p v-if="attachmentError" class="px-4 pt-2 text-xs text-destructive" role="alert">
+      {{ attachmentError }}
+    </p>
+
+    <div
       v-if="trigger && activePanelSlot"
       class="absolute right-0 bottom-full left-0 z-50 mb-2 overflow-hidden rounded-[1.75rem] border border-border bg-popover text-popover-foreground shadow-lg"
       data-slot="prompt-panel"
@@ -460,7 +511,8 @@ watch(content, (value) => {
       <div
         v-if="content === '' && !composing"
         data-slot="prompt-placeholder"
-        class="pointer-events-none absolute inset-x-5 top-4.5 text-sm text-muted-foreground"
+        class="pointer-events-none absolute inset-x-5 text-sm text-muted-foreground"
+        :class="attachments.length > 0 ? 'top-2' : 'top-4.5'"
       >
         {{ props.placeholder }}
       </div>
@@ -472,6 +524,7 @@ watch(content, (value) => {
         :aria-disabled="props.disabled"
         :contenteditable="!props.disabled"
         class="max-h-[17rem] min-h-[5rem] overflow-x-hidden overflow-y-auto px-4 py-4 text-sm leading-6 break-words whitespace-pre-wrap outline-none"
+        :class="attachments.length > 0 ? 'pt-1' : ''"
         @input="handleInput"
         @focus="editorFocused = true"
         @blur="editorFocused = false"
@@ -488,9 +541,9 @@ watch(content, (value) => {
       <button
         type="button"
         class="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
-        :disabled="props.disabled"
-        aria-label="添加引用"
-        @click="openMentionPanel"
+        :disabled="props.disabled || selectingFiles"
+        aria-label="添加本地文件"
+        @click="selectFiles"
       >
         <PlusIcon class="size-4" />
       </button>

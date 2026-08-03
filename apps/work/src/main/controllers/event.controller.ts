@@ -1,9 +1,5 @@
 import { EventService } from "@main/service/event.service";
-import type {
-  ApiResponse,
-  RegisterEventRequest,
-  RegisterEventResponse,
-} from "@shared/api";
+import type { ApiResponse, RegisterEventRequest, RegisterEventResponse } from "@shared/api";
 import { REGISTER_EVENT } from "@shared/constants";
 import { Injectable, IPC } from "@willow/poetry";
 import { IPCBaseController } from "./ipc.base.controller";

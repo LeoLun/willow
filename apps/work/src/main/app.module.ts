@@ -17,6 +17,8 @@ import { GetCredentialController } from "./controllers/credential/get.credential
 import { SetCredentialController } from "./controllers/credential/set.credential.controller";
 import { EventController } from "./controllers/event.controller";
 import { SearchFilesController } from "./controllers/file-search/search.file-search.controller";
+import { InspectLocalFilesController } from "./controllers/local-file/inspect.local-file.controller";
+import { SelectLocalFilesController } from "./controllers/local-file/select.local-file.controller";
 import { GetMessageListController } from "./controllers/message/get-list.message.controller";
 import { ResolveToolApprovalController } from "./controllers/message/resolve-tool-approval.message.controller";
 import { ResolveUserQuestionController } from "./controllers/message/resolve-user-question.message.controller";
@@ -58,6 +60,7 @@ import { WorkspaceDao } from "./service/dao/workspace.dao.server";
 import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
 import { FileSearchService } from "./service/file-search.service";
+import { LocalFileService } from "./service/local-file.service";
 import { MessageService } from "./service/message.service";
 import { ProviderCatalogService } from "./service/provider-catalog.service";
 import { SessionManagerFactory } from "./service/session-manager.factory";
@@ -106,6 +109,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     CredentialService,
     EventService,
     FileSearchService,
+    LocalFileService,
     MessageService,
     ToolApprovalService,
     UserQuestionService,
@@ -122,6 +126,8 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     OpenManualUpdateController,
     ConfirmUpdateBootController,
     SearchFilesController,
+    InspectLocalFilesController,
+    SelectLocalFilesController,
     GetAppInfoController,
     SetThemeController,
     GetAutoLaunchController,

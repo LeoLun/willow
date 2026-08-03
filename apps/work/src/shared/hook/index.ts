@@ -1,5 +1,6 @@
 import type { IEventApi } from "./event.hook";
 import type { IFileSearchApi } from "./file-search.hook";
+import type { ILocalFileApi } from "./local-file.hook";
 import type { IMessageApi } from "./message.hook";
 import type { ISessionApi } from "./session.hook";
 import type { ISettingApi } from "./setting.hook";
@@ -11,6 +12,7 @@ export interface IRenderHook
     IAppUpdateApi,
     IEventApi,
     IFileSearchApi,
+    ILocalFileApi,
     IMessageApi,
     ISessionApi,
     ISettingApi,

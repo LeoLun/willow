@@ -1,5 +1,5 @@
 import { realpathSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -224,6 +224,33 @@ async function workspaceTemporaryDirectory(prefix: string): Promise<string> {
 }
 
 describe("bash sandbox policy", () => {
+  it("applies an explicit writable file grant without allowing its sibling", async () => {
+    const parent = await temporaryDirectory("willow-exact-bash-grant-");
+    const cwd = join(parent, "workspace");
+    const outside = join(parent, "outside");
+    const granted = join(outside, "granted.txt");
+    const sibling = join(outside, "sibling.txt");
+    await Promise.all([mkdir(cwd), mkdir(outside)]);
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const tool = createBashTool({
+      cwd,
+      permissionMode: "request-approval",
+      requestApproval,
+      sandboxPolicy: { allowWrite: [granted] },
+    });
+
+    await expect(
+      tool.execute("write-granted", { command: `write-attempt:${granted}` }),
+    ).resolves.toEqual(
+      expect.objectContaining({ content: [{ type: "text", text: "(no output)" }] }),
+    );
+    await expect(
+      tool.execute("write-sibling", { command: `write-attempt:${sibling}` }),
+    ).rejects.toThrow("Permission denied");
+    expect(sandbox.configs[0].filesystem.allowWrite).toContain(granted);
+    expect(sandbox.configs[0].filesystem.allowWrite).not.toContain(sibling);
+  });
+
   it("allows read and write access to both system temporary directory roots", async () => {
     const cwd = await temporaryDirectory("willow-temporary-policy-");
     const slashTmp = realpathSync("/tmp");

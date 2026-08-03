@@ -66,6 +66,24 @@ describe("message queue", () => {
     second.resolve(undefined);
   });
 
+  it("preserves and deep-copies local file attachments", async () => {
+    const pending = deferred<unknown>();
+    const { queue, send } = createQueue();
+    send.mockReturnValue(pending.promise);
+    const attachment = { path: "/tmp/a.md", name: "a.md", fileType: "MD" };
+    const input = { ...payload("review"), attachments: [attachment] };
+
+    queue.enqueue({ workspaceId: 1, sessionId: "session", payload: input });
+    attachment.name = "changed.md";
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachments: [{ path: "/tmp/a.md", name: "a.md", fileType: "MD" }],
+      }),
+    );
+    pending.resolve(undefined);
+  });
+
   it("runs different sessions independently", () => {
     const { queue, send } = createQueue();
     send.mockImplementation(() => new Promise(() => undefined));

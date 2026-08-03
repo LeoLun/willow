@@ -1,4 +1,6 @@
-import type { AgentHarness, AgentMessage } from "@earendil-works/pi-agent-core";
+import { randomUUID } from "node:crypto";
+import { isAbsolute } from "node:path";
+import type { AgentHarness, AgentMessage, SessionTreeEntry } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type {
   GetMessageListResponse,
@@ -6,16 +8,26 @@ import type {
   MessageStreamEvent,
   ModelConfig,
   PermissionMode,
+  LocalFileAttachment,
   ResolveToolApprovalRequest,
   ResolveUserQuestionRequest,
 } from "@shared/api";
 import { MESSAGE_EVENT } from "@shared/constants";
+import {
+  appendLocalFileBlock,
+  isImageAttachment,
+  isLocalFileGrant,
+  LOCAL_FILE_GRANT_CUSTOM_TYPE,
+  parseLocalFilePrompt,
+  type LocalFileGrant,
+} from "@shared/local-file";
 import type { AskUserAnswers, AskUserHandler, ToolApprovalHandler } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import { AgentService } from "./agent.service";
 import { AiToolApprovalService } from "./ai-tool-approval.service";
 import { WorkspaceDao } from "./dao/workspace.dao.server";
 import { EventService } from "./event.service";
+import { LocalFileService } from "./local-file.service";
 import { SessionService } from "./session.service";
 import { TitleService } from "./title.service";
 import { ToolApprovalService } from "./tool-approval.service";
@@ -27,6 +39,7 @@ export type SendMessageInput = {
   content: string;
   model: ModelConfig;
   approvalMode?: PermissionMode;
+  attachments?: LocalFileAttachment[];
 };
 
 type ActiveTask = {
@@ -49,6 +62,7 @@ export class MessageService {
     private readonly agentService: AgentService,
     private readonly eventService: EventService,
     private readonly workspaceDao: WorkspaceDao,
+    private readonly localFileService: LocalFileService,
     private readonly titleService: TitleService,
     private readonly aiToolApprovalService: AiToolApprovalService,
     private readonly toolApprovalService: ToolApprovalService,
@@ -56,7 +70,7 @@ export class MessageService {
   ) {}
 
   async sendMessage(input: SendMessageInput): Promise<AssistantMessage> {
-    const content = this.validateContent(input.content);
+    const content = this.validateContent(input.content, input.attachments?.length ?? 0);
     const key = this.taskKey(input.workspaceId, input.sessionId);
     if (this.busySessions.has(key)) {
       throw new Error(`Session is already running: ${input.sessionId}`);
@@ -82,12 +96,34 @@ export class MessageService {
 
     const session = this.sessionService.getSession(input.workspaceId, input.sessionId);
     const model = this.agentService.getModel(input.model.providerId, input.model.modelId);
+    const branch = await this.sessionService.getBranch(input.workspaceId, input.sessionId);
+    const inheritedFiles = this.getGrantedFiles(branch);
+    const inspectedAttachments =
+      input.attachments && input.attachments.length > 0
+        ? await this.localFileService.inspect(input.attachments.map((file) => file.path))
+        : [];
+    const attachedImages = inspectedAttachments.filter(isImageAttachment);
+    const images = await this.localFileService.loadImages(attachedImages);
+    const grant =
+      inspectedAttachments.length > 0
+        ? ({ requestId: randomUUID(), files: inspectedAttachments } satisfies LocalFileGrant)
+        : undefined;
+    if (grant) {
+      await this.sessionService.appendCustomEntry(
+        input.workspaceId,
+        input.sessionId,
+        LOCAL_FILE_GRANT_CUSTOM_TYPE,
+        grant,
+      );
+    }
+    const grantedFiles = this.mergeFiles(inheritedFiles, inspectedAttachments);
     const permissionMode = input.approvalMode ?? "request-approval";
     const harness = await this.agentService.getAgentHarness({
       workspaceId: input.workspaceId,
       cwd: workspace.path,
       model,
       metadata: session,
+      sandboxPolicy: { allowWrite: grantedFiles.map((file) => file.path) },
       permissionMode,
       requestApproval: this.createApprovalHandler({
         workspaceId: input.workspaceId,
@@ -122,12 +158,14 @@ export class MessageService {
       this.titleService.startTitleCreation({
         workspaceId: input.workspaceId,
         sessionId: input.sessionId,
-        content,
+        content: content || inspectedAttachments.map((file) => file.name).join(", "),
       });
     }
 
     try {
-      const response = await harness.prompt(content);
+      const prompt = grant ? appendLocalFileBlock(content, grant) : content;
+      const response =
+        images.length > 0 ? await harness.prompt(prompt, { images }) : await harness.prompt(prompt);
       if (!task.stopped) {
         this.emit({
           type: "status",
@@ -268,11 +306,67 @@ export class MessageService {
     );
   }
 
-  private validateContent(content: string): string {
-    if (typeof content !== "string" || content.trim() === "") {
-      throw new Error("Message content must be a non-empty string");
+  private validateContent(content: string, attachmentCount: number): string {
+    if (typeof content !== "string" || (content.trim() === "" && attachmentCount === 0)) {
+      throw new Error("Message must include text or an attachment");
     }
     return content.trim();
+  }
+
+  private getGrantedFiles(branch: readonly SessionTreeEntry[]): LocalFileAttachment[] {
+    const referencedRequestIds = new Set<string>();
+    for (const entry of branch) {
+      if (entry.type !== "message" || entry.message.role !== "user") continue;
+      for (const content of this.getTextContents(entry.message.content)) {
+        const parsed = parseLocalFilePrompt(content);
+        if (parsed.grant) referencedRequestIds.add(parsed.grant.requestId);
+      }
+    }
+
+    const files: LocalFileAttachment[] = [];
+    for (const entry of branch) {
+      if (
+        entry.type !== "custom" ||
+        entry.customType !== LOCAL_FILE_GRANT_CUSTOM_TYPE ||
+        !isLocalFileGrant(entry.data) ||
+        !referencedRequestIds.has(entry.data.requestId)
+      ) {
+        continue;
+      }
+      files.push(...entry.data.files.filter((file) => isAbsolute(file.path)));
+    }
+    return this.mergeFiles(files);
+  }
+
+  private getTextContents(content: unknown): string[] {
+    if (typeof content === "string") return [content];
+    if (!Array.isArray(content)) return [];
+    return content.flatMap((block) => {
+      if (
+        typeof block === "object" &&
+        block !== null &&
+        "type" in block &&
+        block.type === "text" &&
+        "text" in block &&
+        typeof block.text === "string"
+      ) {
+        return [block.text];
+      }
+      return [];
+    });
+  }
+
+  private mergeFiles(...groups: readonly LocalFileAttachment[][]): LocalFileAttachment[] {
+    const files = new Map<string, LocalFileAttachment>();
+    for (const group of groups) {
+      for (const file of group) files.set(file.path, file);
+    }
+    return [...files.values()];
+  }
+
+  private async getSessionSandboxPolicy(workspaceId: number, sessionId: string) {
+    const branch = await this.sessionService.getBranch(workspaceId, sessionId);
+    return { allowWrite: this.getGrantedFiles(branch).map((file) => file.path) };
   }
 
   private createApprovalHandler(options: {
@@ -377,6 +471,7 @@ export class MessageService {
       cwd: workspace.path,
       model,
       metadata: session,
+      sandboxPolicy: await this.getSessionSandboxPolicy(payload.workspaceId, payload.sessionId),
       permissionMode: approval.permissionMode,
       requestApproval: async (request, signal) => {
         if (
@@ -471,6 +566,7 @@ export class MessageService {
       cwd: workspace.path,
       model,
       metadata: session,
+      sandboxPolicy: await this.getSessionSandboxPolicy(payload.workspaceId, payload.sessionId),
       permissionMode: question.permissionMode,
       requestApproval: fallbackApproval,
       requestUser: async (request, signal) => {

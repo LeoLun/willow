@@ -1,5 +1,6 @@
 import type {
   ModelConfig,
+  LocalFileAttachment,
   PermissionMode,
   SendMessageRequest,
   StopMessageRequest,
@@ -10,6 +11,7 @@ import { electronAPI } from "@/lib/ipc";
 
 export interface QueuedMessagePayload {
   content: string;
+  attachments?: LocalFileAttachment[];
   model: ModelConfig;
   approvalMode?: PermissionMode;
   reasoningEffort?: string;
@@ -122,6 +124,7 @@ export function createMessageQueueState(
         content: nextMessage.payload.content,
         model: nextMessage.payload.model,
         approvalMode: nextMessage.payload.approvalMode,
+        attachments: nextMessage.payload.attachments,
       });
     } catch (error) {
       setError(key, getErrorMessage(error, "发送消息失败，请重试。"));
@@ -141,6 +144,7 @@ export function createMessageQueueState(
       sessionId: input.sessionId,
       payload: {
         ...input.payload,
+        attachments: input.payload.attachments?.map((file) => ({ ...file })),
         model: { ...input.payload.model },
       },
       createdAt: now(),

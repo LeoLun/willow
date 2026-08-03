@@ -301,6 +301,7 @@ function enqueueMessage(
       !messageQueue.isSessionActive(currentWorkspaceId, currentSessionId),
     payload: {
       content: payload.content,
+      attachments: payload.attachments,
       model: payload.model,
       approvalMode: payload.approvalMode ?? "request-approval",
       reasoningEffort: payload.reasoningEffort,
@@ -336,11 +337,12 @@ async function createSessionAndEnqueue(
 
 function sendMessage(payload: ComposerSubmitPayload): void {
   const content = payload.content;
+  const hasAttachments = payload.attachments.length > 0;
   const model = payload.model;
   const currentWorkspaceId = workspaceId.value;
   const currentSessionId = sessionId.value;
   if (
-    !content ||
+    (!content && !hasAttachments) ||
     !model ||
     !currentWorkspaceId ||
     creatingSession.value ||
