@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, defineComponent, h, nextTick, type App } from "vue";
-import { createMemoryHistory, createRouter, RouterView } from "vue-router";
+import { createMemoryHistory, createRouter, RouterView, type Router } from "vue-router";
 
 const mocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
@@ -11,8 +11,13 @@ const mocks = vi.hoisted(() => ({
   getProviderCatalog: vi.fn(),
   getSessionList: vi.fn(),
   getUserConfig: vi.fn(),
+  listWorkspaceDirectory: vi.fn(),
   openWorkspaceDirectory: vi.fn(),
+  readWorkspaceFile: vi.fn(),
   removeEventListener: vi.fn(),
+  searchFiles: vi.fn(),
+  subscribeWorkspaceFiles: vi.fn(),
+  unsubscribeWorkspaceFiles: vi.fn(),
   waitUntilReady: vi.fn(),
 }));
 
@@ -23,7 +28,12 @@ vi.mock("@/lib/ipc", () => ({
     getProviderCatalog: mocks.getProviderCatalog,
     getSessionList: mocks.getSessionList,
     getUserConfig: mocks.getUserConfig,
+    listWorkspaceDirectory: mocks.listWorkspaceDirectory,
     openWorkspaceDirectory: mocks.openWorkspaceDirectory,
+    readWorkspaceFile: mocks.readWorkspaceFile,
+    searchFiles: mocks.searchFiles,
+    subscribeWorkspaceFiles: mocks.subscribeWorkspaceFiles,
+    unsubscribeWorkspaceFiles: mocks.unsubscribeWorkspaceFiles,
   },
 }));
 
@@ -34,6 +44,26 @@ vi.mock("@/composables/useEventBus", () => ({
     waitUntilReady: mocks.waitUntilReady,
   }),
 }));
+
+vi.mock("../src/renderer/src/components/right-sidebar/MonacoCodeViewer.vue", async () => {
+  const { defineComponent: defineVueComponent, h: renderElement } = await import("vue");
+  return {
+    default: defineVueComponent({
+      props: {
+        code: { required: true, type: String },
+        language: { required: true, type: String },
+      },
+      setup(props) {
+        return () =>
+          renderElement("div", {
+            "data-code": props.code,
+            "data-language": props.language,
+            "data-slot": "monaco-code-viewer",
+          });
+      },
+    }),
+  };
+});
 
 vi.mock("@/components/layout/BaseHeader.vue", () => ({
   default: defineComponent({
@@ -48,6 +78,9 @@ import ChatBase from "../src/renderer/src/pages/main/ChatBase.vue";
 const mountedApps: App[] = [];
 const resizeObservers: FakeResizeObserver[] = [];
 let layoutWidth = 1000;
+let mountedRouter: Router | undefined;
+
+const rightSidebarOpenStorageKey = (scope: string) => `willow:chat-right-sidebar-open:${scope}`;
 
 class FakeResizeObserver {
   readonly disconnect = vi.fn();
@@ -79,18 +112,22 @@ const ChatSlot = defineComponent({
   },
 });
 
-async function mountChatBase(): Promise<HTMLElement> {
+async function mountChatBase(path = "/chat/session-a?workspaceId=1"): Promise<HTMLElement> {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
       {
         path: "/",
         component: ChatBase,
-        children: [{ path: "chat/:sessionId", name: "chat", component: ChatSlot }],
+        children: [
+          { path: "", name: "home", component: ChatSlot },
+          { path: "chat/:sessionId", name: "chat", component: ChatSlot },
+        ],
       },
     ],
   });
-  await router.push("/chat/session-a?workspaceId=1");
+  mountedRouter = router;
+  await router.push(path);
   await router.isReady();
 
   const container = document.createElement("div");
@@ -148,7 +185,23 @@ beforeEach(() => {
   mocks.getProviderCatalog.mockResolvedValue({ providers: [] });
   mocks.getSessionList.mockResolvedValue({ sessions: [] });
   mocks.getUserConfig.mockResolvedValue({});
+  mocks.listWorkspaceDirectory.mockResolvedValue({
+    entries: [{ name: "package.json", relativePath: "package.json", type: "file" }],
+  });
   mocks.openWorkspaceDirectory.mockResolvedValue({});
+  mocks.readWorkspaceFile.mockResolvedValue({
+    file: {
+      content: '{ "name": "willow" }',
+      modifiedAt: 1,
+      name: "package.json",
+      relativePath: "package.json",
+      size: 20,
+      status: "ready",
+    },
+  });
+  mocks.searchFiles.mockResolvedValue({ files: [] });
+  mocks.subscribeWorkspaceFiles.mockResolvedValue({});
+  mocks.unsubscribeWorkspaceFiles.mockResolvedValue({});
   mocks.waitUntilReady.mockResolvedValue(undefined);
 });
 
@@ -179,34 +232,85 @@ describe("ChatBase right sidebar", () => {
   it("toggles the sidebar and restores its persisted open state", async () => {
     const container = await mountChatBase();
     const toggle = getToggle(container);
+    const mountedSidebar = container.querySelector<HTMLElement>('[data-slot="chat-right-sidebar"]');
 
-    expect(container.querySelector('[data-slot="chat-right-sidebar"]')).toBeNull();
+    expect(mountedSidebar?.style.display).toBe("none");
     toggle.click();
     await nextTick();
 
     const layout = getLayout(container);
-    const mainPane = container.querySelector('[data-slot="chat-main-pane"]');
     const rightSidebar = container.querySelector<HTMLElement>('[data-slot="chat-right-sidebar"]');
-    expect(mainPane?.contains(toggle)).toBe(true);
     expect(rightSidebar?.parentElement).toBe(layout);
+    expect(rightSidebar?.style.display).not.toBe("none");
     expect(rightSidebar?.dataset.workspaceId).toBe("1");
     expect(layout.style.gridTemplateColumns).toBe("672px 8px minmax(0, 1fr)");
-    expect(localStorage.getItem("willow:chat-right-sidebar-open")).toBe("true");
+    expect(localStorage.getItem(rightSidebarOpenStorageKey("session-a"))).toBe("true");
+
+    rightSidebar?.querySelector<HTMLButtonElement>('[data-panel-launcher="file"]')?.click();
+    await vi.waitFor(() =>
+      expect(rightSidebar?.querySelector('[data-entry-id="package.json"]')).not.toBeNull(),
+    );
+    rightSidebar?.querySelector<HTMLButtonElement>('[data-entry-id="package.json"]')?.click();
+    await vi.waitFor(() =>
+      expect(rightSidebar?.querySelector("[role=tab]")?.textContent).toContain("package.json"),
+    );
+
+    toggle.click();
+    await nextTick();
+    expect(rightSidebar?.style.display).toBe("none");
+    toggle.click();
+    await nextTick();
+    expect(rightSidebar?.querySelector("[role=tab]")?.textContent).toContain("package.json");
 
     mountedApps.pop()?.unmount();
     container.remove();
     const restoredContainer = await mountChatBase();
     expect(getToggle(restoredContainer).getAttribute("aria-expanded")).toBe("true");
-    expect(restoredContainer.querySelector('[data-slot="chat-right-sidebar"]')).not.toBeNull();
+    expect(
+      restoredContainer.querySelector<HTMLElement>('[data-slot="chat-right-sidebar"]')?.style
+        .display,
+    ).not.toBe("none");
 
     getToggle(restoredContainer).click();
     await nextTick();
-    expect(restoredContainer.querySelector('[data-slot="chat-right-sidebar"]')).toBeNull();
-    expect(localStorage.getItem("willow:chat-right-sidebar-open")).toBe("false");
+    expect(
+      restoredContainer.querySelector<HTMLElement>('[data-slot="chat-right-sidebar"]')?.style
+        .display,
+    ).toBe("none");
+    expect(localStorage.getItem(rightSidebarOpenStorageKey("session-a"))).toBe("false");
+  });
+
+  it("persists open state independently for home and each session", async () => {
+    localStorage.setItem(rightSidebarOpenStorageKey("session-a"), "true");
+    const container = await mountChatBase();
+    const router = mountedRouter;
+    if (!router) throw new Error("router was not initialized");
+
+    expect(getToggle(container).getAttribute("aria-expanded")).toBe("true");
+
+    await router.push("/chat/session-b?workspaceId=1");
+    await nextTick();
+    expect(getToggle(container).getAttribute("aria-expanded")).toBe("false");
+
+    getToggle(container).click();
+    await nextTick();
+    expect(localStorage.getItem(rightSidebarOpenStorageKey("session-b"))).toBe("true");
+
+    await router.push("/?workspaceId=1");
+    await nextTick();
+    expect(getToggle(container).getAttribute("aria-expanded")).toBe("false");
+
+    getToggle(container).click();
+    await nextTick();
+    expect(localStorage.getItem(rightSidebarOpenStorageKey("home"))).toBe("true");
+
+    await router.push("/chat/session-a?workspaceId=1");
+    await nextTick();
+    expect(getToggle(container).getAttribute("aria-expanded")).toBe("true");
   });
 
   it("keeps the main pane stable while the container width changes", async () => {
-    localStorage.setItem("willow:chat-right-sidebar-open", "true");
+    localStorage.setItem(rightSidebarOpenStorageKey("session-a"), "true");
     const container = await mountChatBase();
     const observer = resizeObservers.at(-1);
     if (!observer) throw new Error("content ResizeObserver was not registered");
@@ -228,7 +332,7 @@ describe("ChatBase right sidebar", () => {
   });
 
   it("resizes from the pointer movement without snapping to the press position", async () => {
-    localStorage.setItem("willow:chat-right-sidebar-open", "true");
+    localStorage.setItem(rightSidebarOpenStorageKey("session-a"), "true");
     const container = await mountChatBase();
     const layout = getLayout(container);
     const handle = getHandle(container);
@@ -250,7 +354,7 @@ describe("ChatBase right sidebar", () => {
   });
 
   it("clamps and persists pointer and keyboard resizing", async () => {
-    localStorage.setItem("willow:chat-right-sidebar-open", "true");
+    localStorage.setItem(rightSidebarOpenStorageKey("session-a"), "true");
     const container = await mountChatBase();
     const handle = getHandle(container);
 
@@ -287,7 +391,7 @@ describe("ChatBase right sidebar", () => {
   });
 
   it("cleans up resize resources when unmounted during a drag", async () => {
-    localStorage.setItem("willow:chat-right-sidebar-open", "true");
+    localStorage.setItem(rightSidebarOpenStorageKey("session-a"), "true");
     const container = await mountChatBase();
     const observer = resizeObservers.at(-1);
     if (!observer) throw new Error("content ResizeObserver was not registered");

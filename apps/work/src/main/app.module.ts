@@ -16,7 +16,13 @@ import { GetConfiguredProvidersController } from "./controllers/credential/get-c
 import { GetCredentialController } from "./controllers/credential/get.credential.controller";
 import { SetCredentialController } from "./controllers/credential/set.credential.controller";
 import { EventController } from "./controllers/event.controller";
+import { ListWorkspaceDirectoryController } from "./controllers/file-search/list-directory.file-search.controller";
+import { OpenWorkspaceFileController } from "./controllers/file-search/open-file.file-search.controller";
+import { ReadWorkspaceFileController } from "./controllers/file-search/read-file.file-search.controller";
+import { RevealWorkspaceEntryController } from "./controllers/file-search/reveal-entry.file-search.controller";
 import { SearchFilesController } from "./controllers/file-search/search.file-search.controller";
+import { SubscribeWorkspaceFilesController } from "./controllers/file-search/subscribe.file-search.controller";
+import { UnsubscribeWorkspaceFilesController } from "./controllers/file-search/unsubscribe.file-search.controller";
 import { InspectLocalFilesController } from "./controllers/local-file/inspect.local-file.controller";
 import { SelectLocalFilesController } from "./controllers/local-file/select.local-file.controller";
 import { GetMessageListController } from "./controllers/message/get-list.message.controller";
@@ -73,6 +79,7 @@ import { TitleService } from "./service/title.service";
 import { ToolApprovalService } from "./service/tool-approval.service";
 import { UserConfigService } from "./service/user-config.service";
 import { UserQuestionService } from "./service/user-question.service";
+import { WorkspaceFileWatcherService } from "./service/workspace-file-watcher.service";
 import { WorkspaceService } from "./service/workspace.service";
 import { configureMainWindowBounds, MainWindow } from "./window/main.window";
 
@@ -110,6 +117,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     CredentialService,
     EventService,
     FileSearchService,
+    WorkspaceFileWatcherService,
     LocalFileService,
     MessageService,
     ToolApprovalService,
@@ -126,7 +134,13 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     RestartToUpdateController,
     OpenManualUpdateController,
     ConfirmUpdateBootController,
+    ListWorkspaceDirectoryController,
+    OpenWorkspaceFileController,
+    ReadWorkspaceFileController,
+    RevealWorkspaceEntryController,
     SearchFilesController,
+    SubscribeWorkspaceFilesController,
+    UnsubscribeWorkspaceFilesController,
     InspectLocalFilesController,
     SelectLocalFilesController,
     GetAppInfoController,
@@ -173,6 +187,7 @@ export class AppModule {
     private dbService: DbService,
     private eventController: EventController,
     private eventService: EventService,
+    private workspaceFileWatcherService: WorkspaceFileWatcherService,
   ) {}
 
   createWindow() {
@@ -188,6 +203,7 @@ export class AppModule {
 
   @On("before-quit")
   async onBeforeQuit() {
+    await this.workspaceFileWatcherService.closeAll();
     this.dbService.close();
   }
 

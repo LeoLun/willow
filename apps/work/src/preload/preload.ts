@@ -42,10 +42,18 @@ import type {
   GetUserConfigResponse,
   GetWorkspaceListRequest,
   GetWorkspaceListResponse,
+  ListWorkspaceDirectoryRequest,
+  ListWorkspaceDirectoryResponse,
   RegisterEventRequest,
   RegisterEventResponse,
+  ReadWorkspaceFileRequest,
+  ReadWorkspaceFileResponse,
+  RevealWorkspaceEntryRequest,
+  RevealWorkspaceEntryResponse,
   RestartToUpdateResponse,
   OpenManualUpdateResponse,
+  OpenWorkspaceFileRequest,
+  OpenWorkspaceFileResponse,
   OpenWorkspaceDirectoryRequest,
   OpenWorkspaceDirectoryResponse,
   RenameWorkspaceRequest,
@@ -78,6 +86,10 @@ import type {
   SetWorkspacePinnedResponse,
   StopMessageRequest,
   StopMessageResponse,
+  SubscribeWorkspaceFilesRequest,
+  SubscribeWorkspaceFilesResponse,
+  UnsubscribeWorkspaceFilesRequest,
+  UnsubscribeWorkspaceFilesResponse,
 } from "../shared/api";
 import {
   CREATE_SESSION,
@@ -103,8 +115,12 @@ import {
   GET_SKILL_LIST,
   GET_USER_CONFIG,
   GET_WORKSPACE_LIST,
+  LIST_WORKSPACE_DIRECTORY,
   REGISTER_EVENT,
+  READ_WORKSPACE_FILE,
+  REVEAL_WORKSPACE_ENTRY,
   OPEN_MANUAL_UPDATE,
+  OPEN_WORKSPACE_FILE,
   OPEN_WORKSPACE_DIRECTORY,
   RENAME_WORKSPACE,
   RESOLVE_TOOL_APPROVAL,
@@ -123,6 +139,8 @@ import {
   SELECT_WORKSPACE_DIRECTORY,
   SET_WORKSPACE_PINNED,
   STOP_MESSAGE,
+  SUBSCRIBE_WORKSPACE_FILES,
+  UNSUBSCRIBE_WORKSPACE_FILES,
 } from "../shared/constants";
 
 async function invoke<TRequest, TResponse>(event: string, request: TRequest): Promise<TResponse> {
@@ -216,6 +234,30 @@ const ipcObject: IRenderHook = {
     ),
   searchFiles: (request: SearchFilesRequest) =>
     invoke<SearchFilesRequest, SearchFilesResponse>(SEARCH_FILES, request),
+  listWorkspaceDirectory: (request: ListWorkspaceDirectoryRequest) =>
+    invoke<ListWorkspaceDirectoryRequest, ListWorkspaceDirectoryResponse>(
+      LIST_WORKSPACE_DIRECTORY,
+      request,
+    ),
+  readWorkspaceFile: (request: ReadWorkspaceFileRequest) =>
+    invoke<ReadWorkspaceFileRequest, ReadWorkspaceFileResponse>(READ_WORKSPACE_FILE, request),
+  openWorkspaceFile: (request: OpenWorkspaceFileRequest) =>
+    invoke<OpenWorkspaceFileRequest, OpenWorkspaceFileResponse>(OPEN_WORKSPACE_FILE, request),
+  revealWorkspaceEntry: (request: RevealWorkspaceEntryRequest) =>
+    invoke<RevealWorkspaceEntryRequest, RevealWorkspaceEntryResponse>(
+      REVEAL_WORKSPACE_ENTRY,
+      request,
+    ),
+  subscribeWorkspaceFiles: (request: SubscribeWorkspaceFilesRequest) =>
+    invoke<SubscribeWorkspaceFilesRequest, SubscribeWorkspaceFilesResponse>(
+      SUBSCRIBE_WORKSPACE_FILES,
+      request,
+    ),
+  unsubscribeWorkspaceFiles: (request: UnsubscribeWorkspaceFilesRequest) =>
+    invoke<UnsubscribeWorkspaceFilesRequest, UnsubscribeWorkspaceFilesResponse>(
+      UNSUBSCRIBE_WORKSPACE_FILES,
+      request,
+    ),
   selectLocalFiles: (request: SelectLocalFilesRequest = {}) =>
     invoke<SelectLocalFilesRequest, SelectLocalFilesResponse>(SELECT_LOCAL_FILES, request),
   inspectLocalFiles: (request: InspectLocalFilesRequest) =>

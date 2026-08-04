@@ -149,6 +149,77 @@ export interface SearchFilesResponse {
   files: FileSearchItem[];
 }
 
+export interface ListWorkspaceDirectoryRequest {
+  workspaceId: number;
+  directoryPath: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ListWorkspaceDirectoryResponse {
+  entries: FileSearchItem[];
+  nextCursor?: string;
+}
+
+export type WorkspaceFilePreviewStatus = "ready" | "too-large" | "binary";
+
+export interface WorkspaceFileContent {
+  content?: string;
+  modifiedAt: number;
+  name: string;
+  relativePath: string;
+  size: number;
+  status: WorkspaceFilePreviewStatus;
+}
+
+export interface ReadWorkspaceFileRequest {
+  workspaceId: number;
+  relativePath: string;
+}
+
+export interface ReadWorkspaceFileResponse {
+  file: WorkspaceFileContent;
+}
+
+export interface OpenWorkspaceFileRequest {
+  workspaceId: number;
+  relativePath: string;
+}
+
+export interface OpenWorkspaceFileResponse {}
+
+export interface RevealWorkspaceEntryRequest {
+  workspaceId: number;
+  relativePath: string;
+}
+
+export interface RevealWorkspaceEntryResponse {}
+
+export interface SubscribeWorkspaceFilesRequest {
+  workspaceId: number;
+  subscriptionId: string;
+}
+
+export interface SubscribeWorkspaceFilesResponse {}
+
+export interface UnsubscribeWorkspaceFilesRequest {
+  subscriptionId: string;
+}
+
+export interface UnsubscribeWorkspaceFilesResponse {}
+
+export type WorkspaceFileChangeType = "add" | "change" | "unlink" | "addDir" | "unlinkDir";
+
+export interface WorkspaceFileChange {
+  relativePath: string;
+  type: WorkspaceFileChangeType;
+}
+
+export interface WorkspaceFilesChangedEvent {
+  changes: WorkspaceFileChange[];
+  workspaceId: number;
+}
+
 export interface SelectLocalFilesRequest {}
 
 export interface SelectLocalFilesResponse {

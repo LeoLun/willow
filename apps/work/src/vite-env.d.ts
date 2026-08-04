@@ -6,6 +6,8 @@ declare module "*.vue" {
   export default component;
 }
 
+declare module "monaco-editor/language/json/monaco.contribution";
+
 interface Window {
   electronAPI: import("./shared").IRenderHook;
 }

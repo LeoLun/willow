@@ -82,17 +82,31 @@ const fileSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
 const skillSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
 const contentLayout = shallowRef<HTMLElement>();
 
-const RIGHT_SIDEBAR_OPEN_STORAGE_KEY = "willow:chat-right-sidebar-open";
+const workspaceId = computed(() => {
+  const value = Number(route.query.workspaceId);
+  return Number.isInteger(value) && value > 0 ? value : undefined;
+});
+
+const sessionId = computed(() => {
+  const value = route.params.sessionId;
+  return typeof value === "string" && value.trim() !== "" ? value : undefined;
+});
+
+const RIGHT_SIDEBAR_OPEN_STORAGE_KEY_PREFIX = "willow:chat-right-sidebar-open";
 const RIGHT_SIDEBAR_WIDTH_STORAGE_KEY = "willow:chat-right-sidebar-width";
 const DEFAULT_RIGHT_SIDEBAR_WIDTH = 320;
-const MIN_RIGHT_SIDEBAR_WIDTH = 240;
+const MIN_RIGHT_SIDEBAR_WIDTH = 350;
 const MIN_MAIN_PANE_WIDTH = 500;
 const RESIZE_HANDLE_WIDTH = 8;
 const KEYBOARD_RESIZE_STEP = 16;
 
-function loadRightSidebarOpen(): boolean {
+function getRightSidebarOpenStorageKey(currentSessionId: string | undefined): string {
+  return `${RIGHT_SIDEBAR_OPEN_STORAGE_KEY_PREFIX}:${currentSessionId ?? "home"}`;
+}
+
+function loadRightSidebarOpen(currentSessionId = sessionId.value): boolean {
   try {
-    return localStorage.getItem(RIGHT_SIDEBAR_OPEN_STORAGE_KEY) === "true";
+    return localStorage.getItem(getRightSidebarOpenStorageKey(currentSessionId)) === "true";
   } catch {
     return false;
   }
@@ -128,15 +142,6 @@ const approvalOptions: ComposerOption[] = [
 ];
 const thinkingLevelOrder: ThinkingLevel[] = ["minimal", "low", "medium", "high", "xhigh", "max"];
 
-const workspaceId = computed(() => {
-  const value = Number(route.query.workspaceId);
-  return Number.isInteger(value) && value > 0 ? value : undefined;
-});
-
-const sessionId = computed(() => {
-  const value = route.params.sessionId;
-  return typeof value === "string" && value.trim() !== "" ? value : undefined;
-});
 const { todoList } = useSessionMessages(workspaceId, sessionId);
 const { currentApproval, resolveApproval } = useToolApproval(workspaceId, sessionId);
 const { currentQuestion, resolveQuestion } = useUserQuestion(workspaceId, sessionId);
@@ -243,7 +248,10 @@ function initializeMainPaneWidth(): void {
 
 function saveRightSidebarOpen(): void {
   try {
-    localStorage.setItem(RIGHT_SIDEBAR_OPEN_STORAGE_KEY, String(rightSidebarOpen.value));
+    localStorage.setItem(
+      getRightSidebarOpenStorageKey(sessionId.value),
+      String(rightSidebarOpen.value),
+    );
   } catch {
     // Persistence is optional when storage is unavailable.
   }
@@ -415,6 +423,11 @@ async function loadModels(): Promise<void> {
 }
 
 watch([workspaceId, sessionId], () => void loadSessionTitle(), { immediate: true });
+watch(sessionId, (nextSessionId) => {
+  rightSidebarOpen.value = loadRightSidebarOpen(nextSessionId);
+  if (rightSidebarOpen.value) initializeMainPaneWidth();
+  else preferredMainPaneWidth.value = undefined;
+});
 watch(
   [approvalMode, selectedModel, reasoningEffort],
   ([nextApprovalMode, nextModel, nextReasoningEffort]) => {
@@ -695,8 +708,8 @@ function removeQueuedMessage(messageId: string): void {
         @pointerdown="startRightSidebarResize"
         @keydown="handleResizeHandleKeydown"
       />
-      <RightSidebar :id="rightSidebarId" :workspace-id="workspaceId" />
     </template>
+    <RightSidebar v-show="rightSidebarOpen" :id="rightSidebarId" :workspace-id="workspaceId" />
   </div>
 </template>
 
