@@ -5,6 +5,8 @@ import type {
   DeleteWorkspaceResponse,
   GetWorkspaceListRequest,
   GetWorkspaceListResponse,
+  OpenWorkspaceDirectoryRequest,
+  OpenWorkspaceDirectoryResponse,
   RenameWorkspaceRequest,
   RenameWorkspaceResponse,
   SelectWorkspaceDirectoryRequest,
@@ -19,6 +21,9 @@ export interface IWorkspaceApi {
   selectWorkspaceDirectory(
     request?: SelectWorkspaceDirectoryRequest,
   ): Promise<SelectWorkspaceDirectoryResponse>;
+  openWorkspaceDirectory(
+    request: OpenWorkspaceDirectoryRequest,
+  ): Promise<OpenWorkspaceDirectoryResponse>;
   setWorkspacePinned(request: SetWorkspacePinnedRequest): Promise<SetWorkspacePinnedResponse>;
   renameWorkspace(request: RenameWorkspaceRequest): Promise<RenameWorkspaceResponse>;
   deleteWorkspace(request: DeleteWorkspaceRequest): Promise<DeleteWorkspaceResponse>;

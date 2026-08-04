@@ -297,6 +297,12 @@ export interface SelectWorkspaceDirectoryResponse {
   directory: Pick<WorkspaceInfo, "name" | "path"> | null;
 }
 
+export interface OpenWorkspaceDirectoryRequest {
+  workspaceId: number;
+}
+
+export interface OpenWorkspaceDirectoryResponse {}
+
 export interface SetWorkspacePinnedRequest {
   workspaceId: number;
   pinned: boolean;

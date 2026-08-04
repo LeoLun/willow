@@ -10,7 +10,7 @@ const { state } = useSidebar();
 </script>
 
 <template>
-  <header class="drag-region flex shrink-0 items-center justify-between px-4 pt-[12px]">
+  <header class="drag-region flex shrink-0 items-center justify-between px-1 pt-[12px]">
     <div class="no-drag-region flex h-8 min-w-0 items-center">
       <div
         class="no-drag-region h-full shrink-0 transition-all duration-200 ease-linear"

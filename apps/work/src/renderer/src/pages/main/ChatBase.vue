@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {
+  AskUserAnswers,
   FileSearchItem,
   MessageEventPayload,
   ModelConfig,
@@ -8,11 +9,27 @@ import type {
   SkillInfo,
   ThinkingLevel,
   ToolApprovalDecision,
-  AskUserAnswers,
 } from "@shared/api";
 import { MESSAGE_EVENT } from "@shared/constants";
-import { ShieldCheckIcon, ShieldQuestionIcon, UserCheckIcon } from "lucide-vue-next";
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
+import { Button } from "@willow/shadcn/components/ui/button";
+import {
+  FolderOpenIcon,
+  PanelRightIcon,
+  ShieldCheckIcon,
+  ShieldQuestionIcon,
+  UserCheckIcon,
+} from "lucide-vue-next";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  useId,
+  watch,
+  type StyleValue,
+} from "vue";
 import { isNavigationFailure, useRoute, useRouter } from "vue-router";
 import { useDialog } from "@/components/dialog";
 import SettingDialog from "@/components/dialog/setting/Setting.vue";
@@ -31,6 +48,7 @@ import {
 import FileSearchPanel from "@/components/prompt-composer/FileSearchPanel.vue";
 import QueuedMessageList from "@/components/prompt-composer/QueuedMessageList.vue";
 import SkillSearchPanel from "@/components/prompt-composer/SkillSearchPanel.vue";
+import { RightSidebar } from "@/components/right-sidebar";
 import { TodoListPanel } from "@/components/todo-list";
 import ToolApprovalPanel from "@/components/tool/ToolApprovalPanel.vue";
 import UserQuestionPanel from "@/components/tool/UserQuestionPanel.vue";
@@ -62,6 +80,46 @@ const approvalMode = ref<PermissionMode>(composerPreferences.value.approvalMode)
 const reasoningEffort = ref<string | undefined>(composerPreferences.value.reasoningEffort);
 const fileSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
 const skillSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
+const contentLayout = shallowRef<HTMLElement>();
+
+const RIGHT_SIDEBAR_OPEN_STORAGE_KEY = "willow:chat-right-sidebar-open";
+const RIGHT_SIDEBAR_WIDTH_STORAGE_KEY = "willow:chat-right-sidebar-width";
+const DEFAULT_RIGHT_SIDEBAR_WIDTH = 320;
+const MIN_RIGHT_SIDEBAR_WIDTH = 240;
+const MIN_MAIN_PANE_WIDTH = 500;
+const RESIZE_HANDLE_WIDTH = 8;
+const KEYBOARD_RESIZE_STEP = 16;
+
+function loadRightSidebarOpen(): boolean {
+  try {
+    return localStorage.getItem(RIGHT_SIDEBAR_OPEN_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function loadRightSidebarWidth(): number {
+  try {
+    const width = Number(localStorage.getItem(RIGHT_SIDEBAR_WIDTH_STORAGE_KEY));
+    return Number.isFinite(width) && width >= MIN_RIGHT_SIDEBAR_WIDTH
+      ? width
+      : DEFAULT_RIGHT_SIDEBAR_WIDTH;
+  } catch {
+    return DEFAULT_RIGHT_SIDEBAR_WIDTH;
+  }
+}
+
+const rightSidebarOpen = ref(loadRightSidebarOpen());
+const savedRightSidebarWidth = ref(loadRightSidebarWidth());
+const contentLayoutWidth = ref(0);
+const preferredMainPaneWidth = ref<number>();
+const resizingRightSidebar = ref(false);
+const rightSidebarId = useId();
+
+let contentResizeObserver: ResizeObserver | undefined;
+let previousBodyUserSelect = "";
+let resizeStartPointerX = 0;
+let resizeStartMainPaneWidth = 0;
 
 const approvalOptions: ComposerOption[] = [
   { value: "request-approval", label: "请求批准", icon: ShieldQuestionIcon },
@@ -146,10 +204,114 @@ const composerDisabled = computed(
 const topBarTitle = computed(() =>
   route.name === "chat" ? sessionTitle.value.trim() || "新对话" : "",
 );
+const mainPaneWidth = computed(() => {
+  const layoutWidth = contentLayoutWidth.value;
+  const preferredWidth =
+    preferredMainPaneWidth.value ??
+    layoutWidth - savedRightSidebarWidth.value - RESIZE_HANDLE_WIDTH;
+  const maximumWidth = layoutWidth - MIN_RIGHT_SIDEBAR_WIDTH - RESIZE_HANDLE_WIDTH;
+  return Math.max(MIN_MAIN_PANE_WIDTH, Math.min(preferredWidth, maximumWidth));
+});
+const rightSidebarWidth = computed(() =>
+  Math.max(0, contentLayoutWidth.value - mainPaneWidth.value - RESIZE_HANDLE_WIDTH),
+);
+const contentLayoutStyle = computed<StyleValue>(() =>
+  rightSidebarOpen.value
+    ? {
+        gridTemplateColumns: `${mainPaneWidth.value}px ${RESIZE_HANDLE_WIDTH}px minmax(0, 1fr)`,
+      }
+    : { gridTemplateColumns: "minmax(0, 1fr)" },
+);
 
 let sessionTitleLoadGeneration = 0;
 let modelLoadGeneration = 0;
 let removeProviderConfigurationListener: (() => void) | undefined;
+
+function measureContentLayout(): number {
+  const width = contentLayout.value?.getBoundingClientRect().width ?? 0;
+  contentLayoutWidth.value = width;
+  return width;
+}
+
+function initializeMainPaneWidth(): void {
+  const layoutWidth = measureContentLayout();
+  preferredMainPaneWidth.value = Math.max(
+    MIN_MAIN_PANE_WIDTH,
+    layoutWidth - savedRightSidebarWidth.value - RESIZE_HANDLE_WIDTH,
+  );
+}
+
+function saveRightSidebarOpen(): void {
+  try {
+    localStorage.setItem(RIGHT_SIDEBAR_OPEN_STORAGE_KEY, String(rightSidebarOpen.value));
+  } catch {
+    // Persistence is optional when storage is unavailable.
+  }
+}
+
+function saveRightSidebarWidth(): void {
+  const width = Math.max(MIN_RIGHT_SIDEBAR_WIDTH, Math.round(rightSidebarWidth.value));
+  savedRightSidebarWidth.value = width;
+  try {
+    localStorage.setItem(RIGHT_SIDEBAR_WIDTH_STORAGE_KEY, String(width));
+  } catch {
+    // Persistence is optional when storage is unavailable.
+  }
+}
+
+function toggleRightSidebar(): void {
+  rightSidebarOpen.value = !rightSidebarOpen.value;
+  saveRightSidebarOpen();
+  if (rightSidebarOpen.value) initializeMainPaneWidth();
+  else preferredMainPaneWidth.value = undefined;
+}
+
+async function openCurrentWorkspace(): Promise<void> {
+  const currentWorkspaceId = workspaceId.value;
+  if (currentWorkspaceId === undefined) return;
+  await electronAPI.openWorkspaceDirectory({ workspaceId: currentWorkspaceId });
+}
+
+function clampMainPaneWidth(width: number): number {
+  const maximumWidth = contentLayoutWidth.value - MIN_RIGHT_SIDEBAR_WIDTH - RESIZE_HANDLE_WIDTH;
+  return Math.max(MIN_MAIN_PANE_WIDTH, Math.min(width, maximumWidth));
+}
+
+function resizeMainPaneFromPointer(event: PointerEvent): void {
+  const pointerDelta = event.clientX - resizeStartPointerX;
+  preferredMainPaneWidth.value = clampMainPaneWidth(resizeStartMainPaneWidth + pointerDelta);
+}
+
+function stopRightSidebarResize(): void {
+  if (!resizingRightSidebar.value) return;
+  resizingRightSidebar.value = false;
+  saveRightSidebarWidth();
+  window.removeEventListener("pointermove", resizeMainPaneFromPointer);
+  window.removeEventListener("pointerup", stopRightSidebarResize);
+  window.removeEventListener("pointercancel", stopRightSidebarResize);
+  document.body.style.userSelect = previousBodyUserSelect;
+}
+
+function startRightSidebarResize(event: PointerEvent): void {
+  if (event.button !== 0 || resizingRightSidebar.value) return;
+  event.preventDefault();
+  previousBodyUserSelect = document.body.style.userSelect;
+  document.body.style.userSelect = "none";
+  resizeStartPointerX = event.clientX;
+  resizeStartMainPaneWidth = mainPaneWidth.value;
+  resizingRightSidebar.value = true;
+  window.addEventListener("pointermove", resizeMainPaneFromPointer);
+  window.addEventListener("pointerup", stopRightSidebarResize);
+  window.addEventListener("pointercancel", stopRightSidebarResize);
+}
+
+function handleResizeHandleKeydown(event: KeyboardEvent): void {
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  event.preventDefault();
+  const delta = event.key === "ArrowLeft" ? -KEYBOARD_RESIZE_STEP : KEYBOARD_RESIZE_STEP;
+  preferredMainPaneWidth.value = clampMainPaneWidth(mainPaneWidth.value + delta);
+  saveRightSidebarWidth();
+}
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -277,12 +439,22 @@ watch(
 onMounted(() => {
   addEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
   removeProviderConfigurationListener = onProviderConfigurationChanged(() => void loadModels());
+  measureContentLayout();
+  if (rightSidebarOpen.value) initializeMainPaneWidth();
+  if (contentLayout.value && typeof ResizeObserver !== "undefined") {
+    contentResizeObserver = new ResizeObserver(([entry]) => {
+      if (entry) contentLayoutWidth.value = entry.contentRect.width;
+    });
+    contentResizeObserver.observe(contentLayout.value);
+  }
   void loadModels();
 });
 
 onBeforeUnmount(() => {
   sessionTitleLoadGeneration += 1;
   modelLoadGeneration += 1;
+  stopRightSidebarResize();
+  contentResizeObserver?.disconnect();
   removeEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
   removeProviderConfigurationListener?.();
 });
@@ -387,89 +559,144 @@ function removeQueuedMessage(messageId: string): void {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col overflow-hidden">
-    <BaseHeader>
-      <template #left>
-        <p class="truncate text-sm font-medium">{{ topBarTitle }}</p>
-      </template>
-    </BaseHeader>
+  <div
+    ref="contentLayout"
+    class="grid h-full min-h-0 overflow-hidden"
+    data-slot="chat-content-layout"
+    :style="contentLayoutStyle"
+  >
+    <Button
+      class="no-drag-region absolute top-[12px] right-[12px] z-50"
+      variant="ghost"
+      size="icon-sm"
+      :pressed="rightSidebarOpen"
+      :aria-controls="rightSidebarId"
+      :aria-expanded="rightSidebarOpen"
+      aria-label="切换右侧边栏"
+      @click="toggleRightSidebar"
+    >
+      <PanelRightIcon />
+    </Button>
 
-    <div class="min-h-0 flex-1 overflow-hidden">
-      <RouterView v-slot="{ Component }">
-        <component :is="Component" :streaming="currentSessionStreaming">
-          <QueuedMessageList
-            v-if="queuedMessages.length > 0"
-            :messages="queuedMessages"
-            @remove="removeQueuedMessage"
-          />
-          <TodoListPanel :items="todoList" />
-          <Transition name="approval-panel" mode="out-in">
-            <UserQuestionPanel
-              v-if="currentQuestion"
-              :key="currentQuestion.requestId"
-              :request="currentQuestion"
-              :on-submit="answerQuestion"
+    <div class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden" data-slot="chat-main-pane">
+      <BaseHeader :class="rightSidebarOpen ? 'mr-[0px]' : 'mr-[48px] pr-0'">
+        <template #left>
+          <p class="truncate text-sm font-medium">{{ topBarTitle }}</p>
+        </template>
+        <template #right>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            :disabled="workspaceId === undefined"
+            aria-label="打开当前工作空间"
+            @click="openCurrentWorkspace"
+          >
+            <FolderOpenIcon />
+          </Button>
+        </template>
+      </BaseHeader>
+
+      <div class="min-h-0 flex-1 overflow-hidden">
+        <RouterView v-slot="{ Component }">
+          <component :is="Component" :streaming="currentSessionStreaming">
+            <QueuedMessageList
+              v-if="queuedMessages.length > 0"
+              :messages="queuedMessages"
+              @remove="removeQueuedMessage"
             />
-            <ToolApprovalPanel
-              v-else-if="currentApproval"
-              :key="currentApproval.approvalId"
-              :request="currentApproval"
-              :on-decision="decideApproval"
-            />
-            <PromptComposer
-              v-else
-              key="prompt-composer"
-              v-model:content="message"
-              v-model:approval-mode="approvalMode"
-              v-model:model="selectedModel"
-              v-model:reasoning-effort="reasoningEffort"
-              :approval-options="approvalOptions"
-              :models="modelOptions"
-              :token-rules="[...defaultComposerTokenRules]"
-              :disabled="composerDisabled"
-              :submitting="creatingSession"
-              :streaming="currentSessionStreaming"
-              :stopping="currentSessionStopping"
-              @stop="stopMessage"
-              @submit="sendMessage"
-              @panel-keydown="handlePanelKeydown"
-            >
-              <template #mention-panel="{ query, insert }">
-                <FileSearchPanel
-                  ref="fileSearchPanel"
-                  :workspace-id="workspaceId"
-                  :query="query"
-                  @select="insertFileReference($event, insert)"
-                />
-              </template>
-              <template #slash-panel="{ query, insert }">
-                <SkillSearchPanel
-                  ref="skillSearchPanel"
-                  :workspace-id="workspaceId"
-                  :query="query"
-                  @select="insertSkillReference($event, insert)"
-                />
-              </template>
-            </PromptComposer>
-          </Transition>
-          <p v-if="loadingModels" class="mt-2 text-sm text-muted-foreground">正在读取模型…</p>
-          <p v-else-if="modelLoadError" class="mt-2 text-sm text-destructive">无法读取模型列表</p>
-          <p v-else-if="providers.length === 0" class="mt-2 text-sm text-muted-foreground">
-            请先连接模型提供商
-            <button
-              type="button"
-              class="ml-1 cursor-pointer text-blue-500 hover:underline focus-visible:underline focus-visible:outline-none"
-              @click="openProviderSettings"
-            >
-              前往设置
-            </button>
-          </p>
-          <p v-if="sendError" class="mt-2 text-sm text-destructive" role="alert">
-            {{ sendError }}
-          </p>
-        </component>
-      </RouterView>
+            <TodoListPanel :items="todoList" />
+            <Transition name="approval-panel" mode="out-in">
+              <UserQuestionPanel
+                v-if="currentQuestion"
+                :key="currentQuestion.requestId"
+                :request="currentQuestion"
+                :on-submit="answerQuestion"
+              />
+              <ToolApprovalPanel
+                v-else-if="currentApproval"
+                :key="currentApproval.approvalId"
+                :request="currentApproval"
+                :on-decision="decideApproval"
+              />
+              <PromptComposer
+                v-else
+                key="prompt-composer"
+                v-model:content="message"
+                v-model:approval-mode="approvalMode"
+                v-model:model="selectedModel"
+                v-model:reasoning-effort="reasoningEffort"
+                :approval-options="approvalOptions"
+                :models="modelOptions"
+                :token-rules="[...defaultComposerTokenRules]"
+                :disabled="composerDisabled"
+                :submitting="creatingSession"
+                :streaming="currentSessionStreaming"
+                :stopping="currentSessionStopping"
+                @stop="stopMessage"
+                @submit="sendMessage"
+                @panel-keydown="handlePanelKeydown"
+              >
+                <template #mention-panel="{ query, insert }">
+                  <FileSearchPanel
+                    ref="fileSearchPanel"
+                    :workspace-id="workspaceId"
+                    :query="query"
+                    @select="insertFileReference($event, insert)"
+                  />
+                </template>
+                <template #slash-panel="{ query, insert }">
+                  <SkillSearchPanel
+                    ref="skillSearchPanel"
+                    :workspace-id="workspaceId"
+                    :query="query"
+                    @select="insertSkillReference($event, insert)"
+                  />
+                </template>
+              </PromptComposer>
+            </Transition>
+            <p v-if="loadingModels" class="mt-2 text-sm text-muted-foreground">正在读取模型…</p>
+            <p v-else-if="modelLoadError" class="mt-2 text-sm text-destructive">无法读取模型列表</p>
+            <p v-else-if="providers.length === 0" class="mt-2 text-sm text-muted-foreground">
+              请先连接模型提供商
+              <button
+                type="button"
+                class="ml-1 cursor-pointer text-blue-500 hover:underline focus-visible:underline focus-visible:outline-none"
+                @click="openProviderSettings"
+              >
+                前往设置
+              </button>
+            </p>
+            <p v-if="sendError" class="mt-2 text-sm text-destructive" role="alert">
+              {{ sendError }}
+            </p>
+          </component>
+        </RouterView>
+      </div>
     </div>
+
+    <template v-if="rightSidebarOpen">
+      <div
+        class="relative z-20 cursor-col-resize touch-none outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border hover:after:bg-ring focus-visible:after:w-0.5 focus-visible:after:bg-ring"
+        :class="{ 'after:bg-ring': resizingRightSidebar }"
+        data-slot="chat-right-sidebar-resize-handle"
+        role="separator"
+        aria-label="调整右侧边栏宽度"
+        aria-orientation="vertical"
+        :aria-controls="rightSidebarId"
+        :aria-valuemin="MIN_RIGHT_SIDEBAR_WIDTH"
+        :aria-valuemax="
+          Math.max(
+            MIN_RIGHT_SIDEBAR_WIDTH,
+            contentLayoutWidth - MIN_MAIN_PANE_WIDTH - RESIZE_HANDLE_WIDTH,
+          )
+        "
+        :aria-valuenow="Math.round(rightSidebarWidth)"
+        tabindex="0"
+        @pointerdown="startRightSidebarResize"
+        @keydown="handleResizeHandleKeydown"
+      />
+      <RightSidebar :id="rightSidebarId" :workspace-id="workspaceId" />
+    </template>
   </div>
 </template>
 

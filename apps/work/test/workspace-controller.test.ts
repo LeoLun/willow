@@ -4,6 +4,7 @@ import { CreateWorkspaceController } from "../src/main/controllers/workspace/cre
 import { DeleteWorkspaceController } from "../src/main/controllers/workspace/delete.workspace.controller";
 import { GetWorkspaceDetailController } from "../src/main/controllers/workspace/get-detail.workspace.controller";
 import { GetWorkspaceListController } from "../src/main/controllers/workspace/get-list.workspace.controller";
+import { OpenWorkspaceDirectoryController } from "../src/main/controllers/workspace/open-directory.workspace.controller";
 import { RenameWorkspaceController } from "../src/main/controllers/workspace/rename.workspace.controller";
 import { SetWorkspacePinnedController } from "../src/main/controllers/workspace/set-pinned.workspace.controller";
 import {
@@ -16,10 +17,19 @@ import type {
   DeleteWorkspaceRequest,
   GetWorkspaceDetailRequest,
   GetWorkspaceListRequest,
+  OpenWorkspaceDirectoryRequest,
   RenameWorkspaceRequest,
   SetWorkspacePinnedRequest,
   WorkspaceInfo,
 } from "../src/shared/api";
+
+const mocks = vi.hoisted(() => ({
+  openPath: vi.fn(),
+}));
+
+vi.mock("electron", () => ({
+  shell: { openPath: mocks.openPath },
+}));
 
 const event = undefined as unknown as Electron.IpcMainInvokeEvent;
 const workspace: WorkspaceInfo = {
@@ -49,6 +59,7 @@ const workspaceService = {
 const listController = new GetWorkspaceListController(workspaceService);
 const createController = new CreateWorkspaceController(workspaceService);
 const detailController = new GetWorkspaceDetailController(workspaceService);
+const openDirectoryController = new OpenWorkspaceDirectoryController(workspaceService);
 const deleteController = new DeleteWorkspaceController(workspaceService);
 const renameController = new RenameWorkspaceController(workspaceService);
 const pinnedController = new SetWorkspacePinnedController(workspaceService);
@@ -58,6 +69,7 @@ describe("workspace controllers", () => {
     getWorkspaceList.mockReset();
     createWorkspace.mockReset();
     getWorkspaceDetail.mockReset();
+    mocks.openPath.mockReset();
     deleteWorkspace.mockReset();
     renameWorkspace.mockReset();
     setWorkspacePinned.mockReset();
@@ -91,6 +103,17 @@ describe("workspace controllers", () => {
       data: { workspace },
       msg: "ok",
     });
+  });
+
+  it("opens the workspace directory with the system shell", async () => {
+    getWorkspaceDetail.mockReturnValueOnce(workspace);
+    mocks.openPath.mockResolvedValueOnce("");
+
+    await expect(
+      openDirectoryController.run(event, { workspaceId: workspace.id }),
+    ).resolves.toEqual({ code: 0, data: {}, msg: "ok" });
+    expect(getWorkspaceDetail).toHaveBeenCalledWith(workspace.id);
+    expect(mocks.openPath).toHaveBeenCalledWith(workspace.path);
   });
 
   it("deletes a workspace", async () => {
@@ -146,8 +169,12 @@ describe("workspace controllers", () => {
       expect((await detailController.run(event, request as GetWorkspaceDetailRequest)).code).toBe(
         400,
       );
+      expect(
+        (await openDirectoryController.run(event, request as OpenWorkspaceDirectoryRequest)).code,
+      ).toBe(400);
       expect((await deleteController.run(event, request as DeleteWorkspaceRequest)).code).toBe(400);
       expect(getWorkspaceDetail).not.toHaveBeenCalled();
+      expect(mocks.openPath).not.toHaveBeenCalled();
       expect(deleteWorkspace).not.toHaveBeenCalled();
     },
   );
@@ -198,6 +225,27 @@ describe("workspace controllers", () => {
     });
   });
 
+  it("maps a missing workspace directory to a not-found response", async () => {
+    getWorkspaceDetail.mockImplementationOnce(() => {
+      throw new WorkspaceNotFoundError(99);
+    });
+
+    await expect(openDirectoryController.run(event, { workspaceId: 99 })).resolves.toEqual({
+      code: 404,
+      msg: "Workspace not found",
+    });
+    expect(mocks.openPath).not.toHaveBeenCalled();
+  });
+
+  it("propagates system shell failures when opening a workspace directory", async () => {
+    getWorkspaceDetail.mockReturnValueOnce(workspace);
+    mocks.openPath.mockResolvedValueOnce("Unable to open path");
+
+    await expect(openDirectoryController.run(event, { workspaceId: workspace.id })).rejects.toThrow(
+      "Unable to open path",
+    );
+  });
+
   it("maps a missing workspace pinned update to a not-found response", async () => {
     setWorkspacePinned.mockImplementationOnce(() => {
       throw new WorkspaceNotFoundError(99);
@@ -226,6 +274,7 @@ describe("workspace controllers", () => {
     const deleteError = new Error("delete failed");
     const pinnedError = new Error("pinned failed");
     const renameError = new Error("rename failed");
+    const openDirectoryError = new Error("open directory failed");
     getWorkspaceList.mockImplementationOnce(() => {
       throw listError;
     });
@@ -244,6 +293,9 @@ describe("workspace controllers", () => {
     renameWorkspace.mockImplementationOnce(() => {
       throw renameError;
     });
+    getWorkspaceDetail.mockImplementationOnce(() => {
+      throw openDirectoryError;
+    });
 
     await expect(listController.run(event, { pinned: false })).rejects.toBe(listError);
     await expect(
@@ -251,6 +303,9 @@ describe("workspace controllers", () => {
     ).rejects.toBe(createError);
     await expect(detailController.run(event, { workspaceId: workspace.id })).rejects.toBe(
       detailError,
+    );
+    await expect(openDirectoryController.run(event, { workspaceId: workspace.id })).rejects.toBe(
+      openDirectoryError,
     );
     await expect(deleteController.run(event, { workspaceId: workspace.id })).rejects.toBe(
       deleteError,

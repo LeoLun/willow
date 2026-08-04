@@ -21,11 +21,12 @@ const legacyUserDataPath = join(app.getPath("appData"), folderName);
 app.setPath("userData", legacyUserDataPath);
 
 async function bootstrap() {
-  await app.whenReady();
-  protocol.handle("willow-file", (request) => {
-    const url = request.url.replace(/^willow-file:\/\//, "");
-    const decodedPath = decodeURIComponent(url);
-    return net.fetch(pathToFileURL(decodedPath).toString());
+  app.once("ready", () => {
+    protocol.handle("willow-file", (request) => {
+      const url = request.url.replace(/^willow-file:\/\//, "");
+      const decodedPath = decodeURIComponent(url);
+      return net.fetch(pathToFileURL(decodedPath).toString());
+    });
   });
 
   const payloadEntry = prepareHotUpdateLaunch(legacyUserDataPath);

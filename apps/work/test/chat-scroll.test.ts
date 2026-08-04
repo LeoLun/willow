@@ -75,6 +75,24 @@ afterEach(() => {
 });
 
 describe("Chat history scrolling", () => {
+  it("keeps the message list aligned with the composer when the chat pane narrows", async () => {
+    const container = await mountChat();
+    const content = container.querySelector<HTMLElement>("[data-slot=chat-message-content]");
+    const composer = container.querySelector<HTMLElement>("[data-slot=chat-composer]");
+    const composerContent = container.querySelector<HTMLElement>(
+      "[data-slot=chat-composer-content]",
+    );
+    if (!content || !composer || !composerContent) {
+      throw new Error("chat width containers were not rendered");
+    }
+
+    expect(content.classList).toContain("max-w-[50rem]");
+    expect(content.classList).toContain("px-4");
+    expect(composer.classList).not.toContain("px-4");
+    expect(composerContent.classList).toContain("max-w-[50rem]");
+    expect(composerContent.classList).toContain("px-4");
+  });
+
   it("stays at the bottom when historical message content finishes laying out", async () => {
     const container = await mountChat();
     const viewport = container.querySelector<HTMLElement>("[data-slot=chat-messages]");

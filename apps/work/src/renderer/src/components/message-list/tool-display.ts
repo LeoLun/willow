@@ -54,7 +54,7 @@ export function formatToolCallTitle(name: string, args: unknown): string {
     case "edit":
       return `修改 ${pathToName(text(input.path))}`;
     case "ls":
-      return `查询 ${pathToName(text(input.path, "."))}`;
+      return `已列出 ${pathToName(text(input.path, "."))} 中的文件`;
     case "grep":
       return `搜索内容 /${text(input.pattern, "")}/`;
     case "find":

@@ -41,6 +41,7 @@ import { CreateWorkspaceController } from "./controllers/workspace/create.worksp
 import { DeleteWorkspaceController } from "./controllers/workspace/delete.workspace.controller";
 import { GetWorkspaceDetailController } from "./controllers/workspace/get-detail.workspace.controller";
 import { GetWorkspaceListController } from "./controllers/workspace/get-list.workspace.controller";
+import { OpenWorkspaceDirectoryController } from "./controllers/workspace/open-directory.workspace.controller";
 import { RenameWorkspaceController } from "./controllers/workspace/rename.workspace.controller";
 import { SelectWorkspaceDirectoryController } from "./controllers/workspace/select-directory.workspace.controller";
 import { SetWorkspacePinnedController } from "./controllers/workspace/set-pinned.workspace.controller";
@@ -159,6 +160,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     SetWorkspacePinnedController,
     RenameWorkspaceController,
     GetWorkspaceDetailController,
+    OpenWorkspaceDirectoryController,
     DeleteWorkspaceController,
   ],
 })

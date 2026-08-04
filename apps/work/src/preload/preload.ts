@@ -46,6 +46,8 @@ import type {
   RegisterEventResponse,
   RestartToUpdateResponse,
   OpenManualUpdateResponse,
+  OpenWorkspaceDirectoryRequest,
+  OpenWorkspaceDirectoryResponse,
   RenameWorkspaceRequest,
   RenameWorkspaceResponse,
   ResolveToolApprovalRequest,
@@ -103,6 +105,7 @@ import {
   GET_WORKSPACE_LIST,
   REGISTER_EVENT,
   OPEN_MANUAL_UPDATE,
+  OPEN_WORKSPACE_DIRECTORY,
   RENAME_WORKSPACE,
   RESOLVE_TOOL_APPROVAL,
   RESOLVE_USER_QUESTION,
@@ -235,6 +238,11 @@ const ipcObject: IRenderHook = {
   selectWorkspaceDirectory: (request: SelectWorkspaceDirectoryRequest = {}) =>
     invoke<SelectWorkspaceDirectoryRequest, SelectWorkspaceDirectoryResponse>(
       SELECT_WORKSPACE_DIRECTORY,
+      request,
+    ),
+  openWorkspaceDirectory: (request: OpenWorkspaceDirectoryRequest) =>
+    invoke<OpenWorkspaceDirectoryRequest, OpenWorkspaceDirectoryResponse>(
+      OPEN_WORKSPACE_DIRECTORY,
       request,
     ),
   setWorkspacePinned: (request: SetWorkspacePinnedRequest) =>

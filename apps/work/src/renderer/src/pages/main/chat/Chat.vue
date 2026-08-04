@@ -108,7 +108,7 @@ onBeforeUnmount(() => {
     >
       <div
         ref="messageContent"
-        class="mx-auto flex min-h-full w-full max-w-3xl flex-col pt-6"
+        class="mx-auto flex min-h-full w-full max-w-[50rem] flex-col px-4 pt-6"
         data-slot="chat-message-content"
       >
         <div
@@ -136,10 +136,10 @@ onBeforeUnmount(() => {
 
     <div
       ref="composer"
-      class="absolute right-0 bottom-0 left-0 z-10 w-full px-8 pb-2"
+      class="absolute right-0 bottom-0 left-0 z-10 w-full pb-2"
       data-slot="chat-composer"
     >
-      <div class="relative z-1 mx-auto w-full max-w-3xl">
+      <div class="relative z-1 mx-auto w-full max-w-[50rem] px-4" data-slot="chat-composer-content">
         <slot />
       </div>
       <div class="absolute right-0 bottom-0 left-0 z-0 mx-2 h-10 bg-(--background)"></div>

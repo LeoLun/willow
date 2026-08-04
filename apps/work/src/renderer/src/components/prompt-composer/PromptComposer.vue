@@ -64,7 +64,7 @@ const props = withDefaults(defineProps<Props>(), {
   submitting: false,
   streaming: false,
   stopping: false,
-  placeholder: "Ask, Search or Chat...",
+  placeholder: "需要做些什么？@ 引用对话文件，/ 调用技能",
 });
 
 const content = defineModel<string>("content", { default: "" });
