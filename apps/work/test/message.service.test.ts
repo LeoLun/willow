@@ -214,6 +214,37 @@ describe("MessageService", () => {
     });
   });
 
+  it("reports a resolved provider error as failed instead of completed", async () => {
+    const providerError = {
+      ...assistantMessage,
+      content: [],
+      stopReason: "error" as const,
+      errorMessage: "503: Service is too busy",
+    };
+    const harness = createHarness(vi.fn(async () => providerError));
+    getAgentHarness.mockResolvedValue(harness.harness);
+
+    await expect(
+      service.sendMessage({
+        workspaceId: 1,
+        sessionId: "session",
+        content: "Hi",
+        model: modelConfig,
+      }),
+    ).resolves.toBe(providerError);
+
+    expect(sendEvent).toHaveBeenLastCalledWith(MESSAGE_EVENT, {
+      type: "status",
+      sessionId: "session",
+      status: "failed",
+      error: "503: Service is too busy",
+    });
+    expect(sendEvent).not.toHaveBeenCalledWith(
+      MESSAGE_EVENT,
+      expect.objectContaining({ status: "completed" }),
+    );
+  });
+
   it("persists attachments and grants current and inherited files to the session sandbox", async () => {
     getSession.mockReturnValue({
       id: "session",
@@ -465,7 +496,7 @@ describe("MessageService", () => {
       type: "status",
       sessionId: "session",
       status: "failed",
-      error: "Message generation failed",
+      error: "provider secret details",
     });
   });
 

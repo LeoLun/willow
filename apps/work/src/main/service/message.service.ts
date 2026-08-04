@@ -167,11 +167,26 @@ export class MessageService {
       const response =
         images.length > 0 ? await harness.prompt(prompt, { images }) : await harness.prompt(prompt);
       if (!task.stopped) {
-        this.emit({
-          type: "status",
-          sessionId: input.sessionId,
-          status: "completed",
-        });
+        if (response.stopReason === "error") {
+          this.emit({
+            type: "status",
+            sessionId: input.sessionId,
+            status: "failed",
+            error: response.errorMessage?.trim() || "模型服务请求失败，请重试。",
+          });
+        } else if (response.stopReason === "aborted") {
+          this.emit({
+            type: "status",
+            sessionId: input.sessionId,
+            status: "stopped",
+          });
+        } else {
+          this.emit({
+            type: "status",
+            sessionId: input.sessionId,
+            status: "completed",
+          });
+        }
       }
       return response;
     } catch (error) {
@@ -180,7 +195,8 @@ export class MessageService {
           type: "status",
           sessionId: input.sessionId,
           status: "failed",
-          error: "Message generation failed",
+          error:
+            error instanceof Error && error.message ? error.message : "Message generation failed",
         });
       }
       throw error;

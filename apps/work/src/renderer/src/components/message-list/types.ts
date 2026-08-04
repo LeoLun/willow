@@ -54,6 +54,8 @@ export interface Message {
   toolName?: string;
   details?: unknown;
   isError?: boolean;
+  stopReason?: string;
+  errorMessage?: string;
 }
 
 export interface MessageTimeline {

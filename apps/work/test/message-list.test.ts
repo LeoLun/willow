@@ -167,6 +167,29 @@ describe("pi-agent message conversion", () => {
     ]);
   });
 
+  it("preserves and renders provider errors returned by the agent", () => {
+    const message = toMessage(
+      agentMessage({
+        role: "assistant",
+        content: [],
+        stopReason: "error",
+        errorMessage: "503: Service is too busy",
+        timestamp: 5,
+      }),
+    );
+
+    expect(message).toMatchObject({
+      stopReason: "error",
+      errorMessage: "503: Service is too busy",
+    });
+
+    const container = mountMessageList([message]);
+    const alert = container.querySelector('[data-slot="assistant-error"]');
+    expect(alert?.getAttribute("role")).toBe("alert");
+    expect(alert?.textContent).toContain("模型服务请求失败");
+    expect(alert?.textContent).toContain("503: Service is too busy");
+  });
+
   it("adds occurrence suffixes when source identities collide", () => {
     const duplicate = agentMessage({ role: "user", content: "same time", timestamp: 5 });
     const messages = toMessageList([duplicate, duplicate]);

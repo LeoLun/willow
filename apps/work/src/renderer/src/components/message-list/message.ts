@@ -17,6 +17,8 @@ type AgentMessageLike = {
   toolName?: unknown;
   details?: unknown;
   isError?: unknown;
+  stopReason?: unknown;
+  errorMessage?: unknown;
 };
 
 type ContentLike = Record<string, unknown> & { type?: unknown };
@@ -178,6 +180,8 @@ export function toMessage(
     toolName: typeof value.toolName === "string" ? value.toolName : undefined,
     details: value.details,
     isError: typeof value.isError === "boolean" ? value.isError : undefined,
+    stopReason: typeof value.stopReason === "string" ? value.stopReason : undefined,
+    errorMessage: typeof value.errorMessage === "string" ? value.errorMessage : undefined,
   };
 }
 
