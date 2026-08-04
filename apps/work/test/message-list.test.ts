@@ -1123,6 +1123,30 @@ describe("MessageList", () => {
     });
   });
 
+  it("keeps object-like text literal while streaming markdown", async () => {
+    const container = mountMessageList([
+      {
+        id: "assistant",
+        sourceKey: "assistant",
+        role: "assistant",
+        timestamp: 1,
+        status: "streaming",
+        content: [
+          {
+            type: "text",
+            text: "调用函数 {workspaceId, relativePaths[]}",
+          },
+        ],
+      },
+    ]);
+
+    await vi.waitFor(() => {
+      expect(container.querySelector("[data-slot=markdown-block]")?.textContent).toContain(
+        "调用函数 {workspaceId, relativePaths[]}",
+      );
+    });
+  });
+
   it("collapses tool output and details behind the tool summary", async () => {
     const messages: Message[] = [
       {

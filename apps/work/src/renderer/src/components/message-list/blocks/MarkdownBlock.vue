@@ -4,6 +4,7 @@ import highlight from "@comark/vue/plugins/highlight";
 import math, { Math } from "@comark/vue/plugins/math";
 import mermaid from "@comark/vue/plugins/mermaid";
 import markdown from "@shikijs/langs/markdown";
+import { comarkSafety } from "./comark-safety";
 import MermaidDiagram from "./MermaidDiagram.vue";
 
 interface Props {
@@ -25,6 +26,7 @@ const markdownComponents = {
 };
 
 const markdownPlugins = [
+  comarkSafety(),
   math(),
   mermaid(),
   highlight({
