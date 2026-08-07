@@ -32,7 +32,7 @@ function pathToName(path: string): string {
   return path.split("/").pop() ?? path;
 }
 
-export function formatToolCallTitle(name: string, args: unknown): string {
+export function formatToolCallTitle(name: string, args: unknown, details?: unknown): string {
   const input = asRecord(args);
   switch (name) {
     case "bash":
@@ -47,9 +47,18 @@ export function formatToolCallTitle(name: string, args: unknown): string {
       return `读取 ${text(input.path)}${range ? ` · ${range}` : ""}`;
     }
     case "write": {
+      const result = asRecord(details);
+      const resultPath = result.kind === "write" ? result.path : undefined;
+      const path = text(input.path, text(resultPath, ""));
       const content = typeof input.content === "string" ? input.content : "";
-      const lineCount = countLines(content);
-      return `写入 ${pathToName(text(input.path))} · ${lineCount} 行`;
+      const lineCount =
+        typeof input.content === "string"
+          ? countLines(content)
+          : result.kind === "write" && typeof result.lineCount === "number"
+            ? result.lineCount
+            : 0;
+      if (path === "") return `准备写入 · ${lineCount} 行`;
+      return `写入 ${pathToName(path)} · ${lineCount} 行`;
     }
     case "edit":
       return `修改 ${pathToName(text(input.path))}`;

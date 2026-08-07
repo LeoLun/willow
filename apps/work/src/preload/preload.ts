@@ -18,6 +18,8 @@ import type {
   GetAutoLaunchResponse,
   GetAppInfoRequest,
   GetAppInfoResponse,
+  GetBoardPanelRequest,
+  GetBoardPanelResponse,
   GetBuiltinSkillListRequest,
   GetBuiltinSkillListResponse,
   GetConfiguredProvidersRequest,
@@ -104,6 +106,7 @@ import {
   GET_APP_INFO,
   GET_APP_UPDATE_STATE,
   GET_AUTO_LAUNCH,
+  GET_BOARD_PANEL,
   GET_BUILTIN_SKILL_LIST,
   GET_CONFIGURED_PROVIDERS,
   GET_CREDENTIAL,
@@ -222,6 +225,8 @@ const ipcObject: IRenderHook = {
     invoke<GetSessionListRequest, GetSessionListResponse>(GET_SESSION_LIST, request),
   getSkillList: (request: GetSkillListRequest) =>
     invoke<GetSkillListRequest, GetSkillListResponse>(GET_SKILL_LIST, request),
+  getBoardPanel: (request: GetBoardPanelRequest) =>
+    invoke<GetBoardPanelRequest, GetBoardPanelResponse>(GET_BOARD_PANEL, request),
   getBuiltinSkillList: (request: GetBuiltinSkillListRequest = {}) =>
     invoke<GetBuiltinSkillListRequest, GetBuiltinSkillListResponse>(
       GET_BUILTIN_SKILL_LIST,

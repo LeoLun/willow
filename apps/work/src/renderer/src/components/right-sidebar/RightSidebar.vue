@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SkillInfo } from "@shared/api";
 import { Button } from "@willow/shadcn/components/ui/button";
 import {
   DropdownMenu,
@@ -8,6 +9,7 @@ import {
 } from "@willow/shadcn/components/ui/dropdown-menu";
 import { Plus, X } from "lucide-vue-next";
 import { computed, nextTick, ref, shallowRef, watch } from "vue";
+import type { ComposerPromptTemplate } from "@/components/prompt-composer";
 import { getRightSidebarPanelDefinition, rightSidebarPanelDefinitions } from "./panel-registry";
 import type {
   RightSidebarPanelKind,
@@ -21,6 +23,14 @@ const props = defineProps<{
   id: string;
   workspaceId?: number;
 }>();
+
+const emit = defineEmits<{
+  "select-skill": [skill: SkillInfo, template?: ComposerPromptTemplate];
+}>();
+
+function selectSkill(skill: SkillInfo, template?: ComposerPromptTemplate): void {
+  emit("select-skill", skill, template);
+}
 
 const tabs = shallowRef<RightSidebarTab[]>([]);
 const activeTabId = ref<string>();
@@ -250,6 +260,7 @@ watch(() => props.workspaceId, resetTabs);
           :workspace-id="workspaceId"
           :tab-id="view.tab.id"
           :state="view.tab.state"
+          @select-skill="selectSkill"
           @update:state="updateTabState(view.tab.id, $event)"
         />
       </div>

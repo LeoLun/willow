@@ -1,4 +1,5 @@
-import { FileText, GitPullRequest } from "lucide-vue-next";
+import { FileText, GitPullRequest, Kanban } from "lucide-vue-next";
+import BoardPanel from "./BoardPanel.vue";
 import FilePanel from "./FilePanel.vue";
 import ReviewPanel from "./ReviewPanel.vue";
 import type {
@@ -29,6 +30,16 @@ const panelDefinitions = {
     createState: () => ({ selectedChangeId: "right-sidebar" }),
     getTitle: () => "审阅",
   } satisfies SidebarPanelDefinition<"review">,
+  board: {
+    kind: "board",
+    label: "看板",
+    icon: Kanban,
+    component: BoardPanel,
+    multiplicity: "single",
+    entryPoints: { addMenu: true, emptyState: true },
+    createState: () => ({}),
+    getTitle: () => "看板",
+  } satisfies SidebarPanelDefinition<"board">,
 } satisfies {
   [Kind in RightSidebarPanelKind]: SidebarPanelDefinition<Kind>;
 };
@@ -36,6 +47,7 @@ const panelDefinitions = {
 export const rightSidebarPanelDefinitions = [
   panelDefinitions.review,
   panelDefinitions.file,
+  panelDefinitions.board,
 ] as RuntimeSidebarPanelDefinition[];
 
 export function getRightSidebarPanelDefinition<Kind extends RightSidebarPanelKind>(

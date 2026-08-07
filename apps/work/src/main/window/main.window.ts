@@ -2,6 +2,7 @@ import { join } from "path";
 import { Window, WindowInstance, OnInit, On, OnDestroy, WindowMetadata } from "@willow/poetry";
 import { app, BrowserWindow, type Rectangle } from "electron";
 import { calculateDefaultWindowBounds } from "./default-window-bounds";
+import { createMainWindowWebPreferences } from "./main-window-web-preferences";
 
 const option: WindowMetadata = {
   options: {
@@ -12,9 +13,10 @@ const option: WindowMetadata = {
       x: 20,
       y: 20,
     },
-    webPreferences: {
-      preload: join(__dirname, "preload.js"),
-    },
+    webPreferences: createMainWindowWebPreferences(
+      join(__dirname, "preload.js"),
+      MAIN_WINDOW_VITE_DEV_SERVER_URL,
+    ),
     ...(MAIN_WINDOW_VITE_DEV_SERVER_URL
       ? { icon: join(__dirname, "../../assets/icons/icon-dev.png") }
       : {}),

@@ -8,6 +8,7 @@ export {
 export { serializeFileToken, unescapeFileTokenValue } from "./file-token";
 export { parseComposerContent, serializeComposerSegments } from "./token-parser";
 export type {
+  ComposerHandle,
   ComposerInsertOptions,
   ComposerModelOption,
   ComposerOption,
@@ -16,7 +17,10 @@ export type {
   ComposerPanelNavigationKey,
   ComposerPanelSlotProps,
   ComposerPanelType,
+  ComposerPromptTemplate,
   ComposerSegment,
   ComposerSubmitPayload,
+  ComposerTemplateOption,
+  ComposerTemplateSegment,
   ComposerTokenRule,
 } from "./types";

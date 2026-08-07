@@ -43,7 +43,7 @@ const isAskUser = computed(
 const summary = computed(
   () =>
     (props.toolCall
-      ? formatToolCallTitle(props.toolCall.name, props.toolCall.arguments)
+      ? formatToolCallTitle(props.toolCall.name, props.toolCall.arguments, props.result?.details)
       : undefined) ??
     formatToolResultTitle(props.result?.details) ??
     (props.result?.isError

@@ -5,6 +5,7 @@ export {
   rightSidebarPanelDefinitions,
 } from "./panel-registry";
 export type {
+  BoardPanelState,
   FilePanelState,
   ReviewPanelState,
   RightSidebarPanelKind,

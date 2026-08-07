@@ -26,15 +26,19 @@ import BorderBeam from "@/components/ui/BorderBeam.vue";
 import { electronAPI } from "@/lib/ipc";
 import { getSourceSelection, restoreSourceSelection, serializeComposerDom } from "./editor-dom";
 import LocalFileCard from "./LocalFileCard.vue";
+import PromptTemplateField from "./PromptTemplateField.vue";
 import { parseComposerContent } from "./token-parser";
 import type {
+  ComposerHandle,
   ComposerInsertOptions,
   ComposerModelOption,
   ComposerOption,
   ComposerPanelKeydownPayload,
   ComposerPanelSlotProps,
   ComposerPanelType,
+  ComposerPromptTemplate,
   ComposerSubmitPayload,
+  ComposerTemplateSegment,
   ComposerTokenRule,
 } from "./types";
 
@@ -55,6 +59,13 @@ type TriggerState = {
   start: number;
   end: number;
 };
+
+type TemplateFieldSegment = Exclude<ComposerTemplateSegment, { type: "text" }>;
+
+interface TemplateFieldRecord {
+  host: HTMLElement;
+  segment: TemplateFieldSegment;
+}
 
 const props = withDefaults(defineProps<Props>(), {
   approvalOptions: () => [],
@@ -91,8 +102,11 @@ const editorFocused = ref(false);
 const selectingFiles = ref(false);
 const attachmentError = ref("");
 const trigger = ref<TriggerState>();
+const templateMode = ref(false);
+const templateFieldCount = ref(0);
 let lastSelection = { start: 0, end: 0 };
 const renderedTokens = new Set<HTMLElement>();
+const templateFields = new Map<HTMLElement, TemplateFieldRecord>();
 
 const segments = computed(() => parseComposerContent(content.value, props.tokenRules));
 const selectedModel = computed(() =>
@@ -115,7 +129,7 @@ const reasoningLabel = computed(
 );
 const canSubmit = computed(
   () =>
-    (content.value.trim() !== "" || attachments.value.length > 0) &&
+    (content.value.trim() !== "" || attachments.value.length > 0 || templateFieldCount.value > 0) &&
     !props.disabled &&
     !props.submitting &&
     (props.approvalOptions.length === 0 || approvalMode.value !== undefined) &&
@@ -124,7 +138,11 @@ const canSubmit = computed(
       reasoningOptions.value.some((option) => option.value === reasoningEffort.value)),
 );
 const showStopAction = computed(
-  () => content.value.trim() === "" && attachments.value.length === 0 && props.streaming,
+  () =>
+    content.value.trim() === "" &&
+    attachments.value.length === 0 &&
+    templateFieldCount.value === 0 &&
+    props.streaming,
 );
 const actionDisabled = computed(() =>
   showStopAction.value ? props.disabled || props.stopping : !canSubmit.value,
@@ -153,14 +171,21 @@ function unmountRenderedTokens(): void {
   renderedTokens.clear();
 }
 
-function renderEditorContent(value: string): void {
-  const root = editor.value;
-  if (!root) return;
-  unmountRenderedTokens();
-  const fragment = document.createDocumentFragment();
+function unmountTemplateFields(): void {
+  for (const { host } of templateFields.values()) render(null, host);
+  templateFields.clear();
+  templateFieldCount.value = 0;
+}
+
+function clearTemplateState(): void {
+  unmountTemplateFields();
+  templateMode.value = false;
+}
+
+function appendParsedContent(parent: DocumentFragment, value: string): void {
   for (const segment of parseComposerContent(value, props.tokenRules)) {
     if (segment.type === "text") {
-      fragment.append(document.createTextNode(segment.content));
+      parent.append(document.createTextNode(segment.content));
       continue;
     }
     const token = document.createElement("span");
@@ -170,13 +195,112 @@ function renderEditorContent(value: string): void {
     token.dataset.tokenRule = segment.ruleId;
     render(h(segment.component, segment.props), token);
     renderedTokens.add(token);
-    fragment.append(token);
+    parent.append(token);
   }
+}
+
+function setTemplateFieldInvalid(host: HTMLElement, invalid: boolean): void {
+  if (invalid) host.dataset.invalid = "true";
+  else delete host.dataset.invalid;
+  const control = host.querySelector<HTMLElement>("[data-template-control]");
+  if (invalid) control?.setAttribute("aria-invalid", "true");
+  else control?.removeAttribute("aria-invalid");
+}
+
+function reconcileTemplateFields(): void {
+  const root = editor.value;
+  if (!root) return;
+  for (const [host] of templateFields) {
+    if (root.contains(host)) continue;
+    render(null, host);
+    templateFields.delete(host);
+  }
+  templateFieldCount.value = templateFields.size;
+  if (templateFields.size === 0) templateMode.value = false;
+}
+
+function syncTemplateContent(): void {
+  const root = editor.value;
+  if (!root) return;
+  reconcileTemplateFields();
+  content.value = serializeComposerDom(root);
+}
+
+function updateTemplateField(host: HTMLElement, value: string): void {
+  if (!editor.value?.contains(host)) return;
+  host.dataset.templateValue = value;
+  const record = templateFields.get(host);
+  if (record?.segment.type === "select") renderTemplateField(record);
+  setTemplateFieldInvalid(host, false);
+  syncTemplateContent();
+}
+
+function renderTemplateField(record: TemplateFieldRecord): void {
+  render(
+    h(PromptTemplateField, {
+      segment: record.segment,
+      value: record.host.dataset.templateValue ?? "",
+      disabled: props.disabled,
+      "onUpdate:value": (value: string) => updateTemplateField(record.host, value),
+    }),
+    record.host,
+  );
+}
+
+function createTemplateField(segment: TemplateFieldSegment): HTMLElement {
+  const host = document.createElement("span");
+  host.className = "inline-flex max-w-full align-baseline";
+  host.setAttribute("contenteditable", "false");
+  host.dataset.templateField = segment.type;
+  host.dataset.templateValue = "";
+  const record = { host, segment };
+  templateFields.set(host, record);
+  renderTemplateField(record);
+  return host;
+}
+
+function renderEditorContent(value: string): void {
+  const root = editor.value;
+  if (!root) return;
+  clearTemplateState();
+  unmountRenderedTokens();
+  const fragment = document.createDocumentFragment();
+  appendParsedContent(fragment, value);
   if (value.endsWith("\n")) {
     // Chromium needs a trailing BR to render the empty line after a terminal newline.
     fragment.append(document.createElement("br"));
   }
   root.replaceChildren(fragment);
+}
+
+function renderTemplateContent(template: ComposerPromptTemplate): void {
+  const root = editor.value;
+  if (!root) return;
+  unmountRenderedTokens();
+  unmountTemplateFields();
+  templateMode.value = true;
+  const fragment = document.createDocumentFragment();
+  for (const segment of template.segments) {
+    if (segment.type === "text") appendParsedContent(fragment, segment.content);
+    else fragment.append(createTemplateField(segment));
+  }
+  root.replaceChildren(fragment);
+  templateFieldCount.value = templateFields.size;
+  templateMode.value = templateFields.size > 0;
+  const value = serializeComposerDom(root);
+  if (value.endsWith("\n")) root.append(document.createElement("br"));
+  content.value = value;
+}
+
+function templateControls(): HTMLElement[] {
+  const root = editor.value;
+  return root ? [...root.querySelectorAll<HTMLElement>("[data-template-control]")] : [];
+}
+
+function focusFirstTemplateField(): boolean {
+  const first = templateControls()[0];
+  first?.focus();
+  return Boolean(first);
 }
 
 function detectTrigger(source: string, caret: number): TriggerState | undefined {
@@ -219,10 +343,50 @@ async function setContentAndSelection(value: string, start: number, end = start)
   updateSelectionAndPanel();
 }
 
+function replaceCurrentTemplateSelection(text: string, deleteBefore = 0): void {
+  const root = editor.value;
+  if (!root) return;
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return;
+  if (
+    deleteBefore > 0 &&
+    range.collapsed &&
+    range.startContainer.nodeType === Node.TEXT_NODE &&
+    range.startOffset >= deleteBefore
+  ) {
+    range.setStart(range.startContainer, range.startOffset - deleteBefore);
+  }
+  range.deleteContents();
+  const fragment = document.createDocumentFragment();
+  appendParsedContent(fragment, text);
+  const insertedNodes = [...fragment.childNodes];
+  range.insertNode(fragment);
+  const lastInserted = insertedNodes.at(-1);
+  if (lastInserted?.parentNode) {
+    range.setStartAfter(lastInserted);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  syncTemplateContent();
+  lastSelection = getSourceSelection(root) ?? lastSelection;
+  updateSelectionAndPanel();
+}
+
 async function handleInput(event?: InputEvent): Promise<void> {
   if (composing.value || event?.isComposing) return;
   const root = editor.value;
   if (!root) return;
+  if (templateMode.value) {
+    if (event?.target instanceof Element && event.target.closest("[data-template-field]")) return;
+    const selection = getSourceSelection(root) ?? lastSelection;
+    lastSelection = selection;
+    syncTemplateContent();
+    updateSelectionAndPanel();
+    return;
+  }
   const selection = getSourceSelection(root) ?? lastSelection;
   const value = serializeComposerDom(root);
   content.value = value;
@@ -233,8 +397,9 @@ async function handleInput(event?: InputEvent): Promise<void> {
   updateSelectionAndPanel();
 }
 
-function handleCompositionEnd(): void {
+function handleCompositionEnd(event: CompositionEvent): void {
   composing.value = false;
+  if (event.target instanceof Element && event.target.closest("[data-template-field]")) return;
   void handleInput();
 }
 
@@ -271,8 +436,77 @@ function removeSelectionOrToken(direction: "backward" | "forward"): boolean {
   return true;
 }
 
+function adjacentTemplateField(direction: "backward" | "forward"): HTMLElement | undefined {
+  const root = editor.value;
+  const selection = window.getSelection();
+  if (!root || !selection || selection.rangeCount === 0) return undefined;
+  const range = selection.getRangeAt(0);
+  if (!range.collapsed || !root.contains(range.startContainer)) return undefined;
+
+  let node: Node = range.startContainer;
+  let candidate: Node | undefined;
+  if (node.nodeType === Node.TEXT_NODE) {
+    const length = node.textContent?.length ?? 0;
+    if (
+      (direction === "backward" && range.startOffset > 0) ||
+      (direction === "forward" && range.startOffset < length)
+    ) {
+      return undefined;
+    }
+    candidate = (direction === "backward" ? node.previousSibling : node.nextSibling) ?? undefined;
+  } else {
+    candidate =
+      direction === "backward"
+        ? node.childNodes[range.startOffset - 1]
+        : node.childNodes[range.startOffset];
+  }
+
+  while (!candidate && node !== root) {
+    candidate = (direction === "backward" ? node.previousSibling : node.nextSibling) ?? undefined;
+    node = node.parentNode ?? root;
+  }
+  if (!(candidate instanceof HTMLElement) || !candidate.matches("[data-template-field]")) {
+    return undefined;
+  }
+  return candidate;
+}
+
+function removeAdjacentTemplateField(direction: "backward" | "forward"): boolean {
+  const root = editor.value;
+  const field = adjacentTemplateField(direction);
+  if (!root || !field) return false;
+  const selection = getSourceSelection(root) ?? lastSelection;
+  render(null, field);
+  templateFields.delete(field);
+  field.remove();
+  templateFieldCount.value = templateFields.size;
+  syncTemplateContent();
+  root.focus();
+  lastSelection = { start: selection.start, end: selection.start };
+  restoreSourceSelection(root, lastSelection);
+  updateSelectionAndPanel();
+  return true;
+}
+
+function moveBetweenTemplateFields(event: KeyboardEvent): boolean {
+  if (event.key !== "Tab" || !(event.target instanceof HTMLElement)) return false;
+  if (!event.target.matches("[data-template-control]")) return false;
+  const controls = templateControls();
+  const index = controls.indexOf(event.target);
+  const nextIndex = event.shiftKey ? index - 1 : index + 1;
+  const next = controls[nextIndex];
+  if (!next) return false;
+  event.preventDefault();
+  next.focus();
+  return true;
+}
+
 async function insertAtSelection(text: string): Promise<void> {
   const selection = getSourceSelection(editor.value!) ?? lastSelection;
+  if (templateMode.value) {
+    replaceCurrentTemplateSelection(text);
+    return;
+  }
   const value = content.value.slice(0, selection.start) + text + content.value.slice(selection.end);
   await setContentAndSelection(value, selection.start + text.length);
 }
@@ -286,11 +520,46 @@ async function insertFromPanel(text: string, options: ComposerInsertOptions = {}
       ? { start: activeTrigger.start, end: activeTrigger.end }
       : lastSelection;
   const inserted = `${text}${trailingSpace ? " " : ""}`;
+  if (templateMode.value) {
+    closePanel();
+    replaceCurrentTemplateSelection(
+      inserted,
+      replaceTrigger && activeTrigger ? activeTrigger.end - activeTrigger.start : 0,
+    );
+    return;
+  }
   const value =
     content.value.slice(0, selection.start) + inserted + content.value.slice(selection.end);
   closePanel();
   await setContentAndSelection(value, selection.start + inserted.length);
 }
+
+async function replaceContentAndFocus(value: string): Promise<void> {
+  closePanel();
+  await setContentAndSelection(value, value.length);
+}
+
+async function loadTemplateAndFocus(template: ComposerPromptTemplate): Promise<void> {
+  closePanel();
+  const clonedTemplate: ComposerPromptTemplate = {
+    segments: template.segments.map((segment) =>
+      segment.type === "select"
+        ? { ...segment, options: segment.options.map((option) => ({ ...option })) }
+        : { ...segment },
+    ),
+  };
+  await nextTick();
+  renderTemplateContent(clonedTemplate);
+  await nextTick();
+  if (focusFirstTemplateField()) return;
+  const root = editor.value;
+  if (!root) return;
+  root.focus();
+  lastSelection = { start: content.value.length, end: content.value.length };
+  restoreSourceSelection(root, lastSelection);
+}
+
+defineExpose<ComposerHandle>({ loadTemplateAndFocus, replaceContentAndFocus });
 
 function addAttachments(files: readonly LocalFileAttachment[]): void {
   const next = new Map(attachments.value.map((file) => [file.path, file]));
@@ -316,7 +585,22 @@ function removeAttachment(path: string): void {
   attachments.value = attachments.value.filter((file) => file.path !== path);
 }
 
+function validateTemplateFields(): boolean {
+  if (!templateMode.value) return true;
+  reconcileTemplateFields();
+  let firstInvalid: HTMLElement | undefined;
+  for (const { host } of templateFields.values()) {
+    const invalid = (host.dataset.templateValue ?? "").trim() === "";
+    setTemplateFieldInvalid(host, invalid);
+    if (invalid && !firstInvalid) firstInvalid = host;
+  }
+  firstInvalid?.querySelector<HTMLElement>("[data-template-control]")?.focus();
+  return firstInvalid === undefined;
+}
+
 function submit(): void {
+  if (!validateTemplateFields()) return;
+  if (templateMode.value) syncTemplateContent();
   if (!canSubmit.value) return;
   closePanel();
   const payload: ComposerSubmitPayload = {
@@ -330,6 +614,7 @@ function submit(): void {
   content.value = "";
   attachments.value = [];
   lastSelection = { start: 0, end: 0 };
+  renderEditorContent("");
 }
 
 function triggerAction(): void {
@@ -342,6 +627,7 @@ function triggerAction(): void {
 
 async function handleKeydown(event: KeyboardEvent): Promise<void> {
   if (composing.value || event.isComposing) return;
+  if (event.defaultPrevented || moveBetweenTemplateFields(event)) return;
 
   if (event.key === "Escape" && trigger.value) {
     event.preventDefault();
@@ -372,10 +658,26 @@ async function handleKeydown(event: KeyboardEvent): Promise<void> {
 
   if (event.key === "Backspace") {
     updateSelectionAndPanel();
-    if (removeSelectionOrToken("backward")) event.preventDefault();
+    if (
+      templateMode.value &&
+      event.target === editor.value &&
+      removeAdjacentTemplateField("backward")
+    ) {
+      event.preventDefault();
+    } else if (!templateMode.value && removeSelectionOrToken("backward")) {
+      event.preventDefault();
+    }
   } else if (event.key === "Delete") {
     updateSelectionAndPanel();
-    if (removeSelectionOrToken("forward")) event.preventDefault();
+    if (
+      templateMode.value &&
+      event.target === editor.value &&
+      removeAdjacentTemplateField("forward")
+    ) {
+      event.preventDefault();
+    } else if (!templateMode.value && removeSelectionOrToken("forward")) {
+      event.preventDefault();
+    }
   }
 }
 
@@ -394,6 +696,9 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
     }
     return;
   }
+  if (event.target instanceof HTMLInputElement && event.target.matches("[data-template-control]")) {
+    return;
+  }
   event.preventDefault();
   await insertAtSelection(event.clipboardData?.getData("text/plain") ?? "");
 }
@@ -404,8 +709,22 @@ function handleCopy(event: ClipboardEvent, cut: boolean): void {
   const selection = getSourceSelection(root);
   if (!selection) return;
   event.preventDefault();
-  event.clipboardData?.setData("text/plain", content.value.slice(selection.start, selection.end));
+  const serialized = serializeComposerDom(root);
+  event.clipboardData?.setData("text/plain", serialized.slice(selection.start, selection.end));
   if (cut && selection.start !== selection.end) {
+    if (templateMode.value) {
+      const browserSelection = window.getSelection();
+      const range = browserSelection?.rangeCount ? browserSelection.getRangeAt(0) : undefined;
+      range?.deleteContents();
+      range?.collapse(true);
+      if (range && browserSelection) {
+        browserSelection.removeAllRanges();
+        browserSelection.addRange(range);
+      }
+      lastSelection = { start: selection.start, end: selection.start };
+      syncTemplateContent();
+      return;
+    }
     void setContentAndSelection(
       content.value.slice(0, selection.start) + content.value.slice(selection.end),
       selection.start,
@@ -433,6 +752,14 @@ function normalizeReasoningEffort(selected: ComposerModelOption | undefined): vo
 
 watch(selectedModel, normalizeReasoningEffort, { immediate: true });
 
+watch(
+  () => props.disabled,
+  () => {
+    if (!templateMode.value) return;
+    for (const record of templateFields.values()) renderTemplateField(record);
+  },
+);
+
 onMounted(() => {
   lastSelection = { start: content.value.length, end: content.value.length };
   renderEditorContent(content.value);
@@ -441,6 +768,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener("selectionchange", updateSelectionAndPanel);
+  unmountTemplateFields();
   unmountRenderedTokens();
 });
 
@@ -509,7 +837,7 @@ watch(content, (value) => {
 
     <div class="relative">
       <div
-        v-if="content === '' && !composing"
+        v-if="content === '' && !composing && !templateMode"
         data-slot="prompt-placeholder"
         class="pointer-events-none absolute inset-x-5 text-sm text-muted-foreground"
         :class="attachments.length > 0 ? 'top-2' : 'top-4.5'"

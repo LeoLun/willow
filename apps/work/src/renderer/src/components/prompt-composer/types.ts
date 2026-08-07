@@ -25,6 +25,24 @@ export interface ComposerOption {
   disabled?: boolean;
 }
 
+export interface ComposerTemplateOption {
+  label: string;
+  value: string;
+}
+
+export type ComposerTemplateSegment =
+  | { type: "text"; content: string }
+  | { type: "input"; placeholder: string }
+  | {
+      type: "select";
+      placeholder: string;
+      options: ComposerTemplateOption[];
+    };
+
+export interface ComposerPromptTemplate {
+  segments: ComposerTemplateSegment[];
+}
+
 export interface ComposerModelOption {
   value: ModelConfig;
   label: string;
@@ -65,4 +83,9 @@ export interface ComposerPanelKeydownPayload {
 
 export interface ComposerPanelNavigationHandle {
   handlePanelKeydown(key: ComposerPanelNavigationKey): void;
+}
+
+export interface ComposerHandle {
+  replaceContentAndFocus(content: string): Promise<void>;
+  loadTemplateAndFocus(template: ComposerPromptTemplate): Promise<void>;
 }

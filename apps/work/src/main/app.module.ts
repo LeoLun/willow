@@ -11,6 +11,7 @@ import { RestartToUpdateController } from "./controllers/app-update/restart.app-
 import { GetAppInfoController } from "./controllers/app/get-info.app.controller";
 import { GetAutoLaunchController } from "./controllers/auto-launch/get.auto-launch.controller";
 import { SetAutoLaunchController } from "./controllers/auto-launch/set.auto-launch.controller";
+import { GetBoardPanelController } from "./controllers/board/get.board.controller";
 import { DeleteCredentialController } from "./controllers/credential/delete.credential.controller";
 import { GetConfiguredProvidersController } from "./controllers/credential/get-configured.credential.controller";
 import { GetCredentialController } from "./controllers/credential/get.credential.controller";
@@ -56,6 +57,7 @@ import { AgentService } from "./service/agent.service";
 import { AiToolApprovalService } from "./service/ai-tool-approval.service";
 import { AppUpdateService } from "./service/app-update.service";
 import { AutoLaunchService } from "./service/auto-launch.service";
+import { BoardPanelService } from "./service/board-panel.service";
 import { BuiltinSkillService } from "./service/builtin-skill.service";
 import { CredentialService } from "./service/credential.service";
 import { BuiltinSkillSettingDao } from "./service/dao/builtin-skill-setting.dao.server";
@@ -98,6 +100,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
   providers: [
     DbService,
     AutoLaunchService,
+    BoardPanelService,
     AppUpdateService,
     WorkspaceDao,
     SessionDao,
@@ -134,6 +137,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     RestartToUpdateController,
     OpenManualUpdateController,
     ConfirmUpdateBootController,
+    GetBoardPanelController,
     ListWorkspaceDirectoryController,
     OpenWorkspaceFileController,
     ReadWorkspaceFileController,

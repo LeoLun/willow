@@ -1,5 +1,7 @@
 import type { Component } from "vue";
 
+export type BoardPanelState = Record<string, never>;
+
 export interface FilePanelState {
   selectedFile?: {
     id: string;
@@ -13,6 +15,7 @@ export interface ReviewPanelState {
 }
 
 export interface RightSidebarPanelStateMap {
+  board: BoardPanelState;
   file: FilePanelState;
   review: ReviewPanelState;
 }

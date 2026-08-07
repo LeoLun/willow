@@ -8,6 +8,8 @@ function serializeNode(node: Node): string {
 
   const tokenSource = node.getAttribute("data-token-source");
   if (tokenSource !== null) return tokenSource;
+  const templateValue = node.getAttribute("data-template-value");
+  if (templateValue !== null) return templateValue;
   // Chromium may insert a BR only to keep a caret next to a non-editable token.
   // Real newlines are stored as text nodes by PromptComposer.
   if (node.tagName === "BR") return "";
@@ -63,12 +65,13 @@ function findDomPosition(root: Node, target: number): DomPosition {
 
     if (node instanceof Element) {
       const tokenSource = node.getAttribute("data-token-source");
-      if (tokenSource !== null) {
+      const atomicSource = tokenSource ?? node.getAttribute("data-template-value");
+      if (atomicSource !== null) {
         const parent = node.parentNode;
         if (!parent) return undefined;
         const index = Array.prototype.indexOf.call(parent.childNodes, node) as number;
         if (target <= consumed) return { node: parent, offset: index };
-        consumed += tokenSource.length;
+        consumed += atomicSource.length;
         if (target <= consumed) return { node: parent, offset: index + 1 };
         return undefined;
       }

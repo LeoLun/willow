@@ -38,11 +38,13 @@ import {
   defaultComposerTokenRules,
   PromptComposer,
   serializeFileToken,
+  type ComposerHandle,
   type ComposerModelOption,
   type ComposerOption,
   type ComposerPanelSlotProps,
   type ComposerPanelKeydownPayload,
   type ComposerPanelNavigationHandle,
+  type ComposerPromptTemplate,
   type ComposerSubmitPayload,
 } from "@/components/prompt-composer";
 import FileSearchPanel from "@/components/prompt-composer/FileSearchPanel.vue";
@@ -80,6 +82,7 @@ const approvalMode = ref<PermissionMode>(composerPreferences.value.approvalMode)
 const reasoningEffort = ref<string | undefined>(composerPreferences.value.reasoningEffort);
 const fileSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
 const skillSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
+const promptComposer = shallowRef<ComposerHandle>();
 const contentLayout = shallowRef<HTMLElement>();
 
 const workspaceId = computed(() => {
@@ -364,6 +367,22 @@ function insertSkillReference(skill: SkillInfo, insert: ComposerPanelSlotProps["
   insert(`[!${skill.name}](${skill.filePath})`);
 }
 
+async function replaceWithSkillReference(
+  skill: SkillInfo,
+  template?: ComposerPromptTemplate,
+): Promise<void> {
+  const value = `[!${skill.name}](${skill.filePath})`;
+  message.value = "";
+  await nextTick();
+  if (template) {
+    await promptComposer.value?.loadTemplateAndFocus(template);
+    return;
+  }
+  message.value = value;
+  await nextTick();
+  await promptComposer.value?.replaceContentAndFocus(value);
+}
+
 function handlePanelKeydown(payload: ComposerPanelKeydownPayload): void {
   const panel = payload.type === "mention" ? fileSearchPanel.value : skillSearchPanel.value;
   panel?.handlePanelKeydown(payload.key);
@@ -633,6 +652,7 @@ function removeQueuedMessage(messageId: string): void {
               />
               <PromptComposer
                 v-else
+                ref="promptComposer"
                 key="prompt-composer"
                 v-model:content="message"
                 v-model:approval-mode="approvalMode"
@@ -709,7 +729,12 @@ function removeQueuedMessage(messageId: string): void {
         @keydown="handleResizeHandleKeydown"
       />
     </template>
-    <RightSidebar v-show="rightSidebarOpen" :id="rightSidebarId" :workspace-id="workspaceId" />
+    <RightSidebar
+      v-show="rightSidebarOpen"
+      :id="rightSidebarId"
+      :workspace-id="workspaceId"
+      @select-skill="replaceWithSkillReference"
+    />
   </div>
 </template>
 
