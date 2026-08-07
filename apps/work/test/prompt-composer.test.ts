@@ -18,7 +18,9 @@ import {
   parseComposerContent,
   PromptComposer,
   serializeFileToken,
+  type ComposerHandle,
   type ComposerModelOption,
+  type ComposerPromptTemplate,
   serializeComposerSegments,
   type ComposerSubmitPayload,
   type ComposerTokenRule,
@@ -52,6 +54,7 @@ function mountComposer(
   const stopping = ref(options.stopping ?? false);
   const submitting = ref(options.submitting ?? false);
   const submissions: ComposerSubmitPayload[] = [];
+  const composer = ref<ComposerHandle>();
   const stop = vi.fn();
   const panelKeydown = vi.fn();
   const container = document.createElement("div");
@@ -63,6 +66,9 @@ function mountComposer(
         h(
           PromptComposer,
           {
+            ref: (value: unknown) => {
+              composer.value = value as ComposerHandle;
+            },
             content: content.value,
             attachments: attachments.value,
             model: model.value,
@@ -116,6 +122,7 @@ function mountComposer(
   mountedApps.push(app);
   return {
     container,
+    composer,
     content,
     attachments,
     model,
@@ -243,6 +250,23 @@ describe("prompt composer token parser", () => {
 });
 
 describe("PromptComposer", () => {
+  const analysisTemplate: ComposerPromptTemplate = {
+    segments: [
+      { type: "text", content: "帮我撰写一份关于 " },
+      { type: "input", placeholder: "竞品名称/某市场趋势/业务问题" },
+      { type: "text", content: " 的分析报告。核心信息包括：" },
+      {
+        type: "select",
+        placeholder: "选择信息范围",
+        options: [
+          { label: "关键数据", value: "关键数据" },
+          { label: "用户反馈", value: "用户反馈与需求" },
+        ],
+      },
+      { type: "text", content: "。" },
+    ],
+  };
+
   const reasoningModels: ComposerModelOption[] = [
     {
       value: { providerId: "provider", modelId: "deepseek-v4-pro" },
@@ -647,5 +671,276 @@ describe("PromptComposer", () => {
     mounted.content.value = "[!skill](tools/skill.md)";
     await nextTick();
     expect(mounted.container.querySelector("[data-token-rule=skill]")).not.toBeNull();
+  });
+
+  it("loads a structured template and focuses the first field", async () => {
+    const file = { path: "/tmp/context.md", name: "context.md", fileType: "MD" };
+    const mounted = mountComposer({ content: "replace me", attachments: [file] });
+
+    await mounted.composer.value?.loadTemplateAndFocus(analysisTemplate);
+
+    const fields = mounted.container.querySelectorAll<HTMLElement>("[data-template-field]");
+    const input = fields[0]?.querySelector<HTMLInputElement>("[data-template-control]");
+    expect(fields).toHaveLength(2);
+    expect(input?.placeholder).toBe("竞品名称/某市场趋势/业务问题");
+    expect(document.activeElement).toBe(input);
+    expect(mounted.content.value).toBe("帮我撰写一份关于  的分析报告。核心信息包括：。");
+    expect(mounted.attachments.value).toEqual([file]);
+  });
+
+  it("updates inline input and select values before submitting resolved plain text", async () => {
+    const mounted = mountComposer();
+    await mounted.composer.value?.loadTemplateAndFocus(analysisTemplate);
+    const input = mounted.container.querySelector<HTMLInputElement>(
+      '[data-template-field="input"] [data-template-control]',
+    )!;
+    input.value = "新能源汽车市场";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+    await nextTick();
+
+    const select = mounted.container.querySelector<HTMLButtonElement>(
+      '[data-template-field="select"] [data-template-control]',
+    )!;
+    select.click();
+    await nextTick();
+    document.body
+      .querySelector<HTMLElement>('[data-template-option-value="用户反馈与需求"]')!
+      .click();
+    await nextTick();
+
+    const updatedSelect = mounted.container.querySelector<HTMLButtonElement>(
+      '[data-template-field="select"] [data-template-control]',
+    )!;
+    expect(updatedSelect.textContent).toContain("用户反馈");
+    expect(mounted.content.value).toBe(
+      "帮我撰写一份关于 新能源汽车市场 的分析报告。核心信息包括：用户反馈与需求。",
+    );
+
+    updatedSelect.click();
+    await nextTick();
+    const selectedOption = document.body.querySelector<HTMLElement>(
+      '[data-template-option-value="用户反馈与需求"]',
+    )!;
+    expect(selectedOption.dataset.state).toBe("checked");
+    expect([...selectedOption.classList]).toEqual(expect.arrayContaining(["pr-8", "pl-2"]));
+    expect(selectedOption.querySelector("svg")?.classList).toContain("lucide-check-icon");
+    updatedSelect.click();
+    await nextTick();
+
+    mounted.container.querySelector<HTMLButtonElement>("[data-action=submit]")!.click();
+    expect(mounted.submissions).toEqual([
+      expect.objectContaining({
+        content: "帮我撰写一份关于 新能源汽车市场 的分析报告。核心信息包括：用户反馈与需求。",
+      }),
+    ]);
+    expect(mounted.container.querySelector("[data-template-field]")).toBeNull();
+  });
+
+  it("blocks incomplete templates and focuses the first invalid field", async () => {
+    const mounted = mountComposer();
+    await mounted.composer.value?.loadTemplateAndFocus(analysisTemplate);
+    const controls = mounted.container.querySelectorAll<HTMLElement>("[data-template-control]");
+
+    mounted.container.querySelector<HTMLButtonElement>("[data-action=submit]")!.click();
+
+    expect(mounted.submissions).toHaveLength(0);
+    expect(document.activeElement).toBe(controls[0]);
+    expect(controls[0]?.getAttribute("aria-invalid")).toBe("true");
+    expect(controls[1]?.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("moves between fields with Tab without trapping focus at the boundaries", async () => {
+    const mounted = mountComposer();
+    await mounted.composer.value?.loadTemplateAndFocus(analysisTemplate);
+    const controls = mounted.container.querySelectorAll<HTMLElement>("[data-template-control]");
+    const forward = new KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    controls[0]?.dispatchEvent(forward);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(controls[1]);
+
+    const boundary = new KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    controls[1]?.dispatchEvent(boundary);
+    expect(boundary.defaultPrevented).toBe(false);
+
+    const backward = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    controls[1]?.dispatchEvent(backward);
+    expect(backward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(controls[0]);
+  });
+
+  it("allows surrounding text edits and atomically deletes an adjacent field", async () => {
+    const mounted = mountComposer();
+    await mounted.composer.value?.loadTemplateAndFocus({
+      segments: [
+        { type: "text", content: "before" },
+        { type: "input", placeholder: "value" },
+        { type: "text", content: "after" },
+      ],
+    });
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const field = editor.querySelector<HTMLElement>("[data-template-field]")!;
+    editor.firstChild!.textContent = "edited";
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+    await nextTick();
+    expect(mounted.content.value).toBe("editedafter");
+
+    const range = document.createRange();
+    range.setStartAfter(field);
+    range.collapse(true);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    editor.focus();
+    const backspace = new KeyboardEvent("keydown", {
+      key: "Backspace",
+      bubbles: true,
+      cancelable: true,
+    });
+    editor.dispatchEvent(backspace);
+    await nextTick();
+
+    expect(backspace.defaultPrevented).toBe(true);
+    expect(editor.querySelector("[data-template-field]")).toBeNull();
+    expect(mounted.content.value).toBe("editedafter");
+  });
+
+  it("keeps template fields beside tokens and exits template mode on plain replacement", async () => {
+    const mounted = mountComposer();
+    await mounted.composer.value?.loadTemplateAndFocus({
+      segments: [
+        { type: "text", content: "参考 [work.vue](src/work.vue)：" },
+        { type: "input", placeholder: "修改要求" },
+      ],
+    });
+    expect(mounted.container.querySelector("[data-token-rule=vue-file]")).not.toBeNull();
+    expect(mounted.container.querySelector("[data-template-field]")).not.toBeNull();
+
+    await mounted.composer.value?.replaceContentAndFocus("普通提示词");
+    expect(mounted.container.querySelector("[data-template-field]")).toBeNull();
+    expect(mounted.content.value).toBe("普通提示词");
+  });
+
+  it("pastes plain text and preserves fields while editing template text", async () => {
+    const mounted = mountComposer();
+    await mounted.composer.value?.loadTemplateAndFocus({
+      segments: [
+        { type: "text", content: "主题：" },
+        { type: "input", placeholder: "主题" },
+        { type: "text", content: "。补充：" },
+      ],
+    });
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const lastText = editor.lastChild!;
+    const range = document.createRange();
+    range.setStart(lastText, lastText.textContent?.length ?? 0);
+    range.collapse(true);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const paste = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, "clipboardData", {
+      value: { files: [], getData: () => "仅使用公开数据" },
+    });
+
+    editor.dispatchEvent(paste);
+    await nextTick();
+
+    expect(mounted.content.value).toBe("主题：。补充：仅使用公开数据");
+    expect(editor.querySelector("[data-template-field]")).not.toBeNull();
+  });
+
+  it("copies resolved text and removes selected fields when cutting across them", async () => {
+    const mounted = mountComposer();
+    await mounted.composer.value?.loadTemplateAndFocus({
+      segments: [
+        { type: "text", content: "before" },
+        { type: "input", placeholder: "value" },
+        { type: "text", content: "after" },
+      ],
+    });
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const input = editor.querySelector<HTMLInputElement>("[data-template-control]")!;
+    input.value = "middle";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+    await nextTick();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const setData = vi.fn();
+    const cut = new Event("cut", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(cut, "clipboardData", { value: { setData } });
+
+    editor.dispatchEvent(cut);
+    await nextTick();
+
+    expect(setData).toHaveBeenCalledWith("text/plain", "beforemiddleafter");
+    expect(editor.querySelector("[data-template-field]")).toBeNull();
+    expect(mounted.content.value).toBe("");
+  });
+
+  it("commits inline field text only after IME composition completes", async () => {
+    const mounted = mountComposer();
+    await mounted.composer.value?.loadTemplateAndFocus({
+      segments: [{ type: "input", placeholder: "主题" }],
+    });
+    const input = mounted.container.querySelector<HTMLInputElement>("[data-template-control]")!;
+    input.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+    input.value = "n";
+    input.dispatchEvent(
+      new InputEvent("input", {
+        bubbles: true,
+        inputType: "insertCompositionText",
+        isComposing: true,
+      }),
+    );
+    await nextTick();
+    expect(mounted.content.value).toBe("");
+
+    input.value = "你";
+    input.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "你" }));
+    await nextTick();
+    expect(mounted.content.value).toBe("你");
+  });
+
+  it("inserts panel tokens after an empty template field without deleting it", async () => {
+    const mounted = mountComposer({ withPanels: true });
+    await mounted.composer.value?.loadTemplateAndFocus({
+      segments: [
+        { type: "input", placeholder: "可选上下文" },
+        { type: "text", content: " @wor" },
+      ],
+    });
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const trailingText = editor.lastChild!;
+    const range = document.createRange();
+    range.setStart(trailingText, trailingText.textContent?.length ?? 0);
+    range.collapse(true);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+    await nextTick();
+
+    mounted.container.querySelector<HTMLButtonElement>("[data-test=mention-panel]")!.click();
+    await nextTick();
+
+    expect(editor.querySelector("[data-template-field]")).not.toBeNull();
+    expect(editor.querySelector("[data-token-rule=vue-file]")).not.toBeNull();
+    expect(mounted.content.value).toBe(" [work.vue](src/work.vue) ");
   });
 });

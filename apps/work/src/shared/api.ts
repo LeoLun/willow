@@ -111,6 +111,12 @@ export interface BuiltinSkillInfo {
   enabled: boolean;
 }
 
+export interface GetBoardPanelRequest {
+  workspaceId: number;
+}
+
+export type GetBoardPanelResponse = { status: "missing" } | { status: "ready"; url: string };
+
 export interface GetBuiltinSkillListRequest {}
 
 export interface GetBuiltinSkillListResponse {

@@ -71,6 +71,17 @@ describe("tool display summaries", () => {
     expect(formatToolResultTitle({ kind: "askUser", questions: [{}, {}] })).toBe("询问 2 个问题");
   });
 
+  it("shows a pending label until a streamed write path is available", () => {
+    expect(formatToolCallTitle("write", { content: "draft" })).toBe("准备写入 · 1 行");
+    expect(
+      formatToolCallTitle(
+        "write",
+        { content: "one\ntwo" },
+        { kind: "write", path: "docs/说明.md", lineCount: 2 },
+      ),
+    ).toBe("写入 说明.md · 2 行");
+  });
+
   it("validates askUser details for the dedicated renderer", () => {
     const details = {
       kind: "askUser",

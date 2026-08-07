@@ -33,6 +33,8 @@ const monacoMock = vi.hoisted(() => {
 
 const fileMocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
+  getBoardPanel: vi.fn(async () => ({ status: "missing" as const })),
+  getSkillList: vi.fn(async () => ({ skills: [] })),
   listWorkspaceDirectory: vi.fn(async ({ directoryPath }: { directoryPath: string }) => ({
     entries:
       directoryPath === "apps"
@@ -68,6 +70,8 @@ const fileMocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/ipc", () => ({
   electronAPI: {
+    getBoardPanel: fileMocks.getBoardPanel,
+    getSkillList: fileMocks.getSkillList,
     listWorkspaceDirectory: fileMocks.listWorkspaceDirectory,
     readWorkspaceFile: fileMocks.readWorkspaceFile,
     searchFiles: fileMocks.searchFiles,
@@ -127,7 +131,7 @@ function mountSidebar() {
   return { container, visible, workspaceId };
 }
 
-function launcher(container: HTMLElement, kind: "file" | "review"): HTMLButtonElement {
+function launcher(container: HTMLElement, kind: "board" | "file" | "review"): HTMLButtonElement {
   const button = container.querySelector<HTMLButtonElement>(`[data-panel-launcher="${kind}"]`);
   if (!button) throw new Error(`${kind} launcher was not rendered`);
   return button;
@@ -164,7 +168,14 @@ afterEach(() => {
 
 describe("right sidebar panel registry", () => {
   it("drives launch surfaces and multiplicity from typed definitions", () => {
-    expect(rightSidebarPanelDefinitions.map(({ kind }) => kind)).toEqual(["review", "file"]);
+    expect(rightSidebarPanelDefinitions.map(({ kind }) => kind)).toEqual([
+      "review",
+      "file",
+      "board",
+    ]);
+    expect(getRightSidebarPanelDefinition("board").label).toBe("看板");
+    expect(getRightSidebarPanelDefinition("board").getTitle({})).toBe("看板");
+    expect(getRightSidebarPanelDefinition("board").multiplicity).toBe("single");
     expect(getRightSidebarPanelDefinition("file").multiplicity).toBe("multiple");
     expect(getRightSidebarPanelDefinition("review").multiplicity).toBe("single");
     expect(rightSidebarPanelDefinitions.every(({ entryPoints }) => entryPoints.emptyState)).toBe(
@@ -178,7 +189,7 @@ describe("RightSidebar", () => {
   it("renders registry launchers and returns to the empty state after closing the last tab", async () => {
     const { container } = mountSidebar();
 
-    expect(container.querySelectorAll("[data-panel-launcher]")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-panel-launcher]")).toHaveLength(3);
     launcher(container, "review").click();
     await nextTick();
 
@@ -199,7 +210,7 @@ describe("RightSidebar", () => {
     const { container } = mountSidebar();
     launcher(container, "review").click();
     await nextTick();
-    await addFromMenu(container, "审阅");
+    await addFromMenu(container, "审阅(Demo)");
 
     expect(container.querySelectorAll('[data-slot="right-sidebar-tab"]')).toHaveLength(1);
 
@@ -209,6 +220,26 @@ describe("RightSidebar", () => {
       container.querySelectorAll('[data-panel-kind="file"][data-slot="right-sidebar-tab"]'),
     ).toHaveLength(2);
     expect(container.querySelectorAll('[data-slot="right-sidebar-file-panel"]')).toHaveLength(2);
+  });
+
+  it("renders the board creation guide as a single-instance panel", async () => {
+    const { container } = mountSidebar();
+    launcher(container, "board").click();
+    await nextTick();
+
+    expect(
+      container.querySelectorAll('[data-panel-kind="board"][data-slot="right-sidebar-tab"]'),
+    ).toHaveLength(1);
+    const boardPanel = container.querySelector('[data-slot="right-sidebar-board-panel"]');
+    expect(boardPanel).not.toBeNull();
+    await vi.waitFor(() => expect(boardPanel?.textContent).toContain("当前项目还没有看板"));
+
+    await addFromMenu(container, "看板");
+
+    expect(
+      container.querySelectorAll('[data-panel-kind="board"][data-slot="right-sidebar-tab"]'),
+    ).toHaveLength(1);
+    expect(container.querySelectorAll('[data-slot="right-sidebar-board-panel"]')).toHaveLength(1);
   });
 
   it("updates only the active file tab title and preserves mounted panel state", async () => {

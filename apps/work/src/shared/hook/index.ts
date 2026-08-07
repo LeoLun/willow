@@ -1,3 +1,5 @@
+import type { IAppUpdateApi } from "./app-update.hook";
+import type { IBoardApi } from "./board.hook";
 import type { IEventApi } from "./event.hook";
 import type { IFileSearchApi } from "./file-search.hook";
 import type { ILocalFileApi } from "./local-file.hook";
@@ -10,6 +12,7 @@ import type { IWorkspaceApi } from "./workspace.hook";
 export interface IRenderHook
   extends
     IAppUpdateApi,
+    IBoardApi,
     IEventApi,
     IFileSearchApi,
     ILocalFileApi,
@@ -18,4 +21,3 @@ export interface IRenderHook
     ISettingApi,
     ISkillApi,
     IWorkspaceApi {}
-import type { IAppUpdateApi } from "./app-update.hook";

@@ -7,9 +7,11 @@ import { createMemoryHistory, createRouter, RouterView, type Router } from "vue-
 const mocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
   getConfiguredProviders: vi.fn(),
+  getBoardPanel: vi.fn(),
   getMessageList: vi.fn(),
   getProviderCatalog: vi.fn(),
   getSessionList: vi.fn(),
+  getSkillList: vi.fn(),
   getUserConfig: vi.fn(),
   listWorkspaceDirectory: vi.fn(),
   openWorkspaceDirectory: vi.fn(),
@@ -24,9 +26,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/ipc", () => ({
   electronAPI: {
     getConfiguredProviders: mocks.getConfiguredProviders,
+    getBoardPanel: mocks.getBoardPanel,
     getMessageList: mocks.getMessageList,
     getProviderCatalog: mocks.getProviderCatalog,
     getSessionList: mocks.getSessionList,
+    getSkillList: mocks.getSkillList,
     getUserConfig: mocks.getUserConfig,
     listWorkspaceDirectory: mocks.listWorkspaceDirectory,
     openWorkspaceDirectory: mocks.openWorkspaceDirectory,
@@ -181,9 +185,11 @@ beforeEach(() => {
     };
   });
   mocks.getConfiguredProviders.mockResolvedValue({ providerIds: [] });
+  mocks.getBoardPanel.mockResolvedValue({ status: "missing" });
   mocks.getMessageList.mockResolvedValue({ messages: [] });
   mocks.getProviderCatalog.mockResolvedValue({ providers: [] });
   mocks.getSessionList.mockResolvedValue({ sessions: [] });
+  mocks.getSkillList.mockResolvedValue({ skills: [] });
   mocks.getUserConfig.mockResolvedValue({});
   mocks.listWorkspaceDirectory.mockResolvedValue({
     entries: [{ name: "package.json", relativePath: "package.json", type: "file" }],
@@ -307,6 +313,51 @@ describe("ChatBase right sidebar", () => {
     await router.push("/chat/session-a?workspaceId=1");
     await nextTick();
     expect(getToggle(container).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("replaces existing composer text with the create-board skill and style template", async () => {
+    mocks.getSkillList.mockResolvedValue({
+      skills: [
+        {
+          description: "Create a project overview board",
+          filePath: "/app/resources/skills/create-board/SKILL.md",
+          name: "create-board",
+          source: "builtin",
+        },
+      ],
+    });
+    const container = await mountChatBase();
+    const editor = container.querySelector<HTMLElement>('[data-slot="prompt-editor"]');
+    if (!editor) throw new Error("prompt editor was not rendered");
+    editor.replaceChildren(document.createTextNode("discard this text"));
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true }));
+
+    getToggle(container).click();
+    await nextTick();
+    const rightSidebar = container.querySelector<HTMLElement>('[data-slot="chat-right-sidebar"]');
+    rightSidebar?.querySelector<HTMLButtonElement>('[data-panel-launcher="board"]')?.click();
+    const createButton = await vi.waitFor(() => {
+      const candidate = [...(rightSidebar?.querySelectorAll("button") ?? [])].find((element) =>
+        element.textContent?.includes("创建看板"),
+      );
+      expect(candidate).toBeDefined();
+      return candidate as HTMLButtonElement;
+    });
+    createButton.click();
+
+    await vi.waitFor(() => {
+      expect(editor.textContent).not.toContain("discard this text");
+      expect(editor.textContent).toContain("参考当前项目生成适应的看板， 风格参考");
+      expect(
+        editor.querySelector(
+          '[data-token-source="[!create-board](/app/resources/skills/create-board/SKILL.md)"]',
+        ),
+      ).not.toBeNull();
+      const styleSelect = editor.querySelector<HTMLButtonElement>('[aria-label="选择风格"]');
+      expect(styleSelect).not.toBeNull();
+      expect(styleSelect?.textContent).toContain("选择风格");
+      expect(document.activeElement).toBe(styleSelect);
+    });
   });
 
   it("keeps the main pane stable while the container width changes", async () => {
