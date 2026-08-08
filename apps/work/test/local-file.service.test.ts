@@ -48,14 +48,59 @@ describe("LocalFileService", () => {
       mimeType: "image/png",
     });
     await expect(service.loadImages([attachment])).resolves.toEqual([
-      { type: "image", data: bytes.toString("base64"), mimeType: "image/png" },
+      {
+        type: "image",
+        data: bytes.toString("base64"),
+        mimeType: "image/png",
+        name: "preview.png",
+        fileType: "PNG",
+      },
     ]);
   });
 
-  it("rejects directories and missing paths", async () => {
+  it("recursively attaches regular files inside pasted directories", async () => {
+    const directory = join(root, "folder");
+    const nested = join(directory, "nested");
+    await mkdir(nested, { recursive: true });
+    const markdown = join(directory, "a.md");
+    const image = join(nested, "b.png");
+    await writeFile(markdown, "a");
+    await writeFile(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+
+    await expect(service.inspect([directory])).resolves.toEqual(
+      expect.arrayContaining([
+        { path: await realpath(markdown), name: "a.md", fileType: "MD" },
+        { path: await realpath(image), name: "b.png", fileType: "PNG", mimeType: "image/png" },
+      ]),
+    );
+  });
+
+  it("deduplicates files that appear both directly and inside a folder", async () => {
     const directory = join(root, "folder");
     await mkdir(directory);
-    await expect(service.inspect([directory])).rejects.toThrow("regular file");
+    const file = join(directory, "draft.md");
+    await writeFile(file, "draft");
+
+    await expect(service.inspect([file, directory])).resolves.toEqual([
+      { path: await realpath(file), name: "draft.md", fileType: "MD" },
+    ]);
+  });
+
+  it("does not loop forever on symlink cycles inside a folder", async () => {
+    const directory = join(root, "folder");
+    await mkdir(directory);
+    await writeFile(join(directory, "file.txt"), "content");
+    await symlink(directory, join(directory, "loop"));
+
+    await expect(service.inspect([directory])).resolves.toEqual([
+      { path: await realpath(join(directory, "file.txt")), name: "file.txt", fileType: "TXT" },
+    ]);
+  });
+
+  it("skips empty directories and rejects missing top-level paths", async () => {
+    const directory = join(root, "empty");
+    await mkdir(directory);
+    await expect(service.inspect([directory])).resolves.toEqual([]);
     await expect(service.inspect([join(root, "missing.txt")])).rejects.toThrow();
   });
 });
