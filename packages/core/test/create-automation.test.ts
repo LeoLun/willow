@@ -167,7 +167,6 @@ describe("createAutomation tool", () => {
   it("aborts before creating the automation", async () => {
     const controller = new AbortController();
     controller.abort();
-    const requestApproval = approvalHandler();
     const createAutomation: CreateAutomationHandler = vi.fn();
     const tool = createCreateAutomationTool({
       cwd,

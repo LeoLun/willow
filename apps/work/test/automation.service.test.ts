@@ -34,7 +34,7 @@ import { WorkspaceDao } from "../src/main/service/dao/workspace.dao.server";
 import { DbService } from "../src/main/service/db.service";
 import { UnattendedInteractionError } from "../src/main/service/message.service";
 import { toSqliteSessionMetadata } from "../src/main/utils/session-manager";
-import type { AutomationRunStatus, ModelConfig } from "../src/shared/api";
+import type { ModelConfig } from "../src/shared/api";
 import { AUTOMATION_CHANGED_EVENT } from "../src/shared/constants";
 
 const appPath = fileURLToPath(new URL("..", import.meta.url));
