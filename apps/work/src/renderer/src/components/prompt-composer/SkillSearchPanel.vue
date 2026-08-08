@@ -131,6 +131,6 @@ onBeforeUnmount(() => {
         </span>
       </button>
     </div>
-    <p v-else class="mt-1 text-sm leading-6 text-muted-foreground">没有匹配的 skill</p>
+    <p v-else class="px-2 mt-1 text-sm leading-6 text-muted-foreground">没有匹配的 skill</p>
   </div>
 </template>

@@ -60,7 +60,7 @@ import { useMessageStatus, useSessionMessages } from "@/composables/useMessage";
 import { useMessageQueue } from "@/composables/useMessageQueue";
 import { useToolApproval } from "@/composables/useToolApproval";
 import { useUserQuestion } from "@/composables/useUserQuestion";
-import { onProviderConfigurationChanged } from "@/lib/app-state-events";
+import { consumeGuidedPrompt, onProviderConfigurationChanged } from "@/lib/app-state-events";
 import { electronAPI } from "@/lib/ipc";
 
 const route = useRoute();
@@ -480,6 +480,7 @@ onMounted(() => {
     contentResizeObserver.observe(contentLayout.value);
   }
   void loadModels();
+  void applyGuidedPromptIfRequested();
 });
 
 onBeforeUnmount(() => {
@@ -587,6 +588,14 @@ function removeQueuedMessage(messageId: string): void {
   const currentSessionId = sessionId.value;
   if (!currentWorkspaceId || !currentSessionId) return;
   messageQueue.remove(currentWorkspaceId, currentSessionId, messageId);
+}
+
+async function applyGuidedPromptIfRequested(): Promise<void> {
+  if (route.name !== "home") return;
+  const template = consumeGuidedPrompt();
+  if (!template) return;
+  await nextTick();
+  await promptComposer.value?.loadTemplateAndFocus(template);
 }
 </script>
 

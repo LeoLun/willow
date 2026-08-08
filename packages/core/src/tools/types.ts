@@ -1,5 +1,6 @@
 import type { TruncationResult } from "@earendil-works/pi-agent-core";
 import type { AskUserHandler, AskUserToolDetails } from "./ask-user.js";
+import type { CreateAutomationHandler, CreateAutomationToolDetails } from "./create-automation.js";
 import type { ProcessListToolDetails } from "./process-list.js";
 import type { TodoItem, TodoListToolDetails } from "./todo-list.js";
 
@@ -16,6 +17,7 @@ export const TOOL_NAMES = [
   "webfetch",
   "websearch",
   "askUser",
+  "createAutomation",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -33,6 +35,7 @@ export type ToolApprovalReason =
   | "process-inspection"
   | "local-network-listen"
   | "interactive-terminal"
+  | "automation-create"
   | "sandbox-denied";
 
 export type ToolApprovalRequest = {
@@ -160,7 +163,8 @@ export type WillowToolDetails =
   | TodoListToolDetails
   | WebFetchToolDetails
   | WebSearchToolDetails
-  | AskUserToolDetails;
+  | AskUserToolDetails
+  | CreateAutomationToolDetails;
 
 export type ToolRuntimeOptions = {
   cwd: string;
@@ -171,4 +175,5 @@ export type ToolRuntimeOptions = {
   sandboxPolicy?: SandboxPolicy;
   tavilyApiKey?: string;
   initialTodoList?: readonly TodoItem[];
+  createAutomation?: CreateAutomationHandler;
 };

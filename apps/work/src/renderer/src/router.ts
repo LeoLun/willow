@@ -26,7 +26,7 @@ const routes: RouteRecordRaw[] = [
           { path: "/chat/:sessionId", name: "chat", component: Chat },
         ],
       },
-      { path: "/auto", name: "auto", component: Auto },
+      { path: "/auto/:automationId?", name: "auto", component: Auto },
       { path: "/skill", name: "skill", component: Skill },
     ],
   },

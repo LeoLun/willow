@@ -1,6 +1,6 @@
 {
-  "pid": 4874,
-  "version": "1.4.1",
+  "pid": 65888,
+  "version": "1.5.0",
   "socketPath": "/Users/liujinglun/code/willow/.codegraph/daemon.sock",
-  "startedAt": 1786092233593
+  "startedAt": 1786191543355
 }

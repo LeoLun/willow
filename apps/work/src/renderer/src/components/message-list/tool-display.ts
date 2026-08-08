@@ -11,6 +11,7 @@ import {
   ListTodoIcon,
   MessageCircleQuestionIcon,
   ActivityIcon,
+  Clock3Icon,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -82,6 +83,8 @@ export function formatToolCallTitle(name: string, args: unknown, details?: unkno
           : `更新任务列表 · ${input.todos.length} 项`;
     case "askUser":
       return `询问 ${Array.isArray(input.questions) ? input.questions.length : 0} 个问题`;
+    case "createAutomation":
+      return `创建定时任务 · ${text(input.cronExpression)}`;
     default:
       return `调用工具 · ${name}`;
   }
@@ -113,6 +116,8 @@ export function formatToolCallIcon(name: string): Component {
       return ListTodoIcon;
     case "askUser":
       return MessageCircleQuestionIcon;
+    case "createAutomation":
+      return Clock3Icon;
     default:
       return WrenchIcon;
   }
@@ -146,6 +151,8 @@ export function formatToolResultTitle(details: unknown): string | undefined {
       return `更新任务列表 · ${value.todos?.length ?? 0} 项`;
     case "askUser":
       return `询问 ${value.questions?.length ?? 0} 个问题`;
+    case "createAutomation":
+      return `创建定时任务「${value.title ?? ""}」`;
     default:
       return undefined;
   }

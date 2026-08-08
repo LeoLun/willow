@@ -81,6 +81,7 @@ export class AgentCore {
         sandboxPolicy,
         tavilyApiKey: this.tavilyApiKey,
         initialTodoList,
+        createAutomation: options.createAutomation,
       }),
       systemPrompt: systemPrompt,
       steeringMode: "all",

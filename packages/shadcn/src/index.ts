@@ -33,3 +33,5 @@ export {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "./components/ui/dropdown-menu";
+export { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
+export { TimePicker } from "./components/ui/time-picker";

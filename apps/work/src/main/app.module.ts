@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { Module, On, TrayFactoryResolver, WindowFactoryResolver } from "@willow/poetry";
-import { app, screen } from "electron";
+import { app, powerMonitor, screen } from "electron";
 import started from "electron-squirrel-startup";
 import { CheckAppUpdateController } from "./controllers/app-update/check.app-update.controller";
 import { ConfirmUpdateBootController } from "./controllers/app-update/confirm-boot.app-update.controller";
@@ -11,6 +11,13 @@ import { RestartToUpdateController } from "./controllers/app-update/restart.app-
 import { GetAppInfoController } from "./controllers/app/get-info.app.controller";
 import { GetAutoLaunchController } from "./controllers/auto-launch/get.auto-launch.controller";
 import { SetAutoLaunchController } from "./controllers/auto-launch/set.auto-launch.controller";
+import { CreateAutomationController } from "./controllers/automation/create.automation.controller";
+import { DeleteAutomationController } from "./controllers/automation/delete.automation.controller";
+import { GetAutomationListController } from "./controllers/automation/get-list.automation.controller";
+import { GetAutomationController } from "./controllers/automation/get.automation.controller";
+import { ListAutomationRunsController } from "./controllers/automation/list-runs.automation.controller";
+import { RunAutomationNowController } from "./controllers/automation/run-now.automation.controller";
+import { UpdateAutomationController } from "./controllers/automation/update.automation.controller";
 import { GetBoardPanelController } from "./controllers/board/get.board.controller";
 import { DeleteCredentialController } from "./controllers/credential/delete.credential.controller";
 import { GetConfiguredProvidersController } from "./controllers/credential/get-configured.credential.controller";
@@ -57,9 +64,14 @@ import { AgentService } from "./service/agent.service";
 import { AiToolApprovalService } from "./service/ai-tool-approval.service";
 import { AppUpdateService } from "./service/app-update.service";
 import { AutoLaunchService } from "./service/auto-launch.service";
+import { AutomationSchedulerService } from "./service/automation-scheduler.service";
+import { AutomationService } from "./service/automation.service";
 import { BoardPanelService } from "./service/board-panel.service";
 import { BuiltinSkillService } from "./service/builtin-skill.service";
 import { CredentialService } from "./service/credential.service";
+import { AutomationRunDao } from "./service/dao/automation-run.dao.server";
+import { AutomationTriggerDao } from "./service/dao/automation-trigger.dao.server";
+import { AutomationDao } from "./service/dao/automation.dao.server";
 import { BuiltinSkillSettingDao } from "./service/dao/builtin-skill-setting.dao.server";
 import { CredentialDao } from "./service/dao/credential.dao.server";
 import { SessionDao } from "./service/dao/session.dao.server";
@@ -108,6 +120,11 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     CredentialDao,
     UserConfigDao,
     BuiltinSkillSettingDao,
+    AutomationDao,
+    AutomationTriggerDao,
+    AutomationRunDao,
+    AutomationSchedulerService,
+    AutomationService,
     SessionManagerFactory,
     StatisticsService,
     TavilyService,
@@ -137,6 +154,13 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     RestartToUpdateController,
     OpenManualUpdateController,
     ConfirmUpdateBootController,
+    GetAutomationListController,
+    GetAutomationController,
+    CreateAutomationController,
+    UpdateAutomationController,
+    DeleteAutomationController,
+    RunAutomationNowController,
+    ListAutomationRunsController,
     GetBoardPanelController,
     ListWorkspaceDirectoryController,
     OpenWorkspaceFileController,
@@ -184,6 +208,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
 })
 export class AppModule {
   private initSucceeded = false;
+  private resumeListenerRegistered = false;
 
   constructor(
     private windowFactoryResolver: WindowFactoryResolver,
@@ -192,7 +217,15 @@ export class AppModule {
     private eventController: EventController,
     private eventService: EventService,
     private workspaceFileWatcherService: WorkspaceFileWatcherService,
+    private automationService: AutomationService,
+    private agentService: AgentService,
   ) {}
+
+  private readonly onSystemResume = () => {
+    void this.automationService.onSystemResume().catch((error) => {
+      console.error("Failed to check automations after system resume:", error);
+    });
+  };
 
   createWindow() {
     configureMainWindowBounds(screen.getPrimaryDisplay().workArea);
@@ -207,6 +240,7 @@ export class AppModule {
 
   @On("before-quit")
   async onBeforeQuit() {
+    await this.automationService.shutdown();
     await this.workspaceFileWatcherService.closeAll();
     this.dbService.close();
   }
@@ -236,6 +270,14 @@ export class AppModule {
 
     try {
       this.dbService.init();
+      await this.automationService.initialize();
+      this.agentService.setCreateAutomationHandler((workspaceId, input) =>
+        this.automationService.createAutomationFromAgent(input, workspaceId),
+      );
+      if (!this.resumeListenerRegistered) {
+        powerMonitor.on("resume", this.onSystemResume);
+        this.resumeListenerRegistered = true;
+      }
       this.createWindow();
       this.initSucceeded = true;
       return true;

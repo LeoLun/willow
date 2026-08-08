@@ -12,6 +12,8 @@ import {
   type AgentCoreOptions,
   type AgentHarnessOptions,
   type AskUserHandler,
+  type CreateAutomationToolInput,
+  type CreateAutomationToolResult,
   type ToolApprovalHandler,
 } from "@willow/core";
 import { Injectable } from "@willow/poetry";
@@ -41,6 +43,12 @@ type SimpleAgentOptions = {
   source: Extract<StatisticsRunSource, "approval" | "title">;
 };
 
+/** 创建定时自动化工具的主进程实现：按工作空间创建并启用一条自动化。 */
+export type WorkspaceCreateAutomationHandler = (
+  workspaceId: number,
+  input: CreateAutomationToolInput,
+) => Promise<CreateAutomationToolResult>;
+
 type StatisticsInterceptorOptions = {
   source: StatisticsRunSource;
   workspaceId: number;
@@ -53,6 +61,7 @@ type StatisticsInterceptorOptions = {
 @Injectable()
 export class AgentService {
   private models: MutableModels;
+  private createAutomationHandler?: WorkspaceCreateAutomationHandler;
 
   constructor(
     private readonly credentialService: CredentialService,
@@ -66,6 +75,11 @@ export class AgentService {
 
   getModels() {
     return this.models;
+  }
+
+  /** 注入 createAutomation 工具的实现，供 AI 在对话中创建定时自动化。 */
+  setCreateAutomationHandler(handler: WorkspaceCreateAutomationHandler): void {
+    this.createAutomationHandler = handler;
   }
 
   getModel(providerId: string, modelId: string): Model<any> {
@@ -123,6 +137,9 @@ export class AgentService {
       requestApproval,
       requestUser,
       sandboxPolicy,
+      createAutomation: this.createAutomationHandler
+        ? (input) => this.createAutomationHandler!(workspaceId, input)
+        : undefined,
     });
     return this.interceptStatistics(harness, {
       source: "chat",

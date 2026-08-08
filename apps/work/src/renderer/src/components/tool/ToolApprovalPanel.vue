@@ -19,6 +19,7 @@ const reasonLabel = computed(() => {
     "application-launch": "启动或控制外部应用",
     "executable-install": "安装或替换用户可执行文件",
     "process-inspection": "查看沙箱外的进程信息",
+    "automation-create": "创建持久化的定时任务",
     "local-network-listen": "监听本机回环网络端口",
     "interactive-terminal": "启用交互式终端能力",
     "sandbox-denied": "沙箱拒绝了命令",
@@ -33,6 +34,7 @@ const partialEffectsMessage = computed(() => {
       "该路径通常位于 PATH 中，写入后可能形成持久化代码执行入口；允许后仅对本次工具调用放行该目标，并在沙箱中完整重跑命令。",
     "process-inspection":
       "允许后将仅为本次工具调用开放进程信息读取，不开放浏览器所需的完整 Mach IPC 或 IOKit 权限。",
+    "automation-create": "允许后将按本次请求在当前工作空间中创建定时自动化，并立即注册计划。",
     "local-network-listen":
       "允许后将仅为本次工具调用开放本机回环监听与访问，外部网络仍受域名允许列表限制。",
     "interactive-terminal": "允许后将仅为本次工具调用开放伪终端设备；终端不会接收用户键盘输入。",

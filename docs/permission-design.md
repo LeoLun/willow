@@ -5,7 +5,7 @@
 本文描述 Willow Agent 文件工具的权限模型、执行边界、审批链路和失败语义，作为后续扩展工具、
 审查安全边界及排查审批问题的依据。
 
-当前系统向 Agent 注册以下十二个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
+当前系统向 Agent 注册以下十三个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
 
 - `bash`：执行 shell 命令；
 - `read`：读取文本文件；
@@ -19,6 +19,7 @@
 - `webfetch`：抓取 HTTP/S 网页并转换为文本、Markdown 或 HTML。
 - `websearch`：通过固定的 Tavily Search API 查询实时网络信息。
 - `askUser`：暂停当前工具调用，通过桌面端向用户提出 1-4 个结构化问题并等待回答。
+- `createAutomation`：创建持久化的定时自动化任务，由宿主在当前工作空间中注册并启用。
 
 核心实现位于 [`packages/core/src/tools/`](../packages/core/src/tools/)，桌面应用的 AI 初审、用户审批
 服务与界面位于
@@ -170,6 +171,7 @@ type ToolApprovalRequest = {
 | `websearch` 命中拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
 | `todoList` 读写会话内状态 | 直接执行 | 直接执行 | 直接执行 |
 | `askUser` 等待用户回答 | 直接请求用户回答 | 直接请求用户回答 | 直接请求用户回答 |
+| `createAutomation` 创建定时任务 | 执行前弹窗审批 | AI 通过后创建，否则转用户审批 | 直接创建 |
 | `write/edit` 工作区或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 内置技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区外写入 | 执行前弹窗 | AI 通过后写入，否则转用户审批 | 直接执行 |
@@ -390,7 +392,15 @@ handler 时工具明确失败。成功结果的 details 保存每个问题及其
 该工具是 macOS `sandbox-exec` 无法运行 `/bin/ps` 时的窄能力替代，不接受 shell 片段，也不会
 复用 `allowBrowserProcess` 或把任意 bash 命令移到沙箱外执行。
 
-### 8.6 本地文件附件
+### 8.6 `createAutomation` 定时任务创建边界
+
+`createAutomation` 不读取文件、不访问网络，也不写工作区，但它会在宿主数据库中持久化一条定时自动化并在主进程注册调度，属于持久化副作用，因此非 `full-access` 模式下必须审批。审批 reason 为 `automation-create`，审批展示文案包含 cron 表达式和标题/提示词摘要；审批通过后才调用宿主创建，拒绝不会产生任何持久化副作用，因此不设置 `mayHavePartialEffects`。
+
+工具输入：`prompt`（必填）、`cronExpression`（必填，五段：分 时 日 月 周）、`title`/`timezone`/`model`（可选）。Core 只做参数结构校验；cron 语义、时区、模型可解析性与标题自动生成由宿主在创建时校验，错误以可读文案返回给 Agent。自动化始终创建在当前会话工作空间；时区缺省记录宿主系统时区，模型缺省跟随用户默认大模型。
+
+宿主通过 `AgentHarnessOptions.createAutomation` 注入创建回调（Core 不直接接触数据库或调度器）；未注入回调时工具明确失败。创建的自动化会立即启用并注册调度，用户可在自动化页面查看、修改或删除。
+
+### 8.7 本地文件附件
 
 桌面端允许用户通过系统选择器或粘贴显式添加普通文件。主进程使用 `realpath` 和 `stat` 验证路径，
 只接受现存普通文件，并按 canonical path 去重。文件不会复制到工作区。
@@ -608,6 +618,8 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
 15. `todoList` 的读取、整表替换、清空、顺序执行、历史恢复和损坏结果忽略。
 16. `askUser` 的参数唯一性、回答/跳过结果、FIFO、会话隔离、AbortSignal 清理、未决询问持久化、
     客户端重启后的工具重放与续跑，以及详情渲染。
+17. `createAutomation` 的参数校验、三档权限模式（审批通过/拒绝/委托/直接创建）、未注入回调的安全
+    失败、宿主错误文案透传、AbortSignal 中止，以及主进程的创建工作空间绑定与校验错误返回。
 17. bash 读路径、可执行文件安装、localhost、PTY 和噪声 violation 关联，以及 `processList` 的
     审批、固定参数、过滤、限制与中止。
 

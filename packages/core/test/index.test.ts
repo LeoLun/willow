@@ -16,6 +16,7 @@ describe("core exports", () => {
       "webfetch",
       "websearch",
       "askUser",
+      "createAutomation",
     ]);
   });
 

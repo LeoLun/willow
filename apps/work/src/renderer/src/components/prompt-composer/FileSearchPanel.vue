@@ -98,7 +98,7 @@ onBeforeUnmount(() => {
     </p>
     <p
       v-else-if="files.length === 0"
-      class="mt-1 text-sm leading-6 text-muted-foreground"
+      class="px-2 mt-1 text-sm leading-6 text-muted-foreground"
       data-slot="file-search-empty"
     >
       没有匹配的文件或文件夹

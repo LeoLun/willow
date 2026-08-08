@@ -40,7 +40,21 @@ export type SendMessageInput = {
   model: ModelConfig;
   approvalMode?: PermissionMode;
   attachments?: LocalFileAttachment[];
+  /**
+   * 仅限主进程内部使用的输入，renderer 的 IPC 无法设置。
+   * unattended 模式下工具审批固定走 AI 审批，失败不回退到人工审批，
+   * 且 ask-user 会直接报错而不是创建待回答问题。
+   */
+  interactionMode?: "interactive" | "unattended";
 };
+
+/** 无人值守交互错误：无法由用户参与的审批或提问在无人值守模式下的收口错误。 */
+export class UnattendedInteractionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnattendedInteractionError";
+  }
+}
 
 type ActiveTask = {
   harness: AgentHarness;
@@ -118,6 +132,7 @@ export class MessageService {
     }
     const grantedFiles = this.mergeFiles(inheritedFiles, inspectedAttachments);
     const permissionMode = input.approvalMode ?? "request-approval";
+    const interactionMode = input.interactionMode ?? "interactive";
     const harness = await this.agentService.getAgentHarness({
       workspaceId: input.workspaceId,
       cwd: workspace.path,
@@ -132,6 +147,7 @@ export class MessageService {
         userMessage: content,
         model: input.model,
         permissionMode,
+        interactionMode,
       }),
       requestUser: this.createUserQuestionHandler({
         workspaceId: input.workspaceId,
@@ -139,6 +155,7 @@ export class MessageService {
         model: input.model,
         permissionMode,
         userMessage: content,
+        interactionMode,
       }),
     });
     const unsubscribe = harness.subscribe((event) => {
@@ -392,10 +409,29 @@ export class MessageService {
     userMessage: string;
     model: ModelConfig;
     permissionMode: PermissionMode;
+    interactionMode: "interactive" | "unattended";
   }): ToolApprovalHandler {
     return async (request, signal) => {
       if (signal?.aborted) return "deny";
       if (options.permissionMode === "full-access") return "allow";
+      if (options.interactionMode === "unattended") {
+        if (options.permissionMode !== "delegate-approval") {
+          throw new UnattendedInteractionError("无人值守模式下无法请求人工审批。");
+        }
+        const review = await this.aiToolApprovalService.review(
+          {
+            workspaceId: options.workspaceId,
+            sessionId: options.sessionId,
+            workspacePath: options.workspacePath,
+            userMessage: options.userMessage,
+            request,
+          },
+          signal,
+        );
+        if (signal?.aborted) return "deny";
+        if (review.status === "approved") return "allow";
+        throw new UnattendedInteractionError(review.reason);
+      }
       if (options.permissionMode !== "delegate-approval") {
         return await this.toolApprovalService.request(
           options.workspaceId,
@@ -443,7 +479,13 @@ export class MessageService {
     model: ModelConfig;
     permissionMode: PermissionMode;
     userMessage: string;
+    interactionMode: "interactive" | "unattended";
   }): AskUserHandler {
+    if (options.interactionMode === "unattended") {
+      return async () => {
+        throw new UnattendedInteractionError("无人值守模式下无法向用户提问。");
+      };
+    }
     return (request, signal) =>
       this.userQuestionService.request(
         options.workspaceId,
@@ -480,6 +522,7 @@ export class MessageService {
       userMessage: approval.userMessage,
       model: approval.model,
       permissionMode: approval.permissionMode,
+      interactionMode: "interactive",
     });
     let replayApprovalAvailable = true;
     const harness = await this.agentService.getAgentHarness({
@@ -506,6 +549,7 @@ export class MessageService {
         model: approval.model,
         permissionMode: approval.permissionMode,
         userMessage: approval.userMessage,
+        interactionMode: "interactive",
       }),
     });
     const unsubscribe = harness.subscribe((event) => {
@@ -568,6 +612,7 @@ export class MessageService {
       userMessage: question.userMessage,
       model: question.model,
       permissionMode: question.permissionMode,
+      interactionMode: "interactive",
     });
     const fallbackQuestion = this.createUserQuestionHandler({
       workspaceId: payload.workspaceId,
@@ -575,6 +620,7 @@ export class MessageService {
       model: question.model,
       permissionMode: question.permissionMode,
       userMessage: question.userMessage,
+      interactionMode: "interactive",
     });
     let replayQuestionAvailable = true;
     const harness = await this.agentService.getAgentHarness({

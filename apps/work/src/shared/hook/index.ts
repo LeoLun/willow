@@ -1,4 +1,5 @@
 import type { IAppUpdateApi } from "./app-update.hook";
+import type { IAutomationApi } from "./automation.hook";
 import type { IBoardApi } from "./board.hook";
 import type { IEventApi } from "./event.hook";
 import type { IFileSearchApi } from "./file-search.hook";
@@ -12,6 +13,7 @@ import type { IWorkspaceApi } from "./workspace.hook";
 export interface IRenderHook
   extends
     IAppUpdateApi,
+    IAutomationApi,
     IBoardApi,
     IEventApi,
     IFileSearchApi,

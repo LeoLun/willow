@@ -1,6 +1,7 @@
 import type { SessionMetadata, SessionRepo, Skill } from "@earendil-works/pi-agent-core";
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
 import type { AskUserHandler } from "./tools/ask-user.js";
+import type { CreateAutomationHandler } from "./tools/create-automation.js";
 import type { PermissionMode, SandboxPolicy, ToolApprovalHandler } from "./tools/types.js";
 
 export interface AgentOptions {
@@ -22,6 +23,7 @@ export type AgentCoreOptions = {
     disabledIds?: readonly string[];
   };
   tavilyApiKey?: string;
+  createAutomation?: CreateAutomationHandler;
 };
 
 export type AgentHarnessOptions = {
@@ -31,6 +33,7 @@ export type AgentHarnessOptions = {
   requestApproval?: ToolApprovalHandler;
   requestUser?: AskUserHandler;
   sandboxPolicy?: SandboxPolicy;
+  createAutomation?: CreateAutomationHandler;
 };
 
 export type AgentsFile = { path: string; content: string };

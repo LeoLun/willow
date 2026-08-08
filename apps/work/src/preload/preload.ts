@@ -6,18 +6,24 @@ import type {
   AppUpdateResponse,
   CreateSessionRequest,
   CreateSessionResponse,
+  CreateAutomationRequest,
+  CreateAutomationResponse,
   CreateWorkspaceRequest,
   CreateWorkspaceResponse,
   DeleteWorkspaceRequest,
   DeleteWorkspaceResponse,
   DeleteCredentialRequest,
   DeleteCredentialResponse,
+  DeleteAutomationRequest,
+  DeleteAutomationResponse,
   DeleteTavilyApiKeyRequest,
   DeleteTavilyApiKeyResponse,
   GetAutoLaunchRequest,
   GetAutoLaunchResponse,
   GetAppInfoRequest,
   GetAppInfoResponse,
+  GetAutomationRequest,
+  GetAutomationResponse,
   GetBoardPanelRequest,
   GetBoardPanelResponse,
   GetBuiltinSkillListRequest,
@@ -44,6 +50,10 @@ import type {
   GetUserConfigResponse,
   GetWorkspaceListRequest,
   GetWorkspaceListResponse,
+  ListAutomationRunsRequest,
+  ListAutomationRunsResponse,
+  ListAutomationsRequest,
+  ListAutomationsResponse,
   ListWorkspaceDirectoryRequest,
   ListWorkspaceDirectoryResponse,
   RegisterEventRequest,
@@ -64,6 +74,8 @@ import type {
   ResolveToolApprovalResponse,
   ResolveUserQuestionRequest,
   ResolveUserQuestionResponse,
+  RunAutomationNowRequest,
+  RunAutomationNowResponse,
   SearchFilesRequest,
   SearchFilesResponse,
   SelectLocalFilesRequest,
@@ -92,13 +104,17 @@ import type {
   SubscribeWorkspaceFilesResponse,
   UnsubscribeWorkspaceFilesRequest,
   UnsubscribeWorkspaceFilesResponse,
+  UpdateAutomationRequest,
+  UpdateAutomationResponse,
 } from "../shared/api";
 import {
   CREATE_SESSION,
   CHECK_APP_UPDATE,
   CONFIRM_UPDATE_BOOT,
+  CREATE_AUTOMATION,
   DELETE_CREDENTIAL,
   DELETE_TAVILY_API_KEY,
+  DELETE_AUTOMATION,
   CREATE_WORKSPACE,
   DELETE_WORKSPACE,
   EVENT_BUS,
@@ -106,6 +122,8 @@ import {
   GET_APP_INFO,
   GET_APP_UPDATE_STATE,
   GET_AUTO_LAUNCH,
+  GET_AUTOMATION,
+  GET_AUTOMATION_LIST,
   GET_BOARD_PANEL,
   GET_BUILTIN_SKILL_LIST,
   GET_CONFIGURED_PROVIDERS,
@@ -118,6 +136,7 @@ import {
   GET_SKILL_LIST,
   GET_USER_CONFIG,
   GET_WORKSPACE_LIST,
+  LIST_AUTOMATION_RUNS,
   LIST_WORKSPACE_DIRECTORY,
   REGISTER_EVENT,
   READ_WORKSPACE_FILE,
@@ -128,6 +147,7 @@ import {
   RENAME_WORKSPACE,
   RESOLVE_TOOL_APPROVAL,
   RESOLVE_USER_QUESTION,
+  RUN_AUTOMATION_NOW,
   RESTART_TO_UPDATE,
   SEARCH_FILES,
   INSPECT_LOCAL_FILES,
@@ -144,6 +164,7 @@ import {
   STOP_MESSAGE,
   SUBSCRIBE_WORKSPACE_FILES,
   UNSUBSCRIBE_WORKSPACE_FILES,
+  UPDATE_AUTOMATION,
 } from "../shared/constants";
 
 async function invoke<TRequest, TResponse>(event: string, request: TRequest): Promise<TResponse> {
@@ -298,6 +319,20 @@ const ipcObject: IRenderHook = {
     invoke<RenameWorkspaceRequest, RenameWorkspaceResponse>(RENAME_WORKSPACE, request),
   deleteWorkspace: (request: DeleteWorkspaceRequest) =>
     invoke<DeleteWorkspaceRequest, DeleteWorkspaceResponse>(DELETE_WORKSPACE, request),
+  listAutomations: (request: ListAutomationsRequest = {}) =>
+    invoke<ListAutomationsRequest, ListAutomationsResponse>(GET_AUTOMATION_LIST, request),
+  getAutomation: (request: GetAutomationRequest) =>
+    invoke<GetAutomationRequest, GetAutomationResponse>(GET_AUTOMATION, request),
+  createAutomation: (request: CreateAutomationRequest) =>
+    invoke<CreateAutomationRequest, CreateAutomationResponse>(CREATE_AUTOMATION, request),
+  updateAutomation: (request: UpdateAutomationRequest) =>
+    invoke<UpdateAutomationRequest, UpdateAutomationResponse>(UPDATE_AUTOMATION, request),
+  deleteAutomation: (request: DeleteAutomationRequest) =>
+    invoke<DeleteAutomationRequest, DeleteAutomationResponse>(DELETE_AUTOMATION, request),
+  runAutomationNow: (request: RunAutomationNowRequest) =>
+    invoke<RunAutomationNowRequest, RunAutomationNowResponse>(RUN_AUTOMATION_NOW, request),
+  listAutomationRuns: (request: ListAutomationRunsRequest) =>
+    invoke<ListAutomationRunsRequest, ListAutomationRunsResponse>(LIST_AUTOMATION_RUNS, request),
   onEventBus: (callback: (event: string, data: any) => void) => {
     ipcRenderer.on(
       EVENT_BUS,

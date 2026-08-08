@@ -561,3 +561,140 @@ export interface ResolveUserQuestionRequest {
 export interface ResolveUserQuestionResponse {
   resolved: boolean;
 }
+
+export type AutomationStatus = "enabled" | "disabled";
+export type AutomationTriggerType = "schedule";
+export type AutomationScheduleMode = "daily_at" | "hourly" | "weekly_at" | "custom";
+export type AutomationRunKind = "scheduled" | "catch_up" | "manual";
+export type AutomationRunStatus = "running" | "completed" | "failed" | "skipped" | "interrupted";
+
+export interface AutomationTriggerInfo {
+  id: number;
+  automationId: number;
+  type: AutomationTriggerType;
+  cronExpression: string;
+  timezone: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AutomationInfo {
+  id: number;
+  workspaceId: number;
+  title: string;
+  prompt: string;
+  status: AutomationStatus;
+  model?: ModelConfig;
+  lastScheduledAt?: Date;
+  lastRunAt?: Date;
+  lastCompletedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  trigger: AutomationTriggerInfo;
+}
+
+export interface AutomationRunInfo {
+  id: number;
+  automationId: number;
+  workspaceId: number;
+  sessionId?: string;
+  runKind: AutomationRunKind;
+  status: AutomationRunStatus;
+  scheduledFor?: Date;
+  triggeredAt: Date;
+  finishedAt?: Date;
+  errorMessage?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AutomationListItem {
+  id: number;
+  workspaceId: number;
+  workspaceName: string;
+  title: string;
+  status: AutomationStatus;
+  cronExpression: string;
+  timezone: string;
+  nextRunAt?: Date;
+  lastRun?: Pick<AutomationRunInfo, "status" | "runKind" | "triggeredAt" | "finishedAt">;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AutomationTriggerInput {
+  type: AutomationTriggerType;
+  cronExpression: string;
+  timezone: string;
+  isActive?: boolean;
+}
+
+export interface CreateAutomationRequest {
+  workspaceId: number;
+  title?: string;
+  prompt: string;
+  status?: AutomationStatus;
+  model?: ModelConfig;
+  trigger: AutomationTriggerInput;
+}
+
+export interface UpdateAutomationRequest {
+  id: number;
+  workspaceId?: number;
+  title?: string;
+  prompt?: string;
+  status?: AutomationStatus;
+  model?: ModelConfig | null;
+  trigger?: Partial<AutomationTriggerInput>;
+}
+
+export interface DeleteAutomationRequest {
+  id: number;
+}
+
+export interface GetAutomationRequest {
+  id: number;
+}
+
+export interface ListAutomationsRequest {}
+
+export interface ListAutomationsResponse {
+  automations: AutomationListItem[];
+}
+
+export interface GetAutomationResponse {
+  automation: AutomationInfo;
+}
+
+export interface CreateAutomationResponse {
+  automation: AutomationInfo;
+}
+
+export interface UpdateAutomationResponse {
+  automation: AutomationInfo;
+}
+
+export interface DeleteAutomationResponse {}
+
+export interface RunAutomationNowRequest {
+  id: number;
+}
+
+export type RunAutomationNowResponse = AutomationRunInfo;
+
+export interface ListAutomationRunsRequest {
+  automationId: number;
+  cursor?: number;
+  limit?: number;
+}
+
+export interface ListAutomationRunsResponse {
+  runs: AutomationRunInfo[];
+  nextCursor?: number;
+}
+
+export type AutomationChangedEvent = {
+  automationId: number;
+  type: "created" | "updated" | "deleted" | "run-started" | "run-finished";
+};

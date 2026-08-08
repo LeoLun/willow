@@ -1,4 +1,10 @@
 import type { SessionTreeEntry } from "@earendil-works/pi-agent-core";
+import type {
+  AutomationRunKind,
+  AutomationRunStatus,
+  AutomationStatus,
+  AutomationTriggerType,
+} from "@shared/api";
 import { sql } from "drizzle-orm";
 import {
   blob,
@@ -151,6 +157,93 @@ export type UserConfig = typeof userConfigs.$inferSelect;
 export type NewUserConfig = typeof userConfigs.$inferInsert;
 export type BuiltinSkillSetting = typeof builtinSkillSettings.$inferSelect;
 export type NewBuiltinSkillSetting = typeof builtinSkillSettings.$inferInsert;
+export const automations = sqliteTable(
+  "automations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    workspaceId: integer("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    prompt: text("prompt").notNull(),
+    status: text("status").$type<AutomationStatus>().notNull().default("enabled"),
+    modelProviderId: text("model_provider_id"),
+    modelId: text("model_id"),
+    lastScheduledAt: integer("last_scheduled_at", { mode: "timestamp" }),
+    lastRunAt: integer("last_run_at", { mode: "timestamp" }),
+    lastCompletedAt: integer("last_completed_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`)
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [index("automations_workspace_updated_at_idx").on(table.workspaceId, table.updatedAt)],
+);
+
+export const automationTriggers = sqliteTable(
+  "automation_triggers",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    automationId: integer("automation_id")
+      .notNull()
+      .references(() => automations.id, { onDelete: "cascade" }),
+    type: text("type").$type<AutomationTriggerType>().notNull().default("schedule"),
+    cronExpression: text("cron_expression").notNull(),
+    timezone: text("timezone").notNull(),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`)
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [uniqueIndex("automation_triggers_automation_id_unique").on(table.automationId)],
+);
+
+export const automationRuns = sqliteTable(
+  "automation_runs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    automationId: integer("automation_id")
+      .notNull()
+      .references(() => automations.id, { onDelete: "cascade" }),
+    sessionId: integer("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    runKind: text("run_kind").$type<AutomationRunKind>().notNull(),
+    status: text("status").$type<AutomationRunStatus>().notNull(),
+    scheduledFor: integer("scheduled_for", { mode: "timestamp" }),
+    triggeredAt: integer("triggered_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    finishedAt: integer("finished_at", { mode: "timestamp" }),
+    errorMessage: text("error_message"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`)
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("automation_runs_automation_triggered_idx").on(
+      table.automationId,
+      table.triggeredAt,
+      table.id,
+    ),
+  ],
+);
+
+export type Automation = typeof automations.$inferSelect;
+export type NewAutomation = typeof automations.$inferInsert;
+export type AutomationTrigger = typeof automationTriggers.$inferSelect;
+export type NewAutomationTrigger = typeof automationTriggers.$inferInsert;
+export type AutomationRun = typeof automationRuns.$inferSelect;
+export type NewAutomationRun = typeof automationRuns.$inferInsert;
 export type StatisticsRun = typeof statisticsRuns.$inferSelect;
 export type NewStatisticsRun = typeof statisticsRuns.$inferInsert;
 export type StatisticsUsage = typeof statisticsUsage.$inferSelect;

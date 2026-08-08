@@ -21,6 +21,15 @@ export class WorkspaceDao {
       .all();
   }
 
+  listAll(): Workspace[] {
+    return this.dbService
+      .getDb()
+      .select()
+      .from(workspaces)
+      .orderBy(desc(workspaces.updatedAt))
+      .all();
+  }
+
   findById(id: number): Workspace | undefined {
     return this.dbService.getDb().select().from(workspaces).where(eq(workspaces.id, id)).get();
   }
