@@ -404,6 +404,36 @@ describe("ChatBase right sidebar", () => {
     expect(localStorage.getItem("willow:chat-right-sidebar-width")).toBe("321");
   });
 
+  it("keeps receiving pointer events over iframe content while resizing", async () => {
+    localStorage.setItem(rightSidebarOpenStorageKey("session-a"), "true");
+    const container = await mountChatBase();
+    const initialMainPaneWidth = Number.parseFloat(getLayout(container).style.gridTemplateColumns);
+
+    getHandle(container).dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, button: 0, cancelable: true, clientX: 679 }),
+    );
+    await nextTick();
+
+    const overlay = container.querySelector<HTMLElement>(
+      '[data-slot="chat-right-sidebar-resize-overlay"]',
+    );
+    expect(overlay).not.toBeNull();
+
+    overlay?.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, clientX: 640 }));
+    await nextTick();
+    const resizedMainPaneWidth = initialMainPaneWidth - 39;
+    expect(getLayout(container).style.gridTemplateColumns).toBe(
+      `${resizedMainPaneWidth}px 8px minmax(0, 1fr)`,
+    );
+
+    overlay?.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+    await nextTick();
+    expect(container.querySelector('[data-slot="chat-right-sidebar-resize-overlay"]')).toBeNull();
+    expect(localStorage.getItem("willow:chat-right-sidebar-width")).toBe(
+      String(layoutWidth - resizedMainPaneWidth - 8),
+    );
+  });
+
   it("clamps and persists pointer and keyboard resizing", async () => {
     localStorage.setItem(rightSidebarOpenStorageKey("session-a"), "true");
     const container = await mountChatBase();

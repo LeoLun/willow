@@ -744,6 +744,12 @@ async function applyGuidedPromptIfRequested(): Promise<void> {
       :workspace-id="workspaceId"
       @select-skill="replaceWithSkillReference"
     />
+    <div
+      v-if="resizingRightSidebar"
+      class="fixed inset-0 z-[60] cursor-col-resize"
+      data-slot="chat-right-sidebar-resize-overlay"
+      aria-hidden="true"
+    />
   </div>
 </template>
 
