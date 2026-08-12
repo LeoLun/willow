@@ -39,9 +39,14 @@ import {
   useSessionMessages,
 } from "../src/renderer/src/composables/useMessage";
 import {
+  getToolApprovalRevision,
   hydrateToolApproval,
   useToolApproval,
 } from "../src/renderer/src/composables/useToolApproval";
+import {
+  getUserQuestionRevision,
+  hydrateUserQuestion,
+} from "../src/renderer/src/composables/useUserQuestion";
 
 type SessionMessages = ReturnType<typeof useSessionMessages>;
 type ToolApproval = ReturnType<typeof useToolApproval>;
@@ -61,7 +66,26 @@ function agentMessage(value: unknown): AgentMessage {
 }
 
 function streamEvent(value: unknown): MessageStreamEvent {
-  return value as MessageStreamEvent;
+  const event = value as any;
+  if (event.type === "message_start") return { type: "start", message: event.message };
+  if (event.type === "message_end") return { type: "end", message: event.message };
+  if (event.type === "message_update") {
+    const update = event.assistantMessageEvent;
+    const patches = event.message.content.map((content: any, contentIndex: number) => ({
+      type:
+        contentIndex === update.contentIndex && update.type.endsWith("_end")
+          ? update.type
+          : content.type === "thinking"
+            ? "thinking_start"
+            : content.type === "toolCall"
+              ? "toolcall_end"
+              : "text_start",
+      contentIndex,
+      content,
+    }));
+    return { type: "update", messageTimestamp: event.message.timestamp, patches } as any;
+  }
+  return event as MessageStreamEvent;
 }
 
 function assistantMessage(text: string, timestamp: number): AgentMessage {
@@ -392,11 +416,17 @@ describe("useMessage", () => {
 
     listener(messageStart(terminalSessionId, "visible", 1));
     listener({ type: "status", sessionId: terminalSessionId, status: "completed" });
+    hydrateToolApproval(1, terminalSessionId, toolApproval(terminalSessionId, "cleanup"));
+    hydrateUserQuestion(1, terminalSessionId, undefined);
     await nextTick();
     expect(mounted.messages.timeline.value.messages).toHaveLength(1);
+    expect(getToolApprovalRevision(1, terminalSessionId)).toBeGreaterThan(0);
+    expect(getUserQuestionRevision(1, terminalSessionId)).toBeGreaterThan(0);
 
     sessionId.value = undefined;
     await nextTick();
+    expect(getToolApprovalRevision(1, terminalSessionId)).toBe(0);
+    expect(getUserQuestionRevision(1, terminalSessionId)).toBe(0);
     sessionId.value = terminalSessionId;
     await flushMessages();
 

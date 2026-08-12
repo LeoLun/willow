@@ -137,9 +137,16 @@ describe("Chat history scrolling", () => {
     triggerResize(content);
     expect(viewport.scrollTop).toBe(1_400);
 
-    viewport.scrollTop = 400;
+    viewport.scrollTop = 450;
     viewport.dispatchEvent(new Event("scroll"));
     scrollHeight = 1_600;
+    triggerResize(content);
+    expect(viewport.scrollTop).toBe(1_600);
+
+    viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: -40 }));
+    viewport.scrollTop = 400;
+    viewport.dispatchEvent(new Event("scroll"));
+    scrollHeight = 1_800;
     triggerResize(content);
     expect(viewport.scrollTop).toBe(400);
   });

@@ -30,7 +30,10 @@ export function useEventBus() {
   };
 
   const removeEventListener = (event: string, callback: (data: any) => void) => {
-    listeners.get(event)?.delete(callback);
+    const eventListeners = listeners.get(event);
+    if (!eventListeners) return;
+    eventListeners.delete(callback);
+    if (eventListeners.size === 0) listeners.delete(event);
   };
 
   const waitUntilReady = () => ensureRegistered();

@@ -392,7 +392,7 @@ describe("MessageService", () => {
     expect(sendEvent).toHaveBeenCalledWith(MESSAGE_EVENT, {
       type: "stream",
       sessionId: "session",
-      event: messageEvent,
+      event: { type: "end", message: assistantMessage },
     });
     expect(sendEvent).not.toHaveBeenCalledWith(
       MESSAGE_EVENT,

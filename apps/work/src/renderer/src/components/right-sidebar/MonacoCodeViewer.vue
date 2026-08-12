@@ -9,9 +9,11 @@ const props = withDefaults(
     ariaLabel?: string;
     code: string;
     language: string;
+    variant?: "code" | "diff";
   }>(),
   {
     ariaLabel: "只读代码预览",
+    variant: "code",
   },
 );
 
@@ -25,16 +27,61 @@ const theme = computed(() => (isDark.value ? "vs-dark" : "vs"));
 let disposed = false;
 let monaco: Monaco | undefined;
 let codeEditor: editor.IStandaloneCodeEditor | undefined;
+let decorationIds: string[] = [];
 
 function currentModel(): editor.ITextModel | null | undefined {
   return codeEditor?.getModel();
+}
+
+function applyDiffDecorations(): void {
+  const model = currentModel();
+  if (!codeEditor || !model) return;
+  const decorations: editor.IModelDeltaDecoration[] = [];
+  if (props.variant === "diff") {
+    for (let lineNumber = 1; lineNumber <= model.getLineCount(); lineNumber += 1) {
+      const line = model.getLineContent(lineNumber);
+      let className: string | undefined;
+      let linesDecorationsClassName: string | undefined;
+      if (line.startsWith("+") && !line.startsWith("+++")) {
+        className = "monaco-diff-line-added";
+        linesDecorationsClassName = "monaco-diff-gutter-added";
+      } else if (line.startsWith("-") && !line.startsWith("---")) {
+        className = "monaco-diff-line-removed";
+        linesDecorationsClassName = "monaco-diff-gutter-removed";
+      } else if (line.startsWith("@@")) {
+        className = "monaco-diff-line-hunk";
+      } else if (
+        line.startsWith("diff --git") ||
+        line.startsWith("index ") ||
+        line.startsWith("---") ||
+        line.startsWith("+++")
+      ) {
+        className = "monaco-diff-line-header";
+      }
+      if (className) {
+        decorations.push({
+          range: {
+            startLineNumber: lineNumber,
+            startColumn: 1,
+            endLineNumber: lineNumber,
+            endColumn: 1,
+          },
+          options: { className, isWholeLine: true, linesDecorationsClassName },
+        });
+      }
+    }
+  }
+  decorationIds = codeEditor.deltaDecorations(decorationIds, decorations);
 }
 
 watch(
   () => props.code,
   (code) => {
     const model = currentModel();
-    if (model && model.getValue() !== code) model.setValue(code);
+    if (model && model.getValue() !== code) {
+      model.setValue(code);
+      applyDiffDecorations();
+    }
   },
 );
 
@@ -56,6 +103,8 @@ watch(
 watch(theme, (value) => {
   monaco?.editor.setTheme(value);
 });
+
+watch(() => props.variant, applyDiffDecorations);
 
 onMounted(async () => {
   try {
@@ -98,6 +147,7 @@ onMounted(async () => {
       value: props.code,
       wordWrap: "off",
     });
+    applyDiffDecorations();
     ready.value = true;
   } catch (error) {
     if (disposed) return;
@@ -146,3 +196,30 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+:global(.monaco-diff-line-added) {
+  background: color-mix(in srgb, #22c55e 14%, transparent);
+}
+
+:global(.monaco-diff-line-removed) {
+  background: color-mix(in srgb, #ef4444 14%, transparent);
+}
+
+:global(.monaco-diff-line-hunk) {
+  background: color-mix(in srgb, #3b82f6 12%, transparent);
+  color: #60a5fa !important;
+}
+
+:global(.monaco-diff-line-header) {
+  color: var(--muted-foreground) !important;
+}
+
+:global(.monaco-diff-gutter-added) {
+  border-left: 3px solid #22c55e;
+}
+
+:global(.monaco-diff-gutter-removed) {
+  border-left: 3px solid #ef4444;
+}
+</style>

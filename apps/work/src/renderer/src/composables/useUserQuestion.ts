@@ -59,6 +59,16 @@ const useUserQuestionState = createGlobalState(() => {
     return true;
   }
 
+  function clearSession(workspaceId: number, sessionId: string): void {
+    const key = questionKey(workspaceId, sessionId);
+    if (questions.value.has(key)) {
+      const next = new Map(questions.value);
+      next.delete(key);
+      questions.value = next;
+    }
+    revisions.delete(key);
+  }
+
   async function resolveQuestion(requestId: string, answers?: AskUserAnswers): Promise<void> {
     const question = [...questions.value.values()].find(
       (candidate) => candidate.requestId === requestId,
@@ -81,6 +91,7 @@ const useUserQuestionState = createGlobalState(() => {
 
   return {
     questions,
+    clearSession,
     getRevision,
     handleRequested,
     handleResolved,
@@ -95,6 +106,10 @@ function questionKey(workspaceId: number, sessionId: string): string {
 
 export function getUserQuestionRevision(workspaceId: number, sessionId: string): number {
   return useUserQuestionState().getRevision(workspaceId, sessionId);
+}
+
+export function clearUserQuestionSessionState(workspaceId: number, sessionId: string): void {
+  useUserQuestionState().clearSession(workspaceId, sessionId);
 }
 
 export function hydrateUserQuestion(

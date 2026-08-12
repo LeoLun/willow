@@ -25,7 +25,26 @@ function agentMessage(value: unknown): AgentMessage {
 }
 
 function streamEvent(value: unknown): MessageStreamEvent {
-  return value as MessageStreamEvent;
+  const event = value as any;
+  if (event.type === "message_start") return { type: "start", message: event.message };
+  if (event.type === "message_end") return { type: "end", message: event.message };
+  if (event.type === "message_update") {
+    const update = event.assistantMessageEvent;
+    const patches = event.message.content.map((content: any, contentIndex: number) => ({
+      type:
+        contentIndex === update.contentIndex && update.type.endsWith("_end")
+          ? update.type
+          : content.type === "thinking"
+            ? "thinking_start"
+            : content.type === "toolCall"
+              ? "toolcall_end"
+              : "text_start",
+      contentIndex,
+      content,
+    }));
+    return { type: "update", messageTimestamp: event.message.timestamp, patches } as any;
+  }
+  return event as MessageStreamEvent;
 }
 
 function mountMessageList(messages: Message[], streaming = false) {

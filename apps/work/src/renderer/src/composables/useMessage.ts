@@ -22,13 +22,22 @@ import {
 import { getTodoListFromMessages } from "@/components/todo-list";
 import { electronAPI } from "@/lib/ipc";
 import { useEventBus } from "./useEventBus";
-import { getToolApprovalRevision, hydrateToolApproval } from "./useToolApproval";
-import { getUserQuestionRevision, hydrateUserQuestion } from "./useUserQuestion";
+import {
+  clearToolApprovalSessionState,
+  getToolApprovalRevision,
+  hydrateToolApproval,
+} from "./useToolApproval";
+import {
+  clearUserQuestionSessionState,
+  getUserQuestionRevision,
+  hydrateUserQuestion,
+} from "./useUserQuestion";
 
 export const MESSAGE_CACHE_IDLE_TTL_MS = 30 * 60 * 1000;
 export const MESSAGE_CACHE_INACTIVE_LIMIT = 20;
 
 type MessageCacheEntry = {
+  workspaceId: number;
   timeline: ShallowRef<MessageTimeline>;
   loading: Ref<boolean>;
   bufferedEvents: MessageStreamEvent[];
@@ -63,8 +72,9 @@ const useMessageState = createGlobalState(() => {
     runningSessionIds.value = nextRunningSessionIds;
   }
 
-  function createEntry(): MessageCacheEntry {
+  function createEntry(workspaceId: number): MessageCacheEntry {
     return {
+      workspaceId,
       timeline: shallowRef(createMessageTimeline()),
       loading: ref(false),
       bufferedEvents: [],
@@ -75,10 +85,16 @@ const useMessageState = createGlobalState(() => {
     };
   }
 
-  function getOrCreateEntry(sessionId: string): MessageCacheEntry {
+  function getOrCreateEntry(workspaceId: number, sessionId: string): MessageCacheEntry {
     let entry = entries.get(sessionId);
+    if (entry && entry.workspaceId === 0 && workspaceId !== 0) {
+      entry.workspaceId = workspaceId;
+    } else if (entry && workspaceId !== 0 && entry.workspaceId !== workspaceId) {
+      deleteEntry(sessionId, entry);
+      entry = undefined;
+    }
     if (!entry) {
-      entry = createEntry();
+      entry = createEntry(workspaceId);
       entries.set(sessionId, entry);
     }
     return entry;
@@ -89,6 +105,8 @@ const useMessageState = createGlobalState(() => {
     entry.loadGeneration += 1;
     entries.delete(sessionId);
     setSessionRunning(sessionId, false);
+    clearToolApprovalSessionState(entry.workspaceId, sessionId);
+    clearUserQuestionSessionState(entry.workspaceId, sessionId);
   }
 
   function pruneEntries(now = Date.now()): void {
@@ -123,7 +141,9 @@ const useMessageState = createGlobalState(() => {
       return;
     }
 
-    const entry = existingEntry ?? getOrCreateEntry(payload.sessionId);
+    // Stream events can arrive while the session is not mounted. Its workspace is filled in on
+    // acquire; use 0 temporarily because session ids are globally unique.
+    const entry = existingEntry ?? getOrCreateEntry(0, payload.sessionId);
     entry.lastTouched = Date.now();
 
     if (payload.type === "stream") {
@@ -183,7 +203,7 @@ const useMessageState = createGlobalState(() => {
   }
 
   function acquire(workspaceId: number, sessionId: string): MessageCacheEntry {
-    const entry = getOrCreateEntry(sessionId);
+    const entry = getOrCreateEntry(workspaceId, sessionId);
     entry.consumers += 1;
     entry.lastTouched = Date.now();
 

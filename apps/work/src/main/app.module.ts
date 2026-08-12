@@ -31,6 +31,11 @@ import { RevealWorkspaceEntryController } from "./controllers/file-search/reveal
 import { SearchFilesController } from "./controllers/file-search/search.file-search.controller";
 import { SubscribeWorkspaceFilesController } from "./controllers/file-search/subscribe.file-search.controller";
 import { UnsubscribeWorkspaceFilesController } from "./controllers/file-search/unsubscribe.file-search.controller";
+import { CommitGitChangesController } from "./controllers/git-review/commit.git-review.controller";
+import { GetGitReviewDiffController } from "./controllers/git-review/get-diff.git-review.controller";
+import { GetGitReviewStatusController } from "./controllers/git-review/get-status.git-review.controller";
+import { StageGitChangesController } from "./controllers/git-review/stage.git-review.controller";
+import { UnstageGitChangesController } from "./controllers/git-review/unstage.git-review.controller";
 import { InspectLocalFilesController } from "./controllers/local-file/inspect.local-file.controller";
 import { SelectLocalFilesController } from "./controllers/local-file/select.local-file.controller";
 import { GetMessageListController } from "./controllers/message/get-list.message.controller";
@@ -81,6 +86,7 @@ import { WorkspaceDao } from "./service/dao/workspace.dao.server";
 import { DbService } from "./service/db.service";
 import { EventService } from "./service/event.service";
 import { FileSearchService } from "./service/file-search.service";
+import { GitReviewService } from "./service/git-review.service";
 import { LocalFileService } from "./service/local-file.service";
 import { MessageService } from "./service/message.service";
 import { ProviderCatalogService } from "./service/provider-catalog.service";
@@ -137,6 +143,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     CredentialService,
     EventService,
     FileSearchService,
+    GitReviewService,
     WorkspaceFileWatcherService,
     LocalFileService,
     MessageService,
@@ -169,6 +176,11 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     SearchFilesController,
     SubscribeWorkspaceFilesController,
     UnsubscribeWorkspaceFilesController,
+    GetGitReviewStatusController,
+    GetGitReviewDiffController,
+    StageGitChangesController,
+    UnstageGitChangesController,
+    CommitGitChangesController,
     InspectLocalFilesController,
     SelectLocalFilesController,
     GetAppInfoController,

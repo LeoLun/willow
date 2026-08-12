@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { Comark } from "@comark/vue";
+import { ComarkRenderer, type ComarkTree } from "@comark/vue";
 import highlight from "@comark/vue/plugins/highlight";
 import math, { Math } from "@comark/vue/plugins/math";
 import mermaid from "@comark/vue/plugins/mermaid";
 import markdown from "@shikijs/langs/markdown";
+import { createParse } from "comark";
+import { onBeforeUnmount, shallowRef, watch } from "vue";
 import { comarkSafety } from "./comark-safety";
+import { createLatestTaskScheduler } from "./latest-task";
 import MermaidDiagram from "./MermaidDiagram.vue";
 
 interface Props {
@@ -33,24 +36,43 @@ const markdownPlugins = [
     languages: [markdown],
   }),
 ];
+
+const parse = createParse({ ...markdownOptions, plugins: markdownPlugins });
+const tree = shallowRef<ComarkTree>();
+const scheduler = createLatestTaskScheduler({
+  delayMs: 200,
+  run: ({ content, streaming }: { content: string; streaming: boolean }) =>
+    parse(content, { streaming }),
+  onResult: (result) => {
+    tree.value = result;
+  },
+  onError: (error) => {
+    console.error("Markdown 解析失败:", error);
+  },
+});
+
+watch(
+  [() => props.content, () => props.streaming],
+  ([content, streaming]) => scheduler.schedule({ content, streaming }, !streaming),
+  { immediate: true },
+);
+
+onBeforeUnmount(() => scheduler.dispose());
 </script>
 
 <template>
   <div class="markdown markdown-new-styling min-w-0 break-words" data-slot="markdown-block">
-    <Suspense>
-      <Comark
-        :markdown="props.content"
-        :options="markdownOptions"
-        :components="markdownComponents"
-        :plugins="markdownPlugins"
-        :streaming="props.streaming"
-        :caret="props.streaming"
-      />
-
-      <template #fallback>
-        <p class="whitespace-pre-wrap">{{ props.content }}</p>
-      </template>
-    </Suspense>
+    <div v-if="tree" :class="props.streaming ? 'comark-stream' : undefined">
+      <Suspense>
+        <ComarkRenderer
+          :tree="tree"
+          :components="markdownComponents"
+          :streaming="props.streaming"
+          :caret="props.streaming"
+        />
+      </Suspense>
+    </div>
+    <p v-else class="whitespace-pre-wrap">{{ props.content }}</p>
   </div>
 </template>
 

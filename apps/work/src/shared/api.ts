@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, ModelThinkingLevel } from "@earendil-works/pi-ai";
 import type {
   AskUserAnswers,
@@ -224,6 +224,81 @@ export interface WorkspaceFileChange {
 export interface WorkspaceFilesChangedEvent {
   changes: WorkspaceFileChange[];
   workspaceId: number;
+}
+
+export type GitReviewArea = "staged" | "unstaged";
+export type GitReviewChangeStatus =
+  | "added"
+  | "conflicted"
+  | "copied"
+  | "deleted"
+  | "modified"
+  | "renamed"
+  | "typeChanged"
+  | "untracked";
+
+export interface GitReviewChange {
+  additions?: number;
+  area: GitReviewArea;
+  deletions?: number;
+  oldPath?: string;
+  path: string;
+  status: GitReviewChangeStatus;
+}
+
+export type GitReviewStatus =
+  | { repository: false }
+  | {
+      repository: true;
+      branch: string;
+      upstream?: string;
+      ahead: number;
+      behind: number;
+      additions: number;
+      deletions: number;
+      staged: GitReviewChange[];
+      unstaged: GitReviewChange[];
+    };
+
+export interface GetGitReviewStatusRequest {
+  workspaceId: number;
+}
+
+export interface GetGitReviewStatusResponse {
+  review: GitReviewStatus;
+}
+
+export interface GetGitReviewDiffRequest {
+  workspaceId: number;
+  area: GitReviewArea;
+  path: string;
+  oldPath?: string;
+}
+
+export interface GitReviewDiff {
+  binary: boolean;
+  content: string;
+  truncated: boolean;
+}
+
+export interface GetGitReviewDiffResponse {
+  diff: GitReviewDiff;
+}
+
+export interface UpdateGitReviewIndexRequest {
+  workspaceId: number;
+  paths?: string[];
+}
+
+export interface UpdateGitReviewIndexResponse {}
+
+export interface CommitGitChangesRequest {
+  workspaceId: number;
+  message: string;
+}
+
+export interface CommitGitChangesResponse {
+  commitHash: string;
 }
 
 export interface SelectLocalFilesRequest {}
@@ -456,10 +531,33 @@ export interface GetSessionListResponse {
   sessions: SessionInfo[];
 }
 
-export type MessageStreamEvent = Extract<
-  AgentEvent,
-  { type: "message_start" | "message_update" | "message_end" }
->;
+export type MessageStreamPatch =
+  | {
+      type: "text_start" | "text_end" | "thinking_start" | "thinking_end" | "toolcall_start";
+      contentIndex: number;
+      content: AssistantMessage["content"][number];
+    }
+  | {
+      type: "text_delta" | "thinking_delta";
+      contentIndex: number;
+      delta: string;
+    }
+  | {
+      type: "toolcall_delta" | "toolcall_end";
+      contentIndex: number;
+      content: AssistantMessage["content"][number];
+    };
+
+export type MessageStreamEvent =
+  | {
+      type: "start" | "end";
+      message: AgentMessage;
+    }
+  | {
+      type: "update";
+      messageTimestamp: number;
+      patches: MessageStreamPatch[];
+    };
 
 export type MessageEventPayload =
   | {

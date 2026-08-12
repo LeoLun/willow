@@ -28,10 +28,13 @@ let modelValue = "";
 let model: {
   dispose: ReturnType<typeof vi.fn>;
   getValue: ReturnType<typeof vi.fn>;
+  getLineContent: ReturnType<typeof vi.fn>;
+  getLineCount: ReturnType<typeof vi.fn>;
   setValue: ReturnType<typeof vi.fn>;
 };
 let codeEditor: {
   dispose: ReturnType<typeof vi.fn>;
+  deltaDecorations: ReturnType<typeof vi.fn>;
   getModel: ReturnType<typeof vi.fn>;
   updateOptions: ReturnType<typeof vi.fn>;
 };
@@ -45,11 +48,17 @@ let monaco: {
 };
 
 function mountViewer(
-  initial = { ariaLabel: "示例文件", code: "const value = 1;", language: "html" },
+  initial = {
+    ariaLabel: "示例文件",
+    code: "const value = 1;",
+    language: "html",
+    variant: "code" as "code" | "diff",
+  },
 ) {
   const ariaLabel = ref(initial.ariaLabel);
   const code = ref(initial.code);
   const language = ref(initial.language);
+  const variant = ref(initial.variant);
   const container = document.createElement("div");
   document.body.append(container);
   const app = createApp({
@@ -58,11 +67,12 @@ function mountViewer(
         ariaLabel: ariaLabel.value,
         code: code.value,
         language: language.value,
+        variant: variant.value,
       }),
   });
   app.mount(container);
   mountedApps.push(app);
-  return { app, ariaLabel, code, container, language };
+  return { app, ariaLabel, code, container, language, variant };
 }
 
 async function waitForEditor(): Promise<void> {
@@ -75,11 +85,16 @@ beforeEach(() => {
   model = {
     dispose: vi.fn(),
     getValue: vi.fn(() => modelValue),
+    getLineCount: vi.fn(() => modelValue.split("\n").length),
+    getLineContent: vi.fn((line: number) => modelValue.split("\n")[line - 1] ?? ""),
     setValue: vi.fn((value: string) => {
       modelValue = value;
     }),
   };
   codeEditor = {
+    deltaDecorations: vi.fn((_old: string[], decorations: unknown[]) =>
+      decorations.map((_, index) => `decoration-${index}`),
+    ),
     dispose: vi.fn(),
     getModel: vi.fn(() => model),
     updateOptions: vi.fn(),
@@ -142,6 +157,40 @@ describe("MonacoCodeViewer", () => {
     });
     expect(monaco.editor.setTheme).toHaveBeenCalledWith("vs-dark");
     expect(monaco.editor.create).toHaveBeenCalledOnce();
+  });
+
+  it("adds and refreshes whole-line decorations in diff mode", async () => {
+    const initial = {
+      ariaLabel: "Git 差异",
+      code: "diff --git a/a b/a\n@@ -1 +1 @@\n-old\n+new",
+      language: "plaintext",
+      variant: "diff" as const,
+    };
+    modelValue = initial.code;
+    const { code } = mountViewer(initial);
+    await waitForEditor();
+
+    expect(codeEditor.deltaDecorations).toHaveBeenCalledWith(
+      [],
+      expect.arrayContaining([
+        expect.objectContaining({
+          options: expect.objectContaining({ className: "monaco-diff-line-added" }),
+        }),
+        expect.objectContaining({
+          options: expect.objectContaining({ className: "monaco-diff-line-removed" }),
+        }),
+        expect.objectContaining({
+          options: expect.objectContaining({ className: "monaco-diff-line-hunk" }),
+        }),
+      ]),
+    );
+
+    code.value = "@@ -1 +1 @@\n-next\n+next";
+    await nextTick();
+    expect(codeEditor.deltaDecorations).toHaveBeenLastCalledWith(
+      expect.arrayContaining([expect.stringMatching(/^decoration-/)]),
+      expect.any(Array),
+    );
   });
 
   it("disposes the editor and its model when unmounted", async () => {

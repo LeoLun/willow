@@ -3,6 +3,7 @@ import type { IAutomationApi } from "./automation.hook";
 import type { IBoardApi } from "./board.hook";
 import type { IEventApi } from "./event.hook";
 import type { IFileSearchApi } from "./file-search.hook";
+import type { IGitReviewApi } from "./git-review.hook";
 import type { ILocalFileApi } from "./local-file.hook";
 import type { IMessageApi } from "./message.hook";
 import type { ISessionApi } from "./session.hook";
@@ -17,6 +18,7 @@ export interface IRenderHook
     IBoardApi,
     IEventApi,
     IFileSearchApi,
+    IGitReviewApi,
     ILocalFileApi,
     IMessageApi,
     ISessionApi,

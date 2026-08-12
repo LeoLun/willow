@@ -206,31 +206,11 @@ function createUniqueId(messages: readonly Message[], sourceKey: string): string
   return candidate;
 }
 
-type AssistantLifecycleEvent = Extract<
-  MessageStreamEvent,
-  { type: "message_update" }
->["assistantMessageEvent"];
-
-function getThinkingStatuses(
-  message?: Message,
-  event?: AssistantLifecycleEvent,
-): Map<number, ThinkingStatus> {
+function getThinkingStatuses(message?: Message): Map<number, ThinkingStatus> {
   const statuses = new Map<number, ThinkingStatus>();
   message?.content.forEach((content, index) => {
     if (content.type === "thinking") statuses.set(index, content.status);
   });
-
-  if (event?.type === "thinking_start" || event?.type === "thinking_delta") {
-    statuses.set(event.contentIndex, "streaming");
-  } else if (event?.type === "thinking_end") {
-    statuses.set(event.contentIndex, "completed");
-  } else if (event?.type === "text_start") {
-    statuses.forEach((status, contentIndex) => {
-      if (status === "streaming" && contentIndex < event.contentIndex) {
-        statuses.set(contentIndex, "completed");
-      }
-    });
-  }
   return statuses;
 }
 
@@ -239,15 +219,9 @@ function replaceMessage(
   index: number,
   agentMessage: AgentMessage,
   status: Message["status"],
-  assistantEvent?: AssistantLifecycleEvent,
 ): Message[] {
   const current = messages[index];
-  const next = toMessage(
-    agentMessage,
-    status,
-    current.id,
-    getThinkingStatuses(current, assistantEvent),
-  );
+  const next = toMessage(agentMessage, status, current.id, getThinkingStatuses(current));
   return messages.map((message, messageIndex) => (messageIndex === index ? next : message));
 }
 
@@ -261,14 +235,19 @@ export function applyMessageStreamEvent(
   timeline: MessageTimeline,
   event: MessageStreamEvent,
 ): MessageTimeline {
-  const sourceKey = getMessageSourceKey(event.message);
   const activeIndex = timeline.activeMessageId
     ? timeline.messages.findIndex((message) => message.id === timeline.activeMessageId)
     : -1;
-  const sourceIndex = timeline.messages.findLastIndex((message) => message.sourceKey === sourceKey);
+  const sourceKey = event.type === "update" ? undefined : getMessageSourceKey(event.message);
+  const sourceIndex =
+    event.type === "update"
+      ? timeline.messages.findLastIndex(
+          (message) => message.role === "assistant" && message.timestamp === event.messageTimestamp,
+        )
+      : timeline.messages.findLastIndex((message) => message.sourceKey === sourceKey);
   const existingIndex = activeIndex >= 0 ? activeIndex : sourceIndex;
 
-  if (event.type === "message_start") {
+  if (event.type === "start") {
     if (sourceIndex >= 0) {
       return {
         messages: replaceMessage(timeline.messages, sourceIndex, event.message, "streaming"),
@@ -278,35 +257,86 @@ export function applyMessageStreamEvent(
     const message = toMessage(
       event.message,
       "streaming",
-      createUniqueId(timeline.messages, sourceKey),
+      createUniqueId(timeline.messages, sourceKey!),
     );
     return { messages: [...timeline.messages, message], activeMessageId: message.id };
   }
 
   if (existingIndex < 0) {
-    const assistantEvent =
-      event.type === "message_update" ? event.assistantMessageEvent : undefined;
+    if (event.type === "update") return timeline;
     const message = toMessage(
       event.message,
-      event.type === "message_end" ? "completed" : "streaming",
-      createUniqueId(timeline.messages, sourceKey),
-      getThinkingStatuses(undefined, assistantEvent),
+      event.type === "end" ? "completed" : "streaming",
+      createUniqueId(timeline.messages, sourceKey!),
     );
     return {
       messages: [...timeline.messages, message],
-      activeMessageId: event.type === "message_end" ? undefined : message.id,
+      activeMessageId: event.type === "end" ? undefined : message.id,
+    };
+  }
+
+  if (event.type === "update") {
+    let next = timeline.messages[existingIndex];
+    const content = [...next.content];
+    for (const patch of event.patches) {
+      if (patch.type === "text_delta") {
+        const current = content[patch.contentIndex];
+        content[patch.contentIndex] = {
+          type: "text",
+          text: (current?.type === "text" ? current.text : "") + patch.delta,
+          ...(current?.type === "text" && current.textSignature
+            ? { textSignature: current.textSignature }
+            : {}),
+        };
+        continue;
+      }
+      if (patch.type === "thinking_delta") {
+        const current = content[patch.contentIndex];
+        content[patch.contentIndex] = {
+          type: "thinking",
+          thinking: (current?.type === "thinking" ? current.thinking : "") + patch.delta,
+          ...(current?.type === "thinking" && current.thinkingSignature
+            ? { thinkingSignature: current.thinkingSignature }
+            : {}),
+          ...(current?.type === "thinking" && current.redacted ? { redacted: true } : {}),
+          status: "streaming",
+        };
+        continue;
+      }
+
+      if (patch.type === "text_start") {
+        content.forEach((item, index) => {
+          if (
+            index < patch.contentIndex &&
+            item.type === "thinking" &&
+            item.status === "streaming"
+          ) {
+            content[index] = { ...item, status: "completed" };
+          }
+        });
+      }
+      const thinkingStatus =
+        patch.type === "thinking_start"
+          ? "streaming"
+          : patch.type === "thinking_end"
+            ? "completed"
+            : undefined;
+      if ("content" in patch) {
+        content[patch.contentIndex] = toContent(patch.content, thinkingStatus);
+      }
+    }
+    next = { ...next, content, status: "streaming" };
+    return {
+      messages: timeline.messages.map((message, index) =>
+        index === existingIndex ? next : message,
+      ),
+      activeMessageId: next.id,
     };
   }
 
   return {
-    messages: replaceMessage(
-      timeline.messages,
-      existingIndex,
-      event.message,
-      event.type === "message_end" ? "completed" : "streaming",
-      event.type === "message_update" ? event.assistantMessageEvent : undefined,
-    ),
-    activeMessageId: event.type === "message_end" ? undefined : timeline.messages[existingIndex].id,
+    messages: replaceMessage(timeline.messages, existingIndex, event.message, "completed"),
+    activeMessageId: undefined,
   };
 }
 

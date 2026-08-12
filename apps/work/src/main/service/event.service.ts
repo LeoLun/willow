@@ -1,7 +1,7 @@
 import { EVENT_BUS } from "@shared/constants";
 import { Injectable } from "@willow/poetry";
-import { Subject, fromEvent } from "rxjs";
-import { takeUntil } from "rxjs/operators";
+import { Subject } from "rxjs";
+
 @Injectable()
 export class EventService {
   private registeredWebContents = new Set<Electron.WebContents>();
@@ -16,17 +16,15 @@ export class EventService {
     }
     this.registeredWebContents.add(webContents);
 
-    // 2. 将 webContents 的销毁事件转化为 Observable
-    const destroyed$ = fromEvent(webContents, "destroyed");
-
-    // 3. 订阅总线，直到 webContents 销毁
-    this.eventBus$
-      .pipe(takeUntil(destroyed$))
-      .subscribe(({ event, data }: { event: string; data: any }) => {
-        if (!webContents.isDestroyed()) {
-          webContents.send(EVENT_BUS, { event, data });
-        }
-      });
+    const subscription = this.eventBus$.subscribe(({ event, data }) => {
+      if (!webContents.isDestroyed()) {
+        webContents.send(EVENT_BUS, { event, data });
+      }
+    });
+    webContents.once("destroyed", () => {
+      subscription.unsubscribe();
+      this.registeredWebContents.delete(webContents);
+    });
 
     return "Successfully subscribed via RxJS!";
   }

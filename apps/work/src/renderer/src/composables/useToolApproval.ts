@@ -64,6 +64,16 @@ const useToolApprovalState = createGlobalState(() => {
     return true;
   }
 
+  function clearSession(workspaceId: number, sessionId: string): void {
+    const key = approvalKey(workspaceId, sessionId);
+    if (approvals.value.has(key)) {
+      const next = new Map(approvals.value);
+      next.delete(key);
+      approvals.value = next;
+    }
+    revisions.delete(key);
+  }
+
   async function resolveApproval(
     approvalId: string,
     decision: ToolApprovalDecision,
@@ -97,6 +107,7 @@ const useToolApprovalState = createGlobalState(() => {
 
   return {
     approvals,
+    clearSession,
     getRevision,
     handleApprovalRequested,
     handleApprovalResolved,
@@ -121,6 +132,10 @@ export function hydrateToolApproval(
 
 export function getToolApprovalRevision(workspaceId: number, sessionId: string): number {
   return useToolApprovalState().getRevision(workspaceId, sessionId);
+}
+
+export function clearToolApprovalSessionState(workspaceId: number, sessionId: string): void {
+  useToolApprovalState().clearSession(workspaceId, sessionId);
 }
 
 export function useToolApprovalListener(): void {

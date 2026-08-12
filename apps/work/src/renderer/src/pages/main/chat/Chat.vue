@@ -23,6 +23,8 @@ let composerResizeObserver: ResizeObserver | undefined;
 let messageResizeObserver: ResizeObserver | undefined;
 let shouldStickToBottom = true;
 let previousScrollTop = 0;
+let userScrollIntent = false;
+let pointerScrollIntent = false;
 
 const workspaceId = computed(() => {
   const value = Number(route.query.workspaceId);
@@ -51,12 +53,33 @@ function updateScrollAnchor(): void {
   const viewport = messageViewport.value;
   if (!viewport) return;
   const nextScrollTop = viewport.scrollTop;
-  if (nextScrollTop < previousScrollTop - 1) {
+  if (nextScrollTop < previousScrollTop - 1 && (userScrollIntent || pointerScrollIntent)) {
     shouldStickToBottom = false;
   } else if (viewport.scrollHeight - viewport.clientHeight - nextScrollTop <= 1) {
     shouldStickToBottom = true;
   }
   previousScrollTop = nextScrollTop;
+  userScrollIntent = false;
+}
+
+function noteWheelIntent(event: WheelEvent): void {
+  if (event.deltaY < 0) userScrollIntent = true;
+}
+
+function noteTouchIntent(): void {
+  userScrollIntent = true;
+}
+
+function noteKeyboardIntent(event: KeyboardEvent): void {
+  if (["ArrowUp", "Home", "PageUp"].includes(event.key)) userScrollIntent = true;
+}
+
+function beginPointerScroll(event: PointerEvent): void {
+  if (event.target === event.currentTarget) pointerScrollIntent = true;
+}
+
+function endPointerScroll(): void {
+  pointerScrollIntent = false;
 }
 
 function updateComposerHeight(): void {
@@ -72,11 +95,14 @@ function updateComposerHeight(): void {
 }
 
 watch([timeline, () => props.streaming], async () => {
+  if (!shouldStickToBottom) return;
   await nextTick();
   scrollToBottom();
 });
 
 onMounted(() => {
+  window.addEventListener("pointerup", endPointerScroll);
+  window.addEventListener("pointercancel", endPointerScroll);
   updateComposerHeight();
   if (typeof ResizeObserver === "undefined") return;
 
@@ -93,6 +119,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener("pointerup", endPointerScroll);
+  window.removeEventListener("pointercancel", endPointerScroll);
   composerResizeObserver?.disconnect();
   messageResizeObserver?.disconnect();
 });
@@ -104,7 +132,12 @@ onBeforeUnmount(() => {
       ref="messageViewport"
       class="h-full min-h-0 overflow-y-auto overscroll-contain"
       data-slot="chat-messages"
+      tabindex="-1"
       @scroll="updateScrollAnchor"
+      @wheel.passive="noteWheelIntent"
+      @touchstart.passive="noteTouchIntent"
+      @keydown="noteKeyboardIntent"
+      @pointerdown="beginPointerScroll"
     >
       <div
         ref="messageContent"
@@ -124,7 +157,12 @@ onBeforeUnmount(() => {
           <p class="text-sm font-medium text-foreground">暂无消息</p>
           <p class="text-sm text-muted-foreground">发送一条消息开始会话。</p>
         </div>
-        <MessageList v-else :messages="timeline.messages" :streaming="props.streaming" />
+        <MessageList
+          v-else
+          :messages="timeline.messages"
+          :streaming="props.streaming"
+          :scroll-element="messageViewport"
+        />
         <div
           class="shrink-0"
           data-slot="chat-bottom-spacer"

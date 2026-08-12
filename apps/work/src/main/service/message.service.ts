@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { isAbsolute } from "node:path";
-import type { AgentHarness, AgentMessage, SessionTreeEntry } from "@earendil-works/pi-agent-core";
+import type {
+  AgentHarness,
+  AgentHarnessEvent,
+  AgentMessage,
+  SessionTreeEntry,
+} from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type {
   GetMessageListResponse,
   MessageEventPayload,
-  MessageStreamEvent,
   ModelConfig,
   PermissionMode,
   LocalFileAttachment,
@@ -28,6 +32,7 @@ import { AiToolApprovalService } from "./ai-tool-approval.service";
 import { WorkspaceDao } from "./dao/workspace.dao.server";
 import { EventService } from "./event.service";
 import { LocalFileService } from "./local-file.service";
+import { MessageStreamEmitter } from "./message-stream-emitter";
 import { SessionService } from "./session.service";
 import { TitleService } from "./title.service";
 import { ToolApprovalService } from "./tool-approval.service";
@@ -58,6 +63,7 @@ export class UnattendedInteractionError extends Error {
 
 type ActiveTask = {
   harness: AgentHarness;
+  stream: MessageStreamEmitter;
   unsubscribe: () => void;
   stopped: boolean;
 };
@@ -158,12 +164,13 @@ export class MessageService {
         interactionMode,
       }),
     });
+    const stream = new MessageStreamEmitter(input.sessionId, (payload) => this.emit(payload));
     const unsubscribe = harness.subscribe((event) => {
       if (this.isMessageStreamEvent(event)) {
-        this.emit({ type: "stream", sessionId: input.sessionId, event });
+        stream.push(event);
       }
     });
-    const task: ActiveTask = { harness, unsubscribe, stopped: false };
+    const task: ActiveTask = { harness, stream, unsubscribe, stopped: false };
     this.activeTasks.set(key, task);
     this.emit({
       type: "status",
@@ -218,6 +225,7 @@ export class MessageService {
       }
       throw error;
     } finally {
+      stream.dispose();
       unsubscribe();
       if (this.activeTasks.get(key) === task) {
         this.activeTasks.delete(key);
@@ -231,6 +239,7 @@ export class MessageService {
 
     task.stopped = true;
     await task.harness.abort();
+    task.stream.flush();
     this.emit({ type: "status", sessionId, status: "stopped" });
     return true;
   }
@@ -331,7 +340,12 @@ export class MessageService {
     this.eventService.sendEvent(MESSAGE_EVENT, payload);
   }
 
-  private isMessageStreamEvent(event: { type: string }): event is MessageStreamEvent {
+  private isMessageStreamEvent(
+    event: AgentHarnessEvent,
+  ): event is Extract<
+    AgentHarnessEvent,
+    { type: "message_start" | "message_update" | "message_end" }
+  > {
     return (
       event.type === "message_start" ||
       event.type === "message_update" ||
@@ -552,28 +566,23 @@ export class MessageService {
         interactionMode: "interactive",
       }),
     });
+    const stream = new MessageStreamEmitter(payload.sessionId, (eventPayload) =>
+      this.emit(eventPayload),
+    );
     const unsubscribe = harness.subscribe((event) => {
       if (this.isMessageStreamEvent(event)) {
-        this.emit({ type: "stream", sessionId: payload.sessionId, event });
+        stream.push(event);
       }
     });
-    const task: ActiveTask = { harness, unsubscribe, stopped: false };
+    const task: ActiveTask = { harness, stream, unsubscribe, stopped: false };
     this.activeTasks.set(key, task);
     this.emit({ type: "status", sessionId: payload.sessionId, status: "started" });
 
     try {
       const toolResult = await this.replayToolCall(harness, approval, decision);
       await harness.appendMessage(toolResult);
-      this.emit({
-        type: "stream",
-        sessionId: payload.sessionId,
-        event: { type: "message_start", message: toolResult },
-      });
-      this.emit({
-        type: "stream",
-        sessionId: payload.sessionId,
-        event: { type: "message_end", message: toolResult },
-      });
+      stream.push({ type: "message_start", message: toolResult });
+      stream.push({ type: "message_end", message: toolResult });
       await harness.continue();
       if (!task.stopped) {
         this.emit({ type: "status", sessionId: payload.sessionId, status: "completed" });
@@ -589,6 +598,7 @@ export class MessageService {
       }
       throw error;
     } finally {
+      stream.dispose();
       unsubscribe();
       if (this.activeTasks.get(key) === task) this.activeTasks.delete(key);
     }
@@ -639,28 +649,23 @@ export class MessageService {
         return fallbackQuestion(request, signal);
       },
     });
+    const stream = new MessageStreamEmitter(payload.sessionId, (eventPayload) =>
+      this.emit(eventPayload),
+    );
     const unsubscribe = harness.subscribe((event) => {
       if (this.isMessageStreamEvent(event)) {
-        this.emit({ type: "stream", sessionId: payload.sessionId, event });
+        stream.push(event);
       }
     });
-    const task: ActiveTask = { harness, unsubscribe, stopped: false };
+    const task: ActiveTask = { harness, stream, unsubscribe, stopped: false };
     this.activeTasks.set(key, task);
     this.emit({ type: "status", sessionId: payload.sessionId, status: "started" });
 
     try {
       const toolResult = await this.replayUserQuestion(harness, question);
       await harness.appendMessage(toolResult);
-      this.emit({
-        type: "stream",
-        sessionId: payload.sessionId,
-        event: { type: "message_start", message: toolResult },
-      });
-      this.emit({
-        type: "stream",
-        sessionId: payload.sessionId,
-        event: { type: "message_end", message: toolResult },
-      });
+      stream.push({ type: "message_start", message: toolResult });
+      stream.push({ type: "message_end", message: toolResult });
       await harness.continue();
       if (!task.stopped) {
         this.emit({ type: "status", sessionId: payload.sessionId, status: "completed" });
@@ -676,6 +681,7 @@ export class MessageService {
       }
       throw error;
     } finally {
+      stream.dispose();
       unsubscribe();
       if (this.activeTasks.get(key) === task) this.activeTasks.delete(key);
     }

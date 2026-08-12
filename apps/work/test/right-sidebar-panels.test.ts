@@ -34,6 +34,7 @@ const monacoMock = vi.hoisted(() => {
 const fileMocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
   getBoardPanel: vi.fn(async () => ({ status: "missing" as const })),
+  getGitReviewStatus: vi.fn(async () => ({ review: { repository: false as const } })),
   getSkillList: vi.fn(async () => ({ skills: [] })),
   listWorkspaceDirectory: vi.fn(async ({ directoryPath }: { directoryPath: string }) => ({
     entries:
@@ -71,6 +72,7 @@ const fileMocks = vi.hoisted(() => ({
 vi.mock("@/lib/ipc", () => ({
   electronAPI: {
     getBoardPanel: fileMocks.getBoardPanel,
+    getGitReviewStatus: fileMocks.getGitReviewStatus,
     getSkillList: fileMocks.getSkillList,
     listWorkspaceDirectory: fileMocks.listWorkspaceDirectory,
     readWorkspaceFile: fileMocks.readWorkspaceFile,
@@ -210,7 +212,7 @@ describe("RightSidebar", () => {
     const { container } = mountSidebar();
     launcher(container, "review").click();
     await nextTick();
-    await addFromMenu(container, "审阅(Demo)");
+    await addFromMenu(container, "审阅");
 
     expect(container.querySelectorAll('[data-slot="right-sidebar-tab"]')).toHaveLength(1);
 

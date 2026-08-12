@@ -11,7 +11,10 @@ export interface FilePanelState {
 }
 
 export interface ReviewPanelState {
-  selectedChangeId: string;
+  selectedChange?: {
+    area: "staged" | "unstaged";
+    path: string;
+  };
 }
 
 export interface RightSidebarPanelStateMap {

@@ -22,12 +22,12 @@ const panelDefinitions = {
   } satisfies SidebarPanelDefinition<"file">,
   review: {
     kind: "review",
-    label: "审阅(Demo)",
+    label: "审阅",
     icon: GitPullRequest,
     component: ReviewPanel,
     multiplicity: "single",
     entryPoints: { addMenu: true, emptyState: true },
-    createState: () => ({ selectedChangeId: "right-sidebar" }),
+    createState: () => ({}),
     getTitle: () => "审阅",
   } satisfies SidebarPanelDefinition<"review">,
   board: {

@@ -10,6 +10,8 @@ import type {
   CreateAutomationResponse,
   CreateWorkspaceRequest,
   CreateWorkspaceResponse,
+  CommitGitChangesRequest,
+  CommitGitChangesResponse,
   DeleteWorkspaceRequest,
   DeleteWorkspaceResponse,
   DeleteCredentialRequest,
@@ -32,6 +34,10 @@ import type {
   GetConfiguredProvidersResponse,
   GetCredentialRequest,
   GetCredentialResponse,
+  GetGitReviewDiffRequest,
+  GetGitReviewDiffResponse,
+  GetGitReviewStatusRequest,
+  GetGitReviewStatusResponse,
   GetMessageListRequest,
   GetMessageListResponse,
   InspectLocalFilesRequest,
@@ -104,6 +110,8 @@ import type {
   SubscribeWorkspaceFilesResponse,
   UnsubscribeWorkspaceFilesRequest,
   UnsubscribeWorkspaceFilesResponse,
+  UpdateGitReviewIndexRequest,
+  UpdateGitReviewIndexResponse,
   UpdateAutomationRequest,
   UpdateAutomationResponse,
 } from "../shared/api";
@@ -116,6 +124,7 @@ import {
   DELETE_TAVILY_API_KEY,
   DELETE_AUTOMATION,
   CREATE_WORKSPACE,
+  COMMIT_GIT_CHANGES,
   DELETE_WORKSPACE,
   EVENT_BUS,
   DOWNLOAD_APP_UPDATE,
@@ -128,6 +137,8 @@ import {
   GET_BUILTIN_SKILL_LIST,
   GET_CONFIGURED_PROVIDERS,
   GET_CREDENTIAL,
+  GET_GIT_REVIEW_DIFF,
+  GET_GIT_REVIEW_STATUS,
   GET_MESSAGE_LIST,
   GET_PROVIDER_CATALOG,
   GET_STATISTICS,
@@ -162,8 +173,10 @@ import {
   SELECT_WORKSPACE_DIRECTORY,
   SET_WORKSPACE_PINNED,
   STOP_MESSAGE,
+  STAGE_GIT_CHANGES,
   SUBSCRIBE_WORKSPACE_FILES,
   UNSUBSCRIBE_WORKSPACE_FILES,
+  UNSTAGE_GIT_CHANGES,
   UPDATE_AUTOMATION,
 } from "../shared/constants";
 
@@ -258,6 +271,16 @@ const ipcObject: IRenderHook = {
       SET_BUILTIN_SKILL_ENABLED,
       request,
     ),
+  getGitReviewStatus: (request: GetGitReviewStatusRequest) =>
+    invoke<GetGitReviewStatusRequest, GetGitReviewStatusResponse>(GET_GIT_REVIEW_STATUS, request),
+  getGitReviewDiff: (request: GetGitReviewDiffRequest) =>
+    invoke<GetGitReviewDiffRequest, GetGitReviewDiffResponse>(GET_GIT_REVIEW_DIFF, request),
+  stageGitChanges: (request: UpdateGitReviewIndexRequest) =>
+    invoke<UpdateGitReviewIndexRequest, UpdateGitReviewIndexResponse>(STAGE_GIT_CHANGES, request),
+  unstageGitChanges: (request: UpdateGitReviewIndexRequest) =>
+    invoke<UpdateGitReviewIndexRequest, UpdateGitReviewIndexResponse>(UNSTAGE_GIT_CHANGES, request),
+  commitGitChanges: (request: CommitGitChangesRequest) =>
+    invoke<CommitGitChangesRequest, CommitGitChangesResponse>(COMMIT_GIT_CHANGES, request),
   searchFiles: (request: SearchFilesRequest) =>
     invoke<SearchFilesRequest, SearchFilesResponse>(SEARCH_FILES, request),
   listWorkspaceDirectory: (request: ListWorkspaceDirectoryRequest) =>

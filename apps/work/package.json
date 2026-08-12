@@ -38,6 +38,7 @@
     "@earendil-works/pi-ai": "^0.80.6",
     "@electron/asar": "^3.2.17",
     "@shikijs/langs": "^4.3.1",
+    "@tanstack/vue-virtual": "3.13.12",
     "@vueuse/core": "^12.8.2",
     "@willow/core": "workspace:*",
     "@willow/shadcn": "workspace:*",
