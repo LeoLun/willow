@@ -839,7 +839,7 @@ watch(content, (value) => {
       <div
         v-if="content === '' && !composing && !templateMode"
         data-slot="prompt-placeholder"
-        class="pointer-events-none absolute inset-x-5 text-sm text-muted-foreground"
+        class="pointer-events-none absolute inset-x-4.5 text-sm text-muted-foreground"
         :class="attachments.length > 0 ? 'top-2' : 'top-4.5'"
       >
         {{ props.placeholder }}
