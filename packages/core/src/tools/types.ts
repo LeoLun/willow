@@ -1,8 +1,11 @@
 import type { TruncationResult } from "@earendil-works/pi-agent-core";
 import type { AskUserHandler, AskUserToolDetails } from "./ask-user.js";
 import type { CreateAutomationHandler, CreateAutomationToolDetails } from "./create-automation.js";
+import type { DeleteAutomationHandler, DeleteAutomationToolDetails } from "./delete-automation.js";
+import type { ListAutomationsHandler, ListAutomationsToolDetails } from "./list-automations.js";
 import type { ProcessListToolDetails } from "./process-list.js";
 import type { TodoItem, TodoListToolDetails } from "./todo-list.js";
+import type { UpdateAutomationHandler, UpdateAutomationToolDetails } from "./update-automation.js";
 
 export const TOOL_NAMES = [
   "bash",
@@ -17,7 +20,10 @@ export const TOOL_NAMES = [
   "webfetch",
   "websearch",
   "askUser",
+  "listAutomations",
   "createAutomation",
+  "updateAutomation",
+  "deleteAutomation",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -36,6 +42,8 @@ export type ToolApprovalReason =
   | "local-network-listen"
   | "interactive-terminal"
   | "automation-create"
+  | "automation-update"
+  | "automation-delete"
   | "sandbox-denied";
 
 export type ToolApprovalRequest = {
@@ -164,7 +172,10 @@ export type WillowToolDetails =
   | WebFetchToolDetails
   | WebSearchToolDetails
   | AskUserToolDetails
-  | CreateAutomationToolDetails;
+  | ListAutomationsToolDetails
+  | CreateAutomationToolDetails
+  | UpdateAutomationToolDetails
+  | DeleteAutomationToolDetails;
 
 export type ToolRuntimeOptions = {
   cwd: string;
@@ -175,5 +186,8 @@ export type ToolRuntimeOptions = {
   sandboxPolicy?: SandboxPolicy;
   tavilyApiKey?: string;
   initialTodoList?: readonly TodoItem[];
+  listAutomations?: ListAutomationsHandler;
   createAutomation?: CreateAutomationHandler;
+  updateAutomation?: UpdateAutomationHandler;
+  deleteAutomation?: DeleteAutomationHandler;
 };

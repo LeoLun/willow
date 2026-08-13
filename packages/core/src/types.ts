@@ -2,7 +2,10 @@ import type { SessionMetadata, SessionRepo, Skill } from "@earendil-works/pi-age
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
 import type { AskUserHandler } from "./tools/ask-user.js";
 import type { CreateAutomationHandler } from "./tools/create-automation.js";
+import type { DeleteAutomationHandler } from "./tools/delete-automation.js";
+import type { ListAutomationsHandler } from "./tools/list-automations.js";
 import type { PermissionMode, SandboxPolicy, ToolApprovalHandler } from "./tools/types.js";
+import type { UpdateAutomationHandler } from "./tools/update-automation.js";
 
 export interface AgentOptions {
   name: string;
@@ -33,7 +36,10 @@ export type AgentHarnessOptions = {
   requestApproval?: ToolApprovalHandler;
   requestUser?: AskUserHandler;
   sandboxPolicy?: SandboxPolicy;
+  listAutomations?: ListAutomationsHandler;
   createAutomation?: CreateAutomationHandler;
+  updateAutomation?: UpdateAutomationHandler;
+  deleteAutomation?: DeleteAutomationHandler;
 };
 
 export type AgentsFile = { path: string; content: string };

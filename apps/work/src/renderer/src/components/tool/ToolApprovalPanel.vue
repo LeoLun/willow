@@ -20,6 +20,8 @@ const reasonLabel = computed(() => {
     "executable-install": "安装或替换用户可执行文件",
     "process-inspection": "查看沙箱外的进程信息",
     "automation-create": "创建持久化的定时任务",
+    "automation-update": "修改持久化的定时任务",
+    "automation-delete": "删除持久化的定时任务",
     "local-network-listen": "监听本机回环网络端口",
     "interactive-terminal": "启用交互式终端能力",
     "sandbox-denied": "沙箱拒绝了命令",
@@ -35,6 +37,9 @@ const partialEffectsMessage = computed(() => {
     "process-inspection":
       "允许后将仅为本次工具调用开放进程信息读取，不开放浏览器所需的完整 Mach IPC 或 IOKit 权限。",
     "automation-create": "允许后将按本次请求在当前工作空间中创建定时自动化，并立即注册计划。",
+    "automation-update": "允许后将修改当前工作空间中的自动化配置，并根据新的配置刷新触发计划。",
+    "automation-delete":
+      "允许后将删除当前工作空间中的自动化、触发计划与执行历史；已生成的聊天会话会保留。",
     "local-network-listen":
       "允许后将仅为本次工具调用开放本机回环监听与访问，外部网络仍受域名允许列表限制。",
     "interactive-terminal": "允许后将仅为本次工具调用开放伪终端设备；终端不会接收用户键盘输入。",
@@ -49,6 +54,14 @@ const partialEffectsMessage = computed(() => {
   } satisfies Record<ToolApprovalEventPayload["reason"], string>;
   return messages[props.request.reason];
 });
+const showEffectsMessage = computed(
+  () =>
+    props.request.mayHavePartialEffects ||
+    props.request.reason === "process-inspection" ||
+    props.request.reason === "automation-create" ||
+    props.request.reason === "automation-update" ||
+    props.request.reason === "automation-delete",
+);
 
 async function decide(decision: ToolApprovalDecision): Promise<void> {
   if (submitting.value) return;
@@ -89,7 +102,7 @@ async function decide(decision: ToolApprovalDecision): Promise<void> {
       >
 
       <p
-        v-if="request.mayHavePartialEffects || request.reason === 'process-inspection'"
+        v-if="showEffectsMessage"
         class="text-xs leading-5 text-muted-foreground"
         data-slot="tool-approval-partial-effects"
       >

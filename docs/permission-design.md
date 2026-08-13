@@ -5,7 +5,7 @@
 本文描述 Willow Agent 文件工具的权限模型、执行边界、审批链路和失败语义，作为后续扩展工具、
 审查安全边界及排查审批问题的依据。
 
-当前系统向 Agent 注册以下十三个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
+当前系统向 Agent 注册以下十六个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
 
 - `bash`：执行 shell 命令；
 - `read`：读取文本文件；
@@ -20,6 +20,9 @@
 - `websearch`：通过固定的 Tavily Search API 查询实时网络信息。
 - `askUser`：暂停当前工具调用，通过桌面端向用户提出 1-4 个结构化问题并等待回答。
 - `createAutomation`：创建持久化的定时自动化任务，由宿主在当前工作空间中注册并启用。
+- `listAutomations`：列出当前工作空间中的定时自动化及其业务配置。
+- `updateAutomation`：修改当前工作空间中的定时自动化。
+- `deleteAutomation`：删除当前工作空间中的定时自动化及其触发计划和执行历史。
 
 核心实现位于 [`packages/core/src/tools/`](../packages/core/src/tools/)，桌面应用的 AI 初审、用户审批
 服务与界面位于
@@ -70,6 +73,9 @@ type ToolApprovalReason =
   | "process-inspection"
   | "local-network-listen"
   | "interactive-terminal"
+  | "automation-create"
+  | "automation-update"
+  | "automation-delete"
   | "sandbox-denied";
 ```
 
@@ -171,7 +177,10 @@ type ToolApprovalRequest = {
 | `websearch` 命中拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
 | `todoList` 读写会话内状态 | 直接执行 | 直接执行 | 直接执行 |
 | `askUser` 等待用户回答 | 直接请求用户回答 | 直接请求用户回答 | 直接请求用户回答 |
+| `listAutomations` 查询当前工作空间自动化 | 直接读取 | 直接读取 | 直接读取 |
 | `createAutomation` 创建定时任务 | 执行前弹窗审批 | AI 通过后创建，否则转用户审批 | 直接创建 |
+| `updateAutomation` 修改定时任务 | 执行前弹窗审批 | AI 通过后修改，否则转用户审批 | 直接修改 |
+| `deleteAutomation` 删除定时任务 | 执行前弹窗审批 | AI 通过后删除，否则转用户审批 | 直接删除 |
 | `write/edit` 工作区或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 内置技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区外写入 | 执行前弹窗 | AI 通过后写入，否则转用户审批 | 直接执行 |
@@ -400,7 +409,27 @@ handler 时工具明确失败。成功结果的 details 保存每个问题及其
 
 宿主通过 `AgentHarnessOptions.createAutomation` 注入创建回调（Core 不直接接触数据库或调度器）；未注入回调时工具明确失败。创建的自动化会立即启用并注册调度，用户可在自动化页面查看、修改或删除。
 
-### 8.7 本地文件附件
+### 8.7 自动化查询、修改与删除边界
+
+`listAutomations`、`updateAutomation` 和 `deleteAutomation` 的宿主回调都绑定当前 Agent Harness
+对应的工作空间。Core 不接受 `workspaceId` 参数；Work App 在查询时只返回当前工作空间记录，并在
+修改或删除前重新检查目标归属。不存在和属于其他工作空间的 ID 统一返回“当前工作空间中不存在该
+自动化”，避免泄露其他工作空间信息。
+
+`listAutomations` 是当前工作空间内的只读查询，三种权限模式均直接执行。结果按更新时间倒序返回
+ID、标题、提示词、状态、cron、时区和模型配置，供 Agent 在用户未提供 ID 时定位目标。
+
+`updateAutomation` 至少包含一项变更，可修改标题、提示词、cron、时区、启停状态和模型；传入
+`model: null` 表示恢复跟随默认模型。它不允许修改工作空间或独立修改 trigger `isActive`。
+`deleteAutomation` 只接受自动化 ID，并沿用宿主的运行中冲突保护；删除会级联移除 trigger 和运行
+历史，但保留已生成的聊天会话。
+
+修改和删除都属于持久化副作用，非 `full-access` 模式分别以 `automation-update` 和
+`automation-delete` 请求单次审批。审批通过后才调用宿主 handler，因此拒绝本身不会产生部分副
+作用；`full-access` 延续统一语义，不发起审批。宿主继续负责业务校验、调度刷新、变更事件和稳定
+错误文案。
+
+### 8.8 本地文件附件
 
 桌面端允许用户通过系统选择器或粘贴显式添加普通文件。主进程使用 `realpath` 和 `stat` 验证路径，
 只接受现存普通文件，并按 canonical path 去重。文件不会复制到工作区。
@@ -620,7 +649,9 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
     客户端重启后的工具重放与续跑，以及详情渲染。
 17. `createAutomation` 的参数校验、三档权限模式（审批通过/拒绝/委托/直接创建）、未注入回调的安全
     失败、宿主错误文案透传、AbortSignal 中止，以及主进程的创建工作空间绑定与校验错误返回。
-17. bash 读路径、可执行文件安装、localhost、PTY 和噪声 violation 关联，以及 `processList` 的
+18. `listAutomations` 的工作空间隔离和免审批查询，以及 `updateAutomation`、`deleteAutomation` 的
+    参数校验、三档权限模式、拒绝无副作用、归属复核、调度刷新、运行冲突和宿主错误文案。
+19. bash 读路径、可执行文件安装、localhost、PTY 和噪声 violation 关联，以及 `processList` 的
     审批、固定参数、过滤、限制与中止。
 
 Core 测试位于

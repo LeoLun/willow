@@ -11,7 +11,15 @@ import type {
   UpdateAutomationRequest,
 } from "@shared/api";
 import { AUTOMATION_CHANGED_EVENT } from "@shared/constants";
-import type { CreateAutomationToolInput, CreateAutomationToolResult } from "@willow/core";
+import type {
+  CreateAutomationToolInput,
+  CreateAutomationToolResult,
+  DeleteAutomationToolInput,
+  DeleteAutomationToolResult,
+  ListAutomationsToolResult,
+  UpdateAutomationToolInput,
+  UpdateAutomationToolResult,
+} from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import { CronExpressionParser } from "cron-parser";
 import cron from "node-cron";
@@ -211,6 +219,104 @@ export class AutomationService {
       }
       console.error("Failed to create automation from agent:", error);
       return { ok: false, error: "创建定时任务失败，请稍后重试。" };
+    }
+  }
+
+  /** 列出当前 Agent 工作空间的自动化，不暴露其他工作空间记录。 */
+  async listAutomationsFromAgent(workspaceId: number): Promise<ListAutomationsToolResult> {
+    try {
+      this.validateWorkspace(workspaceId);
+      return {
+        ok: true,
+        automations: this.automationDao.findWithTriggersByWorkspaceId(workspaceId).map((item) => ({
+          automationId: item.id,
+          title: item.title,
+          prompt: item.prompt,
+          status: item.status,
+          cronExpression: item.trigger.cronExpression,
+          timezone: item.trigger.timezone,
+          model:
+            item.modelProviderId && item.modelId
+              ? { providerId: item.modelProviderId, modelId: item.modelId }
+              : undefined,
+        })),
+      };
+    } catch (error) {
+      if (error instanceof AutomationValidationError) {
+        return { ok: false, error: error.message };
+      }
+      console.error("Failed to list automations from agent:", error);
+      return { ok: false, error: "读取自动化列表失败，请稍后重试。" };
+    }
+  }
+
+  /** 修改当前 Agent 工作空间中的自动化。 */
+  async updateAutomationFromAgent(
+    input: UpdateAutomationToolInput,
+    workspaceId: number,
+  ): Promise<UpdateAutomationToolResult> {
+    const existing = this.automationDao.findWithTriggerById(input.automationId);
+    if (!existing || existing.workspaceId !== workspaceId) {
+      return { ok: false, error: "当前工作空间中不存在该自动化。" };
+    }
+
+    try {
+      const hasTriggerUpdate = input.cronExpression !== undefined || input.timezone !== undefined;
+      const automation = this.updateAutomation({
+        id: input.automationId,
+        title: input.title,
+        prompt: input.prompt,
+        status: input.status,
+        model: input.model,
+        trigger: hasTriggerUpdate
+          ? {
+              cronExpression: input.cronExpression,
+              timezone: input.timezone,
+            }
+          : undefined,
+      });
+      return {
+        ok: true,
+        automationId: automation.id,
+        title: automation.title,
+        status: automation.status,
+        cronExpression: automation.trigger.cronExpression,
+        timezone: automation.trigger.timezone,
+      };
+    } catch (error) {
+      if (error instanceof AutomationValidationError) {
+        return { ok: false, error: error.message };
+      }
+      if (error instanceof AutomationNotFoundError) {
+        return { ok: false, error: "当前工作空间中不存在该自动化。" };
+      }
+      console.error("Failed to update automation from agent:", error);
+      return { ok: false, error: "修改自动化失败，请稍后重试。" };
+    }
+  }
+
+  /** 删除当前 Agent 工作空间中的自动化。 */
+  async deleteAutomationFromAgent(
+    input: DeleteAutomationToolInput,
+    workspaceId: number,
+  ): Promise<DeleteAutomationToolResult> {
+    const existing = this.automationDao.findWithTriggerById(input.automationId);
+    if (!existing || existing.workspaceId !== workspaceId) {
+      return { ok: false, error: "当前工作空间中不存在该自动化。" };
+    }
+
+    try {
+      this.deleteAutomation(input.automationId);
+      return { ok: true, automationId: existing.id, title: existing.title };
+    } catch (error) {
+      if (error instanceof AutomationRunningConflictError) {
+        return { ok: false, error: "自动化正在运行，暂时无法删除。" };
+      }
+      if (error instanceof AutomationNotFoundError) {
+        return { ok: false, error: "当前工作空间中不存在该自动化。" };
+      }
+      console.error("Failed to delete automation from agent:", error);
+      return { ok: false, error: "删除自动化失败，请稍后重试。" };
     }
   }
 

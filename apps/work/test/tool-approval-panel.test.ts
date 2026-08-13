@@ -205,4 +205,29 @@ describe("ToolApprovalPanel", () => {
     expect(mounted.container.textContent).toContain(label);
     expect(mounted.container.textContent).toContain(scope);
   });
+
+  it.each([
+    ["automation-create", "创建持久化的定时任务", "立即注册计划"],
+    ["automation-update", "修改持久化的定时任务", "刷新触发计划"],
+    ["automation-delete", "删除持久化的定时任务", "已生成的聊天会话会保留"],
+  ] as const)("describes the %s persistent effect", (reason, label, effect) => {
+    const mounted = mountPanel(
+      createRequest({
+        toolName:
+          reason === "automation-create"
+            ? "createAutomation"
+            : reason === "automation-update"
+              ? "updateAutomation"
+              : "deleteAutomation",
+        reason,
+        display: "automation #7",
+      }),
+    );
+
+    expect(mounted.container.textContent).toContain(label);
+    expect(mounted.container.textContent).toContain(effect);
+    expect(
+      mounted.container.querySelector("[data-slot=tool-approval-partial-effects]"),
+    ).not.toBeNull();
+  });
 });

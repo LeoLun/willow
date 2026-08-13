@@ -283,8 +283,17 @@ export class AppModule {
     try {
       this.dbService.init();
       await this.automationService.initialize();
+      this.agentService.setListAutomationsHandler((workspaceId) =>
+        this.automationService.listAutomationsFromAgent(workspaceId),
+      );
       this.agentService.setCreateAutomationHandler((workspaceId, input) =>
         this.automationService.createAutomationFromAgent(input, workspaceId),
+      );
+      this.agentService.setUpdateAutomationHandler((workspaceId, input) =>
+        this.automationService.updateAutomationFromAgent(input, workspaceId),
+      );
+      this.agentService.setDeleteAutomationHandler((workspaceId, input) =>
+        this.automationService.deleteAutomationFromAgent(input, workspaceId),
       );
       if (!this.resumeListenerRegistered) {
         powerMonitor.on("resume", this.onSystemResume);

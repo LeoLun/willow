@@ -88,6 +88,9 @@ describe("Chat history scrolling", () => {
 
     expect(content.classList).toContain("max-w-[50rem]");
     expect(content.classList).toContain("px-4");
+    expect(container.querySelector("[data-slot=chat-messages]")?.classList).toContain(
+      "[scrollbar-gutter:stable_both-edges]",
+    );
     expect(composer.classList).not.toContain("px-4");
     expect(composerContent.classList).toContain("max-w-[50rem]");
     expect(composerContent.classList).toContain("px-4");

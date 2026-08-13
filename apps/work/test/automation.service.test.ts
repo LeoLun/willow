@@ -379,6 +379,141 @@ describe("AutomationService", () => {
     });
   });
 
+  describe("automation management from Agent", () => {
+    it("lists only automations in the current workspace with full business configuration", async () => {
+      const workspaceA = createWorkspace("A");
+      const workspaceB = createWorkspace("B");
+      const automationA = createAutomation(workspaceA.id, {
+        title: "A 日报",
+        prompt: "整理 A 的日报",
+        model: { providerId: "openai", modelId: "large" },
+      });
+      createAutomation(workspaceB.id, { title: "B 日报" });
+
+      const result = await service.listAutomationsFromAgent(workspaceA.id);
+
+      expect(result).toEqual({
+        ok: true,
+        automations: [
+          {
+            automationId: automationA.id,
+            title: "A 日报",
+            prompt: "整理 A 的日报",
+            status: "enabled",
+            cronExpression: "0 9 * * *",
+            timezone: "Asia/Shanghai",
+            model: { providerId: "openai", modelId: "large" },
+          },
+        ],
+      });
+    });
+
+    it("updates every exposed field and can restore the default model", async () => {
+      const workspace = createWorkspace();
+      const automation = createAutomation(workspace.id, {
+        model: { providerId: "openai", modelId: "large" },
+      });
+      scheduler.register.mockClear();
+
+      const result = await service.updateAutomationFromAgent(
+        {
+          automationId: automation.id,
+          title: "新日报",
+          prompt: "新的提示词",
+          cronExpression: "30 10 * * 1-5",
+          timezone: "UTC",
+          status: "disabled",
+          model: null,
+        },
+        workspace.id,
+      );
+
+      expect(result).toEqual({
+        ok: true,
+        automationId: automation.id,
+        title: "新日报",
+        status: "disabled",
+        cronExpression: "30 10 * * 1-5",
+        timezone: "UTC",
+      });
+      const stored = automationDao.findWithTriggerById(automation.id)!;
+      expect(stored.prompt).toBe("新的提示词");
+      expect(stored.modelProviderId).toBeNull();
+      expect(stored.modelId).toBeNull();
+      expect(scheduler.unregister).toHaveBeenCalledWith(automation.id);
+      expect(sendEvent).toHaveBeenCalledWith(AUTOMATION_CHANGED_EVENT, {
+        automationId: automation.id,
+        type: "updated",
+      });
+    });
+
+    it("does not reveal or mutate automations from another workspace", async () => {
+      const workspaceA = createWorkspace("A");
+      const workspaceB = createWorkspace("B");
+      const automation = createAutomation(workspaceB.id, { title: "B 日报" });
+
+      await expect(service.listAutomationsFromAgent(workspaceA.id)).resolves.toEqual({
+        ok: true,
+        automations: [],
+      });
+      await expect(
+        service.updateAutomationFromAgent(
+          { automationId: automation.id, title: "越界修改" },
+          workspaceA.id,
+        ),
+      ).resolves.toEqual({ ok: false, error: "当前工作空间中不存在该自动化。" });
+      await expect(
+        service.deleteAutomationFromAgent({ automationId: automation.id }, workspaceA.id),
+      ).resolves.toEqual({ ok: false, error: "当前工作空间中不存在该自动化。" });
+      expect(automationDao.findById(automation.id)?.title).toBe("B 日报");
+    });
+
+    it("returns readable validation and missing-record errors", async () => {
+      const workspace = createWorkspace();
+      const automation = createAutomation(workspace.id);
+
+      await expect(
+        service.updateAutomationFromAgent(
+          { automationId: automation.id, cronExpression: "not-cron" },
+          workspace.id,
+        ),
+      ).resolves.toEqual({ ok: false, error: "cron 表达式必须为 5 段。" });
+      await expect(
+        service.updateAutomationFromAgent({ automationId: 999_999, title: "x" }, workspace.id),
+      ).resolves.toEqual({ ok: false, error: "当前工作空间中不存在该自动化。" });
+      await expect(
+        service.deleteAutomationFromAgent({ automationId: 999_999 }, workspace.id),
+      ).resolves.toEqual({ ok: false, error: "当前工作空间中不存在该自动化。" });
+    });
+
+    it("deletes an owned automation and maps the running conflict", async () => {
+      const workspace = createWorkspace();
+      const deletable = createAutomation(workspace.id, { title: "可删除" });
+      await expect(
+        service.deleteAutomationFromAgent({ automationId: deletable.id }, workspace.id),
+      ).resolves.toEqual({ ok: true, automationId: deletable.id, title: "可删除" });
+      expect(automationDao.findById(deletable.id)).toBeUndefined();
+
+      const runningAutomation = createAutomation(workspace.id, { title: "运行中" });
+      let releaseExecution!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        releaseExecution = resolve;
+      });
+      sendMessage.mockImplementation(() => gate.then(() => assistantMessage()));
+      const running = service.runAutomationNow(runningAutomation.id);
+      await vi.waitFor(() => {
+        expect(runDao.hasRunning(runningAutomation.id)).toBe(true);
+      });
+
+      await expect(
+        service.deleteAutomationFromAgent({ automationId: runningAutomation.id }, workspace.id),
+      ).resolves.toEqual({ ok: false, error: "自动化正在运行，暂时无法删除。" });
+
+      releaseExecution();
+      await running;
+    });
+  });
+
   describe("updateAutomation", () => {
     it("re-registers on cron or timezone change and unregisters when disabled", () => {
       const workspace = createWorkspace();
@@ -587,9 +722,7 @@ describe("AutomationService", () => {
       expect(run.sessionId).toBe("agent-1");
 
       // 后台运行期间：删除被拒绝、重复手动触发被拒绝、调度触发被跳过。
-      expect(() => service.deleteAutomation(automation.id)).toThrow(
-        AutomationRunningConflictError,
-      );
+      expect(() => service.deleteAutomation(automation.id)).toThrow(AutomationRunningConflictError);
       await expect(service.runAutomationNow(automation.id)).rejects.toThrow(
         AutomationRunningConflictError,
       );

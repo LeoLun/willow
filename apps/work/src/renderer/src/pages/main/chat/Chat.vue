@@ -130,7 +130,7 @@ onBeforeUnmount(() => {
   <div class="relative h-full min-h-0 overflow-hidden" data-slot="chat-layout">
     <div
       ref="messageViewport"
-      class="h-full min-h-0 overflow-y-auto overscroll-contain"
+      class="h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable_both-edges]"
       data-slot="chat-messages"
       tabindex="-1"
       @scroll="updateScrollAnchor"

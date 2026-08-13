@@ -25,6 +25,10 @@ describe("tool display summaries", () => {
     ["todoList", { todos: [] }, "清空任务列表"],
     ["todoList", { todos: [{ title: "实现工具", status: "in_progress" }] }, "更新任务列表 · 1 项"],
     ["askUser", { questions: [{}, {}] }, "询问 2 个问题"],
+    ["listAutomations", {}, "查询当前工作空间的自动化"],
+    ["createAutomation", { cronExpression: "0 9 * * *" }, "创建定时任务 · 0 9 * * *"],
+    ["updateAutomation", { automationId: 7 }, "修改自动化 #7"],
+    ["deleteAutomation", { automationId: 7 }, "删除自动化 #7"],
   ])("formats %s calls", (name, input, expected) => {
     expect(formatToolCallTitle(name, input)).toBe(expected);
   });
@@ -69,6 +73,15 @@ describe("tool display summaries", () => {
       }),
     ).toBe("更新任务列表 · 1 项");
     expect(formatToolResultTitle({ kind: "askUser", questions: [{}, {}] })).toBe("询问 2 个问题");
+    expect(formatToolResultTitle({ kind: "listAutomations", automationCount: 2 })).toBe(
+      "已读取 2 条自动化",
+    );
+    expect(formatToolResultTitle({ kind: "updateAutomation", title: "日报" })).toBe(
+      "修改自动化「日报」",
+    );
+    expect(formatToolResultTitle({ kind: "deleteAutomation", title: "日报" })).toBe(
+      "删除自动化「日报」",
+    );
   });
 
   it("shows a pending label until a streamed write path is available", () => {

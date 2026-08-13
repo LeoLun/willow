@@ -16,7 +16,10 @@ describe("core exports", () => {
       "webfetch",
       "websearch",
       "askUser",
+      "listAutomations",
       "createAutomation",
+      "updateAutomation",
+      "deleteAutomation",
     ]);
   });
 

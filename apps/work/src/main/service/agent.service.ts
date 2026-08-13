@@ -14,7 +14,13 @@ import {
   type AskUserHandler,
   type CreateAutomationToolInput,
   type CreateAutomationToolResult,
+  type DeleteAutomationToolInput,
+  type DeleteAutomationToolResult,
+  type ListAutomationsToolInput,
+  type ListAutomationsToolResult,
   type ToolApprovalHandler,
+  type UpdateAutomationToolInput,
+  type UpdateAutomationToolResult,
 } from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import type { StatisticsRunSource } from "../db/schema";
@@ -49,6 +55,21 @@ export type WorkspaceCreateAutomationHandler = (
   input: CreateAutomationToolInput,
 ) => Promise<CreateAutomationToolResult>;
 
+export type WorkspaceListAutomationsHandler = (
+  workspaceId: number,
+  input: ListAutomationsToolInput,
+) => Promise<ListAutomationsToolResult>;
+
+export type WorkspaceUpdateAutomationHandler = (
+  workspaceId: number,
+  input: UpdateAutomationToolInput,
+) => Promise<UpdateAutomationToolResult>;
+
+export type WorkspaceDeleteAutomationHandler = (
+  workspaceId: number,
+  input: DeleteAutomationToolInput,
+) => Promise<DeleteAutomationToolResult>;
+
 type StatisticsInterceptorOptions = {
   source: StatisticsRunSource;
   workspaceId: number;
@@ -61,7 +82,10 @@ type StatisticsInterceptorOptions = {
 @Injectable()
 export class AgentService {
   private models: MutableModels;
+  private listAutomationsHandler?: WorkspaceListAutomationsHandler;
   private createAutomationHandler?: WorkspaceCreateAutomationHandler;
+  private updateAutomationHandler?: WorkspaceUpdateAutomationHandler;
+  private deleteAutomationHandler?: WorkspaceDeleteAutomationHandler;
 
   constructor(
     private readonly credentialService: CredentialService,
@@ -80,6 +104,18 @@ export class AgentService {
   /** 注入 createAutomation 工具的实现，供 AI 在对话中创建定时自动化。 */
   setCreateAutomationHandler(handler: WorkspaceCreateAutomationHandler): void {
     this.createAutomationHandler = handler;
+  }
+
+  setListAutomationsHandler(handler: WorkspaceListAutomationsHandler): void {
+    this.listAutomationsHandler = handler;
+  }
+
+  setUpdateAutomationHandler(handler: WorkspaceUpdateAutomationHandler): void {
+    this.updateAutomationHandler = handler;
+  }
+
+  setDeleteAutomationHandler(handler: WorkspaceDeleteAutomationHandler): void {
+    this.deleteAutomationHandler = handler;
   }
 
   getModel(providerId: string, modelId: string): Model<any> {
@@ -137,8 +173,17 @@ export class AgentService {
       requestApproval,
       requestUser,
       sandboxPolicy,
+      listAutomations: this.listAutomationsHandler
+        ? (input) => this.listAutomationsHandler!(workspaceId, input)
+        : undefined,
       createAutomation: this.createAutomationHandler
         ? (input) => this.createAutomationHandler!(workspaceId, input)
+        : undefined,
+      updateAutomation: this.updateAutomationHandler
+        ? (input) => this.updateAutomationHandler!(workspaceId, input)
+        : undefined,
+      deleteAutomation: this.deleteAutomationHandler
+        ? (input) => this.deleteAutomationHandler!(workspaceId, input)
         : undefined,
     });
     return this.interceptStatistics(harness, {

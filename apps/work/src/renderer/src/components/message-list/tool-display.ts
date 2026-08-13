@@ -12,6 +12,7 @@ import {
   MessageCircleQuestionIcon,
   ActivityIcon,
   Clock3Icon,
+  Trash2Icon,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -83,8 +84,14 @@ export function formatToolCallTitle(name: string, args: unknown, details?: unkno
           : `更新任务列表 · ${input.todos.length} 项`;
     case "askUser":
       return `询问 ${Array.isArray(input.questions) ? input.questions.length : 0} 个问题`;
+    case "listAutomations":
+      return "查询当前工作空间的自动化";
     case "createAutomation":
       return `创建定时任务 · ${text(input.cronExpression)}`;
+    case "updateAutomation":
+      return `修改自动化 #${typeof input.automationId === "number" ? input.automationId : "?"}`;
+    case "deleteAutomation":
+      return `删除自动化 #${typeof input.automationId === "number" ? input.automationId : "?"}`;
     default:
       return `调用工具 · ${name}`;
   }
@@ -116,8 +123,14 @@ export function formatToolCallIcon(name: string): Component {
       return ListTodoIcon;
     case "askUser":
       return MessageCircleQuestionIcon;
+    case "listAutomations":
+      return ListIcon;
     case "createAutomation":
       return Clock3Icon;
+    case "updateAutomation":
+      return PencilIcon;
+    case "deleteAutomation":
+      return Trash2Icon;
     default:
       return WrenchIcon;
   }
@@ -151,8 +164,14 @@ export function formatToolResultTitle(details: unknown): string | undefined {
       return `更新任务列表 · ${value.todos?.length ?? 0} 项`;
     case "askUser":
       return `询问 ${value.questions?.length ?? 0} 个问题`;
+    case "listAutomations":
+      return `已读取 ${value.automationCount ?? 0} 条自动化`;
     case "createAutomation":
       return `创建定时任务「${value.title ?? ""}」`;
+    case "updateAutomation":
+      return `修改自动化「${value.title ?? ""}」`;
+    case "deleteAutomation":
+      return `删除自动化「${value.title ?? ""}」`;
     default:
       return undefined;
   }

@@ -81,6 +81,21 @@ export class AutomationDao {
     return { ...row.automation, trigger: row.trigger };
   }
 
+  findWithTriggersByWorkspaceId(workspaceId: number): AutomationWithTrigger[] {
+    return this.dbService
+      .getDb()
+      .select({
+        automation: automations,
+        trigger: automationTriggers,
+      })
+      .from(automations)
+      .innerJoin(automationTriggers, eq(automationTriggers.automationId, automations.id))
+      .where(eq(automations.workspaceId, workspaceId))
+      .orderBy(desc(automations.updatedAt))
+      .all()
+      .map(({ automation, trigger }) => ({ ...automation, trigger }));
+  }
+
   createWithTrigger(input: CreateAutomationWithTriggerInput): AutomationWithTrigger {
     const { automation, trigger } = input;
     const result = this.dbService.getDb().transaction((transaction) => {
