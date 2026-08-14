@@ -10,6 +10,7 @@ import {
 import { Input } from "@willow/shadcn/components/ui/input";
 import { CircleAlert, LoaderCircle } from "lucide-vue-next";
 import { computed, ref } from "vue";
+import { notifyWorkspaceRenamed } from "@/lib/app-state-events";
 import { electronAPI } from "@/lib/ipc";
 
 const props = defineProps<{
@@ -44,6 +45,7 @@ async function renameWorkspace() {
       workspaceId: props.workspace.id,
       name: trimmedName.value,
     });
+    notifyWorkspaceRenamed(response.workspace);
     emit("renamed", response.workspace);
     emit("close");
   } catch (error) {

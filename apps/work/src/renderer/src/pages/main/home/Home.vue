@@ -17,6 +17,7 @@ const {
   pinnedWorkspaces,
   unpinnedWorkspaces,
   workspaces,
+  selectedWorkspace,
   selectedWorkspaceValue,
   loadingWorkspaces,
   workspaceLoadError,
@@ -55,7 +56,9 @@ onMounted(async () => {
                     ? '无法读取项目'
                     : '暂无项目'
               "
-            />
+            >
+              {{ selectedWorkspace?.name }}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent align="start" class="w-64 max-w-64 min-w-64">
             <SelectGroup v-if="pinnedWorkspaces.length > 0">

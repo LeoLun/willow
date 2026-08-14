@@ -2,7 +2,7 @@ import type { WorkspaceInfo } from "@shared/api";
 import { useLocalStorage } from "@vueuse/core";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter, type LocationQueryRaw } from "vue-router";
-import { onWorkspaceCreated } from "@/lib/app-state-events";
+import { onWorkspaceCreated, onWorkspaceRenamed } from "@/lib/app-state-events";
 import { electronAPI } from "@/lib/ipc";
 
 export const LAST_WORKSPACE_ID_STORAGE_KEY = "willow:last-workspace-id";
@@ -63,8 +63,12 @@ export function useWorkspaceSelection() {
   const catalogLoaded = ref(false);
   let loadSequence = 0;
   let removeWorkspaceCreatedListener: (() => void) | undefined;
+  let removeWorkspaceRenamedListener: (() => void) | undefined;
 
   const workspaces = computed(() => [...pinnedWorkspaces.value, ...unpinnedWorkspaces.value]);
+  const selectedWorkspace = computed(() =>
+    workspaces.value.find((workspace) => workspace.id === selectedWorkspaceId.value),
+  );
   const selectedWorkspaceValue = computed(() =>
     selectedWorkspaceId.value === undefined ? undefined : String(selectedWorkspaceId.value),
   );
@@ -145,6 +149,16 @@ export function useWorkspaceSelection() {
     await selectWorkspace(workspace.id);
   }
 
+  function handleWorkspaceRenamed(renamedWorkspace: WorkspaceInfo) {
+    const replace = (workspaces: WorkspaceInfo[]) =>
+      workspaces.map((workspace) =>
+        workspace.id === renamedWorkspace.id ? renamedWorkspace : workspace,
+      );
+
+    pinnedWorkspaces.value = replace(pinnedWorkspaces.value);
+    unpinnedWorkspaces.value = replace(unpinnedWorkspaces.value);
+  }
+
   watch(
     () => [route.name, route.query.workspaceId] as const,
     ([routeName]) => {
@@ -161,16 +175,21 @@ export function useWorkspaceSelection() {
     removeWorkspaceCreatedListener = onWorkspaceCreated((workspace) => {
       void handleWorkspaceCreated(workspace);
     });
+    removeWorkspaceRenamedListener = onWorkspaceRenamed(handleWorkspaceRenamed);
     if (route.name === "home") void loadWorkspaces();
   });
 
-  onBeforeUnmount(() => removeWorkspaceCreatedListener?.());
+  onBeforeUnmount(() => {
+    removeWorkspaceCreatedListener?.();
+    removeWorkspaceRenamedListener?.();
+  });
 
   return {
     pinnedWorkspaces,
     unpinnedWorkspaces,
     workspaces,
     selectedWorkspaceId,
+    selectedWorkspace,
     selectedWorkspaceValue,
     loadingWorkspaces,
     workspaceLoadError,

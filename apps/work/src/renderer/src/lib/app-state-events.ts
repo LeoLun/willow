@@ -4,6 +4,7 @@ import type { ComposerPromptTemplate } from "@/components/prompt-composer";
 const providerConfigurationListeners = new Set<() => void>();
 let pendingGuidedPrompt: ComposerPromptTemplate | undefined;
 const workspaceCreatedListeners = new Set<(workspace: WorkspaceInfo) => void>();
+const workspaceRenamedListeners = new Set<(workspace: WorkspaceInfo) => void>();
 const planPreviewListeners = new Set<(plan: TurnPlanArtifact) => void>();
 
 export function notifyProviderConfigurationChanged(): void {
@@ -22,6 +23,15 @@ export function notifyWorkspaceCreated(workspace: WorkspaceInfo): void {
 export function onWorkspaceCreated(listener: (workspace: WorkspaceInfo) => void): () => void {
   workspaceCreatedListeners.add(listener);
   return () => workspaceCreatedListeners.delete(listener);
+}
+
+export function notifyWorkspaceRenamed(workspace: WorkspaceInfo): void {
+  for (const listener of workspaceRenamedListeners) listener(workspace);
+}
+
+export function onWorkspaceRenamed(listener: (workspace: WorkspaceInfo) => void): () => void {
+  workspaceRenamedListeners.add(listener);
+  return () => workspaceRenamedListeners.delete(listener);
 }
 
 export function requestPlanPreview(plan: TurnPlanArtifact): void {

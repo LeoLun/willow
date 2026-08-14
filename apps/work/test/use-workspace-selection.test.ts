@@ -34,7 +34,10 @@ import {
   resolveWorkspaceId,
   useWorkspaceSelection,
 } from "../src/renderer/src/composables/useWorkspaceSelection";
-import { notifyWorkspaceCreated } from "../src/renderer/src/lib/app-state-events";
+import {
+  notifyWorkspaceCreated,
+  notifyWorkspaceRenamed,
+} from "../src/renderer/src/lib/app-state-events";
 
 function workspace(id: number, createdAt: string, pinned = false): WorkspaceInfo {
   return {
@@ -199,6 +202,20 @@ describe("useWorkspaceSelection", () => {
         query: { workspaceId: String(newest.id) },
       });
     });
+    mounted.app.unmount();
+  });
+
+  it("updates the displayed workspace after it is renamed while the home page is mounted", async () => {
+    mocks.route.query = { workspaceId: "2" };
+    const mounted = mountComposable();
+    await vi.waitFor(() => expect(mounted.selection.loadingWorkspaces.value).toBe(false));
+
+    const renamed = { ...newest, name: "Renamed workspace" };
+    notifyWorkspaceRenamed(renamed);
+
+    expect(mounted.selection.workspaces.value.find(({ id }) => id === renamed.id)).toEqual(renamed);
+    expect(mounted.selection.selectedWorkspace.value).toEqual(renamed);
+    expect(mounted.selection.selectedWorkspaceValue.value).toBe(String(renamed.id));
     mounted.app.unmount();
   });
 
