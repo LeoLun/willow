@@ -1,4 +1,5 @@
 import type { TruncationResult } from "@earendil-works/pi-agent-core";
+import type { AgentMode } from "../agent-mode.js";
 import type { AskUserHandler, AskUserToolDetails } from "./ask-user.js";
 import type { CreateAutomationHandler, CreateAutomationToolDetails } from "./create-automation.js";
 import type { DeleteAutomationHandler, DeleteAutomationToolDetails } from "./delete-automation.js";
@@ -24,6 +25,8 @@ export const TOOL_NAMES = [
   "createAutomation",
   "updateAutomation",
   "deleteAutomation",
+  "writePlan",
+  "updatePlan",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -93,6 +96,25 @@ export interface ReadToolDetails extends BaseDetails {
 export interface WriteToolDetails extends BaseDetails {
   kind: "write";
   path: string;
+  created: boolean;
+  addedLines: number;
+  removedLines: number;
+  lineCount: number;
+  byteCount: number;
+}
+
+export interface WritePlanToolDetails extends BaseDetails {
+  kind: "writePlan";
+  path: string;
+  fileName: string;
+  lineCount: number;
+  byteCount: number;
+}
+
+export interface UpdatePlanToolDetails extends BaseDetails {
+  kind: "updatePlan";
+  path: string;
+  fileName: string;
   lineCount: number;
   byteCount: number;
 }
@@ -175,11 +197,14 @@ export type WillowToolDetails =
   | ListAutomationsToolDetails
   | CreateAutomationToolDetails
   | UpdateAutomationToolDetails
-  | DeleteAutomationToolDetails;
+  | DeleteAutomationToolDetails
+  | WritePlanToolDetails
+  | UpdatePlanToolDetails;
 
 export type ToolRuntimeOptions = {
   cwd: string;
   agentDir?: string;
+  agentMode?: AgentMode;
   permissionMode: PermissionMode;
   requestApproval?: ToolApprovalHandler;
   requestUser?: AskUserHandler;

@@ -1,4 +1,4 @@
-import type { LocalFileAttachment, ModelConfig, PermissionMode } from "@shared/api";
+import type { AgentMode, LocalFileAttachment, ModelConfig, PermissionMode } from "@shared/api";
 import type { Component } from "vue";
 
 export type ComposerSegment =
@@ -57,6 +57,7 @@ export interface ComposerSubmitPayload {
   attachments: LocalFileAttachment[];
   approvalMode?: PermissionMode;
   model?: ModelConfig;
+  agentMode?: AgentMode;
   reasoningEffort?: string;
 }
 

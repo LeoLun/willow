@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SessionTreeEntry } from "@earendil-works/pi-agent-core";
 import type {
+  AgentMode,
   ModelConfig,
   PermissionMode,
   UserQuestionEventPayload,
@@ -15,6 +16,7 @@ import { SessionService } from "./session.service";
 const USER_QUESTION_ENTRY = "willow.user-question";
 
 export type UserQuestionRecoveryContext = {
+  agentMode?: AgentMode;
   model: ModelConfig;
   permissionMode: PermissionMode;
   userMessage: string;

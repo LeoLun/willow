@@ -2,9 +2,11 @@ import { AgentHarness, type ExecutionEnv, type SessionRepo } from "@earendil-wor
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
 import { AGENT_DIR } from "./constant";
+import { getPlanModePrompt } from "./prompt/plan-mode.js";
 import { createWillowTools } from "./tools/index.js";
 import { restoreTodoList } from "./tools/todo-list.js";
 import type { AgentCoreOptions, AgentHarnessOptions } from "./types";
+import { resolvePlanDirectory } from "./utils/agent-paths.js";
 import { DefaultResourceLoader } from "./utils/resource-loader";
 
 // AgentCore 每个工作空间一个
@@ -56,14 +58,28 @@ export class AgentCore {
       ? await this.sessionManager.open(options.metadata)
       : await this.sessionManager.create({});
 
-    const { systemPrompt } = await this.loader.reload();
+    const agentMode = options.agentMode ?? "default";
+    const roleAdditional =
+      agentMode === "plan" ? getPlanModePrompt(resolvePlanDirectory(this.agentDir)) : "";
+    const { systemPrompt } = await this.loader.reload(roleAdditional);
     const initialTodoList = restoreTodoList(await session.getBranch());
 
-    const sandboxPolicy = this.builtinSkills
+    const shouldExtendSandboxPolicy = this.builtinSkills !== undefined || agentMode === "plan";
+    const sandboxPolicy = shouldExtendSandboxPolicy
       ? {
           ...options.sandboxPolicy,
-          allowRead: [...(options.sandboxPolicy?.allowRead ?? []), this.builtinSkills.directory],
-          allowWrite: [...(options.sandboxPolicy?.allowWrite ?? []), this.builtinSkills.directory],
+          allowRead: [
+            ...(options.sandboxPolicy?.allowRead ?? []),
+            ...(this.builtinSkills ? [this.builtinSkills.directory] : []),
+            ...(agentMode === "plan" ? [resolvePlanDirectory(this.agentDir)] : []),
+          ],
+          allowWrite:
+            agentMode === "plan"
+              ? options.sandboxPolicy?.allowWrite
+              : [
+                  ...(options.sandboxPolicy?.allowWrite ?? []),
+                  ...(this.builtinSkills ? [this.builtinSkills.directory] : []),
+                ],
         }
       : options.sandboxPolicy;
     const harness = new AgentHarness({
@@ -75,6 +91,7 @@ export class AgentCore {
       tools: createWillowTools({
         cwd: this.cwd,
         agentDir: this.agentDir,
+        agentMode,
         permissionMode,
         requestApproval: options.requestApproval,
         requestUser: options.requestUser,

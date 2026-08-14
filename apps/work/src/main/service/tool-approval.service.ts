@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SessionTreeEntry } from "@earendil-works/pi-agent-core";
 import type {
+  AgentMode,
   AiApprovalReview,
   ModelConfig,
   PermissionMode,
@@ -16,6 +17,7 @@ import { SessionService } from "./session.service";
 const TOOL_APPROVAL_ENTRY = "willow.tool-approval";
 
 export type ToolApprovalRecoveryContext = {
+  agentMode?: AgentMode;
   model: ModelConfig;
   permissionMode: PermissionMode;
   userMessage: string;

@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   getUserConfig: vi.fn(),
   listWorkspaceDirectory: vi.fn(),
   openWorkspaceDirectory: vi.fn(),
+  readPlanFile: vi.fn(),
   readWorkspaceFile: vi.fn(),
   removeEventListener: vi.fn(),
   searchFiles: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock("@/lib/ipc", () => ({
     getUserConfig: mocks.getUserConfig,
     listWorkspaceDirectory: mocks.listWorkspaceDirectory,
     openWorkspaceDirectory: mocks.openWorkspaceDirectory,
+    readPlanFile: mocks.readPlanFile,
     readWorkspaceFile: mocks.readWorkspaceFile,
     searchFiles: mocks.searchFiles,
     subscribeWorkspaceFiles: mocks.subscribeWorkspaceFiles,
@@ -195,6 +197,9 @@ beforeEach(() => {
     entries: [{ name: "package.json", relativePath: "package.json", type: "file" }],
   });
   mocks.openWorkspaceDirectory.mockResolvedValue({});
+  mocks.readPlanFile.mockResolvedValue({
+    file: { content: "", name: "", path: "", byteCount: 0, lineCount: 0, status: "ready" },
+  });
   mocks.readWorkspaceFile.mockResolvedValue({
     file: {
       content: '{ "name": "willow" }',
@@ -276,6 +281,10 @@ describe("ChatBase right sidebar", () => {
       restoredContainer.querySelector<HTMLElement>('[data-slot="chat-right-sidebar"]')?.style
         .display,
     ).not.toBe("none");
+    expect(
+      restoredContainer.querySelector('[data-slot="chat-right-sidebar"] [role="tab"]')
+        ?.textContent,
+    ).toContain("package.json");
 
     getToggle(restoredContainer).click();
     await nextTick();
@@ -283,6 +292,27 @@ describe("ChatBase right sidebar", () => {
       restoredContainer.querySelector<HTMLElement>('[data-slot="chat-right-sidebar"]')?.style
         .display,
     ).toBe("none");
+    expect(localStorage.getItem(rightSidebarOpenStorageKey("session-a"))).toBe("false");
+  });
+
+  it("collapses the sidebar when the last tab is closed manually", async () => {
+    const container = await mountChatBase();
+    getToggle(container).click();
+    await nextTick();
+
+    const rightSidebar = container.querySelector<HTMLElement>('[data-slot="chat-right-sidebar"]');
+    rightSidebar?.querySelector<HTMLButtonElement>('[data-panel-launcher="board"]')?.click();
+    await nextTick();
+
+    expect(
+      rightSidebar?.querySelector('[data-panel-kind="board"][data-slot="right-sidebar-tab"]'),
+    ).not.toBeNull();
+
+    rightSidebar?.querySelector<HTMLButtonElement>('button[aria-label="关闭 看板"]')?.click();
+    await nextTick();
+
+    expect(rightSidebar?.style.display).toBe("none");
+    expect(getToggle(container).getAttribute("aria-expanded")).toBe("false");
     expect(localStorage.getItem(rightSidebarOpenStorageKey("session-a"))).toBe("false");
   });
 

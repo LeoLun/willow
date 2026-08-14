@@ -84,6 +84,21 @@ describe("message queue", () => {
     pending.resolve(undefined);
   });
 
+  it("preserves Plan mode until a queued message is sent", async () => {
+    const pending = deferred<unknown>();
+    const { queue, send } = createQueue();
+    send.mockReturnValue(pending.promise);
+
+    queue.enqueue({
+      workspaceId: 1,
+      sessionId: "session",
+      payload: { ...payload("plan it"), agentMode: "plan" },
+    });
+
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ agentMode: "plan" }));
+    pending.resolve(undefined);
+  });
+
   it("runs different sessions independently", () => {
     const { queue, send } = createQueue();
     send.mockImplementation(() => new Promise(() => undefined));

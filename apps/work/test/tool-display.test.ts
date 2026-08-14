@@ -14,6 +14,8 @@ describe("tool display summaries", () => {
     ["bash", { command: "pnpm test" }, "$ pnpm test"],
     ["read", { path: "src/main.ts", limit: 20 }, "读取 src/main.ts · 20 行"],
     ["write", { path: "a.txt", content: "one\ntwo" }, "写入 a.txt · 2 行"],
+    ["writePlan", { name: "Plan mode" }, "保存计划 · Plan mode"],
+    ["updatePlan", { fileName: "2026-08-13-plan-mode.md" }, "更新计划 2026-08-13-plan-mode.md"],
     ["edit", { path: "a.txt" }, "修改 a.txt"],
     ["ls", { path: "src" }, "查询 src"],
     ["grep", { pattern: "needle" }, "搜索内容 /needle/"],
@@ -51,6 +53,20 @@ describe("tool display summaries", () => {
         lineCount: 12,
       }),
     ).toBe("读取 a.txt · 12 行");
+    expect(
+      formatToolResultTitle({
+        kind: "writePlan",
+        fileName: "2026-08-13-plan-mode.md",
+        lineCount: 42,
+      }),
+    ).toBe("保存计划 2026-08-13-plan-mode.md · 42 行");
+    expect(
+      formatToolResultTitle({
+        kind: "updatePlan",
+        fileName: "2026-08-13-plan-mode.md",
+        lineCount: 48,
+      }),
+    ).toBe("更新计划 2026-08-13-plan-mode.md · 48 行");
     expect(
       formatToolResultTitle({
         kind: "webfetch",

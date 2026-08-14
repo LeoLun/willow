@@ -5,9 +5,13 @@ import ToolMessage from "./roles/ToolMessage.vue";
 import UserMessage from "./roles/UserMessage.vue";
 import type { Message, MessageContent, ToolCallContent } from "./types";
 
-const props = withDefaults(defineProps<{ messages: readonly Message[]; streaming?: boolean }>(), {
-  streaming: false,
-});
+const props = withDefaults(
+  defineProps<{
+    messages: readonly Message[];
+    streaming?: boolean;
+  }>(),
+  { streaming: false },
+);
 
 type MessageItem = {
   type: "message";
@@ -22,8 +26,11 @@ function withContent(message: Message, content: MessageContent[], id: string): M
   return { ...message, id, content };
 }
 
-function hasCopyableText(message: Message): boolean {
-  return message.content.some((content) => content.type === "text" && content.text.length > 0);
+function hasTurnFooter(message: Message): boolean {
+  return (
+    message.artifact !== undefined ||
+    message.content.some((content) => content.type === "text" && content.text.length > 0)
+  );
 }
 
 const displayItems = computed<DisplayItem[]>(() => {
@@ -82,7 +89,7 @@ const displayItems = computed<DisplayItem[]>(() => {
     lastItem?.type === "message" &&
     lastItem.message.role === "assistant" &&
     lastItem.message.status === "completed" &&
-    hasCopyableText(lastItem.message)
+    hasTurnFooter(lastItem.message)
   ) {
     lastItem.showToolbar = true;
   }

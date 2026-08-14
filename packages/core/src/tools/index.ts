@@ -13,11 +13,28 @@ import { createReadTool } from "./read.js";
 import { createTodoListTool } from "./todo-list.js";
 import type { ToolRuntimeOptions } from "./types.js";
 import { createUpdateAutomationTool } from "./update-automation.js";
+import { createUpdatePlanTool } from "./update-plan.js";
 import { createWebFetchTool } from "./webfetch.js";
 import { createWebSearchTool } from "./websearch.js";
+import { createWritePlanTool } from "./write-plan.js";
 import { createWriteTool } from "./write.js";
 
 export function createWillowTools(options: ToolRuntimeOptions): AgentTool[] {
+  if (options.agentMode === "plan") {
+    const tools: AgentTool[] = [
+      createReadTool(options),
+      createLsTool(options),
+      createGrepTool(options),
+      createFindTool(options),
+      createWebFetchTool(options),
+    ];
+    if (options.tavilyApiKey?.trim()) tools.push(createWebSearchTool(options));
+    tools.push(createAskUserTool(options));
+    tools.push(createWritePlanTool(options));
+    tools.push(createUpdatePlanTool(options));
+    return tools;
+  }
+
   const tools: AgentTool[] = [
     createBashTool(options),
     createReadTool(options),
@@ -54,7 +71,9 @@ export * from "./process-list.js";
 export * from "./read.js";
 export * from "./todo-list.js";
 export * from "./update-automation.js";
+export * from "./update-plan.js";
 export * from "./types.js";
 export * from "./webfetch.js";
 export * from "./websearch.js";
 export * from "./write.js";
+export * from "./write-plan.js";

@@ -1,6 +1,7 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, ModelThinkingLevel } from "@earendil-works/pi-ai";
 import type {
+  AgentMode,
   AskUserAnswers,
   AskUserRequest,
   PermissionMode,
@@ -11,7 +12,7 @@ import type { LocalFileAttachment } from "./local-file";
 
 export type { LocalFileAttachment } from "./local-file";
 
-export type { AskUserAnswers, PermissionMode, ToolApprovalDecision };
+export type { AgentMode, AskUserAnswers, PermissionMode, ToolApprovalDecision };
 
 export interface ApiResponse<K> {
   code: number;
@@ -185,6 +186,25 @@ export interface ReadWorkspaceFileRequest {
 
 export interface ReadWorkspaceFileResponse {
   file: WorkspaceFileContent;
+}
+
+export type PlanFileReadStatus = "ready" | "too-large" | "binary";
+
+export interface PlanFileContent {
+  content: string;
+  name: string;
+  path: string;
+  byteCount: number;
+  lineCount: number;
+  status: PlanFileReadStatus;
+}
+
+export interface ReadPlanFileRequest {
+  path: string;
+}
+
+export interface ReadPlanFileResponse {
+  file: PlanFileContent;
 }
 
 export interface OpenWorkspaceFileRequest {
@@ -566,6 +586,11 @@ export type MessageEventPayload =
       event: MessageStreamEvent;
     }
   | {
+      type: "artifact";
+      sessionId: string;
+      artifact: TurnArtifactBundle;
+    }
+  | {
       type: "status";
       sessionId: string;
       status: SessionStatus;
@@ -582,6 +607,7 @@ export interface SendMessageRequest {
   sessionId: string;
   content: string;
   model: ModelConfig;
+  agentMode?: AgentMode;
   approvalMode?: PermissionMode;
   attachments?: LocalFileAttachment[];
 }
@@ -604,8 +630,34 @@ export interface GetMessageListRequest {
   sessionId: string;
 }
 
+export type TurnFileArtifactStatus = "added" | "modified" | "deleted" | "renamed";
+
+export interface TurnFileArtifact {
+  additions?: number;
+  deletions?: number;
+  oldPath?: string;
+  path: string;
+  status: TurnFileArtifactStatus;
+}
+
+export interface TurnPlanArtifact {
+  byteCount: number;
+  content: string;
+  fileName: string;
+  lineCount: number;
+  path: string;
+}
+
+export interface TurnArtifactBundle {
+  assistantTimestamp: number;
+  files: TurnFileArtifact[];
+  plans: TurnPlanArtifact[];
+  version: 1;
+}
+
 export interface GetMessageListResponse {
   messages: AgentMessage[];
+  artifacts: TurnArtifactBundle[];
   pendingToolApproval?: ToolApprovalEventPayload;
   pendingUserQuestion?: UserQuestionEventPayload;
 }

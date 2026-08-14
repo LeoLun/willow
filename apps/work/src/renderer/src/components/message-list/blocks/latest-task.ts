@@ -10,18 +10,42 @@ export interface LatestTaskSchedulerOptions<TInput, TOutput> {
   onResult(result: TOutput, input: TInput): void;
 }
 
+interface PendingTask<TInput> {
+  input: TInput;
+  revision: number;
+  immediate: boolean;
+}
+
+/**
+ * Runs only the latest scheduled task while throttling how often it can start.
+ *
+ * Non-immediate scheduling throttles by `delayMs`: the first task runs right away and
+ * subsequent tasks run at most once per `delayMs`, always using the newest input. This keeps
+ * streaming markdown rendering periodically (unlike a pure debounce, which keeps pushing the
+ * timer out and never runs while input keeps arriving faster than the delay).
+ *
+ * `immediate` scheduling bypasses the throttle and drains the newest input as soon as the
+ * in-flight task settles, which is used for the final non-streaming render.
+ */
 export function createLatestTaskScheduler<TInput, TOutput>(
   options: LatestTaskSchedulerOptions<TInput, TOutput>,
 ): LatestTaskScheduler<TInput> {
   let disposed = false;
   let latestRevision = 0;
-  let pending: { input: TInput; revision: number } | undefined;
+  let pending: PendingTask<TInput> | undefined;
   let running = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let lastRunStartedAt = 0;
 
   const clearTimer = () => {
     if (timer) clearTimeout(timer);
     timer = undefined;
+  };
+
+  const scheduleDeferred = () => {
+    clearTimer();
+    const wait = Math.max(0, options.delayMs - (Date.now() - lastRunStartedAt));
+    timer = setTimeout(() => void drain(), wait);
   };
 
   const drain = async (): Promise<void> => {
@@ -30,6 +54,7 @@ export function createLatestTaskScheduler<TInput, TOutput>(
     const current = pending;
     pending = undefined;
     running = true;
+    lastRunStartedAt = Date.now();
     try {
       const result = await options.run(current.input);
       if (!disposed && current.revision === latestRevision) {
@@ -39,7 +64,9 @@ export function createLatestTaskScheduler<TInput, TOutput>(
       if (!disposed && current.revision === latestRevision) options.onError?.(error);
     } finally {
       running = false;
-      if (!disposed && pending && !timer) void drain();
+      if (disposed || !pending) return;
+      if (pending.immediate) void drain();
+      else scheduleDeferred();
     }
   };
 
@@ -47,12 +74,11 @@ export function createLatestTaskScheduler<TInput, TOutput>(
     schedule(input, immediate = false) {
       if (disposed) return;
       latestRevision += 1;
-      pending = { input, revision: latestRevision };
-      clearTimer();
+      pending = { input, revision: latestRevision, immediate };
       if (immediate) {
         void drain();
-      } else {
-        timer = setTimeout(() => void drain(), options.delayMs);
+      } else if (!running) {
+        scheduleDeferred();
       }
     },
     dispose() {

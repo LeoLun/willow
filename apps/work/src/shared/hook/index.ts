@@ -6,6 +6,7 @@ import type { IFileSearchApi } from "./file-search.hook";
 import type { IGitReviewApi } from "./git-review.hook";
 import type { ILocalFileApi } from "./local-file.hook";
 import type { IMessageApi } from "./message.hook";
+import type { IPlanApi } from "./plan.hook";
 import type { ISessionApi } from "./session.hook";
 import type { ISettingApi } from "./setting.hook";
 import type { ISkillApi } from "./skill.hook";
@@ -21,6 +22,7 @@ export interface IRenderHook
     IGitReviewApi,
     ILocalFileApi,
     IMessageApi,
+    IPlanApi,
     ISessionApi,
     ISettingApi,
     ISkillApi,

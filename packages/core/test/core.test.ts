@@ -1,5 +1,5 @@
 import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { InMemorySessionRepo } from "@earendil-works/pi-agent-core";
 import type { CredentialStore } from "@earendil-works/pi-ai";
@@ -77,6 +77,40 @@ describe("AgentCore model setup", () => {
     });
   });
 
+  it("only adds read access to the built-in skills directory in Plan mode", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "willow-core-plan-"));
+    const builtinSkillsDirectory = await mkdtemp(join(tmpdir(), "willow-builtin-skills-"));
+    temporaryDirectories.push(cwd, builtinSkillsDirectory);
+    const credentials = {
+      read: vi.fn(async () => ({ type: "api_key" as const, key: "sk-test" })),
+      modify: vi.fn(async (_providerId, update) => update({ type: "api_key", key: "sk-test" })),
+      delete: vi.fn(async () => undefined),
+    } satisfies CredentialStore;
+    const models = builtinModels({ credentials });
+    const core = new AgentCore({
+      cwd,
+      models,
+      sessionRepo: new InMemorySessionRepo(),
+      builtinSkills: { directory: builtinSkillsDirectory },
+    });
+
+    await core.getAgentHarness({
+      model: models.getModel("deepseek", "deepseek-v4-flash")!,
+      agentMode: "plan",
+      permissionMode: "full-access",
+      sandboxPolicy: {
+        allowRead: ["/existing-read"],
+        allowWrite: ["/existing-write"],
+      },
+    });
+
+    expect(capturedToolOptions).toHaveLength(1);
+    expect(capturedToolOptions[0].sandboxPolicy).toEqual({
+      allowRead: ["/existing-read", builtinSkillsDirectory, join(homedir(), ".willow", "plan")],
+      allowWrite: ["/existing-write"],
+    });
+  });
+
   it("restores todo state from the selected session branch", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "willow-core-"));
     temporaryDirectories.push(cwd);
@@ -113,5 +147,30 @@ describe("AgentCore model setup", () => {
     expect(capturedToolOptions[0].initialTodoList).toEqual([
       { title: "继续实现", status: "in_progress" },
     ]);
+  });
+
+  it("passes Plan mode to the restricted tool factory", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "willow-core-plan-"));
+    temporaryDirectories.push(cwd);
+    const credentials = {
+      read: vi.fn(async () => ({ type: "api_key" as const, key: "sk-test" })),
+      modify: vi.fn(async (_providerId, update) => update({ type: "api_key", key: "sk-test" })),
+      delete: vi.fn(async () => undefined),
+    } satisfies CredentialStore;
+    const models = builtinModels({ credentials });
+    const core = new AgentCore({ cwd, models, sessionRepo: new InMemorySessionRepo() });
+
+    await core.getAgentHarness({
+      model: models.getModel("deepseek", "deepseek-v4-flash")!,
+      agentMode: "plan",
+      permissionMode: "full-access",
+    });
+
+    expect(capturedToolOptions).toHaveLength(1);
+    expect(capturedToolOptions[0].agentMode).toBe("plan");
+    expect(capturedToolOptions[0].sandboxPolicy).toEqual({
+      allowRead: [join(homedir(), ".willow", "plan")],
+      allowWrite: undefined,
+    });
   });
 });

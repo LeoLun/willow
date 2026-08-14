@@ -7,7 +7,9 @@ export {
 export type {
   BoardPanelState,
   FilePanelState,
+  PlanPanelState,
   ReviewPanelState,
+  RightSidebarHandle,
   RightSidebarPanelKind,
   RightSidebarPanelStateMap,
   RightSidebarTab,

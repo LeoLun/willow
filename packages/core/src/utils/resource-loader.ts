@@ -36,14 +36,14 @@ export class DefaultResourceLoader {
     this.env = options.env;
   }
 
-  async reload() {
+  async reload(roleAdditional = "") {
     await Promise.all([this.loadSkills(), this.loadAgentFiles()]);
     this.systemPrompt = getSystemPrompt({
       cwd: this.cwd,
       agentDir: this.agentDir,
       skills: this.skills,
       agentsFiles: this.agentsFiles,
-      roleAdditional: "",
+      roleAdditional,
     });
     this.isInit = true;
     return {

@@ -8,6 +8,7 @@ import type {
 } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type {
+  AgentMode,
   GetMessageListResponse,
   MessageEventPayload,
   ModelConfig,
@@ -36,6 +37,7 @@ import { MessageStreamEmitter } from "./message-stream-emitter";
 import { SessionService } from "./session.service";
 import { TitleService } from "./title.service";
 import { ToolApprovalService } from "./tool-approval.service";
+import { TurnArtifactCapture, TurnArtifactService } from "./turn-artifact.service";
 import { UserQuestionService } from "./user-question.service";
 
 export type SendMessageInput = {
@@ -43,6 +45,7 @@ export type SendMessageInput = {
   sessionId: string;
   content: string;
   model: ModelConfig;
+  agentMode?: AgentMode;
   approvalMode?: PermissionMode;
   attachments?: LocalFileAttachment[];
   /**
@@ -87,6 +90,7 @@ export class MessageService {
     private readonly aiToolApprovalService: AiToolApprovalService,
     private readonly toolApprovalService: ToolApprovalService,
     private readonly userQuestionService: UserQuestionService,
+    private readonly turnArtifactService: TurnArtifactService,
   ) {}
 
   async sendMessage(input: SendMessageInput): Promise<AssistantMessage> {
@@ -138,13 +142,15 @@ export class MessageService {
     }
     const grantedFiles = this.mergeFiles(inheritedFiles, inspectedAttachments);
     const permissionMode = input.approvalMode ?? "request-approval";
+    const agentMode = input.agentMode ?? "default";
     const interactionMode = input.interactionMode ?? "interactive";
     const harness = await this.agentService.getAgentHarness({
       workspaceId: input.workspaceId,
       cwd: workspace.path,
       model,
       metadata: session,
-      sandboxPolicy: { allowWrite: grantedFiles.map((file) => file.path) },
+      agentMode,
+      sandboxPolicy: this.sandboxPolicyForFiles(grantedFiles, agentMode),
       permissionMode,
       requestApproval: this.createApprovalHandler({
         workspaceId: input.workspaceId,
@@ -153,6 +159,7 @@ export class MessageService {
         userMessage: content,
         model: input.model,
         permissionMode,
+        agentMode,
         interactionMode,
       }),
       requestUser: this.createUserQuestionHandler({
@@ -160,12 +167,19 @@ export class MessageService {
         sessionId: input.sessionId,
         model: input.model,
         permissionMode,
+        agentMode,
         userMessage: content,
         interactionMode,
       }),
     });
+    const artifactCapture = await this.turnArtifactService.begin(
+      input.workspaceId,
+      input.sessionId,
+      branch,
+    );
     const stream = new MessageStreamEmitter(input.sessionId, (payload) => this.emit(payload));
     const unsubscribe = harness.subscribe((event) => {
+      if (event.type === "message_end") artifactCapture.recordMessage(event.message);
       if (this.isMessageStreamEvent(event)) {
         stream.push(event);
       }
@@ -190,6 +204,7 @@ export class MessageService {
       const prompt = grant ? appendLocalFileBlock(content, grant) : content;
       const response =
         images.length > 0 ? await harness.prompt(prompt, { images }) : await harness.prompt(prompt);
+      await this.completeArtifactCapture(input.sessionId, artifactCapture, response.timestamp);
       if (!task.stopped) {
         if (response.stopReason === "error") {
           this.emit({
@@ -214,6 +229,7 @@ export class MessageService {
       }
       return response;
     } catch (error) {
+      await artifactCapture.dispose();
       if (!task.stopped) {
         this.emit({
           type: "status",
@@ -225,6 +241,7 @@ export class MessageService {
       }
       throw error;
     } finally {
+      await artifactCapture.dispose();
       stream.dispose();
       unsubscribe();
       if (this.activeTasks.get(key) === task) {
@@ -245,13 +262,15 @@ export class MessageService {
   }
 
   async getMessageList(workspaceId: number, sessionId: string): Promise<GetMessageListResponse> {
-    const [messages, approval, question] = await Promise.all([
+    const [messages, branch, approval, question] = await Promise.all([
       this.sessionService.getMessageList(workspaceId, sessionId),
+      this.sessionService.getBranch(workspaceId, sessionId),
       this.toolApprovalService.getPendingApproval(workspaceId, sessionId),
       this.userQuestionService.getPendingQuestion(workspaceId, sessionId),
     ]);
     return {
       messages,
+      artifacts: this.turnArtifactService.getArtifacts(branch),
       pendingToolApproval: approval?.payload,
       pendingUserQuestion: question?.payload,
     };
@@ -340,6 +359,19 @@ export class MessageService {
     this.eventService.sendEvent(MESSAGE_EVENT, payload);
   }
 
+  private async completeArtifactCapture(
+    sessionId: string,
+    capture: TurnArtifactCapture,
+    assistantTimestamp?: number,
+  ): Promise<void> {
+    try {
+      const artifact = await capture.complete(assistantTimestamp);
+      if (artifact) this.emit({ type: "artifact", sessionId, artifact });
+    } catch (error) {
+      console.error("保存轮次产物失败:", error);
+    }
+  }
+
   private isMessageStreamEvent(
     event: AgentHarnessEvent,
   ): event is Extract<
@@ -411,9 +443,9 @@ export class MessageService {
     return [...files.values()];
   }
 
-  private async getSessionSandboxPolicy(workspaceId: number, sessionId: string) {
-    const branch = await this.sessionService.getBranch(workspaceId, sessionId);
-    return { allowWrite: this.getGrantedFiles(branch).map((file) => file.path) };
+  private sandboxPolicyForFiles(files: readonly LocalFileAttachment[], agentMode: AgentMode) {
+    const paths = files.map((file) => file.path);
+    return agentMode === "plan" ? { allowRead: paths } : { allowWrite: paths };
   }
 
   private createApprovalHandler(options: {
@@ -423,6 +455,7 @@ export class MessageService {
     userMessage: string;
     model: ModelConfig;
     permissionMode: PermissionMode;
+    agentMode: AgentMode;
     interactionMode: "interactive" | "unattended";
   }): ToolApprovalHandler {
     return async (request, signal) => {
@@ -454,6 +487,7 @@ export class MessageService {
           {
             model: options.model,
             permissionMode: options.permissionMode,
+            agentMode: options.agentMode,
             userMessage: options.userMessage,
           },
           signal,
@@ -479,6 +513,7 @@ export class MessageService {
         {
           model: options.model,
           permissionMode: options.permissionMode,
+          agentMode: options.agentMode,
           userMessage: options.userMessage,
         },
         signal,
@@ -492,6 +527,7 @@ export class MessageService {
     sessionId: string;
     model: ModelConfig;
     permissionMode: PermissionMode;
+    agentMode: AgentMode;
     userMessage: string;
     interactionMode: "interactive" | "unattended";
   }): AskUserHandler {
@@ -508,6 +544,7 @@ export class MessageService {
         {
           model: options.model,
           permissionMode: options.permissionMode,
+          agentMode: options.agentMode,
           userMessage: options.userMessage,
         },
         signal,
@@ -528,6 +565,7 @@ export class MessageService {
     if (!workspace) throw new Error(`Workspace not found: ${payload.workspaceId}`);
 
     const session = this.sessionService.getSession(payload.workspaceId, payload.sessionId);
+    const branch = await this.sessionService.getBranch(payload.workspaceId, payload.sessionId);
     const model = this.agentService.getModel(approval.model.providerId, approval.model.modelId);
     const fallbackApproval = this.createApprovalHandler({
       workspaceId: payload.workspaceId,
@@ -536,6 +574,7 @@ export class MessageService {
       userMessage: approval.userMessage,
       model: approval.model,
       permissionMode: approval.permissionMode,
+      agentMode: approval.agentMode ?? "default",
       interactionMode: "interactive",
     });
     let replayApprovalAvailable = true;
@@ -544,7 +583,11 @@ export class MessageService {
       cwd: workspace.path,
       model,
       metadata: session,
-      sandboxPolicy: await this.getSessionSandboxPolicy(payload.workspaceId, payload.sessionId),
+      agentMode: approval.agentMode ?? "default",
+      sandboxPolicy: this.sandboxPolicyForFiles(
+        this.getGrantedFiles(branch),
+        approval.agentMode ?? "default",
+      ),
       permissionMode: approval.permissionMode,
       requestApproval: async (request, signal) => {
         if (
@@ -562,14 +605,21 @@ export class MessageService {
         sessionId: payload.sessionId,
         model: approval.model,
         permissionMode: approval.permissionMode,
+        agentMode: approval.agentMode ?? "default",
         userMessage: approval.userMessage,
         interactionMode: "interactive",
       }),
     });
+    const artifactCapture = await this.turnArtifactService.begin(
+      payload.workspaceId,
+      payload.sessionId,
+      branch,
+    );
     const stream = new MessageStreamEmitter(payload.sessionId, (eventPayload) =>
       this.emit(eventPayload),
     );
     const unsubscribe = harness.subscribe((event) => {
+      if (event.type === "message_end") artifactCapture.recordMessage(event.message);
       if (this.isMessageStreamEvent(event)) {
         stream.push(event);
       }
@@ -580,14 +630,17 @@ export class MessageService {
 
     try {
       const toolResult = await this.replayToolCall(harness, approval, decision);
+      artifactCapture.recordMessage(toolResult);
       await harness.appendMessage(toolResult);
       stream.push({ type: "message_start", message: toolResult });
       stream.push({ type: "message_end", message: toolResult });
       await harness.continue();
+      await this.completeArtifactCapture(payload.sessionId, artifactCapture);
       if (!task.stopped) {
         this.emit({ type: "status", sessionId: payload.sessionId, status: "completed" });
       }
     } catch (error) {
+      await artifactCapture.dispose();
       if (!task.stopped) {
         this.emit({
           type: "status",
@@ -598,6 +651,7 @@ export class MessageService {
       }
       throw error;
     } finally {
+      await artifactCapture.dispose();
       stream.dispose();
       unsubscribe();
       if (this.activeTasks.get(key) === task) this.activeTasks.delete(key);
@@ -614,6 +668,7 @@ export class MessageService {
     if (!workspace) throw new Error(`Workspace not found: ${payload.workspaceId}`);
 
     const session = this.sessionService.getSession(payload.workspaceId, payload.sessionId);
+    const branch = await this.sessionService.getBranch(payload.workspaceId, payload.sessionId);
     const model = this.agentService.getModel(question.model.providerId, question.model.modelId);
     const fallbackApproval = this.createApprovalHandler({
       workspaceId: payload.workspaceId,
@@ -622,6 +677,7 @@ export class MessageService {
       userMessage: question.userMessage,
       model: question.model,
       permissionMode: question.permissionMode,
+      agentMode: question.agentMode ?? "default",
       interactionMode: "interactive",
     });
     const fallbackQuestion = this.createUserQuestionHandler({
@@ -629,6 +685,7 @@ export class MessageService {
       sessionId: payload.sessionId,
       model: question.model,
       permissionMode: question.permissionMode,
+      agentMode: question.agentMode ?? "default",
       userMessage: question.userMessage,
       interactionMode: "interactive",
     });
@@ -638,7 +695,11 @@ export class MessageService {
       cwd: workspace.path,
       model,
       metadata: session,
-      sandboxPolicy: await this.getSessionSandboxPolicy(payload.workspaceId, payload.sessionId),
+      agentMode: question.agentMode ?? "default",
+      sandboxPolicy: this.sandboxPolicyForFiles(
+        this.getGrantedFiles(branch),
+        question.agentMode ?? "default",
+      ),
       permissionMode: question.permissionMode,
       requestApproval: fallbackApproval,
       requestUser: async (request, signal) => {
@@ -649,10 +710,16 @@ export class MessageService {
         return fallbackQuestion(request, signal);
       },
     });
+    const artifactCapture = await this.turnArtifactService.begin(
+      payload.workspaceId,
+      payload.sessionId,
+      branch,
+    );
     const stream = new MessageStreamEmitter(payload.sessionId, (eventPayload) =>
       this.emit(eventPayload),
     );
     const unsubscribe = harness.subscribe((event) => {
+      if (event.type === "message_end") artifactCapture.recordMessage(event.message);
       if (this.isMessageStreamEvent(event)) {
         stream.push(event);
       }
@@ -663,14 +730,17 @@ export class MessageService {
 
     try {
       const toolResult = await this.replayUserQuestion(harness, question);
+      artifactCapture.recordMessage(toolResult);
       await harness.appendMessage(toolResult);
       stream.push({ type: "message_start", message: toolResult });
       stream.push({ type: "message_end", message: toolResult });
       await harness.continue();
+      await this.completeArtifactCapture(payload.sessionId, artifactCapture);
       if (!task.stopped) {
         this.emit({ type: "status", sessionId: payload.sessionId, status: "completed" });
       }
     } catch (error) {
+      await artifactCapture.dispose();
       if (!task.stopped) {
         this.emit({
           type: "status",
@@ -681,6 +751,7 @@ export class MessageService {
       }
       throw error;
     } finally {
+      await artifactCapture.dispose();
       stream.dispose();
       unsubscribe();
       if (this.activeTasks.get(key) === task) this.activeTasks.delete(key);

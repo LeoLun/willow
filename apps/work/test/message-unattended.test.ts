@@ -16,6 +16,7 @@ import {
 import type { SessionService } from "../src/main/service/session.service";
 import type { TitleService } from "../src/main/service/title.service";
 import type { ToolApprovalService } from "../src/main/service/tool-approval.service";
+import type { TurnArtifactService } from "../src/main/service/turn-artifact.service";
 import type { UserQuestionService } from "../src/main/service/user-question.service";
 
 const model = { id: "model" } as Model<any>;
@@ -109,6 +110,13 @@ describe("MessageService unattended mode", () => {
     const userQuestionService = {
       request: requestQuestion,
     } as unknown as UserQuestionService;
+    const turnArtifactService = {
+      begin: vi.fn(async () => ({
+        complete: vi.fn(async () => undefined),
+        dispose: vi.fn(async () => undefined),
+        recordMessage: vi.fn(),
+      })),
+    } as unknown as TurnArtifactService;
 
     service = new MessageService(
       sessionService,
@@ -120,6 +128,7 @@ describe("MessageService unattended mode", () => {
       aiToolApprovalService,
       toolApprovalService,
       userQuestionService,
+      turnArtifactService,
     );
   });
 

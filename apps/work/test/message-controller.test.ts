@@ -61,11 +61,11 @@ describe("message controllers", () => {
 
   it("returns the current session message list", async () => {
     const messages: AgentMessage[] = [{ role: "user", content: "Hello", timestamp: 1 }];
-    getMessageList.mockResolvedValueOnce({ messages });
+    getMessageList.mockResolvedValueOnce({ artifacts: [], messages });
 
     await expect(
       listController.run(event, { workspaceId: 1, sessionId: "session" }),
-    ).resolves.toEqual({ code: 0, data: { messages }, msg: "ok" });
+    ).resolves.toEqual({ code: 0, data: { artifacts: [], messages }, msg: "ok" });
     expect(getMessageList).toHaveBeenCalledWith(1, "session");
   });
 
@@ -152,6 +152,22 @@ describe("message controllers", () => {
     ).resolves.toEqual({
       code: 400,
       msg: "approvalMode must be a supported permission mode",
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid agent mode without calling the service", async () => {
+    await expect(
+      sendController.run(event, {
+        workspaceId: 1,
+        sessionId: "session",
+        content: "Hello",
+        model: { providerId: "openai", modelId: "large" },
+        agentMode: "invalid" as never,
+      }),
+    ).resolves.toEqual({
+      code: 400,
+      msg: "agentMode must be a supported agent mode",
     });
     expect(sendMessage).not.toHaveBeenCalled();
   });

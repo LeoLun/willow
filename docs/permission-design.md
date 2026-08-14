@@ -5,7 +5,8 @@
 本文描述 Willow Agent 文件工具的权限模型、执行边界、审批链路和失败语义，作为后续扩展工具、
 审查安全边界及排查审批问题的依据。
 
-当前系统向 Agent 注册以下十六个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册：
+当前系统支持以下十八个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册，
+`writePlan` 和 `updatePlan` 仅在 Plan 模式注册：
 
 - `bash`：执行 shell 命令；
 - `read`：读取文本文件；
@@ -23,6 +24,8 @@
 - `listAutomations`：列出当前工作空间中的定时自动化及其业务配置。
 - `updateAutomation`：修改当前工作空间中的定时自动化。
 - `deleteAutomation`：删除当前工作空间中的定时自动化及其触发计划和执行历史。
+- `writePlan`：仅在 Plan 模式下向全局计划目录新建 Markdown 计划文件。
+- `updatePlan`：仅在 Plan 模式下替换全局计划目录中已存在的 Markdown 计划。
 
 核心实现位于 [`packages/core/src/tools/`](../packages/core/src/tools/)，桌面应用的 AI 初审、用户审批
 服务与界面位于
@@ -50,6 +53,8 @@
    能力，并继续在沙箱中完整重跑；进程枚举使用独立的固定命令工具，不让任意 shell 裸跑。
 8. **安全失败**：缺少审批回调、对话框关闭、任务中止或无效审批都按拒绝处理。
 9. **模式按消息确定**：权限选择随每次发送消息传递，不持久化为工作区级策略。
+10. **Plan 能力最小化**：Plan 模式使用固定工具白名单，不注册 shell、通用文件修改、进程查看、
+    任务列表或自动化管理工具；该限制不因选择 `full-access` 而放宽。
 
 ## 3. 公共类型
 
@@ -188,6 +193,9 @@ type ToolApprovalRequest = {
 | `read/ls/grep/find` 工作区、全局或内置技能目录内读取 | 直接读取 | 直接读取 | 直接读取 |
 | `read/ls/grep/find` 工作区外读取 | 执行前弹窗 | AI 通过后读取，否则转用户审批 | 直接读取 |
 | 用户显式添加的本地文件 | 当前会话分支内按精确路径读写 | 当前会话分支内按精确路径读写 | 受操作系统权限约束 |
+| Plan 模式显式添加的本地文件 | 当前计划消息内按精确路径只读 | 当前计划消息内按精确路径只读 | 工具白名单仍只提供读取能力 |
+| `writePlan` 新建全局计划 | Plan 模式直接创建且不覆盖 | Plan 模式直接创建且不覆盖 | Plan 模式仍只能创建计划 |
+| `updatePlan` 修改已有全局计划 | Plan 模式直接替换已有计划 | Plan 模式直接替换已有计划 | Plan 模式仍只能修改已有计划 |
 | 缺少审批回调 | 拒绝逃逸 | 拒绝逃逸 | 不需要回调 |
 | 非 macOS 平台 | 创建任务失败 | 创建任务失败 | 可使用 |
 
@@ -300,6 +308,10 @@ allowlist。macOS 即使在 `(allow default)` profile 下也拒绝沙箱内执�
 
 同一路径上的 `write/edit` 通过进程内 mutation queue 串行执行，避免并发工具调用相互覆盖。
 该队列只保证单个 Willow 进程内、按解析后绝对路径的串行性，不提供跨进程锁或文件事务。
+
+`write` 在队列内、写入前读取目标文件，用于在成功结果的 details 中返回目标是否为新建文件，
+以及相对覆盖前内容的增加/删除行数。桌面端据此归属并展示本轮由 `write/edit` 工具实际产生的
+文件产物；shell 或其他进程造成的文件变化不进入该产物列表。
 
 ### 7.3 `edit` 的完整性约束
 
@@ -449,9 +461,28 @@ ID、标题、提示词、状态、cron、时区和模型配置，供 Agent 在�
 附件授权不覆盖敏感写入硬限制：非 `full-access` 模式下，`.env`、私钥等目标仍禁止写入。
 Core 仍不持久化任何会话白名单；持久化、匹配和审计均由 Work App 在每次创建 Harness 前完成。
 
+Plan 模式把相同的已验证路径传入 `SandboxPolicy.allowRead`，而不是 `allowWrite`。同时 Plan 工具
+白名单不包含 `bash`、`write` 或 `edit`，因此附件和历史授权文件只能作为规划上下文读取。
+
+### 8.9 Plan 模式与计划文件工具
+
+Plan 模式仅注册 `read`、`ls`、`grep`、`find`、`webfetch`、按配置启用的 `websearch`、
+`askUser`、`writePlan` 和 `updatePlan`。`bash`、通用写入、进程查看、任务列表及自动化工具不会被创建，
+因此该边界独立于提示词和三档权限模式。
+
+`writePlan` 不接受路径，只接受计划名称和完整 Markdown 内容。工具将名称规范为安全 slug，固定在
+由 `AgentCore.agentDir` 解析出的 `plan` 子目录内，以 `YYYY-MM-DD-<slug>.md` 创建文件；同名时
+递增数字后缀并使用独占创建，绝不覆盖已有文件。选择 Plan 模式即授权这一项窄副作用，不会授权
+写入全局 Agent 目录的其他位置或当前工作区。
+
+`updatePlan` 只接受不含目录的安全 Markdown 文件名和完整替换内容。目标必须是同一 `plan` 子目录
+中已存在的普通文件；缺失文件、非 Markdown 名称、路径穿越和符号链接均失败。工具使用进程内
+mutation queue 串行化同一计划的修改，并遵循任务中止检查。Plan 模式将全局计划目录加入只读策略，
+使 Agent 可以先通过 `ls`、`find` 和 `read` 审阅现有计划，但不会把该目录加入通用写授权。
+
 ## 9. 端到端权限传递
 
-权限模式由 renderer 的 Prompt Composer 选择，并随当前消息传递：
+权限模式和 Agent 模式由 renderer 的 Prompt Composer 选择，并随当前消息传递：
 
 ```mermaid
 flowchart LR
@@ -462,6 +493,10 @@ flowchart LR
   E --> F["AgentCore.getAgentHarness"]
   F --> G["createWillowTools"]
 ```
+
+`agentMode: "plan"` 沿同一发送链路进入 `AgentCore.getAgentHarness`，决定 Additional Role 提示词、
+工具白名单和附件只读策略。该值也随未决审批或用户问题恢复上下文持久化；旧记录缺省按
+`"default"` 恢复。
 
 关键语义：
 

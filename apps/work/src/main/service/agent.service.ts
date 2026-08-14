@@ -9,6 +9,7 @@ import type { AssistantMessage, Model, MutableModels } from "@earendil-works/pi-
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import {
   AgentCore,
+  type AgentMode,
   type AgentCoreOptions,
   type AgentHarnessOptions,
   type AskUserHandler,
@@ -34,6 +35,7 @@ type AgentServiceOptions = Omit<AgentCoreOptions, "models" | "sessionRepo" | "ta
   workspaceId: number;
   model: Model<any>;
   metadata: SessionMetadata;
+  agentMode?: AgentMode;
   permissionMode: import("@willow/core").PermissionMode;
   requestApproval: ToolApprovalHandler;
   requestUser: AskUserHandler;
@@ -149,6 +151,7 @@ export class AgentService {
     workspaceId,
     model,
     metadata,
+    agentMode,
     permissionMode,
     requestApproval,
     requestUser,
@@ -169,6 +172,7 @@ export class AgentService {
     const harness = await core.getAgentHarness({
       model,
       metadata,
+      agentMode,
       permissionMode,
       requestApproval,
       requestUser,

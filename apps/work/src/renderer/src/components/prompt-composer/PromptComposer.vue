@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { LocalFileAttachment, ModelConfig, PermissionMode } from "@shared/api";
+import type { AgentMode, LocalFileAttachment, ModelConfig, PermissionMode } from "@shared/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +9,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@willow/shadcn/components/ui/dropdown-menu";
-import { ArrowUpIcon, CheckIcon, ChevronDownIcon, PlusIcon } from "lucide-vue-next";
+import { Popover, PopoverContent, PopoverTrigger } from "@willow/shadcn/components/ui/popover";
+import {
+  ArrowUpIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  FilePlusIcon,
+  ListTodoIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-vue-next";
 import {
   computed,
   h,
@@ -81,6 +90,7 @@ const props = withDefaults(defineProps<Props>(), {
 const content = defineModel<string>("content", { default: "" });
 const attachments = defineModel<LocalFileAttachment[]>("attachments", { default: () => [] });
 const approvalMode = defineModel<PermissionMode | undefined>("approvalMode");
+const agentMode = defineModel<AgentMode>("agentMode", { default: "default" });
 const model = defineModel<ModelConfig | undefined>("model");
 const reasoningEffort = defineModel<string | undefined>("reasoningEffort");
 
@@ -100,6 +110,7 @@ const editor = ref<HTMLElement>();
 const composing = ref(false);
 const editorFocused = ref(false);
 const selectingFiles = ref(false);
+const addPopoverOpen = ref(false);
 const attachmentError = ref("");
 const trigger = ref<TriggerState>();
 const templateMode = ref(false);
@@ -581,6 +592,20 @@ async function selectFiles(): Promise<void> {
   }
 }
 
+function enablePlanMode(): void {
+  agentMode.value = "plan";
+  addPopoverOpen.value = false;
+}
+
+function disablePlanMode(): void {
+  agentMode.value = "default";
+}
+
+function selectFilesFromPopover(): void {
+  addPopoverOpen.value = false;
+  void selectFiles();
+}
+
 function removeAttachment(path: string): void {
   attachments.value = attachments.value.filter((file) => file.path !== path);
 }
@@ -608,9 +633,11 @@ function submit(): void {
     attachments: attachments.value.map((file) => ({ ...file })),
     approvalMode: approvalMode.value,
     model: model.value,
+    agentMode: agentMode.value,
     reasoningEffort: reasoningEffort.value,
   };
   emit("submit", payload);
+  agentMode.value = "default";
   content.value = "";
   attachments.value = [];
   lastSelection = { start: 0, end: 0 };
@@ -866,15 +893,44 @@ watch(content, (value) => {
     </div>
 
     <div class="flex min-w-0 items-center gap-1 px-3 pb-1.5">
-      <button
-        type="button"
-        class="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
-        :disabled="props.disabled || selectingFiles"
-        aria-label="添加本地文件"
-        @click="selectFiles"
-      >
-        <PlusIcon class="size-4" />
-      </button>
+      <Popover v-model:open="addPopoverOpen">
+        <PopoverTrigger as-child>
+          <button
+            type="button"
+            class="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+            :disabled="props.disabled || selectingFiles"
+            aria-label="添加内容或选择模式"
+          >
+            <PlusIcon class="size-4" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="top" align="start" class="w-52 p-1.5">
+          <p class="px-2 py-1 text-xs font-medium text-muted-foreground">模式</p>
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
+            :aria-pressed="agentMode === 'plan'"
+            @click="enablePlanMode"
+          >
+            <ListTodoIcon class="size-4 text-muted-foreground" aria-hidden="true" />
+            <span>计划模式</span>
+            <CheckIcon
+              v-if="agentMode === 'plan'"
+              class="ml-auto size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+          </button>
+          <div class="my-1 h-px bg-border" aria-hidden="true"></div>
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
+            @click="selectFilesFromPopover"
+          >
+            <FilePlusIcon class="size-4 text-muted-foreground" aria-hidden="true" />
+            <span>文件</span>
+          </button>
+        </PopoverContent>
+      </Popover>
 
       <DropdownMenu v-if="props.approvalOptions.length > 0">
         <DropdownMenuTrigger as-child>
@@ -911,6 +967,23 @@ watch(content, (value) => {
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <div
+        v-if="agentMode === 'plan'"
+        class="group inline-flex h-8 items-center gap-1 rounded-xl bg-accent px-2 text-sm text-foreground"
+        data-slot="plan-mode-indicator"
+      >
+        <ListTodoIcon class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span>计划模式</span>
+        <button
+          type="button"
+          class="-mr-1 inline-flex size-5 items-center justify-center rounded-full opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-background/70 focus-visible:opacity-100 focus-visible:outline-none"
+          aria-label="关闭计划模式"
+          @click="disablePlanMode"
+        >
+          <XIcon class="size-3.5" aria-hidden="true" />
+        </button>
+      </div>
 
       <div class="ml-auto flex min-w-0 items-center gap-1">
         <DropdownMenu v-if="props.models.length > 0">

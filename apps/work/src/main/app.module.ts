@@ -43,6 +43,7 @@ import { ResolveToolApprovalController } from "./controllers/message/resolve-too
 import { ResolveUserQuestionController } from "./controllers/message/resolve-user-question.message.controller";
 import { SendMessageController } from "./controllers/message/send.message.controller";
 import { StopMessageController } from "./controllers/message/stop.message.controller";
+import { ReadPlanFileController } from "./controllers/plan-file/read.plan-file.controller";
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
 import { CreateSessionController } from "./controllers/session/create.session.controller";
 import { GetSessionListController } from "./controllers/session/get-list.session.controller";
@@ -89,6 +90,7 @@ import { FileSearchService } from "./service/file-search.service";
 import { GitReviewService } from "./service/git-review.service";
 import { LocalFileService } from "./service/local-file.service";
 import { MessageService } from "./service/message.service";
+import { PlanFileService } from "./service/plan-file.service";
 import { ProviderCatalogService } from "./service/provider-catalog.service";
 import { SessionManagerFactory } from "./service/session-manager.factory";
 import { SessionService } from "./service/session.service";
@@ -97,6 +99,7 @@ import { StatisticsService } from "./service/statistics.service";
 import { TavilyService } from "./service/tavily.service";
 import { TitleService } from "./service/title.service";
 import { ToolApprovalService } from "./service/tool-approval.service";
+import { TurnArtifactService } from "./service/turn-artifact.service";
 import { UserConfigService } from "./service/user-config.service";
 import { UserQuestionService } from "./service/user-question.service";
 import { WorkspaceFileWatcherService } from "./service/workspace-file-watcher.service";
@@ -147,6 +150,8 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     WorkspaceFileWatcherService,
     LocalFileService,
     MessageService,
+    PlanFileService,
+    TurnArtifactService,
     ToolApprovalService,
     UserQuestionService,
     ProviderCatalogService,
@@ -183,6 +188,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     CommitGitChangesController,
     InspectLocalFilesController,
     SelectLocalFilesController,
+    ReadPlanFileController,
     GetAppInfoController,
     SetThemeController,
     GetAutoLaunchController,

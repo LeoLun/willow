@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { LocalFileAttachment, ModelConfig } from "@shared/api";
+import type { AgentMode, LocalFileAttachment, ModelConfig } from "@shared/api";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, h, nextTick, ref } from "vue";
 
@@ -35,6 +35,7 @@ const mountedApps: ReturnType<typeof createApp>[] = [];
 function mountComposer(
   options: {
     content?: string;
+    agentMode?: AgentMode;
     attachments?: LocalFileAttachment[];
     withPanels?: boolean;
     model?: ModelConfig;
@@ -46,6 +47,7 @@ function mountComposer(
   } = {},
 ) {
   const content = ref(options.content ?? "");
+  const agentMode = ref<AgentMode>(options.agentMode ?? "default");
   const attachments = ref(options.attachments ?? []);
   const model = ref<ModelConfig>(options.model ?? { providerId: "provider", modelId: "model" });
   const models = ref(options.models ?? []);
@@ -70,6 +72,7 @@ function mountComposer(
               composer.value = value as ComposerHandle;
             },
             content: content.value,
+            agentMode: agentMode.value,
             attachments: attachments.value,
             model: model.value,
             models: models.value,
@@ -80,6 +83,9 @@ function mountComposer(
             tokenRules: [...defaultComposerTokenRules],
             "onUpdate:content": (value: string) => {
               content.value = value;
+            },
+            "onUpdate:agentMode": (value: AgentMode) => {
+              agentMode.value = value;
             },
             "onUpdate:attachments": (value: LocalFileAttachment[]) => {
               attachments.value = value;
@@ -123,6 +129,7 @@ function mountComposer(
   return {
     container,
     composer,
+    agentMode,
     content,
     attachments,
     model,
@@ -499,11 +506,18 @@ describe("PromptComposer", () => {
     expect(mounted.container.querySelector("[data-test=mention-panel]")).toBeNull();
   });
 
-  it("opens the system file selector from the plus button", async () => {
+  it("opens the system file selector from the add popover", async () => {
     ipcMocks.selectLocalFiles.mockResolvedValueOnce({ files: [] });
     const mounted = mountComposer({ withPanels: true });
-    const plus = mounted.container.querySelector<HTMLButtonElement>("[aria-label='添加本地文件']")!;
+    const plus = mounted.container.querySelector<HTMLButtonElement>(
+      "[aria-label='添加内容或选择模式']",
+    )!;
     plus.click();
+    await nextTick();
+    const fileButton = [...document.body.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent?.trim() === "文件",
+    )!;
+    fileButton.click();
     await vi.waitFor(() => expect(ipcMocks.selectLocalFiles).toHaveBeenCalledOnce());
     expect(mounted.container.querySelector("[data-test=mention-panel]")).toBeNull();
   });
@@ -512,7 +526,13 @@ describe("PromptComposer", () => {
     const file = { path: "/tmp/draft.md", name: "draft.md", fileType: "MD" };
     ipcMocks.selectLocalFiles.mockResolvedValueOnce({ files: [file, file] });
     const mounted = mountComposer();
-    mounted.container.querySelector<HTMLButtonElement>("[aria-label='添加本地文件']")!.click();
+    mounted.container
+      .querySelector<HTMLButtonElement>("[aria-label='添加内容或选择模式']")!
+      .click();
+    await nextTick();
+    [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "文件")!
+      .click();
 
     await vi.waitFor(() => expect(mounted.attachments.value).toEqual([file]));
     const card = mounted.container.querySelector<HTMLElement>("[data-slot=local-file-card]")!;
@@ -532,6 +552,45 @@ describe("PromptComposer", () => {
     removeButton.click();
     await nextTick();
     expect(mounted.attachments.value).toEqual([]);
+  });
+
+  it("activates Plan mode, exposes a close control, and resets it after submission", async () => {
+    const mounted = mountComposer({ content: "Plan this feature" });
+    mounted.container
+      .querySelector<HTMLButtonElement>("[aria-label='添加内容或选择模式']")!
+      .click();
+    await nextTick();
+    const planButton = [...document.body.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent?.trim() === "计划模式",
+    )!;
+    planButton.click();
+    await nextTick();
+
+    expect(mounted.agentMode.value).toBe("plan");
+    expect(mounted.container.querySelector("[data-slot=plan-mode-indicator]")).not.toBeNull();
+    const close = mounted.container.querySelector<HTMLButtonElement>(
+      "[aria-label='关闭计划模式']",
+    )!;
+    expect([...close.classList]).toEqual(
+      expect.arrayContaining(["opacity-0", "group-hover:opacity-100", "focus-visible:opacity-100"]),
+    );
+
+    mounted.container.querySelector<HTMLButtonElement>("[data-action=submit]")!.click();
+    expect(mounted.submissions).toEqual([
+      expect.objectContaining({ content: "Plan this feature", agentMode: "plan" }),
+    ]);
+    await nextTick();
+    expect(mounted.agentMode.value).toBe("default");
+    expect(mounted.container.querySelector("[data-slot=plan-mode-indicator]")).toBeNull();
+  });
+
+  it("closes Plan mode without submitting", async () => {
+    const mounted = mountComposer({ agentMode: "plan" });
+    mounted.container.querySelector<HTMLButtonElement>("[aria-label='关闭计划模式']")!.click();
+    await nextTick();
+
+    expect(mounted.agentMode.value).toBe("default");
+    expect(mounted.submissions).toHaveLength(0);
   });
 
   it("lays out compact attachments in one horizontally scrollable row", () => {

@@ -1,6 +1,7 @@
 import { arch, platform, release, type } from "node:os";
 import type { Skill } from "@earendil-works/pi-agent-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getPlanModePrompt } from "../src/prompt/plan-mode";
 import { getSystemPrompt } from "../src/prompt/system";
 import type { SystemPromptOptions } from "../src/types";
 
@@ -149,5 +150,19 @@ describe("getSystemPrompt", () => {
     expect(prompt).toContain("Use pnpm for all package commands.");
     expect(prompt).toContain("# Skills");
     expect(prompt).toContain("<name>review</name>");
+  });
+
+  it("renders the Plan mode capability boundary and output directory", () => {
+    const roleAdditional = getPlanModePrompt("/users/test/.willow/plan");
+    const prompt = getSystemPrompt(createOptions({ roleAdditional }));
+
+    expect(prompt).toContain("You are in Plan mode");
+    expect(prompt).toContain("Do not implement code");
+    expect(prompt).toContain("The only persistent output");
+    expect(prompt).toContain("call `writePlan` when creating a");
+    expect(prompt).toContain("new plan, or `updatePlan` when revising an existing plan");
+    expect(prompt).toMatch(/`updatePlan` only replaces an existing\s+Markdown plan/);
+    expect(prompt).toContain("/users/test/.willow/plan");
+    expect(prompt).not.toContain("{{PLAN_DIRECTORY}}");
   });
 });

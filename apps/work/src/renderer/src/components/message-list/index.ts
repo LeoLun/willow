@@ -1,6 +1,7 @@
 export { default as MessageList } from "./MessageList.vue";
 export {
   applyMessageStreamEvent,
+  applyTurnArtifact,
   createMessageTimeline,
   formatMessageValue,
   getImageSource,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CircleAlert } from "lucide-vue-next";
 import { computed } from "vue";
+import ArtifactArea from "../artifacts/ArtifactArea.vue";
 import ContentBlocks from "../blocks/ContentBlocks.vue";
 import MessageToolbar from "../MessageToolbar.vue";
 import type { Message } from "../types";
@@ -42,6 +43,10 @@ const failureMessage = computed(() => {
         </div>
       </div>
       <ContentBlocks :message="props.message" markdown />
+      <ArtifactArea
+        v-if="props.showToolbar && props.message.artifact"
+        :artifact="props.message.artifact"
+      />
       <MessageToolbar v-if="props.showToolbar" :message="props.message" />
     </div>
   </article>

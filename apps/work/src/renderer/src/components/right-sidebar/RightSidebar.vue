@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SkillInfo } from "@shared/api";
+import type { SkillInfo, TurnPlanArtifact } from "@shared/api";
 import { Button } from "@willow/shadcn/components/ui/button";
 import {
   DropdownMenu,
@@ -8,12 +8,15 @@ import {
   DropdownMenuTrigger,
 } from "@willow/shadcn/components/ui/dropdown-menu";
 import { Plus, X } from "lucide-vue-next";
-import { computed, nextTick, ref, shallowRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import type { ComposerPromptTemplate } from "@/components/prompt-composer";
+import { electronAPI } from "@/lib/ipc";
 import { getRightSidebarPanelDefinition, rightSidebarPanelDefinitions } from "./panel-registry";
+import { persistRightSidebarTabs, restoreRightSidebarTabs } from "./tab-persistence";
 import type {
   RightSidebarPanelKind,
   RightSidebarPanelState,
+  RightSidebarHandle,
   RightSidebarTab,
   RuntimeSidebarPanelDefinition,
   SidebarPanelContext,
@@ -26,6 +29,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "select-skill": [skill: SkillInfo, template?: ComposerPromptTemplate];
+  "tabs-empty": [];
 }>();
 
 function selectSkill(skill: SkillInfo, template?: ComposerPromptTemplate): void {
@@ -85,6 +89,27 @@ function openPanel(kind: RightSidebarPanelKind): void {
   activateTab(tab.id, true);
 }
 
+function openPlan(plan: TurnPlanArtifact): void {
+  const existingTab = tabs.value.find(
+    (tab) => tab.kind === "plan" && tab.state.plan?.path === plan.path,
+  );
+  if (existingTab) {
+    updateTabState(existingTab.id, { plan });
+    activateTab(existingTab.id, true);
+    return;
+  }
+
+  const tab = {
+    id: `right-sidebar-tab-${nextTabId++}`,
+    kind: "plan",
+    state: { plan },
+  } satisfies RightSidebarTab;
+  tabs.value = [...tabs.value, tab];
+  activateTab(tab.id, true);
+}
+
+defineExpose<RightSidebarHandle>({ openPlan });
+
 function activateTab(tabId: string, focus = false): void {
   if (!tabs.value.some((tab) => tab.id === tabId)) return;
   activeTabId.value = tabId;
@@ -111,6 +136,12 @@ function closeTab(tabId: string, focusNext = true): void {
   if (focusNext && nextTab) focusTab(nextTab.id);
 }
 
+function closeTabManually(tabId: string): void {
+  if (!tabs.value.some((tab) => tab.id === tabId)) return;
+  closeTab(tabId);
+  if (tabs.value.length === 0) emit("tabs-empty");
+}
+
 function focusTab(tabId: string): void {
   void nextTick(() => {
     sidebarRoot.value
@@ -125,7 +156,7 @@ function handleTabKeydown(event: KeyboardEvent, tabId: string): void {
 
   if (event.key === "Delete") {
     event.preventDefault();
-    closeTab(tabId);
+    closeTabManually(tabId);
     return;
   }
 
@@ -142,12 +173,64 @@ function handleTabKeydown(event: KeyboardEvent, tabId: string): void {
   if (targetTab) activateTab(targetTab.id, true);
 }
 
-function resetTabs(): void {
-  tabs.value = [];
-  activeTabId.value = undefined;
+function hydrateRestoredPlanTab(tabId: string, path: string): void {
+  void electronAPI
+    .readPlanFile({ path })
+    .then(({ file }) => {
+      if (file.status !== "ready") {
+        closeTab(tabId, false);
+        return;
+      }
+      const plan: TurnPlanArtifact = {
+        content: file.content,
+        fileName: file.name,
+        lineCount: file.lineCount,
+        byteCount: file.byteCount,
+        path: file.path,
+      };
+      updateTabState(tabId, { plan });
+    })
+    .catch(() => closeTab(tabId, false));
 }
 
-watch(() => props.workspaceId, resetTabs);
+function restoreTabsForWorkspace(nextWorkspaceId: number | undefined): void {
+  const restored = restoreRightSidebarTabs(nextWorkspaceId);
+  tabs.value = restored.tabs.map((tab) => {
+    const id = `right-sidebar-tab-${nextTabId++}`;
+    if (tab.kind === "plan") {
+      hydrateRestoredPlanTab(id, tab.state.path);
+      return { id, kind: "plan", state: {} } satisfies RightSidebarTab;
+    }
+    return { id, ...tab } as RightSidebarTab;
+  });
+
+  const activeIndex = restored.activeTabIndex;
+  activeTabId.value =
+    activeIndex !== null && activeIndex >= 0 && activeIndex < tabs.value.length
+      ? tabs.value[activeIndex]?.id
+      : tabs.value[0]?.id;
+}
+
+watch(
+  [() => tabs.value, activeTabId],
+  () => persistRightSidebarTabs(props.workspaceId, tabs.value, activeTabId.value),
+  { deep: true },
+);
+
+watch(
+  () => props.workspaceId,
+  (nextWorkspaceId, previousWorkspaceId) => {
+    if (previousWorkspaceId !== undefined || tabs.value.length > 0) {
+      persistRightSidebarTabs(previousWorkspaceId, tabs.value, activeTabId.value);
+    }
+    restoreTabsForWorkspace(nextWorkspaceId);
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  persistRightSidebarTabs(props.workspaceId, tabs.value, activeTabId.value);
+});
 </script>
 
 <template>
@@ -194,7 +277,7 @@ watch(() => props.workspaceId, resetTabs);
             type="button"
             class="mr-1 flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-background/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             :aria-label="`关闭 ${view.title}`"
-            @click="closeTab(view.tab.id)"
+            @click="closeTabManually(view.tab.id)"
           >
             <X class="size-4" aria-hidden="true" />
           </button>

@@ -66,6 +66,8 @@ import type {
   RegisterEventResponse,
   ReadWorkspaceFileRequest,
   ReadWorkspaceFileResponse,
+  ReadPlanFileRequest,
+  ReadPlanFileResponse,
   RevealWorkspaceEntryRequest,
   RevealWorkspaceEntryResponse,
   RestartToUpdateResponse,
@@ -151,6 +153,7 @@ import {
   LIST_WORKSPACE_DIRECTORY,
   REGISTER_EVENT,
   READ_WORKSPACE_FILE,
+  READ_PLAN_FILE,
   REVEAL_WORKSPACE_ENTRY,
   OPEN_MANUAL_UPDATE,
   OPEN_WORKSPACE_FILE,
@@ -290,6 +293,8 @@ const ipcObject: IRenderHook = {
     ),
   readWorkspaceFile: (request: ReadWorkspaceFileRequest) =>
     invoke<ReadWorkspaceFileRequest, ReadWorkspaceFileResponse>(READ_WORKSPACE_FILE, request),
+  readPlanFile: (request: ReadPlanFileRequest) =>
+    invoke<ReadPlanFileRequest, ReadPlanFileResponse>(READ_PLAN_FILE, request),
   openWorkspaceFile: (request: OpenWorkspaceFileRequest) =>
     invoke<OpenWorkspaceFileRequest, OpenWorkspaceFileResponse>(OPEN_WORKSPACE_FILE, request),
   revealWorkspaceEntry: (request: RevealWorkspaceEntryRequest) =>

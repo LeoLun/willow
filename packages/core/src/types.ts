@@ -1,5 +1,6 @@
 import type { SessionMetadata, SessionRepo, Skill } from "@earendil-works/pi-agent-core";
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
+import type { AgentMode } from "./agent-mode.js";
 import type { AskUserHandler } from "./tools/ask-user.js";
 import type { CreateAutomationHandler } from "./tools/create-automation.js";
 import type { DeleteAutomationHandler } from "./tools/delete-automation.js";
@@ -32,6 +33,7 @@ export type AgentCoreOptions = {
 export type AgentHarnessOptions = {
   model: Model<any>;
   metadata?: SessionMetadata;
+  agentMode?: AgentMode;
   permissionMode?: PermissionMode;
   requestApproval?: ToolApprovalHandler;
   requestUser?: AskUserHandler;

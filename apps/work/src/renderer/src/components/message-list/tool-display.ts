@@ -2,6 +2,7 @@ import type { AskUserToolDetails, WebSearchToolDetails, WillowToolDetails } from
 import {
   WrenchIcon,
   FilePlusIcon,
+  FileTextIcon,
   PencilIcon,
   ListIcon,
   SearchIcon,
@@ -62,6 +63,13 @@ export function formatToolCallTitle(name: string, args: unknown, details?: unkno
       if (path === "") return `准备写入 · ${lineCount} 行`;
       return `写入 ${pathToName(path)} · ${lineCount} 行`;
     }
+    case "writePlan": {
+      const result = asRecord(details);
+      const path = text(result.path, "");
+      return path ? `保存计划 ${pathToName(path)}` : `保存计划 · ${text(input.name)}`;
+    }
+    case "updatePlan":
+      return `更新计划 ${text(input.fileName)}`;
     case "edit":
       return `修改 ${pathToName(text(input.path))}`;
     case "ls":
@@ -105,6 +113,9 @@ export function formatToolCallIcon(name: string): Component {
       return BookOpenTextIcon;
     case "write":
       return FilePlusIcon;
+    case "writePlan":
+    case "updatePlan":
+      return FileTextIcon;
     case "edit":
       return PencilIcon;
     case "ls":
@@ -146,6 +157,10 @@ export function formatToolResultTitle(details: unknown): string | undefined {
       return `读取 ${value.path} · ${value.lineCount} 行`;
     case "write":
       return `写入 ${value.path} · ${value.lineCount} 行`;
+    case "writePlan":
+      return `保存计划 ${value.fileName} · ${value.lineCount} 行`;
+    case "updatePlan":
+      return `更新计划 ${value.fileName} · ${value.lineCount} 行`;
     case "edit":
       return `修改 ${value.path} · +${value.addedLines} -${value.removedLines}`;
     case "ls":

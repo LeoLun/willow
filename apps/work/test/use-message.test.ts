@@ -232,6 +232,30 @@ describe("useMessage", () => {
     expect(mocks.removeEventListener).toHaveBeenCalledWith(MESSAGE_EVENT, listener);
   });
 
+  it("hydrates historical artifacts and applies live artifacts to the matching assistant", async () => {
+    const currentSessionId = nextSessionId("artifacts");
+    const artifact = {
+      assistantTimestamp: 12,
+      files: [{ path: "src/new.ts", status: "added" as const, additions: 2, deletions: 0 }],
+      plans: [],
+      version: 1 as const,
+    };
+    mocks.getMessageList.mockResolvedValueOnce({
+      artifacts: [artifact],
+      messages: [assistantMessage("done", 12)],
+    });
+    const workspaceId = ref<number | undefined>(1);
+    const sessionId = ref<string | undefined>(currentSessionId);
+    const mounted = mountSessionMessages(workspaceId, sessionId);
+    await vi.waitFor(() => expect(mounted.messages.loading.value).toBe(false));
+    expect(mounted.messages.timeline.value.messages[0]?.artifact).toEqual(artifact);
+
+    const liveArtifact = { ...artifact, files: [], plans: [] };
+    getMessageListener()({ type: "artifact", sessionId: currentSessionId, artifact: liveArtifact });
+    await nextTick();
+    expect(mounted.messages.timeline.value.messages[0]?.artifact).toEqual(liveArtifact);
+  });
+
   it("keeps a running stream across route changes and isolates sessions", async () => {
     const workspaceId = ref<number | undefined>(1);
     const firstSessionId = nextSessionId("route-first");

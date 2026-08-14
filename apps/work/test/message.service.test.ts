@@ -11,6 +11,7 @@ import { MessageService } from "../src/main/service/message.service";
 import type { SessionService } from "../src/main/service/session.service";
 import type { TitleService } from "../src/main/service/title.service";
 import type { ToolApprovalService } from "../src/main/service/tool-approval.service";
+import type { TurnArtifactService } from "../src/main/service/turn-artifact.service";
 import type { UserQuestionService } from "../src/main/service/user-question.service";
 import { MESSAGE_EVENT } from "../src/shared/constants";
 import {
@@ -96,6 +97,13 @@ describe("MessageService", () => {
   const requestQuestion = vi.fn<UserQuestionService["request"]>();
   const getPendingQuestion = vi.fn<UserQuestionService["getPendingQuestion"]>();
   const resolveQuestion = vi.fn<UserQuestionService["resolve"]>();
+  const artifactCapture = {
+    complete: vi.fn(async () => undefined),
+    dispose: vi.fn(async () => undefined),
+    recordMessage: vi.fn(),
+  };
+  const beginArtifactCapture = vi.fn(async () => artifactCapture);
+  const getArtifacts = vi.fn(() => []);
 
   const sessionService = {
     appendCustomEntry,
@@ -125,6 +133,10 @@ describe("MessageService", () => {
     request: requestQuestion,
     resolve: resolveQuestion,
   } as unknown as UserQuestionService;
+  const turnArtifactService = {
+    begin: beginArtifactCapture,
+    getArtifacts,
+  } as unknown as TurnArtifactService;
 
   let service: MessageService;
 
@@ -143,6 +155,7 @@ describe("MessageService", () => {
       aiToolApprovalService,
       toolApprovalService,
       userQuestionService,
+      turnArtifactService,
     );
     findById.mockReturnValue({
       id: 1,
@@ -165,6 +178,7 @@ describe("MessageService", () => {
     loadImages.mockResolvedValue([]);
     getPendingApproval.mockResolvedValue(undefined);
     getPendingQuestion.mockResolvedValue(undefined);
+    getArtifacts.mockReturnValue([]);
   });
 
   it("opens the persisted session and forwards only message stream events", async () => {
@@ -196,6 +210,7 @@ describe("MessageService", () => {
       cwd: "/workspace/willow",
       model,
       metadata: expect.objectContaining({ id: "session" }),
+      agentMode: "default",
       sandboxPolicy: { allowWrite: [] },
       permissionMode: "request-approval",
       requestApproval: expect.any(Function),
@@ -368,6 +383,49 @@ describe("MessageService", () => {
     expect(harness.prompt).toHaveBeenCalledWith(prompt, { images: [image] });
   });
 
+  it("grants Plan mode read-only access to inherited and new attachments", async () => {
+    const inheritedGrant = {
+      requestId: "grant-plan",
+      files: [{ path: "/outside/context.md", name: "context.md", fileType: "MD" }],
+    };
+    getBranch.mockResolvedValue([
+      {
+        type: "custom",
+        customType: LOCAL_FILE_GRANT_CUSTOM_TYPE,
+        data: inheritedGrant,
+      },
+      {
+        type: "message",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: appendLocalFileBlock("Earlier", inheritedGrant) }],
+          timestamp: 1,
+        },
+      },
+    ] as never);
+    inspectLocalFiles.mockResolvedValue([
+      { path: "/outside/new.md", name: "new.md", fileType: "MD" },
+    ]);
+    const harness = createHarness();
+    getAgentHarness.mockResolvedValue(harness.harness);
+
+    await service.sendMessage({
+      workspaceId: 1,
+      sessionId: "session",
+      content: "Plan the changes",
+      model: modelConfig,
+      agentMode: "plan",
+      attachments: [{ path: "/outside/new.md", name: "new.md", fileType: "MD" }],
+    });
+
+    expect(getAgentHarness).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentMode: "plan",
+        sandboxPolicy: { allowRead: ["/outside/context.md", "/outside/new.md"] },
+      }),
+    );
+  });
+
   it("forwards message events and filters harness-only events", async () => {
     const run = deferred<AssistantMessage>();
     const harness = createHarness(vi.fn(() => run.promise));
@@ -506,6 +564,7 @@ describe("MessageService", () => {
 
     await expect(service.getMessageList(1, "session")).resolves.toEqual({
       messages,
+      artifacts: [],
       pendingToolApproval: undefined,
       pendingUserQuestion: undefined,
     });
@@ -549,6 +608,7 @@ describe("MessageService", () => {
     getAgentHarness.mockResolvedValue(recoveredHarness.harness);
     const question = {
       model: modelConfig,
+      agentMode: "plan" as const,
       permissionMode: "request-approval" as const,
       userMessage: "Ask before continuing",
       payload: {
@@ -578,6 +638,9 @@ describe("MessageService", () => {
       "recovered",
     );
     await vi.waitFor(() => expect(continueRun).toHaveBeenCalledOnce());
+    expect(getAgentHarness).toHaveBeenCalledWith(
+      expect.objectContaining({ agentMode: "plan", sandboxPolicy: { allowRead: [] } }),
+    );
     expect(execute).toHaveBeenCalledWith("ask-call-recovered", { questions });
     expect(requestQuestion).not.toHaveBeenCalled();
     expect(appendMessage).toHaveBeenCalledWith(
@@ -591,11 +654,13 @@ describe("MessageService", () => {
         }),
       }),
     );
-    expect(sendEvent).toHaveBeenCalledWith(MESSAGE_EVENT, {
-      type: "status",
-      sessionId: "session",
-      status: "completed",
-    });
+    await vi.waitFor(() =>
+      expect(sendEvent).toHaveBeenCalledWith(MESSAGE_EVENT, {
+        type: "status",
+        sessionId: "session",
+        status: "completed",
+      }),
+    );
   });
 
   it("starts title creation for an untitled session", async () => {
@@ -684,6 +749,7 @@ describe("MessageService", () => {
       toolRequest,
       {
         model: modelConfig,
+        agentMode: "default",
         permissionMode: "delegate-approval",
         userMessage: "Clean generated files",
       },

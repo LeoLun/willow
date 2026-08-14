@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { MessageStreamEvent } from "@shared/api";
+import type { MessageStreamEvent, TurnArtifactBundle } from "@shared/api";
 import { parseLocalFilePrompt } from "@shared/local-file";
 import type {
   Message,
@@ -163,6 +163,7 @@ export function toMessage(
   status: Message["status"] = "completed",
   id?: string,
   thinkingStatuses?: ReadonlyMap<number, ThinkingStatus>,
+  artifact?: TurnArtifactBundle,
 ): Message {
   const value = (asObject(agentMessage) ?? {}) as AgentMessageLike;
   const role = toMessageRole(value.role);
@@ -171,6 +172,7 @@ export function toMessage(
 
   return {
     id: id ?? sourceKey,
+    artifact,
     sourceKey,
     role,
     timestamp,
@@ -185,13 +187,26 @@ export function toMessage(
   };
 }
 
-export function toMessageList(agentMessages: readonly AgentMessage[]): Message[] {
+export function toMessageList(
+  agentMessages: readonly AgentMessage[],
+  artifacts: readonly TurnArtifactBundle[] = [],
+): Message[] {
   const sourceCounts = new Map<string, number>();
+  const artifactsByTimestamp = new Map(
+    artifacts.map((artifact) => [artifact.assistantTimestamp, artifact]),
+  );
   return agentMessages.map((agentMessage) => {
     const sourceKey = getMessageSourceKey(agentMessage);
     const occurrence = sourceCounts.get(sourceKey) ?? 0;
     sourceCounts.set(sourceKey, occurrence + 1);
-    return toMessage(agentMessage, "completed", `${sourceKey}:${occurrence}`);
+    const timestamp = toTimestamp((asObject(agentMessage) ?? {}).timestamp);
+    return toMessage(
+      agentMessage,
+      "completed",
+      `${sourceKey}:${occurrence}`,
+      undefined,
+      artifactsByTimestamp.get(timestamp),
+    );
   });
 }
 
@@ -227,8 +242,28 @@ function replaceMessage(
 
 export function createMessageTimeline(
   agentMessages: readonly AgentMessage[] = [],
+  artifacts: readonly TurnArtifactBundle[] = [],
 ): MessageTimeline {
-  return { messages: toMessageList(agentMessages) };
+  return { messages: toMessageList(agentMessages, artifacts) };
+}
+
+export function applyTurnArtifact(
+  timeline: MessageTimeline,
+  artifact: TurnArtifactBundle,
+): MessageTimeline {
+  let applied = false;
+  const messages = timeline.messages.map((message) => {
+    if (
+      applied ||
+      message.role !== "assistant" ||
+      message.timestamp !== artifact.assistantTimestamp
+    ) {
+      return message;
+    }
+    applied = true;
+    return { ...message, artifact };
+  });
+  return applied ? { ...timeline, messages } : timeline;
 }
 
 export function applyMessageStreamEvent(

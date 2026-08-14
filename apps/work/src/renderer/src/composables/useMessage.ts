@@ -1,4 +1,9 @@
-import type { MessageEventPayload, MessageStreamEvent, SessionStatus } from "@shared/api";
+import type {
+  MessageEventPayload,
+  MessageStreamEvent,
+  SessionStatus,
+  TurnArtifactBundle,
+} from "@shared/api";
 import { MESSAGE_EVENT } from "@shared/constants";
 import { createGlobalState } from "@vueuse/core";
 import {
@@ -15,6 +20,7 @@ import {
   type ShallowRef,
 } from "vue";
 import {
+  applyTurnArtifact,
   applyMessageStreamEvent,
   createMessageTimeline,
   type MessageTimeline,
@@ -41,6 +47,7 @@ type MessageCacheEntry = {
   timeline: ShallowRef<MessageTimeline>;
   loading: Ref<boolean>;
   bufferedEvents: MessageStreamEvent[];
+  bufferedArtifacts: TurnArtifactBundle[];
   historyReady: boolean;
   status?: SessionStatus;
   consumers: number;
@@ -78,6 +85,7 @@ const useMessageState = createGlobalState(() => {
       timeline: shallowRef(createMessageTimeline()),
       loading: ref(false),
       bufferedEvents: [],
+      bufferedArtifacts: [],
       historyReady: false,
       consumers: 0,
       lastTouched: Date.now(),
@@ -132,8 +140,11 @@ const useMessageState = createGlobalState(() => {
   function handleMessageEvent(payload: MessageEventPayload): void {
     if (payload.type === "title_updated") return;
 
-    const running = payload.type === "stream" || payload.status === "started";
-    setSessionRunning(payload.sessionId, running);
+    if (payload.type === "stream" || (payload.type === "status" && payload.status === "started")) {
+      setSessionRunning(payload.sessionId, true);
+    } else if (payload.type === "status") {
+      setSessionRunning(payload.sessionId, false);
+    }
 
     const existingEntry = entries.get(payload.sessionId);
     if (payload.type === "status" && payload.status !== "started" && !existingEntry) {
@@ -152,6 +163,12 @@ const useMessageState = createGlobalState(() => {
         entry.timeline.value = applyMessageStreamEvent(entry.timeline.value, payload.event);
       } else {
         entry.bufferedEvents.push(payload.event);
+      }
+    } else if (payload.type === "artifact") {
+      if (entry.historyReady) {
+        entry.timeline.value = applyTurnArtifact(entry.timeline.value, payload.artifact);
+      } else {
+        entry.bufferedArtifacts.push(payload.artifact);
       }
     } else {
       entry.status = payload.status;
@@ -176,9 +193,12 @@ const useMessageState = createGlobalState(() => {
       hydrateToolApproval(workspaceId, sessionId, response.pendingToolApproval, approvalRevision);
       hydrateUserQuestion(workspaceId, sessionId, response.pendingUserQuestion, questionRevision);
 
-      let nextTimeline = createMessageTimeline(response.messages);
+      let nextTimeline = createMessageTimeline(response.messages, response.artifacts);
       for (const event of entry.bufferedEvents) {
         nextTimeline = applyMessageStreamEvent(nextTimeline, event);
+      }
+      for (const artifact of entry.bufferedArtifacts) {
+        nextTimeline = applyTurnArtifact(nextTimeline, artifact);
       }
       entry.timeline.value = nextTimeline;
     } catch (error) {
@@ -189,10 +209,14 @@ const useMessageState = createGlobalState(() => {
       for (const event of entry.bufferedEvents) {
         nextTimeline = applyMessageStreamEvent(nextTimeline, event);
       }
+      for (const artifact of entry.bufferedArtifacts) {
+        nextTimeline = applyTurnArtifact(nextTimeline, artifact);
+      }
       entry.timeline.value = nextTimeline;
     } finally {
       if (entries.get(sessionId) === entry && generation === entry.loadGeneration) {
         entry.bufferedEvents = [];
+        entry.bufferedArtifacts = [];
         entry.historyReady = true;
         entry.loading.value = false;
         entry.status ??= "completed";

@@ -13,6 +13,8 @@ import {
   createReadTool,
   createWillowTools,
   createWriteTool,
+  createWritePlanTool,
+  createUpdatePlanTool,
   ToolBase,
   type BaseDetails,
   type ToolApprovalHandler,
@@ -62,6 +64,9 @@ describe("filesystem tools", () => {
     expect(written.details).toMatchObject({
       msg: "写入 src/example.txt 文件 2 行",
       kind: "write",
+      created: true,
+      addedLines: 2,
+      removedLines: 0,
       lineCount: 2,
     });
 
@@ -97,6 +102,142 @@ describe("filesystem tools", () => {
       removedLines: 0,
     });
     expect(await readFile(join(cwd, "src/example.txt"), "utf8")).toBe("alpha\r\nbeta\r\ngamma\r\n");
+
+    const overwritten = await write.execute("write-2", {
+      path: "src/example.txt",
+      content: "alpha\ndelta\n",
+    });
+    expect(overwritten.details).toMatchObject({
+      kind: "write",
+      created: false,
+      addedLines: 1,
+      removedLines: 2,
+    });
+  });
+
+  it("creates non-overwriting plans only in the configured global plan directory", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-13T08:00:00.000Z"));
+    try {
+      const root = await temporaryDirectory("willow-plan-");
+      const agentDir = join(root, "global-agent");
+      const tool = createWritePlanTool({
+        cwd: join(root, "workspace"),
+        agentDir,
+        agentMode: "plan",
+        permissionMode: "request-approval",
+      });
+
+      const first = await tool.execute("plan-1", {
+        name: "../Feature / 安全 Review",
+        content: "# Plan\n\nFirst version.\n",
+      });
+      const second = await tool.execute("plan-2", {
+        name: "../Feature / 安全 Review",
+        content: "# Plan\n\nSecond version.\n",
+      });
+
+      const planDirectory = join(agentDir, "plan");
+      expect(first.details).toMatchObject({
+        kind: "writePlan",
+        path: join(planDirectory, "2026-08-13-feature-安全-review.md"),
+        fileName: "2026-08-13-feature-安全-review.md",
+        lineCount: 3,
+      });
+      expect(second.details).toMatchObject({
+        path: join(planDirectory, "2026-08-13-feature-安全-review-2.md"),
+        fileName: "2026-08-13-feature-安全-review-2.md",
+      });
+      expect(await readFile(first.details.path, "utf8")).toBe("# Plan\n\nFirst version.\n");
+      expect(await readFile(second.details.path, "utf8")).toBe("# Plan\n\nSecond version.\n");
+      expect(first.details.path.startsWith(`${planDirectory}/`)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rejects empty plans and honors an already-aborted write", async () => {
+    const root = await temporaryDirectory("willow-plan-invalid-");
+    const agentDir = join(root, "global-agent");
+    const tool = createWritePlanTool({
+      cwd: root,
+      agentDir,
+      agentMode: "plan",
+      permissionMode: "full-access",
+    });
+
+    await expect(tool.execute("empty", { name: "plan", content: "  " })).rejects.toThrow(
+      "content must be a non-empty string",
+    );
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      tool.execute("aborted", { name: "plan", content: "# Plan" }, controller.signal),
+    ).rejects.toThrow("aborted");
+    expect(existsSync(join(agentDir, "plan"))).toBe(false);
+  });
+
+  it("updates only an existing regular Markdown file in the global plan directory", async () => {
+    const root = await temporaryDirectory("willow-plan-update-");
+    const agentDir = join(root, "global-agent");
+    const planDirectory = join(agentDir, "plan");
+    const fileName = "2026-08-13-plan-mode.md";
+    await mkdir(planDirectory, { recursive: true });
+    await writeFile(join(planDirectory, fileName), "# Original\n", "utf8");
+    const tool = createUpdatePlanTool({
+      cwd: join(root, "workspace"),
+      agentDir,
+      agentMode: "plan",
+      permissionMode: "request-approval",
+    });
+
+    const result = await tool.execute("update-plan", {
+      fileName,
+      content: "# Revised\n\nComplete plan.\n",
+    });
+
+    expect(result.details).toMatchObject({
+      kind: "updatePlan",
+      path: join(planDirectory, fileName),
+      fileName,
+      lineCount: 3,
+      byteCount: 26,
+    });
+    expect(await readFile(join(planDirectory, fileName), "utf8")).toBe(
+      "# Revised\n\nComplete plan.\n",
+    );
+  });
+
+  it("rejects unsafe, missing, symlinked, and aborted plan updates", async () => {
+    const root = await temporaryDirectory("willow-plan-update-invalid-");
+    const agentDir = join(root, "global-agent");
+    const planDirectory = join(agentDir, "plan");
+    const outside = join(root, "outside.md");
+    await mkdir(planDirectory, { recursive: true });
+    await writeFile(outside, "outside", "utf8");
+    await symlink(outside, join(planDirectory, "linked.md"));
+    const tool = createUpdatePlanTool({
+      cwd: root,
+      agentDir,
+      agentMode: "plan",
+      permissionMode: "full-access",
+    });
+
+    await expect(
+      tool.execute("traversal", { fileName: "../outside.md", content: "changed" }),
+    ).rejects.toThrow("safe Markdown filename");
+    await expect(
+      tool.execute("missing", { fileName: "missing.md", content: "changed" }),
+    ).rejects.toThrow();
+    await expect(
+      tool.execute("symlink", { fileName: "linked.md", content: "changed" }),
+    ).rejects.toThrow();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      tool.execute("aborted", { fileName: "linked.md", content: "changed" }, controller.signal),
+    ).rejects.toThrow("aborted");
+    expect(await readFile(outside, "utf8")).toBe("outside");
   });
 
   it("summarizes an empty read without an invalid line range", async () => {

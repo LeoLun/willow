@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {
   AskUserAnswers,
+  AgentMode,
   FileSearchItem,
   MessageEventPayload,
   ModelConfig,
@@ -9,6 +10,7 @@ import type {
   SkillInfo,
   ThinkingLevel,
   ToolApprovalDecision,
+  TurnPlanArtifact,
 } from "@shared/api";
 import { MESSAGE_EVENT } from "@shared/constants";
 import { Button } from "@willow/shadcn/components/ui/button";
@@ -50,7 +52,7 @@ import {
 import FileSearchPanel from "@/components/prompt-composer/FileSearchPanel.vue";
 import QueuedMessageList from "@/components/prompt-composer/QueuedMessageList.vue";
 import SkillSearchPanel from "@/components/prompt-composer/SkillSearchPanel.vue";
-import { RightSidebar } from "@/components/right-sidebar";
+import { RightSidebar, type RightSidebarHandle } from "@/components/right-sidebar";
 import { TodoListPanel } from "@/components/todo-list";
 import ToolApprovalPanel from "@/components/tool/ToolApprovalPanel.vue";
 import UserQuestionPanel from "@/components/tool/UserQuestionPanel.vue";
@@ -60,7 +62,11 @@ import { useMessageStatus, useSessionMessages } from "@/composables/useMessage";
 import { useMessageQueue } from "@/composables/useMessageQueue";
 import { useToolApproval } from "@/composables/useToolApproval";
 import { useUserQuestion } from "@/composables/useUserQuestion";
-import { consumeGuidedPrompt, onProviderConfigurationChanged } from "@/lib/app-state-events";
+import {
+  consumeGuidedPrompt,
+  onPlanPreviewRequested,
+  onProviderConfigurationChanged,
+} from "@/lib/app-state-events";
 import { electronAPI } from "@/lib/ipc";
 
 const route = useRoute();
@@ -79,6 +85,7 @@ const modelLoadError = ref(false);
 const providers = shallowRef<ProviderInfo[]>([]);
 const selectedModel = shallowRef<ModelConfig | undefined>(composerPreferences.value.model);
 const approvalMode = ref<PermissionMode>(composerPreferences.value.approvalMode);
+const agentMode = ref<AgentMode>("default");
 const reasoningEffort = ref<string | undefined>(composerPreferences.value.reasoningEffort);
 const fileSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
 const skillSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
@@ -127,6 +134,7 @@ function loadRightSidebarWidth(): number {
 }
 
 const rightSidebarOpen = ref(loadRightSidebarOpen());
+const rightSidebar = shallowRef<RightSidebarHandle>();
 const savedRightSidebarWidth = ref(loadRightSidebarWidth());
 const contentLayoutWidth = ref(0);
 const preferredMainPaneWidth = ref<number>();
@@ -141,7 +149,7 @@ let resizeStartMainPaneWidth = 0;
 const approvalOptions: ComposerOption[] = [
   { value: "request-approval", label: "请求批准", icon: ShieldQuestionIcon },
   { value: "delegate-approval", label: "替我审批", icon: UserCheckIcon },
-  { value: "full-access", label: "完全访问权限", icon: ShieldCheckIcon },
+  { value: "full-access", label: "完全访问", icon: ShieldCheckIcon },
 ];
 const thinkingLevelOrder: ThinkingLevel[] = ["minimal", "low", "medium", "high", "xhigh", "max"];
 
@@ -234,6 +242,7 @@ const contentLayoutStyle = computed<StyleValue>(() =>
 let sessionTitleLoadGeneration = 0;
 let modelLoadGeneration = 0;
 let removeProviderConfigurationListener: (() => void) | undefined;
+let removePlanPreviewListener: (() => void) | undefined;
 
 function measureContentLayout(): number {
   const width = contentLayout.value?.getBoundingClientRect().width ?? 0;
@@ -275,6 +284,22 @@ function toggleRightSidebar(): void {
   saveRightSidebarOpen();
   if (rightSidebarOpen.value) initializeMainPaneWidth();
   else preferredMainPaneWidth.value = undefined;
+}
+
+function collapseRightSidebar(): void {
+  if (!rightSidebarOpen.value) return;
+  rightSidebarOpen.value = false;
+  saveRightSidebarOpen();
+  preferredMainPaneWidth.value = undefined;
+}
+
+function openPlanPreview(plan: TurnPlanArtifact): void {
+  if (!rightSidebarOpen.value) {
+    rightSidebarOpen.value = true;
+    saveRightSidebarOpen();
+    initializeMainPaneWidth();
+  }
+  rightSidebar.value?.openPlan(plan);
 }
 
 async function openCurrentWorkspace(): Promise<void> {
@@ -471,6 +496,7 @@ watch(
 onMounted(() => {
   addEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
   removeProviderConfigurationListener = onProviderConfigurationChanged(() => void loadModels());
+  removePlanPreviewListener = onPlanPreviewRequested(openPlanPreview);
   measureContentLayout();
   if (rightSidebarOpen.value) initializeMainPaneWidth();
   if (contentLayout.value && typeof ResizeObserver !== "undefined") {
@@ -490,6 +516,7 @@ onBeforeUnmount(() => {
   contentResizeObserver?.disconnect();
   removeEventListener(MESSAGE_EVENT, handleSessionTitleUpdated);
   removeProviderConfigurationListener?.();
+  removePlanPreviewListener?.();
 });
 
 function enqueueMessage(
@@ -508,6 +535,7 @@ function enqueueMessage(
       content: payload.content,
       attachments: payload.attachments,
       model: payload.model,
+      agentMode: payload.agentMode,
       approvalMode: payload.approvalMode ?? "request-approval",
       reasoningEffort: payload.reasoningEffort,
     },
@@ -665,6 +693,7 @@ async function applyGuidedPromptIfRequested(): Promise<void> {
                 key="prompt-composer"
                 v-model:content="message"
                 v-model:approval-mode="approvalMode"
+                v-model:agent-mode="agentMode"
                 v-model:model="selectedModel"
                 v-model:reasoning-effort="reasoningEffort"
                 :approval-options="approvalOptions"
@@ -741,8 +770,10 @@ async function applyGuidedPromptIfRequested(): Promise<void> {
     <RightSidebar
       v-show="rightSidebarOpen"
       :id="rightSidebarId"
+      ref="rightSidebar"
       :workspace-id="workspaceId"
       @select-skill="replaceWithSkillReference"
+      @tabs-empty="collapseRightSidebar"
     />
     <div
       v-if="resizingRightSidebar"

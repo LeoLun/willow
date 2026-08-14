@@ -1,3 +1,4 @@
+import type { TurnPlanArtifact } from "@shared/api";
 import type { Component } from "vue";
 
 export type BoardPanelState = Record<string, never>;
@@ -17,9 +18,14 @@ export interface ReviewPanelState {
   };
 }
 
+export interface PlanPanelState {
+  plan?: TurnPlanArtifact;
+}
+
 export interface RightSidebarPanelStateMap {
   board: BoardPanelState;
   file: FilePanelState;
+  plan: PlanPanelState;
   review: ReviewPanelState;
 }
 
@@ -66,4 +72,8 @@ export interface RuntimeSidebarPanelDefinition {
   createState(context: SidebarPanelContext): RightSidebarPanelState;
   getTitle(state: RightSidebarPanelState): string;
   isAvailable?(context: SidebarPanelContext): boolean;
+}
+
+export interface RightSidebarHandle {
+  openPlan(plan: TurnPlanArtifact): void;
 }

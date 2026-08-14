@@ -46,6 +46,13 @@ export class SendMessageController extends IPCBaseController<
       return new Error("model must include non-empty providerId and modelId");
     }
     if (
+      request.agentMode !== undefined &&
+      request.agentMode !== "default" &&
+      request.agentMode !== "plan"
+    ) {
+      return new Error("agentMode must be a supported agent mode");
+    }
+    if (
       request.approvalMode !== undefined &&
       request.approvalMode !== "request-approval" &&
       request.approvalMode !== "delegate-approval" &&

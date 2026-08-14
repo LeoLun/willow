@@ -44,12 +44,8 @@ function handleFocusOut(event: FocusEvent): void {
 <template>
   <section
     v-if="props.items.length > 0"
-    class="relative z-20 mb-2 flex justify-center"
+    class="relative z-20 mb-2 mx-auto flex justify-center"
     data-slot="todo-list-panel"
-    @mouseenter="open = true"
-    @mouseleave="open = false"
-    @focusin="open = true"
-    @focusout="handleFocusOut"
   >
     <Transition
       enter-active-class="transition duration-150 ease-out"
@@ -107,6 +103,10 @@ function handleFocusOut(event: FocusEvent): void {
       :aria-controls="detailsId"
       :aria-expanded="open"
       :aria-label="`任务进度：第 ${currentStep} 步，共 ${props.items.length} 步，已完成 ${completedCount} 项`"
+      @mouseenter="open = true"
+      @mouseleave="open = false"
+      @focusin="open = true"
+      @focusout="handleFocusOut"
     >
       <LoaderCircleIcon
         v-if="completedCount < props.items.length"

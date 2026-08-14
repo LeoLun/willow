@@ -44,6 +44,7 @@ export type MessageContent =
 export type ToolCallContent = Extract<MessageContent, { type: "toolCall" }>;
 
 export interface Message {
+  artifact?: TurnArtifactBundle;
   id: string;
   sourceKey: string;
   role: MessageRole;
@@ -62,3 +63,4 @@ export interface MessageTimeline {
   messages: Message[];
   activeMessageId?: string;
 }
+import type { TurnArtifactBundle } from "@shared/api";

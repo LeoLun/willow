@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, h, nextTick, ref, vShow, withDirectives, type App } from "vue";
+import { createApp, h, nextTick, ref, shallowRef, vShow, withDirectives, type App } from "vue";
 
 const monacoMock = vi.hoisted(() => {
   const create = vi.fn((_element: HTMLElement, options?: { value?: string }) => {
@@ -105,16 +105,19 @@ import {
   rightSidebarPanelDefinitions,
 } from "../src/renderer/src/components/right-sidebar/panel-registry";
 import RightSidebar from "../src/renderer/src/components/right-sidebar/RightSidebar.vue";
+import type { RightSidebarHandle } from "../src/renderer/src/components/right-sidebar/types";
 
 const mountedApps: App[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 function mountSidebar() {
   const workspaceId = ref<number | undefined>(1);
   const visible = ref(true);
+  const sidebar = shallowRef<RightSidebarHandle>();
   const container = document.createElement("div");
   container.style.height = "800px";
   document.body.append(container);
@@ -123,6 +126,7 @@ function mountSidebar() {
       withDirectives(
         h(RightSidebar, {
           id: "test-right-sidebar",
+          ref: sidebar,
           workspaceId: workspaceId.value,
         }),
         [[vShow, visible.value]],
@@ -130,7 +134,7 @@ function mountSidebar() {
   });
   app.mount(container);
   mountedApps.push(app);
-  return { container, visible, workspaceId };
+  return { container, sidebar, visible, workspaceId };
 }
 
 function launcher(container: HTMLElement, kind: "board" | "file" | "review"): HTMLButtonElement {
@@ -174,20 +178,60 @@ describe("right sidebar panel registry", () => {
       "review",
       "file",
       "board",
+      "plan",
     ]);
     expect(getRightSidebarPanelDefinition("board").label).toBe("看板");
     expect(getRightSidebarPanelDefinition("board").getTitle({})).toBe("看板");
     expect(getRightSidebarPanelDefinition("board").multiplicity).toBe("single");
     expect(getRightSidebarPanelDefinition("file").multiplicity).toBe("multiple");
     expect(getRightSidebarPanelDefinition("review").multiplicity).toBe("single");
-    expect(rightSidebarPanelDefinitions.every(({ entryPoints }) => entryPoints.emptyState)).toBe(
-      true,
-    );
-    expect(rightSidebarPanelDefinitions.every(({ entryPoints }) => entryPoints.addMenu)).toBe(true);
+    expect(getRightSidebarPanelDefinition("plan").entryPoints).toEqual({
+      addMenu: false,
+      emptyState: false,
+    });
   });
 });
 
 describe("RightSidebar", () => {
+  it("reuses a Plan tab by path and refreshes it with the latest content", async () => {
+    const { container, sidebar } = mountSidebar();
+    const content =
+      "# Complete Plan\n\n" +
+      Array.from({ length: 25 }, (_, index) => `Line ${index + 1}`).join("\n");
+
+    sidebar.value?.openPlan({
+      byteCount: content.length,
+      content,
+      fileName: "feature-plan.md",
+      lineCount: 27,
+      path: "/plans/feature-plan.md",
+    });
+    await nextTick();
+
+    expect(
+      container.querySelector('[data-panel-kind="plan"][data-slot="right-sidebar-tab"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-slot="right-sidebar-plan-panel"]')?.textContent,
+    ).toContain("Line 25");
+
+    sidebar.value?.openPlan({
+      byteCount: 16,
+      content: "# Updated Plan",
+      fileName: "feature-plan.md",
+      lineCount: 1,
+      path: "/plans/feature-plan.md",
+    });
+    await nextTick();
+
+    expect(
+      container.querySelectorAll('[data-panel-kind="plan"][data-slot="right-sidebar-tab"]'),
+    ).toHaveLength(1);
+    expect(
+      container.querySelector('[data-slot="right-sidebar-plan-panel"]')?.textContent,
+    ).toContain("Updated Plan");
+  });
+
   it("renders registry launchers and returns to the empty state after closing the last tab", async () => {
     const { container } = mountSidebar();
 
@@ -367,7 +411,7 @@ describe("RightSidebar", () => {
     ).toBe("json");
   });
 
-  it("supports keyboard navigation and clears tabs when the workspace changes", async () => {
+  it("supports keyboard navigation and restores each workspace's persisted tabs", async () => {
     const { container, workspaceId } = mountSidebar();
     launcher(container, "file").click();
     await nextTick();
@@ -385,9 +429,18 @@ describe("RightSidebar", () => {
     await nextTick();
     expect(tabActivations(container)).toHaveLength(1);
 
+    localStorage.setItem(
+      "willow:chat-right-sidebar-tabs:2",
+      JSON.stringify({ version: 1, activeTabIndex: 0, tabs: [{ kind: "board", state: {} }] }),
+    );
     workspaceId.value = 2;
     await nextTick();
-    expect(container.querySelector("[data-slot=right-sidebar-empty-state]")).not.toBeNull();
-    expect(tabActivations(container)).toHaveLength(0);
+    expect(
+      container.querySelectorAll('[data-panel-kind="board"][data-slot="right-sidebar-tab"]'),
+    ).toHaveLength(1);
+
+    workspaceId.value = 1;
+    await nextTick();
+    expect(tabActivations(container)).toHaveLength(1);
   });
 });
