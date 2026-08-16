@@ -1,4 +1,6 @@
+import { unescapeBoardNodeValue } from "./board-node-reference";
 import { unescapeFileTokenValue } from "./file-token";
+import PromptBoardNodeToken from "./PromptBoardNodeToken.vue";
 import PromptFileToken from "./PromptFileToken.vue";
 import PromptSkillToken from "./PromptSkillToken.vue";
 import type { ComposerTokenRule } from "./types";
@@ -27,4 +29,23 @@ export const skillTokenRule: ComposerTokenRule = {
   createProps: (match) => ({ skillName: match[1] ?? "", path: match[2] ?? "" }),
 };
 
-export const defaultComposerTokenRules = [fileTokenRule, vueFileTokenRule, skillTokenRule] as const;
+export const boardNodeTokenRule: ComposerTokenRule = {
+  id: "board-node",
+  pattern:
+    /<board-node path="([^"\r\n]*)" selector="([^"\r\n]*)" tag="([^"\r\n]*)" label="([^"\r\n]*)">([^<\r\n]*)<\/board-node>/g,
+  component: PromptBoardNodeToken,
+  createProps: (match) => ({
+    path: unescapeBoardNodeValue(match[1] ?? ""),
+    selector: unescapeBoardNodeValue(match[2] ?? ""),
+    tag: unescapeBoardNodeValue(match[3] ?? ""),
+    label: unescapeBoardNodeValue(match[4] ?? ""),
+    summary: unescapeBoardNodeValue(match[5] ?? ""),
+  }),
+};
+
+export const defaultComposerTokenRules = [
+  fileTokenRule,
+  vueFileTokenRule,
+  skillTokenRule,
+  boardNodeTokenRule,
+] as const;

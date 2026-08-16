@@ -550,6 +550,25 @@ async function replaceContentAndFocus(value: string): Promise<void> {
   await setContentAndSelection(value, value.length);
 }
 
+async function insertContentAndFocus(
+  text: string,
+  options: ComposerInsertOptions = {},
+): Promise<void> {
+  const root = editor.value;
+  if (!root) return;
+  if (templateMode.value) {
+    syncTemplateContent();
+    clearTemplateState();
+  }
+  const selection = getSourceSelection(root) ?? lastSelection;
+  const trailingSpace = options.trailingSpace ?? true;
+  const inserted = `${text}${trailingSpace ? " " : ""}`;
+  const value =
+    content.value.slice(0, selection.start) + inserted + content.value.slice(selection.end);
+  closePanel();
+  await setContentAndSelection(value, selection.start + inserted.length);
+}
+
 async function loadTemplateAndFocus(template: ComposerPromptTemplate): Promise<void> {
   closePanel();
   const clonedTemplate: ComposerPromptTemplate = {
@@ -570,7 +589,11 @@ async function loadTemplateAndFocus(template: ComposerPromptTemplate): Promise<v
   restoreSourceSelection(root, lastSelection);
 }
 
-defineExpose<ComposerHandle>({ loadTemplateAndFocus, replaceContentAndFocus });
+defineExpose<ComposerHandle>({
+  insertContentAndFocus,
+  loadTemplateAndFocus,
+  replaceContentAndFocus,
+});
 
 function addAttachments(files: readonly LocalFileAttachment[]): void {
   const next = new Map(attachments.value.map((file) => [file.path, file]));

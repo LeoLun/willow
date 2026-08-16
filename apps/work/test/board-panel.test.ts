@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getBoardPanel: vi.fn(),
   getSkillList: vi.fn(),
   removeEventListener: vi.fn(),
+  setBoardEditMode: vi.fn(async () => ({ enabled: true })),
   subscribeWorkspaceFiles: vi.fn(async () => ({})),
   unsubscribeWorkspaceFiles: vi.fn(async () => ({})),
   waitUntilReady: vi.fn(async () => undefined),
@@ -19,6 +20,7 @@ vi.mock("@/lib/ipc", () => ({
   electronAPI: {
     getBoardPanel: mocks.getBoardPanel,
     getSkillList: mocks.getSkillList,
+    setBoardEditMode: mocks.setBoardEditMode,
     subscribeWorkspaceFiles: mocks.subscribeWorkspaceFiles,
     unsubscribeWorkspaceFiles: mocks.unsubscribeWorkspaceFiles,
   },
@@ -40,6 +42,7 @@ const mountedApps: App[] = [];
 
 function mountPanel(
   onSelectSkill = vi.fn<(skill: SkillInfo, template: ComposerPromptTemplate) => void>(),
+  onInsertBoardNode = vi.fn<(source: string) => void>(),
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -47,6 +50,7 @@ function mountPanel(
     setup() {
       return () =>
         h(BoardPanel, {
+          onInsertBoardNode,
           onSelectSkill,
           state: {},
           tabId: "board-tab",
@@ -57,7 +61,11 @@ function mountPanel(
   const app = createApp(Host);
   app.mount(container);
   mountedApps.push(app);
-  return { container, onSelectSkill };
+  return { container, onInsertBoardNode, onSelectSkill };
+}
+
+function dispatchEditorMessage(frame: HTMLIFrameElement, data: Record<string, unknown>): void {
+  window.dispatchEvent(new MessageEvent("message", { data, source: frame.contentWindow }));
 }
 
 beforeEach(() => {
@@ -65,6 +73,7 @@ beforeEach(() => {
   mocks.eventCallback = undefined;
   mocks.getBoardPanel.mockResolvedValue({ status: "missing" });
   mocks.getSkillList.mockResolvedValue({ skills: [] });
+  mocks.setBoardEditMode.mockResolvedValue({ enabled: true });
 });
 
 afterEach(() => {
@@ -98,7 +107,7 @@ describe("BoardPanel", () => {
           {
             type: "text",
             content:
-              "[!create-board](/app/resources/skills/create-board/SKILL.md) 参考当前项目生成适应的看板， 风格参考 ",
+              "[!create-board](/app/resources/skills/create-board/SKILL.md) 分析当前项目的内容与结构，生成适合该项目的看板，并按照 ",
           },
           {
             type: "select",
@@ -109,6 +118,10 @@ describe("BoardPanel", () => {
               { label: "Claude", value: "Claude" },
               { label: "Apple", value: "Apple" },
             ],
+          },
+          {
+            type: "text",
+            content: " 风格完成布局与视觉设计。",
           },
         ],
       }),
@@ -129,6 +142,7 @@ describe("BoardPanel", () => {
     });
     expect(firstFrame.getAttribute("sandbox")).toBe("allow-scripts allow-same-origin");
     expect(firstFrame.src).toContain("file:///workspace/.agents/panel/index.html?v=1");
+    expect(firstFrame.src).toContain("willow-board-tab=board-tab");
 
     mocks.eventCallback?.({
       changes: [{ relativePath: ".agents/panel/styles.css", type: "change" }],
@@ -140,6 +154,128 @@ describe("BoardPanel", () => {
       expect(frame).not.toBe(firstFrame);
       expect(frame?.src).toContain("?v=2");
     });
+  });
+
+  it("selects board content and emits multiple node references while edit mode stays active", async () => {
+    mocks.getBoardPanel.mockResolvedValue({
+      status: "ready",
+      url: "file:///workspace/.agents/panel/index.html",
+    });
+    const { container, onInsertBoardNode } = mountPanel();
+    const frame = await vi.waitFor(() => {
+      const candidate = container.querySelector<HTMLIFrameElement>("iframe");
+      expect(candidate).not.toBeNull();
+      return candidate!;
+    });
+    container.querySelector<HTMLButtonElement>("[data-slot=board-edit-toggle]")!.click();
+    await vi.waitFor(() =>
+      expect(mocks.setBoardEditMode).toHaveBeenCalledWith({
+        enabled: true,
+        tabId: "board-tab",
+        workspaceId: 1,
+      }),
+    );
+    expect(frame.getAttribute("sandbox")).toBe("allow-scripts allow-same-origin");
+    Object.defineProperties(frame, {
+      clientHeight: { configurable: true, value: 600 },
+      clientWidth: { configurable: true, value: 400 },
+    });
+    dispatchEditorMessage(frame, {
+      channel: "willow-board-editor",
+      rect: { right: 300, top: 20 },
+      reference: {
+        label: "status",
+        path: ".agents/panel/index.html",
+        selector: '[data-board-node="status"]',
+        summary: "Project status",
+        tag: "section",
+      },
+      tabId: "board-tab",
+      type: "selected",
+    });
+    await nextTick();
+
+    const addButton = container.querySelector<HTMLButtonElement>("[data-slot=board-add-node]")!;
+    expect(addButton.style.left).toBe("296px");
+    expect(addButton.style.top).toBe("24px");
+    addButton.click();
+    await nextTick();
+    expect(onInsertBoardNode).toHaveBeenCalledWith(
+      '<board-node path=".agents/panel/index.html" selector="[data-board-node=&quot;status&quot;]" tag="section" label="status">Project status</board-node>',
+    );
+    expect(container.querySelector("[data-slot=board-edit-toggle]")?.textContent).toContain(
+      "退出编辑",
+    );
+    expect(container.querySelector("[data-slot=board-add-node]")).toBeNull();
+
+    dispatchEditorMessage(frame, {
+      channel: "willow-board-editor",
+      rect: { right: 280, top: 120 },
+      reference: {
+        label: "risks",
+        path: ".agents/panel/index.html",
+        selector: "#risks",
+        summary: "Current risks",
+        tag: "article",
+      },
+      tabId: "board-tab",
+      type: "selected",
+    });
+    await nextTick();
+    container.querySelector<HTMLButtonElement>("[data-slot=board-add-node]")!.click();
+    expect(onInsertBoardNode).toHaveBeenCalledTimes(2);
+  });
+
+  it("cleans selection and exits edit mode with Escape", async () => {
+    mocks.getBoardPanel.mockResolvedValue({
+      status: "ready",
+      url: "file:///workspace/.agents/panel/index.html",
+    });
+    const { container } = mountPanel();
+    const frame = await vi.waitFor(() => {
+      const candidate = container.querySelector<HTMLIFrameElement>("iframe");
+      expect(candidate).not.toBeNull();
+      return candidate!;
+    });
+    container.querySelector<HTMLButtonElement>("[data-slot=board-edit-toggle]")!.click();
+    await vi.waitFor(() => expect(mocks.setBoardEditMode).toHaveBeenCalledTimes(1));
+    dispatchEditorMessage(frame, {
+      channel: "willow-board-editor",
+      tabId: "board-tab",
+      type: "exit",
+    });
+    await nextTick();
+
+    expect(container.querySelector("[data-slot=board-add-node]")).toBeNull();
+    expect(container.querySelector("[data-slot=board-edit-toggle]")?.textContent).toContain("编辑");
+    await vi.waitFor(() =>
+      expect(mocks.setBoardEditMode).toHaveBeenLastCalledWith({
+        enabled: false,
+        tabId: "board-tab",
+        workspaceId: 1,
+      }),
+    );
+  });
+
+  it("shows an error and keeps the original iframe when editor injection fails", async () => {
+    mocks.getBoardPanel.mockResolvedValue({
+      status: "ready",
+      url: "file:///workspace/.agents/panel/index.html",
+    });
+    mocks.setBoardEditMode.mockRejectedValueOnce(new Error("无法访问看板文档"));
+    const { container } = mountPanel();
+    const frame = await vi.waitFor(() => {
+      const candidate = container.querySelector<HTMLIFrameElement>("iframe");
+      expect(candidate).not.toBeNull();
+      return candidate!;
+    });
+    container.querySelector<HTMLButtonElement>("[data-slot=board-edit-toggle]")!.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector("[role=alert]")?.textContent).toContain("无法访问看板文档"),
+    );
+    expect(container.querySelector("[data-slot=board-edit-toggle]")?.textContent).toContain("编辑");
+    expect(container.querySelector("iframe")).toBe(frame);
+    expect(frame.getAttribute("src")).toContain("index.html?v=1");
   });
 
   it("switches from the guide to the iframe when index.html is created", async () => {

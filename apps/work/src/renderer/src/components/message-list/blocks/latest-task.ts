@@ -48,6 +48,12 @@ export function createLatestTaskScheduler<TInput, TOutput>(
     timer = setTimeout(() => void drain(), wait);
   };
 
+  const schedulePending = () => {
+    if (disposed || !pending) return;
+    if (pending.immediate) void drain();
+    else scheduleDeferred();
+  };
+
   const drain = async (): Promise<void> => {
     clearTimer();
     if (disposed || running || !pending) return;
@@ -64,9 +70,7 @@ export function createLatestTaskScheduler<TInput, TOutput>(
       if (!disposed && current.revision === latestRevision) options.onError?.(error);
     } finally {
       running = false;
-      if (disposed || !pending) return;
-      if (pending.immediate) void drain();
-      else scheduleDeferred();
+      schedulePending();
     }
   };
 

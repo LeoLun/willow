@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   readWorkspaceFile: vi.fn(),
   removeEventListener: vi.fn(),
   searchFiles: vi.fn(),
+  setBoardEditMode: vi.fn(),
   subscribeWorkspaceFiles: vi.fn(),
   unsubscribeWorkspaceFiles: vi.fn(),
   waitUntilReady: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock("@/lib/ipc", () => ({
     readPlanFile: mocks.readPlanFile,
     readWorkspaceFile: mocks.readWorkspaceFile,
     searchFiles: mocks.searchFiles,
+    setBoardEditMode: mocks.setBoardEditMode,
     subscribeWorkspaceFiles: mocks.subscribeWorkspaceFiles,
     unsubscribeWorkspaceFiles: mocks.unsubscribeWorkspaceFiles,
   },
@@ -211,6 +213,7 @@ beforeEach(() => {
     },
   });
   mocks.searchFiles.mockResolvedValue({ files: [] });
+  mocks.setBoardEditMode.mockResolvedValue({ enabled: true });
   mocks.subscribeWorkspaceFiles.mockResolvedValue({});
   mocks.unsubscribeWorkspaceFiles.mockResolvedValue({});
   mocks.waitUntilReady.mockResolvedValue(undefined);
@@ -282,8 +285,7 @@ describe("ChatBase right sidebar", () => {
         .display,
     ).not.toBe("none");
     expect(
-      restoredContainer.querySelector('[data-slot="chat-right-sidebar"] [role="tab"]')
-        ?.textContent,
+      restoredContainer.querySelector('[data-slot="chat-right-sidebar"] [role="tab"]')?.textContent,
     ).toContain("package.json");
 
     getToggle(restoredContainer).click();
@@ -377,7 +379,9 @@ describe("ChatBase right sidebar", () => {
 
     await vi.waitFor(() => {
       expect(editor.textContent).not.toContain("discard this text");
-      expect(editor.textContent).toContain("参考当前项目生成适应的看板， 风格参考");
+      expect(editor.textContent).toContain(
+        "分析当前项目的内容与结构，生成适合该项目的看板，并按照",
+      );
       expect(
         editor.querySelector(
           '[data-token-source="[!create-board](/app/resources/skills/create-board/SKILL.md)"]',
@@ -388,6 +392,65 @@ describe("ChatBase right sidebar", () => {
       expect(styleSelect?.textContent).toContain("选择风格");
       expect(document.activeElement).toBe(styleSelect);
     });
+  });
+
+  it("inserts a selected board node into the composer without replacing the prompt", async () => {
+    mocks.getBoardPanel.mockResolvedValue({
+      status: "ready",
+      url: "file:///workspace/.agents/panel/index.html",
+    });
+    const container = await mountChatBase();
+    const editor = container.querySelector<HTMLElement>('[data-slot="prompt-editor"]')!;
+    editor.replaceChildren(document.createTextNode("Make this clearer"));
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    document.dispatchEvent(new Event("selectionchange"));
+
+    getToggle(container).click();
+    await nextTick();
+    const sidebar = container.querySelector<HTMLElement>('[data-slot="chat-right-sidebar"]')!;
+    sidebar.querySelector<HTMLButtonElement>('[data-panel-launcher="board"]')!.click();
+    await vi.waitFor(() => {
+      const candidate = sidebar.querySelector<HTMLIFrameElement>("iframe");
+      expect(candidate).not.toBeNull();
+      return candidate!;
+    });
+    sidebar.querySelector<HTMLButtonElement>("[data-slot=board-edit-toggle]")!.click();
+    const frame = sidebar.querySelector<HTMLIFrameElement>("iframe")!;
+    await vi.waitFor(() => expect(mocks.setBoardEditMode).toHaveBeenCalled());
+    Object.defineProperties(frame, {
+      clientHeight: { configurable: true, value: 600 },
+      clientWidth: { configurable: true, value: 400 },
+    });
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: {
+          channel: "willow-board-editor",
+          rect: { right: 300, top: 20 },
+          reference: {
+            label: "overview",
+            path: ".agents/panel/index.html",
+            selector: '[data-board-node="overview"]',
+            summary: "Project overview",
+            tag: "section",
+          },
+          tabId: frame.closest<HTMLElement>("[data-tab-id]")?.dataset.tabId,
+          type: "selected",
+        },
+        source: frame.contentWindow,
+      }),
+    );
+    await nextTick();
+    sidebar.querySelector<HTMLButtonElement>("[data-slot=board-add-node]")!.click();
+    await nextTick();
+
+    expect(editor.textContent).toContain("Make this clearer");
+    expect(editor.querySelector("[data-token-rule=board-node]")?.textContent).toContain("overview");
   });
 
   it("keeps the main pane stable while the container width changes", async () => {

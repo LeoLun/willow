@@ -28,6 +28,8 @@ import type {
   GetAutomationResponse,
   GetBoardPanelRequest,
   GetBoardPanelResponse,
+  SetBoardEditModeRequest,
+  SetBoardEditModeResponse,
   GetBuiltinSkillListRequest,
   GetBuiltinSkillListResponse,
   GetConfiguredProvidersRequest,
@@ -169,6 +171,7 @@ import {
   SELECT_LOCAL_FILES,
   SET_CREDENTIAL,
   SET_BUILTIN_SKILL_ENABLED,
+  SET_BOARD_EDIT_MODE,
   SET_AUTO_LAUNCH,
   SET_THEME,
   SET_TAVILY_API_KEY,
@@ -264,6 +267,8 @@ const ipcObject: IRenderHook = {
     invoke<GetSkillListRequest, GetSkillListResponse>(GET_SKILL_LIST, request),
   getBoardPanel: (request: GetBoardPanelRequest) =>
     invoke<GetBoardPanelRequest, GetBoardPanelResponse>(GET_BOARD_PANEL, request),
+  setBoardEditMode: (request: SetBoardEditModeRequest) =>
+    invoke<SetBoardEditModeRequest, SetBoardEditModeResponse>(SET_BOARD_EDIT_MODE, request),
   getBuiltinSkillList: (request: GetBuiltinSkillListRequest = {}) =>
     invoke<GetBuiltinSkillListRequest, GetBuiltinSkillListResponse>(
       GET_BUILTIN_SKILL_LIST,

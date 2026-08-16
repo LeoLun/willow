@@ -2,9 +2,21 @@
 import type { SkillInfo, WorkspaceFilesChangedEvent } from "@shared/api";
 import { WORKSPACE_FILES_CHANGED_EVENT } from "@shared/constants";
 import { Button } from "@willow/shadcn/components/ui/button";
-import { Kanban, RefreshCw } from "lucide-vue-next";
-import { computed, onBeforeUnmount, ref, watch } from "vue";
-import type { ComposerPromptTemplate } from "@/components/prompt-composer";
+import {
+  ExternalLink,
+  Kanban,
+  Maximize2,
+  Minimize2,
+  MousePointer2,
+  Plus,
+  RefreshCw,
+} from "lucide-vue-next";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
+import {
+  serializeBoardNodeReference,
+  type BoardNodeReference,
+  type ComposerPromptTemplate,
+} from "@/components/prompt-composer";
 import { useEventBus } from "@/composables/useEventBus";
 import { electronAPI } from "@/lib/ipc";
 import type { BoardPanelState } from "./types";
@@ -16,6 +28,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  "insert-board-node": [source: string];
   "select-skill": [skill: SkillInfo, template: ComposerPromptTemplate];
 }>();
 
@@ -31,16 +44,191 @@ const loadError = ref("");
 const selectingSkill = ref(false);
 const skillError = ref("");
 const reloadVersion = ref(0);
+const panel = shallowRef<HTMLElement>();
+const frame = shallowRef<HTMLIFrameElement>();
+const editing = ref(false);
+const editError = ref("");
+const isFullscreen = ref(false);
+const openingExternal = ref(false);
+const selectedNode = shallowRef<BoardNodeReference>();
+const addButtonPosition = ref({ left: 0, top: 0 });
 let disposed = false;
 let generation = 0;
+let editRequestGeneration = 0;
+let editingWorkspaceId: number | undefined;
 let subscribedWorkspaceId: number | undefined;
 let switchPromise = Promise.resolve();
 
-const iframeUrl = computed(() =>
-  panelUrl.value ? `${panelUrl.value}?v=${reloadVersion.value}` : "",
-);
+const iframeUrl = computed(() => {
+  if (!panelUrl.value) return "";
+  const url = new URL(panelUrl.value);
+  url.searchParams.set("v", String(reloadVersion.value));
+  url.searchParams.set("willow-board-tab", props.tabId);
+  return url.toString();
+});
+
+function isBoardNodeReference(value: unknown): value is BoardNodeReference {
+  if (!value || typeof value !== "object") return false;
+  const reference = value as Partial<Record<keyof BoardNodeReference, unknown>>;
+  return (
+    reference.path === ".agents/panel/index.html" &&
+    typeof reference.selector === "string" &&
+    reference.selector.length <= 2_000 &&
+    typeof reference.tag === "string" &&
+    reference.tag.length <= 64 &&
+    typeof reference.label === "string" &&
+    reference.label.length <= 200 &&
+    typeof reference.summary === "string" &&
+    reference.summary.length <= 1_000
+  );
+}
+
+function clearSelectedNode(): void {
+  selectedNode.value = undefined;
+}
+
+function handleEditorMessage(event: MessageEvent): void {
+  if (!editing.value || event.source !== frame.value?.contentWindow) return;
+  if (!event.data || typeof event.data !== "object") return;
+  const data = event.data as {
+    channel?: unknown;
+    tabId?: unknown;
+    type?: unknown;
+    rect?: { right?: unknown; top?: unknown };
+    reference?: unknown;
+  };
+  if (data.channel !== "willow-board-editor" || data.tabId !== props.tabId) return;
+  if (data.type === "exit") {
+    void exitEditing();
+    return;
+  }
+  if (data.type === "cleared") {
+    clearSelectedNode();
+    return;
+  }
+  if (
+    data.type !== "selected" ||
+    !isBoardNodeReference(data.reference) ||
+    typeof data.rect?.right !== "number" ||
+    typeof data.rect.top !== "number"
+  ) {
+    return;
+  }
+  const iframe = frame.value;
+  if (!iframe) return;
+  selectedNode.value = data.reference;
+  addButtonPosition.value = {
+    left: iframe.offsetLeft + Math.max(116, Math.min(data.rect.right - 4, iframe.clientWidth - 4)),
+    top: iframe.offsetTop + Math.max(4, Math.min(data.rect.top + 4, iframe.clientHeight - 36)),
+  };
+}
+
+async function enableEditorBridge(): Promise<void> {
+  const workspaceId = props.workspaceId;
+  if (!workspaceId || !editing.value) return;
+  const requestGeneration = editRequestGeneration;
+  try {
+    await electronAPI.setBoardEditMode({
+      enabled: true,
+      tabId: props.tabId,
+      workspaceId,
+    });
+  } catch (error) {
+    if (disposed || requestGeneration !== editRequestGeneration) return;
+    editing.value = false;
+    editingWorkspaceId = undefined;
+    clearSelectedNode();
+    editError.value = error instanceof Error ? error.message : "无法开启看板编辑模式";
+  }
+}
+
+function handleFrameLoad(): void {
+  clearSelectedNode();
+  if (editing.value) void enableEditorBridge();
+}
+
+async function enterEditing(): Promise<void> {
+  const workspaceId = props.workspaceId;
+  if (!workspaceId || !frame.value) {
+    editError.value = "看板尚未加载完成，请稍后重试";
+    return;
+  }
+  editRequestGeneration += 1;
+  editError.value = "";
+  editing.value = true;
+  editingWorkspaceId = workspaceId;
+  await enableEditorBridge();
+}
+
+async function exitEditing(): Promise<void> {
+  const workspaceId = editingWorkspaceId;
+  editRequestGeneration += 1;
+  editing.value = false;
+  editingWorkspaceId = undefined;
+  clearSelectedNode();
+  if (!workspaceId) return;
+  try {
+    await electronAPI.setBoardEditMode({
+      enabled: false,
+      tabId: props.tabId,
+      workspaceId,
+    });
+  } catch (error) {
+    if (!disposed) console.error("关闭看板编辑模式失败:", error);
+  }
+}
+
+function toggleEditing(): void {
+  if (editing.value) void exitEditing();
+  else void enterEditing();
+}
+
+function handleFullscreenChange(): void {
+  isFullscreen.value = document.fullscreenElement === panel.value;
+}
+
+async function toggleFullscreen(): Promise<void> {
+  const panelElement = panel.value;
+  if (!panelElement) return;
+  editError.value = "";
+  try {
+    if (document.fullscreenElement === panelElement) await document.exitFullscreen();
+    else await panelElement.requestFullscreen();
+  } catch (error) {
+    editError.value = error instanceof Error ? error.message : "无法切换看板全屏状态";
+  }
+}
+
+async function openInExternalApplication(): Promise<void> {
+  const workspaceId = props.workspaceId;
+  if (!workspaceId || openingExternal.value) return;
+  openingExternal.value = true;
+  editError.value = "";
+  try {
+    await electronAPI.openWorkspaceFile({
+      workspaceId,
+      relativePath: ".agents/panel/index.html",
+    });
+  } catch (error) {
+    editError.value = error instanceof Error ? error.message : "无法使用外部应用打开看板";
+  } finally {
+    openingExternal.value = false;
+  }
+}
+
+function addSelectedNodeToConversation(): void {
+  const reference = selectedNode.value;
+  if (!reference) return;
+  emit("insert-board-node", serializeBoardNodeReference(reference));
+  frame.value?.contentWindow?.postMessage(
+    { channel: "willow-board-editor", tabId: props.tabId, type: "clear" },
+    "*",
+  );
+  clearSelectedNode();
+}
 
 async function loadBoard(workspaceId: number, currentGeneration: number): Promise<void> {
+  clearSelectedNode();
   try {
     const response = await electronAPI.getBoardPanel({ workspaceId });
     if (disposed || currentGeneration !== generation) return;
@@ -64,6 +252,7 @@ async function switchWorkspace(
   workspaceId: number | undefined,
   currentGeneration: number,
 ): Promise<void> {
+  await exitEditing();
   if (subscribedWorkspaceId !== undefined) {
     await electronAPI.unsubscribeWorkspaceFiles({ subscriptionId: props.tabId });
     subscribedWorkspaceId = undefined;
@@ -140,7 +329,7 @@ async function selectCreateBoardSkill(): Promise<void> {
         {
           type: "text",
           content: " 风格完成布局与视觉设计。",
-        }
+        },
       ],
     });
   } catch (error) {
@@ -159,6 +348,10 @@ function retry(): void {
 }
 
 addEventListener(WORKSPACE_FILES_CHANGED_EVENT, handleWorkspaceFilesChanged);
+onMounted(() => {
+  window.addEventListener("message", handleEditorMessage);
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+});
 watch(
   () => props.workspaceId,
   (workspaceId) => {
@@ -171,6 +364,9 @@ watch(
 onBeforeUnmount(() => {
   disposed = true;
   generation += 1;
+  void exitEditing();
+  window.removeEventListener("message", handleEditorMessage);
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
   removeEventListener(WORKSPACE_FILES_CHANGED_EVENT, handleWorkspaceFilesChanged);
   if (subscribedWorkspaceId !== undefined) {
     void electronAPI.unsubscribeWorkspaceFiles({ subscriptionId: props.tabId });
@@ -180,20 +376,78 @@ onBeforeUnmount(() => {
 
 <template>
   <section
-    class="flex h-full min-h-0 min-w-0 flex-col bg-background p-2"
+    ref="panel"
+    class="relative flex h-full min-h-0 min-w-0 flex-col bg-background p-2"
     data-slot="right-sidebar-board-panel"
     :data-tab-id="tabId"
     :data-workspace-id="workspaceId"
   >
-    <iframe
-      v-if="status === 'ready'"
-      :key="iframeUrl"
-      :src="iframeUrl"
-      class="h-full min-h-0 w-full rounded-xl border-0 bg-background"
-      data-slot="board-panel-frame"
-      sandbox="allow-scripts allow-same-origin"
-      title="项目看板"
-    />
+    <template v-if="status === 'ready'">
+      <iframe
+        :key="iframeUrl"
+        ref="frame"
+        :src="iframeUrl"
+        class="h-full min-h-0 w-full rounded-xl border-0 bg-background"
+        data-slot="board-panel-frame"
+        sandbox="allow-scripts allow-same-origin"
+        title="项目看板"
+        @load="handleFrameLoad"
+      />
+      <div class="absolute top-4 right-4 z-20 flex items-center gap-1">
+        <Button
+          class="shadow-sm"
+          :variant="editing ? 'default' : 'secondary'"
+          size="icon-sm"
+          :aria-label="editing ? '退出看板编辑' : '编辑看板'"
+          :aria-pressed="editing"
+          data-slot="board-edit-toggle"
+          @click="toggleEditing"
+        >
+          <MousePointer2 aria-hidden="true" />
+        </Button>
+        <Button
+          class="shadow-sm"
+          variant="secondary"
+          size="icon-sm"
+          :aria-label="isFullscreen ? '取消全屏' : '全屏'"
+          :aria-pressed="isFullscreen"
+          data-slot="board-fullscreen-toggle"
+          @click="toggleFullscreen"
+        >
+          <Minimize2 v-if="isFullscreen" aria-hidden="true" />
+          <Maximize2 v-else aria-hidden="true" />
+        </Button>
+        <Button
+          class="shadow-sm"
+          variant="secondary"
+          size="icon-sm"
+          aria-label="使用外部应用打开看板"
+          :disabled="openingExternal"
+          data-slot="board-open-external"
+          @click="openInExternalApplication"
+        >
+          <ExternalLink aria-hidden="true" />
+        </Button>
+      </div>
+      <Button
+        v-if="selectedNode"
+        class="absolute z-20 -translate-x-full shadow-md"
+        :style="{ left: `${addButtonPosition.left}px`, top: `${addButtonPosition.top}px` }"
+        size="sm"
+        data-slot="board-add-node"
+        @click="addSelectedNodeToConversation"
+      >
+        <Plus aria-hidden="true" />
+        添加到对话
+      </Button>
+      <p
+        v-if="editError"
+        class="text-destructive-foreground absolute right-4 bottom-4 left-4 z-20 rounded-lg bg-destructive px-3 py-2 text-xs shadow-md"
+        role="alert"
+      >
+        {{ editError }}
+      </p>
+    </template>
 
     <div
       v-else

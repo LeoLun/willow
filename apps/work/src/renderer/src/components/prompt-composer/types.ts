@@ -87,6 +87,7 @@ export interface ComposerPanelNavigationHandle {
 }
 
 export interface ComposerHandle {
+  insertContentAndFocus(content: string, options?: ComposerInsertOptions): Promise<void>;
   replaceContentAndFocus(content: string): Promise<void>;
   loadTemplateAndFocus(template: ComposerPromptTemplate): Promise<void>;
 }

@@ -732,6 +732,38 @@ describe("PromptComposer", () => {
     expect(mounted.container.querySelector("[data-token-rule=skill]")).not.toBeNull();
   });
 
+  it("inserts board nodes at the remembered caret and keeps existing content", async () => {
+    const mounted = mountComposer({ content: "change this card" });
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    setCaret(editor, 7);
+    document.dispatchEvent(new Event("selectionchange"));
+    const source =
+      '<board-node path=".agents/panel/index.html" selector="#status" tag="section" label="Status">Project status</board-node>';
+
+    await mounted.composer.value?.insertContentAndFocus(source);
+
+    expect(mounted.content.value).toBe(`change ${source} this card`);
+    const boardToken = editor.querySelector<HTMLElement>("[data-token-rule=board-node]");
+    expect(boardToken?.textContent).toContain("Status");
+    expect(boardToken?.firstElementChild?.classList.contains("max-w-44")).toBe(true);
+    expect(boardToken?.querySelector(".truncate")).not.toBeNull();
+    expect(document.activeElement).toBe(editor);
+  });
+
+  it("can accumulate multiple board node tokens", async () => {
+    const mounted = mountComposer({ content: "Update " });
+    const first =
+      '<board-node path=".agents/panel/index.html" selector="#one" tag="article" label="One">First</board-node>';
+    const second =
+      '<board-node path=".agents/panel/index.html" selector="#two" tag="article" label="Two">Second</board-node>';
+
+    await mounted.composer.value?.insertContentAndFocus(first);
+    await mounted.composer.value?.insertContentAndFocus(second);
+
+    expect(mounted.content.value).toBe(`Update ${first} ${second} `);
+    expect(mounted.container.querySelectorAll("[data-token-rule=board-node]")).toHaveLength(2);
+  });
+
   it("loads a structured template and focuses the first field", async () => {
     const file = { path: "/tmp/context.md", name: "context.md", fileType: "MD" };
     const mounted = mountComposer({ content: "replace me", attachments: [file] });

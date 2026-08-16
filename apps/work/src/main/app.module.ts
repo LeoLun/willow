@@ -19,6 +19,7 @@ import { ListAutomationRunsController } from "./controllers/automation/list-runs
 import { RunAutomationNowController } from "./controllers/automation/run-now.automation.controller";
 import { UpdateAutomationController } from "./controllers/automation/update.automation.controller";
 import { GetBoardPanelController } from "./controllers/board/get.board.controller";
+import { SetBoardEditModeController } from "./controllers/board/set-edit-mode.board.controller";
 import { DeleteCredentialController } from "./controllers/credential/delete.credential.controller";
 import { GetConfiguredProvidersController } from "./controllers/credential/get-configured.credential.controller";
 import { GetCredentialController } from "./controllers/credential/get.credential.controller";
@@ -174,6 +175,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     RunAutomationNowController,
     ListAutomationRunsController,
     GetBoardPanelController,
+    SetBoardEditModeController,
     ListWorkspaceDirectoryController,
     OpenWorkspaceFileController,
     ReadWorkspaceFileController,

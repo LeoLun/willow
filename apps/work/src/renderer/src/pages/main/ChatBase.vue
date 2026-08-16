@@ -408,6 +408,13 @@ async function replaceWithSkillReference(
   await promptComposer.value?.replaceContentAndFocus(value);
 }
 
+async function insertBoardNodeReference(source: string): Promise<void> {
+  await promptComposer.value?.insertContentAndFocus(source, {
+    replaceTrigger: false,
+    trailingSpace: true,
+  });
+}
+
 function handlePanelKeydown(payload: ComposerPanelKeydownPayload): void {
   const panel = payload.type === "mention" ? fileSearchPanel.value : skillSearchPanel.value;
   panel?.handlePanelKeydown(payload.key);
@@ -772,6 +779,7 @@ async function applyGuidedPromptIfRequested(): Promise<void> {
       :id="rightSidebarId"
       ref="rightSidebar"
       :workspace-id="workspaceId"
+      @insert-board-node="insertBoardNodeReference"
       @select-skill="replaceWithSkillReference"
       @tabs-empty="collapseRightSidebar"
     />

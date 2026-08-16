@@ -10,8 +10,8 @@ catalogs:
       specifier: ^8.0.4
       version: 8.0.4
     electron:
-      specifier: 39.1.0
-      version: 39.1.0
+      specifier: 39.8.10
+      version: 39.8.10
     ignore:
       specifier: ^7.0.5
       version: 7.0.5
@@ -205,7 +205,7 @@ importers:
         version: 0.31.10
       electron:
         specifier: 'catalog:'
-        version: 39.1.0
+        version: 39.8.10
       inversify:
         specifier: 'catalog:'
         version: 6.2.1(reflect-metadata@0.1.14)
@@ -284,7 +284,7 @@ importers:
     devDependencies:
       electron:
         specifier: 'catalog:'
-        version: 39.1.0
+        version: 39.8.10
       inversify:
         specifier: 'catalog:'
         version: 6.2.1(reflect-metadata@0.1.14)
@@ -3382,8 +3382,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@39.1.0:
-    resolution: {integrity: sha512-vPRbKKQUzKWZZX68fuYdz4iS/eavGcQkHOGK4ylv0YJLbBRxxUlflPRdqRGflFjwid+sja7gbNul2lArevYwrw==}
+  electron@39.8.10:
+    resolution: {integrity: sha512-zbYtGPYUI7PzqLAzkk21Rk6j67WN0hxn0Mq/njErZo1d0HSf33is4f8ICI5fMLy5vYe0JtCtM5sYunNOaochSQ==}
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
@@ -9628,7 +9628,7 @@ snapshots:
       - supports-color
     optional: true
 
-  electron@39.1.0:
+  electron@39.8.10:
     dependencies:
       '@electron/get': 2.0.3
       '@types/node': 22.10.5

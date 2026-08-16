@@ -18,6 +18,23 @@ description: Create or update an interactive project overview board at .agents/p
 7. Ensure `index.html` works when opened directly with the `file://` protocol, without Willow or a development server.
 8. Verify that the entry file exists and that every referenced local resource resolves inside `.agents/panel/`.
 
+## Editing referenced board nodes
+
+Willow may include one or more selected board regions in the user's prompt using this format:
+
+```xml
+<board-node path=".agents/panel/index.html" selector="..." tag="..." label="...">summary</board-node>
+```
+
+- Treat each `board-node` as a reference to the exact region the user selected, not as text to copy
+  into the board.
+- Open the referenced `path`, locate the element with `selector`, and use `label` and the concise
+  text summary to confirm that the source still matches the user's selection before editing it.
+- Make the requested change as locally as possible. Preserve the referenced element's stable `id`
+  or `data-board-node` value unless the user explicitly asks to replace that region.
+- If a selector no longer resolves after earlier edits, use the label and summary to find the same
+  semantic region instead of silently modifying a different node.
+
 ## Style references
 
 Match style names case-insensitively. Read only the selected reference; do not load the other style
@@ -45,6 +62,9 @@ fallbacks when a reference names a proprietary font; the offline constraint take
 - Prefer concise summaries and visual hierarchy over dense prose. Avoid generic placeholder cards.
 - JavaScript may provide filtering, tabs, collapsible sections, or local interactions. Keep core information readable if a nonessential interaction fails.
 - Store only non-sensitive presentation preferences in browser storage. Never embed credentials, environment secrets, or private user data.
+- Add a unique, stable, semantic `data-board-node` value to each major user-editable region, card,
+  metric, section, or navigation group. Use lowercase kebab-case identifiers and preserve them when
+  updating an existing board so Willow can keep node references stable.
 
 ## Updating an existing board
 

@@ -28,9 +28,14 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  "insert-board-node": [source: string];
   "select-skill": [skill: SkillInfo, template?: ComposerPromptTemplate];
   "tabs-empty": [];
 }>();
+
+function insertBoardNode(source: string): void {
+  emit("insert-board-node", source);
+}
 
 function selectSkill(skill: SkillInfo, template?: ComposerPromptTemplate): void {
   emit("select-skill", skill, template);
@@ -343,6 +348,7 @@ onBeforeUnmount(() => {
           :workspace-id="workspaceId"
           :tab-id="view.tab.id"
           :state="view.tab.state"
+          @insert-board-node="insertBoardNode"
           @select-skill="selectSkill"
           @update:state="updateTabState(view.tab.id, $event)"
         />

@@ -1069,6 +1069,8 @@ describe("MessageList", () => {
     const skillSource =
       "[!test-global-skill](/Users/test/.willow/skills/test-global-skill/SKILL.md)";
     const fileSource = "[UserMessage.vue](apps/work/UserMessage.vue)";
+    const boardSource =
+      '<board-node path=".agents/panel/index.html" selector="#status" tag="section" label="Status">Project status</board-node>';
     const container = mountMessageList([
       {
         id: "user",
@@ -1076,7 +1078,9 @@ describe("MessageList", () => {
         role: "user",
         timestamp: 1,
         status: "completed",
-        content: [{ type: "text", text: `查看 ${fileSource} 并使用 ${skillSource}` }],
+        content: [
+          { type: "text", text: `查看 ${fileSource}、${boardSource} 并使用 ${skillSource}` },
+        ],
       },
     ]);
     await nextTick();
@@ -1084,11 +1088,14 @@ describe("MessageList", () => {
     const userMessage = container.querySelector("[data-slot=user-message]");
     const fileToken = userMessage?.querySelector("[data-token-rule=vue-file]");
     const skillToken = userMessage?.querySelector("[data-token-rule=skill]");
+    const boardToken = userMessage?.querySelector("[data-token-rule=board-node]");
 
     expect(fileToken?.textContent).toContain("UserMessage.vue");
     expect(fileToken?.getAttribute("data-token-source")).toBe(fileSource);
     expect(skillToken?.textContent).toContain("test-global-skill");
     expect(skillToken?.getAttribute("data-token-source")).toBe(skillSource);
+    expect(boardToken?.textContent).toContain("Status");
+    expect(boardToken?.getAttribute("data-token-source")).toBe(boardSource);
     expect(userMessage?.textContent).not.toContain("[!test-global-skill]");
   });
 

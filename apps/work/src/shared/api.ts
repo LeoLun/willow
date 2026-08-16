@@ -118,6 +118,16 @@ export interface GetBoardPanelRequest {
 
 export type GetBoardPanelResponse = { status: "missing" } | { status: "ready"; url: string };
 
+export interface SetBoardEditModeRequest {
+  workspaceId: number;
+  tabId: string;
+  enabled: boolean;
+}
+
+export interface SetBoardEditModeResponse {
+  enabled: boolean;
+}
+
 export interface GetBuiltinSkillListRequest {}
 
 export interface GetBuiltinSkillListResponse {
