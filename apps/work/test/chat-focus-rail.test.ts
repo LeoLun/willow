@@ -206,7 +206,7 @@ describe("Chat Focus Rail 展示条件", () => {
   });
 
   it("用户消息文章元素带 Rail 定位锚点 id", async () => {
-    const container = await mountChat();
+    await mountChat();
     await setMessages([userMessage(0), userMessage(1), userMessage(2), userMessage(3)]);
 
     expect(document.getElementById("user-message-user:0")).not.toBeNull();
