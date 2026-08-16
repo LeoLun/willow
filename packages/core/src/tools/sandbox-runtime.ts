@@ -1,5 +1,5 @@
 import { realpathSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import {
   SandboxManager,
   type SandboxRuntimeConfig,
@@ -10,6 +10,7 @@ import {
   sandboxDenyWritePatterns,
   sandboxPolicyPaths,
 } from "./policy.js";
+import { systemTemporaryDirectories } from "./temporary-directories.js";
 import type { SandboxPolicy } from "./types.js";
 
 let sandboxRuntimeTail: Promise<void> = Promise.resolve();
@@ -35,10 +36,6 @@ function unique(values: readonly string[]): string[] {
 
 function canonicalDirectory(path: string): string {
   return realpathSync(path);
-}
-
-function systemTemporaryDirectories(): string[] {
-  return unique([canonicalDirectory(tmpdir()), canonicalDirectory("/tmp")]);
 }
 
 export function createSandboxRuntimeConfig(

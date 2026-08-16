@@ -321,8 +321,30 @@ describe("filesystem tools", () => {
     expect(requestApproval).not.toHaveBeenCalled();
   });
 
+  it("applies the default bash timeout when none is provided", async () => {
+    const cwd = await temporaryDirectory("willow-bash-timeout-");
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementationOnce(((
+      callback: () => void,
+      delay?: number,
+    ) => {
+      expect(delay).toBe(120_000);
+      queueMicrotask(callback);
+      return 1 as unknown as NodeJS.Timeout;
+    }) as typeof setTimeout);
+
+    try {
+      await expect(
+        createBashTool({ cwd, permissionMode: "full-access" }).execute("bash-timeout", {
+          command: "sleep 30",
+        }),
+      ).rejects.toThrow("Command timed out after 120 seconds");
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
+
   it("requests approval for workspace escapes, including symlink escapes", async () => {
-    const parent = await temporaryDirectory("willow-permission-");
+    const parent = await workspaceTemporaryDirectory(".willow-permission-");
     const cwd = join(parent, "workspace");
     const outside = join(parent, "outside");
     await mkdir(cwd);
@@ -348,7 +370,7 @@ describe("filesystem tools", () => {
   });
 
   it("authorizes read-only tools before reading outside the workspace", async () => {
-    const parent = await temporaryDirectory("willow-read-permission-");
+    const parent = await workspaceTemporaryDirectory(".willow-read-permission-");
     const cwd = join(parent, "workspace");
     const outside = join(parent, "outside");
     await mkdir(cwd);
@@ -385,8 +407,87 @@ describe("filesystem tools", () => {
     );
   });
 
+  it("allows file tools in system temporary directories without approval", async () => {
+    const workspaceRoot = await workspaceTemporaryDirectory(".willow-temporary-tools-");
+    const cwd = join(workspaceRoot, "workspace");
+    await mkdir(cwd);
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const temporaryRoots = [...new Set([tmpdir(), ...(existsSync("/tmp") ? ["/tmp"] : [])])];
+
+    for (const permissionMode of ["request-approval", "delegate-approval"] as const) {
+      for (const [index, temporaryRoot] of temporaryRoots.entries()) {
+        const runtime = { cwd, permissionMode, requestApproval };
+        const directory = await mkdtemp(join(temporaryRoot, "willow-file-tools-"));
+        temporaryDirectories.push(directory);
+        const path = join(directory, `${permissionMode}-${index}.txt`);
+
+        await createWriteTool(runtime).execute(`write-temporary-${permissionMode}-${index}`, {
+          path,
+          content: "alpha\n",
+        });
+        await createEditTool(runtime).execute(`edit-temporary-${permissionMode}-${index}`, {
+          path,
+          edits: [{ oldText: "alpha", newText: "beta" }],
+        });
+        await expect(
+          createReadTool(runtime).execute(`read-temporary-${permissionMode}-${index}`, { path }),
+        ).resolves.toEqual(
+          expect.objectContaining({ content: [{ type: "text", text: "beta\n" }] }),
+        );
+        await createLsTool(runtime).execute(`ls-temporary-${permissionMode}-${index}`, {
+          path: directory,
+        });
+        await createGrepTool(runtime).execute(`grep-temporary-${permissionMode}-${index}`, {
+          path: directory,
+          pattern: "beta",
+        });
+        await createFindTool(runtime).execute(`find-temporary-${permissionMode}-${index}`, {
+          path: directory,
+          pattern: "*.txt",
+        });
+      }
+    }
+
+    expect(requestApproval).not.toHaveBeenCalled();
+  });
+
+  it("requires approval for symlink escapes from a system temporary directory", async () => {
+    const workspaceRoot = await workspaceTemporaryDirectory(".willow-temporary-symlink-");
+    const cwd = join(workspaceRoot, "workspace");
+    const outside = join(workspaceRoot, "outside");
+    await Promise.all([mkdir(cwd), mkdir(outside)]);
+    await writeFile(join(outside, "secret.txt"), "secret\n", "utf8");
+    const temporaryRoot = await mkdtemp(join(tmpdir(), "willow-file-tools-symlink-"));
+    temporaryDirectories.push(temporaryRoot);
+    await symlink(outside, join(temporaryRoot, "escape"));
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const runtime = {
+      cwd,
+      permissionMode: "request-approval" as const,
+      requestApproval,
+    };
+
+    await expect(
+      createReadTool(runtime).execute("read-temporary-escape", {
+        path: join(temporaryRoot, "escape", "secret.txt"),
+      }),
+    ).rejects.toThrow("Permission denied");
+    await expect(
+      createWriteTool(runtime).execute("write-temporary-escape", {
+        path: join(temporaryRoot, "escape", "output.txt"),
+        content: "blocked",
+      }),
+    ).rejects.toThrow("Permission denied");
+
+    expect(requestApproval).toHaveBeenCalledTimes(2);
+    expect(requestApproval.mock.calls.map(([request]) => request.reason)).toEqual([
+      "outside-workspace-read",
+      "outside-workspace-write",
+    ]);
+  });
+
   it("allows configured built-in skill reads without allowing writes", async () => {
-    const parent = await temporaryDirectory("willow-builtin-skill-permission-");
+    const parent = await workspaceTemporaryDirectory(".willow-builtin-skill-permission-");
     const cwd = join(parent, "workspace");
     const builtinSkills = join(parent, "builtin-skills");
     await mkdir(cwd);
@@ -425,7 +526,7 @@ describe("filesystem tools", () => {
   });
 
   it("limits an explicit writable file grant to that exact file", async () => {
-    const parent = await temporaryDirectory("willow-exact-file-grant-");
+    const parent = await workspaceTemporaryDirectory(".willow-exact-file-grant-");
     const cwd = join(parent, "workspace");
     const outside = join(parent, "outside");
     await mkdir(cwd);
@@ -458,7 +559,7 @@ describe("filesystem tools", () => {
   });
 
   it("allows read-only tools inside global skills without allowing symlink escapes", async () => {
-    const parent = await temporaryDirectory("willow-global-skills-read-");
+    const parent = await workspaceTemporaryDirectory(".willow-global-skills-read-");
     const cwd = join(parent, "workspace");
     const agentDir = join(parent, "global-agent");
     const skillsDirectory = join(agentDir, "skills");
@@ -507,7 +608,7 @@ describe("filesystem tools", () => {
   });
 
   it("allows write tools inside global skills without weakening hard denies", async () => {
-    const parent = await temporaryDirectory("willow-global-skills-write-");
+    const parent = await workspaceTemporaryDirectory(".willow-global-skills-write-");
     const cwd = join(parent, "workspace");
     const agentDir = join(parent, "global-agent");
     const skillsDirectory = join(agentDir, "skills");

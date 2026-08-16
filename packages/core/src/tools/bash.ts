@@ -19,9 +19,7 @@ import type { BashToolDetails, ToolRuntimeOptions } from "./types.js";
 
 const bashSchema = Type.Object({
   command: Type.String({ description: "Bash command to execute" }),
-  timeout: Type.Optional(
-    Type.Number({ description: "Timeout in seconds (optional, no default timeout)" }),
-  ),
+  timeout: Type.Optional(Type.Number({ description: "Timeout in seconds (default 120)" })),
   interactive: Type.Optional(
     Type.Boolean({
       description:
@@ -41,6 +39,7 @@ type ShellResult = {
 };
 
 const MAX_SANDBOX_APPROVALS = 16;
+const DEFAULT_BASH_TIMEOUT_SECONDS = 120;
 const APPLICATION_LAUNCH_DENIAL_MARKERS = [
   "lsopen",
   "appleevent-send",
@@ -353,7 +352,7 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
   readonly name = "bash";
   readonly label = "bash";
   readonly description =
-    "Execute a bash command. Output is truncated to the last 2000 lines or 50KB.";
+    "Execute a bash command with a default 120-second timeout. Output is truncated to the last 2000 lines or 50KB.";
   readonly parameters = bashSchema;
   override readonly executionMode = "sequential";
 
@@ -366,13 +365,14 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
 
   protected override async run(context: ToolExecutionContext<BashToolInput, BashToolDetails>) {
     const { input, signal, onUpdate } = context;
+    const timeout = input.timeout ?? DEFAULT_BASH_TIMEOUT_SECONDS;
     const shouldSandbox = this.options.permissionMode !== "full-access";
     let result: ShellResult;
     if (!shouldSandbox) {
       result = await runShell({
         command: input.command,
         cwd: this.options.cwd,
-        timeout: input.timeout,
+        timeout,
         sandboxed: false,
         signal,
         onUpdate,
@@ -392,7 +392,7 @@ export class BashTool extends ToolBase<typeof bashSchema, BashToolDetails> {
           command: input.command,
           cwd: this.options.cwd,
           agentDir: this.options.agentDir,
-          timeout: input.timeout,
+          timeout,
           policy: this.options.sandboxPolicy,
           grants,
           signal,

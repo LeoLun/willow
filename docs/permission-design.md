@@ -40,10 +40,10 @@
 1. **默认最小权限**：未指定模式时使用 `request-approval`。
 2. **沙箱优先**：非完全访问模式下，`bash` 通过 `@carderne/sandbox-runtime` 在 macOS
    `sandbox-exec` 中执行。
-3. **读写边界明确**：文件工具和 shell 沙箱默认可读写当前工作区，以及由
-   `AgentCore.agentDir` 解析出的全局 `skills` 目录（默认 `~/.willow/skills`），以支持管理
-   自定义全局技能。由桌面应用传入的内置技能目录同样允许读写，以支持技能脚本在自身目录维护
-   安装状态、缓存等运行资源。
+3. **读写边界明确**：文件工具和 shell 沙箱默认可读写当前工作区、Node.js `os.tmpdir()` 返回的
+   系统临时目录、canonical `/tmp`，以及由 `AgentCore.agentDir` 解析出的全局 `skills` 目录
+   （默认 `~/.willow/skills`），以支持管理自定义全局技能。由桌面应用传入的内置技能目录同样
+   允许读写，以支持技能脚本在自身目录维护安装状态、缓存等运行资源。
 4. **防止路径伪装**：工作区判断使用 canonical path，并检查最近存在的父目录，避免通过符号链接
    或尚未创建的路径绕过边界。
 5. **审批单次生效**：AI 或用户对越界工具调用的批准只对当前调用有效。桌面端显式选择的本地附件
@@ -186,11 +186,11 @@ type ToolApprovalRequest = {
 | `createAutomation` 创建定时任务 | 执行前弹窗审批 | AI 通过后创建，否则转用户审批 | 直接创建 |
 | `updateAutomation` 修改定时任务 | 执行前弹窗审批 | AI 通过后修改，否则转用户审批 | 直接修改 |
 | `deleteAutomation` 删除定时任务 | 执行前弹窗审批 | AI 通过后删除，否则转用户审批 | 直接删除 |
-| `write/edit` 工作区或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
+| `write/edit` 工作区、系统临时目录或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 内置技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
 | `write/edit` 工作区外写入 | 执行前弹窗 | AI 通过后写入，否则转用户审批 | 直接执行 |
 | `write/edit` 敏感目标 | 硬拒绝 | 硬拒绝 | 直接执行 |
-| `read/ls/grep/find` 工作区、全局或内置技能目录内读取 | 直接读取 | 直接读取 | 直接读取 |
+| `read/ls/grep/find` 工作区、系统临时目录、全局或内置技能目录内读取 | 直接读取 | 直接读取 | 直接读取 |
 | `read/ls/grep/find` 工作区外读取 | 执行前弹窗 | AI 通过后读取，否则转用户审批 | 直接读取 |
 | 用户显式添加的本地文件 | 当前会话分支内按精确路径读写 | 当前会话分支内按精确路径读写 | 受操作系统权限约束 |
 | Plan 模式显式添加的本地文件 | 当前计划消息内按精确路径只读 | 当前计划消息内按精确路径只读 | 工具白名单仍只提供读取能力 |
@@ -262,7 +262,7 @@ allowlist。macOS 即使在 `(allow default)` profile 下也拒绝沙箱内执�
 - stdout 和 stderr 合并并流式发送工具更新；
 - 返回内容保留最后 2000 行或 50KB；
 - 截断时完整输出写入临时目录，并通过 `fullOutputPath` 返回；
-- `timeout` 必须为正有限秒数；
+- `timeout` 必须为正有限秒数，未传入时默认限制为 120 秒；
 - 超时或 `AbortSignal` 触发时终止整个进程组；
 - 非零退出码作为工具错误返回。
 
@@ -288,8 +288,9 @@ allowlist。macOS 即使在 `(allow default)` profile 下也拒绝沙箱内执�
 4. 将尚未存在的剩余路径重新附加到 canonical parent；
 5. 将结果与工作区的 canonical path 比较。
 
-只有目标位于工作区 canonical path、由 `agentDir` 解析出的全局 `skills` 目录或显式
-`allowWrite` 根内时，才允许无提示写入。内置技能目录由 `AgentCore` 合并到 `allowWrite`。
+只有目标位于工作区 canonical path、Node.js `os.tmpdir()` 返回的系统临时目录、canonical
+`/tmp`、由 `agentDir` 解析出的全局 `skills` 目录或显式 `allowWrite` 根内时，才允许无提示写入。
+内置技能目录由 `AgentCore` 合并到 `allowWrite`。
 
 这同时覆盖：
 
@@ -330,8 +331,8 @@ allowlist。macOS 即使在 `(allow default)` profile 下也拒绝沙箱内执�
 
 1. 解析目标文件、目录或搜索根；
 2. 通过最近存在父目录和 `realpath()` 得到 canonical path；
-3. 工作区、由 `agentDir` 解析出的全局 `skills` 目录、内置技能目录、`allowRead` 或
-   `allowWrite` 根内直接读取；
+3. 工作区、Node.js `os.tmpdir()` 返回的系统临时目录、canonical `/tmp`、由 `agentDir` 解析出的
+   全局 `skills` 目录、内置技能目录、`allowRead` 或 `allowWrite` 根内直接读取；
 4. 其他路径构造 `outside-workspace-read` 审批；
 5. 获批只允许当前工具调用继续，不保存规则。
 

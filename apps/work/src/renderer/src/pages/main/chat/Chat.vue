@@ -4,6 +4,7 @@ import type { StyleValue } from "vue";
 import { useRoute } from "vue-router";
 import { MessageList } from "@/components/message-list";
 import { useSessionMessages } from "@/composables/useMessage";
+import ChatFocusRail from "./ChatFocusRail.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -26,6 +27,9 @@ let previousScrollTop = 0;
 let userScrollIntent = false;
 let pointerScrollIntent = false;
 
+const FOCUS_RAIL_MIN_USER_MESSAGES = 3;
+const RAIL_SPAN_PX = 84;
+
 const workspaceId = computed(() => {
   const value = Number(route.query.workspaceId);
   return Number.isInteger(value) && value > 0 ? value : undefined;
@@ -37,9 +41,26 @@ const sessionId = computed(() => {
 });
 
 const { timeline, loading } = useSessionMessages(workspaceId, sessionId);
+const userMessages = computed(() =>
+  timeline.value.messages.filter((message) => message.role === "user"),
+);
+const showFocusRail = computed(() => userMessages.value.length > FOCUS_RAIL_MIN_USER_MESSAGES);
+const railGutterNeeded = ref(false);
 const bottomSpacerStyle = computed<StyleValue>(() => ({
   height: `${composerHeight.value + 32}px`,
 }));
+
+function refreshRailGutter(): void {
+  const viewport = messageViewport.value;
+  const content = messageContent.value;
+  if (!viewport || !content) return;
+  railGutterNeeded.value =
+    content.getBoundingClientRect().left < viewport.getBoundingClientRect().left + RAIL_SPAN_PX;
+}
+
+function noteFocusRailNavigation(): void {
+  shouldStickToBottom = false;
+}
 
 function scrollToBottom(): void {
   const viewport = messageViewport.value;
@@ -100,10 +121,13 @@ watch([timeline, () => props.streaming], async () => {
   scrollToBottom();
 });
 
+watch(showFocusRail, () => refreshRailGutter());
+
 onMounted(() => {
   window.addEventListener("pointerup", endPointerScroll);
   window.addEventListener("pointercancel", endPointerScroll);
   updateComposerHeight();
+  refreshRailGutter();
   if (typeof ResizeObserver === "undefined") return;
 
   if (composer.value) {
@@ -112,6 +136,7 @@ onMounted(() => {
   }
   if (messageContent.value) {
     messageResizeObserver = new ResizeObserver(() => {
+      refreshRailGutter();
       if (shouldStickToBottom) scrollToBottom();
     });
     messageResizeObserver.observe(messageContent.value);
@@ -141,7 +166,8 @@ onBeforeUnmount(() => {
     >
       <div
         ref="messageContent"
-        class="mx-auto flex min-h-full w-full max-w-[50rem] flex-col px-4 pt-6"
+        class="mx-auto flex min-h-full w-full max-w-[50rem] flex-col pt-6"
+        :class="showFocusRail && railGutterNeeded ? 'pr-4 pl-[88px]' : 'px-4'"
         data-slot="chat-message-content"
       >
         <div
@@ -172,12 +198,23 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <ChatFocusRail
+      v-if="showFocusRail"
+      :messages="timeline.messages"
+      :scroll-element="messageViewport"
+      @navigate="noteFocusRailNavigation"
+    />
+
     <div
       ref="composer"
       class="absolute right-0 bottom-0 left-0 z-10 w-full pb-2"
       data-slot="chat-composer"
     >
-      <div class="relative z-1 mx-auto w-full max-w-[50rem] px-4" data-slot="chat-composer-content">
+      <div
+        class="relative z-1 mx-auto w-full max-w-[50rem]"
+        :class="showFocusRail && railGutterNeeded ? 'pr-4 pl-[88px]' : 'px-4'"
+        data-slot="chat-composer-content"
+      >
         <slot />
       </div>
       <div class="absolute right-0 bottom-0 left-0 z-0 mx-2 h-10 bg-(--background)"></div>

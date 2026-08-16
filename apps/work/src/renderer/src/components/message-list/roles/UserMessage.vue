@@ -6,9 +6,13 @@ import ContentBlocks from "../blocks/ContentBlocks.vue";
 import MessageToolbar from "../MessageToolbar.vue";
 import type { Message, MessageContent } from "../types";
 
-const props = defineProps<{
-  message: Message;
-}>();
+const props = withDefaults(
+  defineProps<{
+    message: Message;
+    withAnchorId?: boolean;
+  }>(),
+  { withAnchorId: true },
+);
 
 type AttachmentContent = Extract<MessageContent, { type: "localFile" | "image" }>;
 type MergedAttachment = AttachmentContent & { data?: string; mimeType?: string };
@@ -60,6 +64,7 @@ const bodyMessage = computed<Message>(() => ({
   <article
     class="group/message flex justify-end"
     data-slot="user-message"
+    :id="props.withAnchorId ? `user-message-${props.message.id}` : undefined"
     :data-message-role="props.message.role"
     :data-message-status="props.message.status"
   >

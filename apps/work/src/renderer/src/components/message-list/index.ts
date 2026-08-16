@@ -1,4 +1,5 @@
 export { default as MessageList } from "./MessageList.vue";
+export { default as UserMessage } from "./roles/UserMessage.vue";
 export {
   applyMessageStreamEvent,
   applyTurnArtifact,

@@ -6,6 +6,7 @@ import {
   resolveGlobalSkillsDirectory,
   resolveFromCwd,
 } from "./policy.js";
+import { systemTemporaryDirectories } from "./temporary-directories.js";
 import type {
   PermissionMode,
   ToolApprovalHandler,
@@ -59,8 +60,10 @@ export async function authorizeMutation(options: {
     throw new Error(`Sensitive write denied for ${options.path}`);
   }
   const globalSkillsDirectory = resolveGlobalSkillsDirectory(options.agentDir);
+  const temporaryDirectories = systemTemporaryDirectories();
   if (
     (await isWorkspaceMutation(options.cwd, options.path)) ||
+    (await pathMatchesAllowedRoot(options.cwd, options.path, temporaryDirectories)) ||
     (globalSkillsDirectory !== undefined &&
       (await pathMatchesAllowedRoot(options.cwd, options.path, [globalSkillsDirectory]))) ||
     (await pathMatchesAllowedRoot(options.cwd, options.path, options.sandboxPolicy?.allowWrite))
@@ -95,8 +98,10 @@ export async function authorizeRead(options: {
 }): Promise<void> {
   if (options.permissionMode === "full-access") return;
   const globalSkillsDirectory = resolveGlobalSkillsDirectory(options.agentDir);
+  const temporaryDirectories = systemTemporaryDirectories();
   if (
     (await isWorkspaceMutation(options.cwd, options.path)) ||
+    (await pathMatchesAllowedRoot(options.cwd, options.path, temporaryDirectories)) ||
     (globalSkillsDirectory !== undefined &&
       (await pathMatchesAllowedRoot(options.cwd, options.path, [globalSkillsDirectory]))) ||
     (await pathMatchesAllowedRoot(options.cwd, options.path, options.sandboxPolicy?.allowRead)) ||

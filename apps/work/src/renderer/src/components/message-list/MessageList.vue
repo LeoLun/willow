@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/vue-virtual";
-import { computed, type StyleValue } from "vue";
+import { computed, onBeforeUnmount, watch, type StyleValue } from "vue";
 import Loading from "@/components/ui/Loading.vue";
+import { useMessageListScroll } from "@/composables/useMessageListScroll";
 import { groupMessagesIntoTurns } from "./message-turns";
 import MessageTurn from "./MessageTurn.vue";
 import type { Message } from "./types";
@@ -43,6 +44,23 @@ const virtualizer = useVirtualizer(
     },
   })),
 );
+const { register } = useMessageListScroll();
+let unregisterScrollHandle: (() => void) | undefined;
+watch(
+  virtualized,
+  (isVirtualized) => {
+    unregisterScrollHandle?.();
+    unregisterScrollHandle = isVirtualized
+      ? register({
+          scrollToTurn: (index, options) => virtualizer.value.scrollToIndex(index, options),
+        })
+      : undefined;
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => {
+  unregisterScrollHandle?.();
+});
 const virtualItems = computed(() => virtualizer.value.getVirtualItems());
 const renderedVirtualItems = computed(() => {
   if (virtualItems.value.length > 0) return virtualItems.value;

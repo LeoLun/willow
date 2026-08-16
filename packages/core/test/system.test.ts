@@ -88,6 +88,9 @@ describe("getSystemPrompt", () => {
       "`edit` changes an existing file using one or more exact replacements",
     );
     expect(prompt).toContain("An approval applies to the current tool call only");
+    expect(prompt).toContain(
+      "Reads and writes within the workspace, system temporary directories, and configured skills directories normally require no extra approval.",
+    );
     expect(prompt).toContain("# General Guidelines for Coding");
     expect(prompt).toContain("# General Guidelines for Research and Data Processing");
     expect(prompt).toContain("# Context Management");
