@@ -205,6 +205,27 @@ describe("Chat Focus Rail 展示条件", () => {
     expect(railButtons(container)[3].getAttribute("aria-label")).toBe("问题 3");
   });
 
+  it("消息列表宽度不足时隐藏 Rail，宽度恢复后自动显示", async () => {
+    const container = await mountChat();
+    const viewport = container.querySelector<HTMLElement>("[data-slot=chat-messages]")!;
+    const content = container.querySelector<HTMLElement>("[data-slot=chat-message-content]")!;
+    await setMessages([userMessage(0), userMessage(1), userMessage(2), userMessage(3)]);
+
+    expect(container.querySelector("[data-slot=focus-rail]")).not.toBeNull();
+
+    viewport.getBoundingClientRect = () => rect({ left: 0, width: 640 });
+    content.getBoundingClientRect = () => rect({ left: 16, width: 608 });
+    triggerResize(content);
+    await nextTick();
+    expect(container.querySelector("[data-slot=focus-rail]")).toBeNull();
+
+    viewport.getBoundingClientRect = () => rect({ left: 0, width: 1_000 });
+    content.getBoundingClientRect = () => rect({ left: 100, width: 800 });
+    triggerResize(content);
+    await nextTick();
+    expect(container.querySelector("[data-slot=focus-rail]")).not.toBeNull();
+  });
+
   it("用户消息文章元素带 Rail 定位锚点 id", async () => {
     await mountChat();
     await setMessages([userMessage(0), userMessage(1), userMessage(2), userMessage(3)]);
@@ -342,7 +363,7 @@ describe("Chat Focus Rail 定位与遮挡", () => {
     ]);
   });
 
-  it("窄面板时消息列与输入框列让出 Rail gutter", async () => {
+  it("窄面板时隐藏 Rail，消息列与输入框保持正常内边距", async () => {
     const container = await mountChat();
     const content = container.querySelector<HTMLElement>("[data-slot=chat-message-content]")!;
     const composerContent = container.querySelector<HTMLElement>(
@@ -356,11 +377,11 @@ describe("Chat Focus Rail 定位与遮挡", () => {
     triggerResize(content);
     await nextTick();
 
-    expect(content.classList.contains("pl-[88px]")).toBe(true);
-    expect(content.classList.contains("pr-4")).toBe(true);
-    expect(content.classList.contains("px-4")).toBe(false);
-    expect(composerContent.classList.contains("pl-[88px]")).toBe(true);
-    expect(composerContent.classList.contains("px-4")).toBe(false);
+    expect(container.querySelector("[data-slot=focus-rail]")).toBeNull();
+    expect(content.classList.contains("px-4")).toBe(true);
+    expect(content.classList.contains("pl-[88px]")).toBe(false);
+    expect(composerContent.classList.contains("px-4")).toBe(true);
+    expect(composerContent.classList.contains("pl-[88px]")).toBe(false);
   });
 
   it("宽面板且有自然边距时不加 gutter，保持 px-4", async () => {
@@ -374,6 +395,7 @@ describe("Chat Focus Rail 定位与遮挡", () => {
     triggerResize(content);
     await nextTick();
 
+    expect(container.querySelector("[data-slot=focus-rail]")).not.toBeNull();
     expect(content.classList.contains("px-4")).toBe(true);
     expect(content.classList.contains("pl-[88px]")).toBe(false);
   });

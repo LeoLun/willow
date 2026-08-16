@@ -44,18 +44,24 @@ const { timeline, loading } = useSessionMessages(workspaceId, sessionId);
 const userMessages = computed(() =>
   timeline.value.messages.filter((message) => message.role === "user"),
 );
-const showFocusRail = computed(() => userMessages.value.length > FOCUS_RAIL_MIN_USER_MESSAGES);
-const railGutterNeeded = ref(false);
+const focusRailFits = ref(true);
+const showFocusRail = computed(
+  () => focusRailFits.value && userMessages.value.length > FOCUS_RAIL_MIN_USER_MESSAGES,
+);
 const bottomSpacerStyle = computed<StyleValue>(() => ({
   height: `${composerHeight.value + 32}px`,
 }));
 
-function refreshRailGutter(): void {
+function refreshFocusRailFit(): void {
   const viewport = messageViewport.value;
   const content = messageContent.value;
   if (!viewport || !content) return;
-  railGutterNeeded.value =
-    content.getBoundingClientRect().left < viewport.getBoundingClientRect().left + RAIL_SPAN_PX;
+
+  const viewportRect = viewport.getBoundingClientRect();
+  const contentRect = content.getBoundingClientRect();
+  if (viewportRect.width <= 0 || contentRect.width <= 0) return;
+
+  focusRailFits.value = contentRect.left >= viewportRect.left + RAIL_SPAN_PX;
 }
 
 function noteFocusRailNavigation(): void {
@@ -121,13 +127,11 @@ watch([timeline, () => props.streaming], async () => {
   scrollToBottom();
 });
 
-watch(showFocusRail, () => refreshRailGutter());
-
 onMounted(() => {
   window.addEventListener("pointerup", endPointerScroll);
   window.addEventListener("pointercancel", endPointerScroll);
   updateComposerHeight();
-  refreshRailGutter();
+  refreshFocusRailFit();
   if (typeof ResizeObserver === "undefined") return;
 
   if (composer.value) {
@@ -136,10 +140,11 @@ onMounted(() => {
   }
   if (messageContent.value) {
     messageResizeObserver = new ResizeObserver(() => {
-      refreshRailGutter();
+      refreshFocusRailFit();
       if (shouldStickToBottom) scrollToBottom();
     });
     messageResizeObserver.observe(messageContent.value);
+    if (messageViewport.value) messageResizeObserver.observe(messageViewport.value);
   }
 });
 
@@ -166,8 +171,7 @@ onBeforeUnmount(() => {
     >
       <div
         ref="messageContent"
-        class="mx-auto flex min-h-full w-full max-w-[50rem] flex-col pt-6"
-        :class="showFocusRail && railGutterNeeded ? 'pr-4 pl-[88px]' : 'px-4'"
+        class="mx-auto flex min-h-full w-full max-w-[50rem] flex-col px-4 pt-6"
         data-slot="chat-message-content"
       >
         <div
@@ -210,11 +214,7 @@ onBeforeUnmount(() => {
       class="absolute right-0 bottom-0 left-0 z-10 w-full pb-2"
       data-slot="chat-composer"
     >
-      <div
-        class="relative z-1 mx-auto w-full max-w-[50rem]"
-        :class="showFocusRail && railGutterNeeded ? 'pr-4 pl-[88px]' : 'px-4'"
-        data-slot="chat-composer-content"
-      >
+      <div class="relative z-1 mx-auto w-full max-w-[50rem] px-4" data-slot="chat-composer-content">
         <slot />
       </div>
       <div class="absolute right-0 bottom-0 left-0 z-0 mx-2 h-10 bg-(--background)"></div>
