@@ -32,9 +32,10 @@ const SESSION_USAGE_PANEL_OPEN_STORAGE_KEY = "willow:session-usage-panel-open";
 
 function loadSessionUsagePanelOpen(): boolean {
   try {
-    return localStorage.getItem(SESSION_USAGE_PANEL_OPEN_STORAGE_KEY) === "true";
+    const stored = localStorage.getItem(SESSION_USAGE_PANEL_OPEN_STORAGE_KEY);
+    return stored === null || stored === "true";
   } catch {
-    return false;
+    return true;
   }
 }
 
