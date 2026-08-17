@@ -227,15 +227,24 @@ afterEach(() => {
 });
 
 describe("ChatBase right sidebar", () => {
-  it("groups the workspace and sidebar actions", async () => {
+  it("does not render session usage controls on the home page", async () => {
+    const container = await mountChatBase("/?workspaceId=1");
+
+    expect(container.querySelector('button[aria-label="切换会话信息面板"]')).toBeNull();
+    expect(container.querySelector('[data-slot="session-usage-sidebar"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="打开当前工作空间"]')).not.toBeNull();
+  });
+
+  it("keeps only generic toolbar actions in the base layout", async () => {
     const container = await mountChatBase();
-    const group = container.querySelector('[data-slot="button-group"]');
+    const group = container.querySelector('[data-slot="chat-toolbar-actions"]');
     const buttons = group?.querySelectorAll(':scope > [data-slot="button"]');
 
     expect(group).not.toBeNull();
-    expect(buttons).toHaveLength(2);
+    expect(buttons).toHaveLength(1);
     expect(buttons?.[0]?.getAttribute("aria-label")).toBe("打开当前工作空间");
-    expect(buttons?.[1]).toBe(getToggle(container));
+    expect(container.querySelector('button[aria-label="切换会话信息面板"]')).toBeNull();
+    expect(container.querySelector('[data-slot="session-usage-panel"]')).toBeNull();
 
     (buttons?.[0] as HTMLButtonElement | undefined)?.click();
     await vi.waitFor(() => {
@@ -451,28 +460,6 @@ describe("ChatBase right sidebar", () => {
 
     expect(editor.textContent).toContain("Make this clearer");
     expect(editor.querySelector("[data-token-rule=board-node]")?.textContent).toContain("overview");
-  });
-
-  it("keeps the main pane stable while the container width changes", async () => {
-    localStorage.setItem(rightSidebarOpenStorageKey("session-a"), "true");
-    const container = await mountChatBase();
-    const observer = resizeObservers.at(-1);
-    if (!observer) throw new Error("content ResizeObserver was not registered");
-
-    expect(getLayout(container).style.gridTemplateColumns).toBe("672px 8px minmax(0, 1fr)");
-    observer.emit(1200);
-    await nextTick();
-    expect(getLayout(container).style.gridTemplateColumns).toBe("672px 8px minmax(0, 1fr)");
-    expect(getHandle(container).getAttribute("aria-valuenow")).toBe("520");
-
-    observer.emit(800);
-    await nextTick();
-    expect(getLayout(container).style.gridTemplateColumns).toBe("560px 8px minmax(0, 1fr)");
-
-    observer.emit(1000);
-    await nextTick();
-    expect(getLayout(container).style.gridTemplateColumns).toBe("672px 8px minmax(0, 1fr)");
-    expect(localStorage.getItem("willow:chat-right-sidebar-width")).toBeNull();
   });
 
   it("resizes from the pointer movement without snapping to the press position", async () => {

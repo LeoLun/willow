@@ -27,6 +27,7 @@ describe("ProviderCatalogService", () => {
       expect.objectContaining({
         id: expect.any(String),
         name: expect.any(String),
+        contextWindow: expect.any(Number),
         thinkingLevels: expect.any(Array),
       }),
     );

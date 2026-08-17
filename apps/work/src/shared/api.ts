@@ -81,6 +81,7 @@ export type ThinkingLevel = Exclude<ModelThinkingLevel, "off">;
 export interface ProviderModelInfo {
   id: string;
   name: string;
+  contextWindow?: number;
   thinkingLevels: ThinkingLevel[];
 }
 

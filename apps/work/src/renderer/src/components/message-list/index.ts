@@ -10,4 +10,4 @@ export {
   toMessage,
   toMessageList,
 } from "./message";
-export type { Message, MessageContent, MessageRole, MessageTimeline } from "./types";
+export type { Message, MessageContent, MessageRole, MessageTimeline, MessageUsage } from "./types";

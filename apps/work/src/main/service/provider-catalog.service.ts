@@ -20,6 +20,7 @@ export class ProviderCatalogService {
       models: provider.getModels().map((model) => ({
         id: model.id,
         name: model.name,
+        contextWindow: model.contextWindow,
         thinkingLevels: getSupportedThinkingLevels(model).filter(
           (level): level is ThinkingLevel => level !== "off",
         ),

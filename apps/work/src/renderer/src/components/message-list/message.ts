@@ -19,6 +19,10 @@ type AgentMessageLike = {
   isError?: unknown;
   stopReason?: unknown;
   errorMessage?: unknown;
+  provider?: unknown;
+  model?: unknown;
+  responseModel?: unknown;
+  usage?: unknown;
 };
 
 type ContentLike = Record<string, unknown> & { type?: unknown };
@@ -36,6 +40,22 @@ function toMessageRole(role: unknown): MessageRole {
 
 function toTimestamp(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function toUsage(value: unknown): Message["usage"] {
+  const usage = asObject(value);
+  if (!usage) return undefined;
+  const fields = ["input", "output", "cacheRead", "cacheWrite", "totalTokens"] as const;
+  if (fields.some((field) => typeof usage[field] !== "number" || !Number.isFinite(usage[field]))) {
+    return undefined;
+  }
+  return {
+    input: Math.max(0, usage.input as number),
+    output: Math.max(0, usage.output as number),
+    cacheRead: Math.max(0, usage.cacheRead as number),
+    cacheWrite: Math.max(0, usage.cacheWrite as number),
+    totalTokens: Math.max(0, usage.totalTokens as number),
+  };
 }
 
 function toUnknownContent(value: unknown, fallbackType = "unknown"): MessageContent {
@@ -184,6 +204,10 @@ export function toMessage(
     isError: typeof value.isError === "boolean" ? value.isError : undefined,
     stopReason: typeof value.stopReason === "string" ? value.stopReason : undefined,
     errorMessage: typeof value.errorMessage === "string" ? value.errorMessage : undefined,
+    provider: typeof value.provider === "string" ? value.provider : undefined,
+    model: typeof value.model === "string" ? value.model : undefined,
+    responseModel: typeof value.responseModel === "string" ? value.responseModel : undefined,
+    usage: toUsage(value.usage),
   };
 }
 

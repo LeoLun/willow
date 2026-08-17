@@ -57,6 +57,18 @@ export interface Message {
   isError?: boolean;
   stopReason?: string;
   errorMessage?: string;
+  provider?: string;
+  model?: string;
+  responseModel?: string;
+  usage?: MessageUsage;
+}
+
+export interface MessageUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  totalTokens: number;
 }
 
 export interface MessageTimeline {

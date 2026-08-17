@@ -105,7 +105,7 @@ const sessionId = computed(() => {
 const RIGHT_SIDEBAR_OPEN_STORAGE_KEY_PREFIX = "willow:chat-right-sidebar-open";
 const RIGHT_SIDEBAR_WIDTH_STORAGE_KEY = "willow:chat-right-sidebar-width";
 const DEFAULT_RIGHT_SIDEBAR_WIDTH = 320;
-const MIN_RIGHT_SIDEBAR_WIDTH = 350;
+const MIN_RIGHT_SIDEBAR_WIDTH = 240;
 const MIN_MAIN_PANE_WIDTH = 500;
 const RESIZE_HANDLE_WIDTH = 8;
 const KEYBOARD_RESIZE_STEP = 16;
@@ -476,8 +476,9 @@ async function loadModels(): Promise<void> {
 watch([workspaceId, sessionId], () => void loadSessionTitle(), { immediate: true });
 watch(sessionId, (nextSessionId) => {
   rightSidebarOpen.value = loadRightSidebarOpen(nextSessionId);
-  if (rightSidebarOpen.value) initializeMainPaneWidth();
-  else preferredMainPaneWidth.value = undefined;
+  if (rightSidebarOpen.value) {
+    initializeMainPaneWidth();
+  } else preferredMainPaneWidth.value = undefined;
 });
 watch(
   [approvalMode, selectedModel, reasoningEffort],
@@ -637,7 +638,7 @@ async function applyGuidedPromptIfRequested(): Promise<void> {
 <template>
   <div
     ref="contentLayout"
-    class="grid h-full min-h-0 overflow-hidden"
+    class="relative grid h-full min-h-0 overflow-hidden"
     data-slot="chat-content-layout"
     :style="contentLayoutStyle"
   >
@@ -660,15 +661,17 @@ async function applyGuidedPromptIfRequested(): Promise<void> {
           <p class="truncate text-sm font-medium">{{ topBarTitle }}</p>
         </template>
         <template #right>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            :disabled="workspaceId === undefined"
-            aria-label="打开当前工作空间"
-            @click="openCurrentWorkspace"
-          >
-            <FolderOpenIcon />
-          </Button>
+          <div class="flex items-center gap-1" data-slot="chat-toolbar-actions">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              :disabled="workspaceId === undefined"
+              aria-label="打开当前工作空间"
+              @click="openCurrentWorkspace"
+            >
+              <FolderOpenIcon />
+            </Button>
+          </div>
         </template>
       </BaseHeader>
 

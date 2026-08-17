@@ -91,6 +91,33 @@ afterEach(() => {
 });
 
 describe("pi-agent message conversion", () => {
+  it("preserves assistant model and usage metadata", () => {
+    const message = toMessage(
+      agentMessage({
+        role: "assistant",
+        content: [{ type: "text", text: "完成" }],
+        provider: "openai",
+        model: "gpt-5",
+        responseModel: "gpt-5-2026-08-01",
+        usage: {
+          input: 100,
+          output: 20,
+          cacheRead: 80,
+          cacheWrite: 5,
+          totalTokens: 205,
+        },
+        timestamp: 1,
+      }),
+    );
+
+    expect(message).toMatchObject({
+      provider: "openai",
+      model: "gpt-5",
+      responseModel: "gpt-5-2026-08-01",
+      usage: { input: 100, output: 20, cacheRead: 80, cacheWrite: 5, totalTokens: 205 },
+    });
+  });
+
   it("preserves every supported content node and tool-result metadata", () => {
     const messages = toMessageList([
       agentMessage({
