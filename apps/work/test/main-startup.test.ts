@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   prepareHotUpdateLaunch: vi.fn(() => undefined),
   protocol: {
     handle: vi.fn(),
+    isProtocolHandled: vi.fn(() => false),
     registerSchemesAsPrivileged: vi.fn(),
   },
   startApplication: vi.fn(async () => undefined),
@@ -32,6 +33,8 @@ vi.mock("@main/application", () => ({
 
 describe("main process startup", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.protocol.isProtocolHandled.mockReturnValue(false);
     vi.resetModules();
   });
 
@@ -47,6 +50,19 @@ describe("main process startup", () => {
     const readyHandler = mocks.app.once.mock.calls[0][1];
     readyHandler();
 
+    expect(mocks.protocol.isProtocolHandled).toHaveBeenCalledWith("willow-file");
     expect(mocks.protocol.handle).toHaveBeenCalledWith("willow-file", expect.any(Function));
+  });
+
+  it("does not register the file protocol again when a hot-update entry also handles ready", async () => {
+    await import("@main/main");
+    await vi.waitFor(() => expect(mocks.startApplication).toHaveBeenCalledOnce());
+
+    const readyHandler = mocks.app.once.mock.calls[0][1];
+    mocks.protocol.isProtocolHandled.mockReturnValue(true);
+    readyHandler();
+
+    expect(mocks.protocol.isProtocolHandled).toHaveBeenCalledWith("willow-file");
+    expect(mocks.protocol.handle).not.toHaveBeenCalled();
   });
 });

@@ -22,6 +22,10 @@ app.setPath("userData", legacyUserDataPath);
 
 async function bootstrap() {
   app.once("ready", () => {
+    // The packaged entry point and a selected hot-update payload run in the same
+    // main process. Both install this ready listener, so the second one must not
+    // try to replace the handler registered by the first.
+    if (protocol.isProtocolHandled("willow-file")) return;
     protocol.handle("willow-file", (request) => {
       const url = request.url.replace(/^willow-file:\/\//, "");
       const decodedPath = decodeURIComponent(url);
