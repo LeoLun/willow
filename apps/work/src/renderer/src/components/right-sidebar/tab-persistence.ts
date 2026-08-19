@@ -1,9 +1,4 @@
-import type {
-  BoardPanelState,
-  FilePanelState,
-  ReviewPanelState,
-  RightSidebarTab,
-} from "./types";
+import type { BoardPanelState, FilePanelState, ReviewPanelState, RightSidebarTab } from "./types";
 
 export const RIGHT_SIDEBAR_TABS_STORAGE_KEY_PREFIX = "willow:chat-right-sidebar-tabs";
 export const RIGHT_SIDEBAR_TABS_VERSION = 1;

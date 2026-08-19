@@ -218,7 +218,9 @@ describe("right sidebar tab persistence", () => {
     const tab = {
       id: "right-sidebar-tab-1",
       kind: "plan",
-      state: { plan: { content: "", fileName: "x.md", byteCount: 0, lineCount: 0, path: hugePath } },
+      state: {
+        plan: { content: "", fileName: "x.md", byteCount: 0, lineCount: 0, path: hugePath },
+      },
     } satisfies RightSidebarTab;
 
     persistRightSidebarTabs(1, [tab], "right-sidebar-tab-1");
@@ -305,17 +307,15 @@ describe("RightSidebar tab restoration", () => {
       JSON.stringify({
         version: 1,
         activeTabIndex: 0,
-        tabs: [
-          { kind: "plan", state: { path: "/Users/me/.willow/plan/2026-08-13-foo.md" } },
-        ],
+        tabs: [{ kind: "plan", state: { path: "/Users/me/.willow/plan/2026-08-13-foo.md" } }],
       }),
     );
 
     const { container } = mountSidebar();
     await vi.waitFor(() =>
-      expect(container.querySelector('[data-slot="right-sidebar-plan-panel"]')?.textContent).toContain(
-        "Restored Plan",
-      ),
+      expect(
+        container.querySelector('[data-slot="right-sidebar-plan-panel"]')?.textContent,
+      ).toContain("Restored Plan"),
     );
     expect(fileMocks.readPlanFile).toHaveBeenCalledWith({
       path: "/Users/me/.willow/plan/2026-08-13-foo.md",
@@ -330,9 +330,7 @@ describe("RightSidebar tab restoration", () => {
       JSON.stringify({
         version: 1,
         activeTabIndex: 0,
-        tabs: [
-          { kind: "plan", state: { path: "/Users/me/.willow/plan/2026-08-13-foo.md" } },
-        ],
+        tabs: [{ kind: "plan", state: { path: "/Users/me/.willow/plan/2026-08-13-foo.md" } }],
       }),
     );
 

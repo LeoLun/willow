@@ -111,7 +111,14 @@ describe("ReadPlanFileController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns the file content on success", async () => {
-    const file = { content: "# Plan", name: "p.md", path: "/p/p.md", byteCount: 6, lineCount: 1, status: "ready" as const };
+    const file = {
+      content: "# Plan",
+      name: "p.md",
+      path: "/p/p.md",
+      byteCount: 6,
+      lineCount: 1,
+      status: "ready" as const,
+    };
     readPlanFile.mockResolvedValue(file);
 
     await expect(controller.run(event, { path: "/p/p.md" })).resolves.toEqual({

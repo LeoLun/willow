@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -58,4 +59,46 @@ export function restoreDatabaseBackup(userDataPath: string, backupPath?: string)
   rmSync(`${databasePath}-wal`, { force: true });
   rmSync(`${databasePath}-shm`, { force: true });
   rmSync(backupPath, { force: true });
+}
+
+export function cleanUnusedUpdateDirectories(
+  userDataPath: string,
+  store: UpdateStoreData = readUpdateStore(userDataPath),
+): void {
+  const updateDir = getUpdateDirectory(userDataPath);
+  if (!existsSync(updateDir)) return;
+
+  const keptVersions = new Set<string>();
+  if (store.active?.version) keptVersions.add(`v${store.active.version}`);
+  if (store.staged?.version) keptVersions.add(`v${store.staged.version}`);
+  if (store.pending?.version) keptVersions.add(`v${store.pending.version}`);
+
+  try {
+    const entries = readdirSync(updateDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(updateDir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name.startsWith("v") && !keptVersions.has(entry.name)) {
+          rmSync(fullPath, { recursive: true, force: true });
+        } else if (keptVersions.has(entry.name)) {
+          try {
+            const subEntries = readdirSync(fullPath);
+            for (const file of subEntries) {
+              if (file.endsWith(".part") || file.endsWith(".tmp")) {
+                rmSync(join(fullPath, file), { force: true });
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      } else if (entry.isFile()) {
+        if (entry.name.endsWith(".part") || entry.name.endsWith(".tmp")) {
+          rmSync(fullPath, { force: true });
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
 }

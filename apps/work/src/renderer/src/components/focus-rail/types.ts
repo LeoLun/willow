@@ -8,28 +8,28 @@ export interface FocusRailItem {
   /**
    * 唯一 ID
    */
-  id: string
+  id: string;
 
   /**
    * Rail 对应页面 DOM 节点 ID。
    * 如果不传，则默认使用 id。
    */
-  targetId?: string
+  targetId?: string;
 
   /**
    * 详情标题
    */
-  title: string
+  title: string;
 
   /**
    * 摘要
    */
-  summary?: string
+  summary?: string;
 
   /**
    * 详情列表
    */
-  details?: string[]
+  details?: string[];
 
   /**
    * Item 层级。
@@ -38,20 +38,20 @@ export interface FocusRailItem {
    * 2 = 中等
    * 3 = 最短
    */
-  level?: 1 | 2 | 3
+  level?: 1 | 2 | 3;
 
   /**
    * 自定义状态
    */
-  status?: "default" | "success" | "warning" | "error"
+  status?: "default" | "success" | "warning" | "error";
 
   /**
    * 是否禁用
    */
-  disabled?: boolean
+  disabled?: boolean;
 
   /**
    * 业务侧附加数据
    */
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>;
 }

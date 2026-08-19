@@ -29,5 +29,5 @@ export function classifyUpdate(
   const current = parseStableVersion(currentValue);
   const latest = parseStableVersion(latestValue);
   if (!current || !latest || compareVersions(latest, current) <= 0) return "none";
-  return current.major === 1 && latest.major === current.major ? "hot" : "manual";
+  return current.major === latest.major ? "hot" : "manual";
 }

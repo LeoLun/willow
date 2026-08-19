@@ -69,9 +69,7 @@ async function mountChatBase(): Promise<HTMLElement> {
       {
         path: "/",
         component: ChatBase,
-        children: [
-          { path: "chat/:sessionId", name: "chat", component: ChatSlot },
-        ],
+        children: [{ path: "chat/:sessionId", name: "chat", component: ChatSlot }],
       },
     ],
   });
@@ -89,9 +87,7 @@ async function mountChatBase(): Promise<HTMLElement> {
 }
 
 function enterMentionQuery(container: HTMLElement, query: string): void {
-  const editor = container.querySelector<HTMLElement>(
-    "[data-slot=prompt-editor]",
-  );
+  const editor = container.querySelector<HTMLElement>("[data-slot=prompt-editor]");
   if (!editor) throw new Error("prompt editor was not rendered");
   const source = `@${query}`;
   editor.replaceChildren(document.createTextNode(source));
@@ -102,9 +98,7 @@ function enterMentionQuery(container: HTMLElement, query: string): void {
   const selection = window.getSelection();
   selection?.removeAllRanges();
   selection?.addRange(range);
-  editor.dispatchEvent(
-    new InputEvent("input", { bubbles: true, data: source }),
-  );
+  editor.dispatchEvent(new InputEvent("input", { bubbles: true, data: source }));
 }
 
 function deferred<T>() {
@@ -137,13 +131,11 @@ afterEach(() => {
 describe("ChatBase file search", () => {
   it("opens settings on the providers tab from the empty model state", async () => {
     const container = await mountChatBase();
-    await vi.waitFor(() =>
-      expect(container.textContent).toContain("请先连接模型提供商"),
-    );
+    await vi.waitFor(() => expect(container.textContent).toContain("请先连接模型提供商"));
 
-    const settingsButton = Array.from(
-      container.querySelectorAll("button"),
-    ).find((button) => button.textContent?.trim() === "前往设置");
+    const settingsButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "前往设置",
+    );
     expect(settingsButton).toBeDefined();
     settingsButton?.click();
 
@@ -155,9 +147,7 @@ describe("ChatBase file search", () => {
 
   it("refreshes and selects the first model after a provider is connected", async () => {
     const container = await mountChatBase();
-    await vi.waitFor(() =>
-      expect(mocks.getConfiguredProviders).toHaveBeenCalledTimes(1),
-    );
+    await vi.waitFor(() => expect(mocks.getConfiguredProviders).toHaveBeenCalledTimes(1));
 
     mocks.getConfiguredProviders.mockResolvedValue({ providerIds: ["openai"] });
     mocks.getProviderCatalog.mockResolvedValue({
@@ -180,18 +170,14 @@ describe("ChatBase file search", () => {
 
   it("opens the local file selector from the add button", async () => {
     const container = await mountChatBase();
-    container
-      .querySelector<HTMLButtonElement>('[aria-label="添加内容或选择模式"]')
-      ?.click();
+    container.querySelector<HTMLButtonElement>('[aria-label="添加内容或选择模式"]')?.click();
     const fileButton = await vi.waitFor(() => {
-      const popover = [
-        ...document.body.querySelectorAll<HTMLParagraphElement>("p"),
-      ].find(
+      const popover = [...document.body.querySelectorAll<HTMLParagraphElement>("p")].find(
         (candidate) => candidate.textContent?.trim() === "模式",
       )?.parentElement;
-      const button = [
-        ...(popover?.querySelectorAll<HTMLButtonElement>("button") ?? []),
-      ].find((candidate) => candidate.textContent?.trim() === "文件");
+      const button = [...(popover?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+        (candidate) => candidate.textContent?.trim() === "文件",
+      );
       expect(button).toBeDefined();
       return button as HTMLButtonElement;
     });
@@ -220,16 +206,12 @@ describe("ChatBase file search", () => {
         workspaceId: 1,
         query: "chat",
       });
-      expect(
-        container.querySelectorAll("[data-slot=file-search-item]"),
-      ).toHaveLength(1);
+      expect(container.querySelectorAll("[data-slot=file-search-item]")).toHaveLength(1);
     });
 
     container
       .querySelector<HTMLElement>("[data-slot=prompt-editor]")
-      ?.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-      );
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await vi.waitFor(() => {
       expect(
         container.querySelector(
@@ -258,22 +240,16 @@ describe("ChatBase file search", () => {
         query: "components",
       });
       expect(
-        container.querySelector(
-          "[data-entry-type=directory] [data-icon-type=directory]",
-        ),
+        container.querySelector("[data-entry-type=directory] [data-icon-type=directory]"),
       ).not.toBeNull();
     });
 
     container
       .querySelector<HTMLElement>("[data-slot=prompt-editor]")
-      ?.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-      );
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await vi.waitFor(() => {
       expect(
-        container.querySelector(
-          '[data-token-source="[components](<apps/work/src/components/>)"]',
-        ),
+        container.querySelector('[data-token-source="[components](<apps/work/src/components/>)"]'),
       ).not.toBeNull();
     });
   });
@@ -289,16 +265,14 @@ describe("ChatBase file search", () => {
     enterMentionQuery(container, "md");
 
     await vi.waitFor(() => {
-      expect(
-        container.querySelectorAll("[data-slot=file-search-item]"),
-      ).toHaveLength(2);
+      expect(container.querySelectorAll("[data-slot=file-search-item]")).toHaveLength(2);
     });
 
     const items = container.querySelectorAll("[data-slot=file-search-item]");
     expect(items[0]?.querySelector("[data-slot=file-search-path]")).toBeNull();
-    expect(
-      items[1]?.querySelector("[data-slot=file-search-path]")?.textContent,
-    ).toContain("docs/guide.md");
+    expect(items[1]?.querySelector("[data-slot=file-search-path]")?.textContent).toContain(
+      "docs/guide.md",
+    );
   });
 
   it("discards stale search results and shows empty and error states", async () => {
@@ -329,9 +303,7 @@ describe("ChatBase file search", () => {
     second.resolve({
       files: [{ name: "second.ts", relativePath: "second.ts", type: "file" }],
     });
-    await vi.waitFor(() =>
-      expect(container.textContent).toContain("second.ts"),
-    );
+    await vi.waitFor(() => expect(container.textContent).toContain("second.ts"));
     first.resolve({
       files: [{ name: "first.ts", relativePath: "first.ts", type: "file" }],
     });
@@ -340,17 +312,13 @@ describe("ChatBase file search", () => {
 
     enterMentionQuery(container, "empty");
     await vi.waitFor(() =>
-      expect(
-        container.querySelector("[data-slot=file-search-empty]"),
-      ).not.toBeNull(),
+      expect(container.querySelector("[data-slot=file-search-empty]")).not.toBeNull(),
     );
 
     mocks.searchFiles.mockRejectedValueOnce(new Error("scan failed"));
     enterMentionQuery(container, "broken");
     await vi.waitFor(() =>
-      expect(
-        container.querySelector("[data-slot=file-search-error]"),
-      ).not.toBeNull(),
+      expect(container.querySelector("[data-slot=file-search-error]")).not.toBeNull(),
     );
   });
 });

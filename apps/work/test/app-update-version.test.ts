@@ -32,9 +32,12 @@ describe("app update version policy", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("uses ASAR only for newer v1 releases in the same major", () => {
+  it("uses ASAR for newer releases in the same major", () => {
     expect(classifyUpdate("1.0.0", "1.0.1")).toBe("hot");
+    expect(classifyUpdate("2.0.0", "2.0.1")).toBe("hot");
+    expect(classifyUpdate("2.1.0", "2.2.0")).toBe("hot");
     expect(classifyUpdate("1.9.0", "2.0.0")).toBe("manual");
+    expect(classifyUpdate("2.9.0", "3.0.0")).toBe("manual");
     expect(classifyUpdate("0.1.0", "1.0.0")).toBe("manual");
     expect(classifyUpdate("1.2.0", "1.1.9")).toBe("none");
     expect(classifyUpdate("1.0.0", "1.1.0-beta.1")).toBe("none");

@@ -1,7 +1,8 @@
-import { existsSync } from "node:fs";
+import { copyFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { app } from "electron";
 import {
+  getUpdateDirectory,
   readUpdateStore,
   restoreDatabaseBackup,
   type StoredUpdate,
@@ -64,6 +65,25 @@ export function selectHotUpdatePayload(
       stateChanged = true;
     } else {
       store.pending.launchAttempted = true;
+      stateChanged = true;
+    }
+  }
+
+  if (!store.pending && store.staged && isUsableUpdate(store.staged)) {
+    const effectiveCurrent = store.active?.version ?? packagedVersion;
+    if (isStableVersionNewer(store.staged.version, effectiveCurrent)) {
+      const databasePath = join(userDataPath, "willow.db");
+      const backupPath = join(getUpdateDirectory(userDataPath), "willow.db.backup");
+      if (existsSync(databasePath)) {
+        try {
+          copyFileSync(databasePath, backupPath);
+          store.databaseBackupPath = backupPath;
+        } catch {
+          store.databaseBackupPath = undefined;
+        }
+      }
+      store.pending = { ...store.staged, launchAttempted: true };
+      delete store.staged;
       stateChanged = true;
     }
   }

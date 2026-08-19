@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { copyFile, mkdir, open, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { extractFile, statFile } from "@electron/asar";
@@ -7,7 +8,13 @@ import { APP_UPDATE_EVENT } from "@shared/constants";
 import { Injectable } from "@willow/poetry";
 import { app, shell } from "electron";
 import { getHotUpdateRuntimeContext } from "../update/hot-update-launcher";
-import { getUpdateDirectory, readUpdateStore, writeUpdateStore } from "../update/update-store";
+import {
+  cleanUnusedUpdateDirectories,
+  getUpdateDirectory,
+  readUpdateStore,
+  type UpdateStoreData,
+  writeUpdateStore,
+} from "../update/update-store";
 import { classifyUpdate, parseStableVersion } from "../update/version";
 import { DbService } from "./db.service";
 import { EventService } from "./event.service";
@@ -79,7 +86,9 @@ export class AppUpdateService {
   ) {
     const context = getHotUpdateRuntimeContext();
     const currentVersion = context?.currentVersion ?? app.getVersion();
-    const store = readUpdateStore(app.getPath("userData"));
+    const userDataPath = app.getPath("userData");
+    const store = readUpdateStore(userDataPath);
+    cleanUnusedUpdateDirectories(userDataPath, store);
     this.state = store.staged
       ? {
           status: "ready",
@@ -125,7 +134,9 @@ export class AppUpdateService {
     const store = readUpdateStore(userDataPath);
     if (store.pending?.version !== context.currentVersion) return this.state;
     if (store.databaseBackupPath) await rm(store.databaseBackupPath, { force: true });
-    writeUpdateStore(userDataPath, { active: store.pending });
+    const newStore: UpdateStoreData = { active: store.pending };
+    writeUpdateStore(userDataPath, newStore);
+    cleanUnusedUpdateDirectories(userDataPath, newStore);
     context.pending = false;
     return this.state;
   }
@@ -202,12 +213,18 @@ export class AppUpdateService {
         asar,
         checksum,
       };
-      return this.setState({
-        status: "hotAvailable",
-        currentVersion: this.state.currentVersion,
-        latestVersion: latest.normalized,
-        progress: 0,
-      });
+      const userDataPath = app.getPath("userData");
+      const store = readUpdateStore(userDataPath);
+      if (store.staged?.version === latest.normalized && existsSync(store.staged.asarPath)) {
+        return this.setState({
+          status: "ready",
+          currentVersion: this.state.currentVersion,
+          latestVersion: latest.normalized,
+          progress: 100,
+        });
+      }
+      void this.downloadUpdate();
+      return this.state;
     } catch {
       return this.setState({
         status: "checkFailed",
@@ -265,6 +282,7 @@ export class AppUpdateService {
       const store = readUpdateStore(userDataPath);
       store.staged = { version: release.version, asarPath: finalPath };
       writeUpdateStore(userDataPath, store);
+      cleanUnusedUpdateDirectories(userDataPath, store);
       return this.setState({
         status: "ready",
         currentVersion: this.state.currentVersion,

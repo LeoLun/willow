@@ -11,16 +11,12 @@ defineSlots<{
   /**
    * `open` 为当前 HoverCard 的打开状态。
    */
-  default: (props: { open: boolean }) => unknown
+  default: (props: { open: boolean }) => unknown;
 }>();
 </script>
 
 <template>
-  <HoverCardRoot
-    v-slot="{ open }"
-    data-slot="hover-card"
-    v-bind="forwarded"
-  >
+  <HoverCardRoot v-slot="{ open }" data-slot="hover-card" v-bind="forwarded">
     <slot :open="open" />
   </HoverCardRoot>
 </template>
