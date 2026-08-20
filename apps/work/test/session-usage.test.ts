@@ -10,7 +10,6 @@ import {
   formatPercent,
   formatTokenCount,
   SESSION_USAGE_KEY,
-  SessionUsageBar,
 } from "../src/renderer/src/components/session-usage";
 
 const providers: ProviderInfo[] = [
