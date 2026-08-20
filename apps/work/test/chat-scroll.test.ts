@@ -88,60 +88,52 @@ afterEach(() => {
 });
 
 describe("Chat history scrolling", () => {
-  it("owns the session usage action and responsive panel", async () => {
+  it("renders the session usage bar under the composer when messages are present", async () => {
     const container = await mountChat();
-    const layout = container.querySelector<HTMLElement>("[data-slot=chat-layout]");
-    const toolbar = container.querySelector<HTMLElement>("[data-slot=chat-toolbar-actions]");
-    const toggle = toolbar?.querySelector<HTMLButtonElement>(
-      'button[aria-label="切换会话信息面板"]',
+    const composerContent = container.querySelector<HTMLElement>(
+      "[data-slot=chat-composer-content]",
     );
-    if (!layout || !toolbar || !toggle) throw new Error("session usage controls were not rendered");
+    if (!composerContent) throw new Error("composer content was not rendered");
 
-    expect(toolbar.contains(toggle)).toBe(true);
-    expect(container.querySelector("[data-slot=session-usage-sidebar]")).toBeNull();
+    // Initially empty timeline -> SessionUsageBar should not render
+    expect(composerContent.querySelector("[data-slot=session-usage-bar]")).toBeNull();
 
-    triggerResize(layout, 1_000);
-    await flushResizeFrame();
-    toggle.click();
+    // Set timeline messages with usage
+    messageState.timeline.value = {
+      messages: [
+        {
+          id: "user:1::0",
+          sourceKey: "user:1:",
+          role: "user",
+          timestamp: 1,
+          status: "completed",
+          content: [{ type: "text", text: "你好" }],
+        },
+        {
+          id: "assistant:2::0",
+          sourceKey: "assistant:2:",
+          role: "assistant",
+          timestamp: 2,
+          status: "completed",
+          content: [{ type: "text", text: "你好！有什么我可以帮你的吗？" }],
+          usage: {
+            input: 7700,
+            output: 161,
+            cacheRead: 0,
+            cacheWrite: 0,
+            totalTokens: 7861,
+          },
+        },
+      ],
+    };
+    messageState.loading.value = false;
     await nextTick();
-    const panel = container.querySelector<HTMLElement>("[data-slot=session-usage-sidebar]");
-    expect(layout.style.gridTemplateColumns).toBe("minmax(0, 1fr) 300px");
-    expect(panel?.dataset.floating).toBe("false");
-    expect(panel?.querySelector("[data-slot=session-usage-panel]")).not.toBeNull();
-    expect(localStorage.getItem("willow:session-usage-panel-open")).toBe("true");
 
-    triggerResize(layout, 819);
-    expect(layout.style.gridTemplateColumns).toBe("minmax(0, 1fr) 300px");
-    await flushResizeFrame();
-    expect(layout.style.gridTemplateColumns).toBe("minmax(0, 1fr)");
-    expect(container.querySelector("[data-slot=session-usage-sidebar]")).toBeNull();
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(localStorage.getItem("willow:session-usage-panel-open")).toBe("true");
-
-    triggerResize(layout, 820);
-    await flushResizeFrame();
-    const restoredPanel = container.querySelector<HTMLElement>("[data-slot=session-usage-sidebar]");
-    expect(layout.style.gridTemplateColumns).toBe("minmax(0, 1fr) 300px");
-    expect(restoredPanel?.dataset.floating).toBe("false");
-
-    toggle.click();
-    await nextTick();
-    expect(container.querySelector("[data-slot=session-usage-sidebar]")).toBeNull();
-    expect(localStorage.getItem("willow:session-usage-panel-open")).toBe("false");
-
-    triggerResize(layout, 819);
-    await flushResizeFrame();
-    toggle.click();
-    await nextTick();
-    const floatingPanel = container.querySelector<HTMLElement>("[data-slot=session-usage-sidebar]");
-    expect(floatingPanel?.dataset.floating).toBe("true");
-    expect(floatingPanel?.style.width).toBe("300px");
-    expect(localStorage.getItem("willow:session-usage-panel-open")).toBe("false");
-
-    triggerResize(layout, 820);
-    await flushResizeFrame();
-    expect(layout.style.gridTemplateColumns).toBe("minmax(0, 1fr)");
-    expect(container.querySelector("[data-slot=session-usage-sidebar]")).toBeNull();
+    const usageBar = composerContent.querySelector<HTMLElement>("[data-slot=session-usage-bar]");
+    expect(usageBar).not.toBeNull();
+    expect(usageBar?.textContent).toContain("1 轮 · 1 步");
+    expect(usageBar?.textContent).toContain("缓存命中 0%");
+    expect(usageBar?.textContent).toContain("输入 7.7K tok · 输出 161 tok");
   });
 
   it("keeps the message list aligned with the composer when the chat pane narrows", async () => {
@@ -201,8 +193,7 @@ describe("Chat history scrolling", () => {
       ],
     };
     messageState.loading.value = false;
-    await nextTick();
-    await nextTick();
+    await flushResizeFrame();
     expect(container.querySelector("[data-slot=message-toolbar]")).not.toBeNull();
     expect(content.lastElementChild).toBe(spacer);
     expect(viewport.scrollTop).toBe(1_000);

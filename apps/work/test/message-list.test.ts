@@ -816,6 +816,10 @@ describe("MessageList", () => {
     expect(thinkingContent?.classList.contains("max-h-[120px]")).toBe(true);
     expect(thinkingContent?.classList.contains("overflow-y-auto")).toBe(true);
     expect(thinkingContent?.classList.contains("overscroll-contain")).toBe(true);
+    expect(thinkingContent?.classList.contains("bg-sidebar-foreground/5")).toBe(true);
+    expect(thinkingContent?.classList.contains("border")).toBe(true);
+    expect(thinkingContent?.classList.contains("rounded-lg")).toBe(true);
+    expect(thinkingContent?.classList.contains("p-3")).toBe(true);
 
     trigger?.click();
     await vi.waitFor(() => {

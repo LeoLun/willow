@@ -285,6 +285,7 @@ export class AppModule {
   }
 
   private async bootstrapApplication() {
+    console.log("bootstrapApplication", this.initSucceeded);
     if (this.initSucceeded) {
       return true;
     }

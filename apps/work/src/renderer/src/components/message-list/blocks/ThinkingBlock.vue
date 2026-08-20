@@ -92,7 +92,7 @@ onBeforeUnmount(() => {
     <CollapsibleContent>
       <div
         ref="contentContainer"
-        class="thinking-content mt-3 max-h-[120px] overflow-y-auto overscroll-contain"
+        class="thinking-content mt-2 max-h-[120px] overflow-y-auto overscroll-contain rounded-lg border bg-sidebar-foreground/5 p-3 text-sm"
         data-slot="thinking-content"
         @scroll="handleContentScroll"
       >

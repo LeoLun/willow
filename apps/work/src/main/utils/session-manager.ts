@@ -61,15 +61,18 @@ class SqliteSessionStorage implements SessionStorage<SqliteSessionMetadata> {
   }
 
   async getLeafId(): Promise<string | null> {
-    const entries = await this.getEntries();
-    let leafId: string | null = null;
-    for (const entry of entries) {
-      leafId = leafIdAfterEntry(entry);
+    try {
+      const latest = this.sessionDao.findLatestEntry(this.metadata.databaseId);
+      if (!latest) return null;
+      const leafId = leafIdAfterEntry(latest.payload);
+      if (leafId !== null && !this.sessionDao.findEntry(this.metadata.databaseId, leafId)) {
+        throw new SessionError("invalid_session", `Entry ${leafId} not found`);
+      }
+      return leafId;
+    } catch (error) {
+      if (error instanceof SessionError) throw error;
+      throw storageError("Failed to get leaf id", error);
     }
-    if (leafId !== null && !entries.some((entry) => entry.id === leafId)) {
-      throw new SessionError("invalid_session", `Entry ${leafId} not found`);
-    }
-    return leafId;
   }
 
   async setLeafId(leafId: string | null): Promise<void> {

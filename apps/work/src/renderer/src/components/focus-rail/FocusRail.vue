@@ -297,10 +297,13 @@ function handleOpenChange(index: number, open: boolean): void {
   }
 }
 
+const itemTargetKeys = computed(() =>
+  props.items.map((item) => `${item.id}:${targetIdFor(item)}:${item.disabled ? 1 : 0}`).join(","),
+);
+
 watch(
-  () => [props.items, props.autoTrack],
+  () => [itemTargetKeys.value, props.autoTrack],
   () => setupObserver(),
-  { deep: true },
 );
 
 watch(

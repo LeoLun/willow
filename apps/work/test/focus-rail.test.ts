@@ -306,6 +306,19 @@ describe("FocusRail 滚动自动追踪", () => {
     expect(MockIntersectionObserver.instances[1].observedIds()).toEqual(["a", "b", "c"]);
   });
 
+  it("item 仅文字摘要变更而不增删 target 时不重复创建 observer", async () => {
+    appendSections(["a", "b", "c"]);
+    const items = reactive([...baseItems]);
+    mountRail(items);
+
+    expect(MockIntersectionObserver.instances).toHaveLength(1);
+
+    items[2] = { ...items[2], summary: "新摘要内容" };
+    await nextTick();
+
+    expect(MockIntersectionObserver.instances).toHaveLength(1);
+  });
+
   it("autoTrack=false 时不创建 observer", () => {
     mountRail(baseItems, { autoTrack: false });
 

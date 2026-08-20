@@ -78,21 +78,27 @@ export class GitReviewService {
     const stagedStatMap = parseNumstat(stagedStats.stdout);
     const unstagedStatMap = parseNumstat(unstagedStats.stdout);
 
-    await Promise.all(
-      changes.map(async (change) => {
-        const stats = (change.area === "staged" ? stagedStatMap : unstagedStatMap).get(change.path);
-        if (stats) {
-          change.additions = stats.additions;
-          change.deletions = stats.deletions;
-        } else if (change.status === "untracked") {
-          const additions = await countUntrackedLines(workspace.path, change.path);
-          if (additions !== undefined) {
-            change.additions = additions;
-            change.deletions = 0;
+    const BATCH_SIZE = 16;
+    for (let i = 0; i < changes.length; i += BATCH_SIZE) {
+      const batch = changes.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (change) => {
+          const stats = (change.area === "staged" ? stagedStatMap : unstagedStatMap).get(
+            change.path,
+          );
+          if (stats) {
+            change.additions = stats.additions;
+            change.deletions = stats.deletions;
+          } else if (change.status === "untracked") {
+            const additions = await countUntrackedLines(workspace.path, change.path);
+            if (additions !== undefined) {
+              change.additions = additions;
+              change.deletions = 0;
+            }
           }
-        }
-      }),
-    );
+        }),
+      );
+    }
 
     const staged = changes.filter((change) => change.area === "staged");
     const unstaged = changes.filter((change) => change.area === "unstaged");
@@ -120,10 +126,25 @@ export class GitReviewService {
     const workspace = this.workspaceService.getWorkspaceDetail(workspaceId);
     validateGitPath(workspace.path, path);
     if (oldPath) validateGitPath(workspace.path, oldPath);
-    const status = await this.getStatus(workspaceId);
-    if (!status.repository) throw new GitReviewCommandError("当前工作区不是 Git 仓库");
-    const change = status[area].find(
-      (candidate) => candidate.path === path && (!oldPath || candidate.oldPath === oldPath),
+    if (!(await this.isRepository(workspace.path))) {
+      throw new GitReviewCommandError("当前工作区不是 Git 仓库");
+    }
+
+    const queryPaths = [path, ...(oldPath ? [oldPath] : [])];
+    const statusOutput = await this.runGit(workspace.path, [
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--untracked-files=all",
+      "--",
+      ...queryPaths,
+    ]);
+    const changes = parseStatus(statusOutput.stdout);
+    const change = changes.find(
+      (candidate) =>
+        candidate.area === area &&
+        candidate.path === path &&
+        (!oldPath || candidate.oldPath === oldPath),
     );
     if (!change) throw new InvalidGitReviewPathError(path);
 

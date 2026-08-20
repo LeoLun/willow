@@ -30,6 +30,7 @@ import {
   useSlots,
   watch,
 } from "vue";
+import { ContextUsageIndicator } from "@/components/session-usage";
 import { baseShadowStyles } from "@/components/ui/base-shadow";
 import BorderBeam from "@/components/ui/BorderBeam.vue";
 import { electronAPI } from "@/lib/ipc";
@@ -1078,6 +1079,8 @@ watch(content, (value) => {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <ContextUsageIndicator />
 
         <button
           type="button"

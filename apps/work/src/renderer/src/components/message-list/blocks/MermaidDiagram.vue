@@ -45,6 +45,13 @@ function stripExternalStyleImports(svg: string): string {
 }
 
 function renderDiagram(): void {
+  const trimmed = props.content.trim();
+  if (!trimmed) {
+    svgContent.value = "";
+    renderError.value = undefined;
+    return;
+  }
+
   try {
     const options: RenderOptions = {
       ...activeTheme.value,
@@ -52,11 +59,13 @@ function renderDiagram(): void {
     };
     // beautiful-mermaid escapes diagram labels, but also emits remote font imports.
     // Remove those imports before the trusted SVG is inserted into the document.
-    svgContent.value = stripExternalStyleImports(renderMermaidSVG(props.content, options));
+    svgContent.value = stripExternalStyleImports(renderMermaidSVG(trimmed, options));
     renderError.value = undefined;
   } catch (error) {
-    svgContent.value = "";
-    renderError.value = error instanceof Error ? error.message : "Failed to render diagram";
+    if (!svgContent.value) {
+      svgContent.value = "";
+      renderError.value = error instanceof Error ? error.message : "Failed to render diagram";
+    }
   }
 }
 

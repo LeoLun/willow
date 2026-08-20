@@ -2,6 +2,10 @@ import type { ModelConfig, ProviderInfo } from "@shared/api";
 import type { Message, MessageUsage } from "@/components/message-list";
 
 export interface SessionUsageSummary {
+  turns: number;
+  steps: number;
+  inputTokens: number;
+  outputTokens: number;
   totalTokens: number;
   cacheReadTokens: number;
   cacheRatio: number;
@@ -9,6 +13,24 @@ export interface SessionUsageSummary {
   contextWindow: number;
   contextRatio: number;
   modelName?: string;
+}
+
+export function formatTokenCount(tokens: number): string {
+  const value = Math.max(0, Math.round(tokens));
+  if (value >= 1_000_000) {
+    const formatted = (value / 1_000_000).toFixed(1).replace(/\.0$/, "");
+    return `${formatted}M`;
+  }
+  if (value >= 1_000) {
+    const formatted = (value / 1_000).toFixed(1).replace(/\.0$/, "");
+    return `${formatted}K`;
+  }
+  return String(value);
+}
+
+export function formatPercent(ratio: number): string {
+  const percent = Math.min(100, Math.max(0, Math.round(ratio * 100)));
+  return `${percent}%`;
 }
 
 function contextTokens(usage: MessageUsage): number {
@@ -34,24 +56,33 @@ export function calculateSessionUsage(
   providers: readonly ProviderInfo[],
   selectedModel?: ModelConfig,
 ): SessionUsageSummary {
-  const assistantMessages = messages.filter(
-    (message): message is Message & { usage: MessageUsage } =>
-      message.role === "assistant" && message.usage !== undefined,
-  );
-  const totalTokens = assistantMessages.reduce(
-    (sum, message) => sum + contextTokens(message.usage),
-    0,
-  );
-  const cacheReadTokens = assistantMessages.reduce(
-    (sum, message) => sum + message.usage.cacheRead,
-    0,
-  );
-  const latest = assistantMessages.findLast(
-    (message) =>
-      message.stopReason !== "error" &&
-      message.stopReason !== "aborted" &&
-      contextTokens(message.usage) > 0,
-  );
+  let turns = 0;
+  let steps = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let totalTokens = 0;
+  let cacheReadTokens = 0;
+  let latest: (Message & { usage: MessageUsage }) | undefined;
+
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index];
+    if (message.role === "user") {
+      turns += 1;
+    } else if (message.role === "assistant") {
+      steps += 1;
+      if (message.usage) {
+        inputTokens += message.usage.input;
+        outputTokens += message.usage.output;
+        cacheReadTokens += message.usage.cacheRead;
+        const tokens = contextTokens(message.usage);
+        totalTokens += tokens;
+        if (message.stopReason !== "error" && message.stopReason !== "aborted" && tokens > 0) {
+          latest = message as Message & { usage: MessageUsage };
+        }
+      }
+    }
+  }
+
   const model = latest
     ? findModel(providers, latest.provider, [latest.responseModel, latest.model])
     : findModel(providers, selectedModel?.providerId, [selectedModel?.modelId]);
@@ -59,6 +90,10 @@ export function calculateSessionUsage(
   const contextWindow = Math.max(0, model?.contextWindow ?? 0);
 
   return {
+    turns,
+    steps,
+    inputTokens,
+    outputTokens,
     totalTokens,
     cacheReadTokens,
     cacheRatio: totalTokens > 0 ? cacheReadTokens / totalTokens : 0,

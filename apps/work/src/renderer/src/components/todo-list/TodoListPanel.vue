@@ -44,7 +44,7 @@ function handleFocusOut(event: FocusEvent): void {
 <template>
   <section
     v-if="props.items.length > 0"
-    class="relative z-20 mb-2 mx-auto flex justify-center"
+    class="relative z-20 mx-auto mb-2 flex justify-center"
     data-slot="todo-list-panel"
     @mouseenter="open = true"
     @mouseleave="open = false"

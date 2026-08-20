@@ -6,7 +6,7 @@ import { useMessageListScroll } from "@/composables/useMessageListScroll";
 
 const RAIL_LEFT_OFFSET = 20;
 const AUTO_TRACK_RESTORE_FALLBACK_MS = 2_000;
-const MOUNT_WAIT_FRAMES = 600;
+const MOUNT_WAIT_FRAMES = 60;
 
 const props = withDefaults(
   defineProps<{
@@ -26,6 +26,7 @@ const autoTrackSuppressed = ref(false);
 let autoTrackRestoreTimer: ReturnType<typeof setTimeout> | undefined;
 let selectGeneration = 0;
 let offsetResizeObserver: ResizeObserver | undefined;
+const turnMemoCache = new Map<string, { signature: string; item: FocusRailItem }>();
 
 function messageTargetId(message: Message): string {
   return `user-message-${message.id}`;
@@ -48,28 +49,66 @@ const userMessages = computed(() => props.messages.filter((message) => message.r
 
 const railItems = computed<FocusRailItem[]>(() => {
   const items: FocusRailItem[] = [];
+  const currentTurnIds = new Set<string>();
 
   for (let index = 0; index < props.messages.length; index += 1) {
     const message = props.messages[index];
     if (message.role !== "user") continue;
 
-    const assistantParts: string[] = [];
+    currentTurnIds.add(message.id);
+
+    const assistantMessages: Message[] = [];
+    let isLastTurn = true;
     for (let turnIndex = index + 1; turnIndex < props.messages.length; turnIndex += 1) {
       const turnMessage = props.messages[turnIndex];
-      if (turnMessage.role === "user") break;
-      if (turnMessage.role !== "assistant") continue;
-      const text = messageText(turnMessage);
-      if (text) assistantParts.push(text);
+      if (turnMessage.role === "user") {
+        isLastTurn = false;
+        break;
+      }
+      if (turnMessage.role === "assistant") {
+        assistantMessages.push(turnMessage);
+      }
     }
 
-    items.push({
+    const allCompleted =
+      !isLastTurn && assistantMessages.every((item) => item.status === "completed");
+
+    let signature: string;
+    if (allCompleted) {
+      signature = `${message.id}:${message.timestamp}:${assistantMessages.length}:${assistantMessages.map((m) => m.id).join(",")}`;
+    } else {
+      signature = `${message.id}:${message.timestamp}:${assistantMessages
+        .map((m) => `${m.id}:${m.status}:${messageText(m)}`)
+        .join("|")}`;
+    }
+
+    const cached = turnMemoCache.get(message.id);
+    if (cached && cached.signature === signature) {
+      items.push(cached.item);
+      continue;
+    }
+
+    const assistantParts = assistantMessages
+      .map((m) => messageText(m))
+      .filter((text) => Boolean(text));
+
+    const item: FocusRailItem = {
       id: message.id,
       targetId: messageTargetId(message),
       title: messageText(message) || "附件消息",
       summary: assistantParts.join(" ") || "暂无 AI 文字回复",
       level: 3,
       metadata: { message },
-    });
+    };
+
+    turnMemoCache.set(message.id, { signature, item });
+    items.push(item);
+  }
+
+  for (const id of turnMemoCache.keys()) {
+    if (!currentTurnIds.has(id)) {
+      turnMemoCache.delete(id);
+    }
   }
 
   return items;

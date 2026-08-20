@@ -124,6 +124,18 @@ export class SessionDao {
       .select()
       .from(sessionEntries)
       .where(and(eq(sessionEntries.sessionId, sessionId), eq(sessionEntries.entryId, entryId)))
+      .limit(1)
+      .get();
+  }
+
+  findLatestEntry(sessionId: number): SessionEntry | undefined {
+    return this.dbService
+      .getDb()
+      .select()
+      .from(sessionEntries)
+      .where(eq(sessionEntries.sessionId, sessionId))
+      .orderBy(desc(sessionEntries.id))
+      .limit(1)
       .get();
   }
 
