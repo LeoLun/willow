@@ -95,8 +95,11 @@ describe("Chat history scrolling", () => {
     );
     if (!composerContent) throw new Error("composer content was not rendered");
 
-    // Initially empty timeline -> SessionUsageBar should not render
-    expect(composerContent.querySelector("[data-slot=session-usage-bar]")).toBeNull();
+    // Initially empty timeline -> SessionUsageBar is hidden without collapsing height
+    const initialBar = composerContent.querySelector<HTMLElement>("[data-slot=session-usage-bar]");
+    expect(initialBar).not.toBeNull();
+    expect(initialBar?.getAttribute("aria-hidden")).toBe("true");
+    expect(initialBar?.classList).toContain("opacity-0");
 
     // Set timeline messages with usage
     messageState.timeline.value = {
@@ -131,9 +134,11 @@ describe("Chat history scrolling", () => {
 
     const usageBar = composerContent.querySelector<HTMLElement>("[data-slot=session-usage-bar]");
     expect(usageBar).not.toBeNull();
+    expect(usageBar?.getAttribute("aria-hidden")).toBe("false");
+    expect(usageBar?.classList).toContain("opacity-100");
     expect(usageBar?.textContent).toContain("1 轮 · 1 步");
     expect(usageBar?.textContent).toContain("缓存命中 0%");
-    expect(usageBar?.textContent).toContain("输入 7.7K tok · 输出 161 tok");
+    expect(usageBar?.textContent).toContain("输入 7.7K token · 输出 161 token");
   });
 
   it("keeps the message list aligned with the composer when the chat pane narrows", async () => {

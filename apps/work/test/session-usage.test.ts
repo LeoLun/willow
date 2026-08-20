@@ -10,6 +10,7 @@ import {
   formatPercent,
   formatTokenCount,
   SESSION_USAGE_KEY,
+  SessionUsageBar,
 } from "../src/renderer/src/components/session-usage";
 
 const providers: ProviderInfo[] = [
@@ -189,6 +190,82 @@ describe("session usage", () => {
     expect(indicator).not.toBeNull();
     expect(indicator?.getAttribute("aria-label")).toContain("上下文大小: 7.9K / 128K (6%)");
     expect(indicator?.getAttribute("role")).toBe("progressbar");
+
+    app.unmount();
+    container.remove();
+  });
+
+  it("renders SessionUsageBar with smooth visibility transition and preserved values", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const usage = ref({
+      turns: 0,
+      steps: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      cacheReadTokens: 0,
+      cacheRatio: 0,
+      contextTokens: 0,
+      contextWindow: 0,
+      contextRatio: 0,
+    });
+
+    const app = createApp({
+      provide: {
+        [SESSION_USAGE_KEY as symbol]: usage,
+      },
+      render: () => h(SessionUsageBar),
+    });
+    app.mount(container);
+    await nextTick();
+
+    const bar = container.querySelector<HTMLElement>("[data-slot=session-usage-bar]");
+    expect(bar).not.toBeNull();
+    expect(bar?.getAttribute("aria-hidden")).toBe("true");
+    expect(bar?.classList).toContain("opacity-0");
+
+    // Provide valid usage
+    usage.value = {
+      turns: 2,
+      steps: 4,
+      inputTokens: 10_000,
+      outputTokens: 500,
+      totalTokens: 10_500,
+      cacheReadTokens: 2_000,
+      cacheRatio: 2_000 / 10_500,
+      contextTokens: 10_500,
+      contextWindow: 128_000,
+      contextRatio: 10_500 / 128_000,
+    };
+    await nextTick();
+
+    expect(bar?.getAttribute("aria-hidden")).toBe("false");
+    expect(bar?.classList).toContain("opacity-100");
+    expect(bar?.textContent).toContain("2 轮 · 4 步");
+    expect(bar?.textContent).toContain("缓存命中 19%");
+    expect(bar?.textContent).toContain("输入 10K token · 输出 500 token");
+
+    // Transitioning back to empty usage (e.g. switching sessions) retains previous text during fade-out
+    usage.value = {
+      turns: 0,
+      steps: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      cacheReadTokens: 0,
+      cacheRatio: 0,
+      contextTokens: 0,
+      contextWindow: 0,
+      contextRatio: 0,
+    };
+    await nextTick();
+
+    // Now hidden, but still has previous text so it does not flash 0s
+    expect(bar?.getAttribute("aria-hidden")).toBe("true");
+    expect(bar?.classList).toContain("opacity-0");
+    expect(bar?.textContent).toContain("2 轮 · 4 步");
 
     app.unmount();
     container.remove();
