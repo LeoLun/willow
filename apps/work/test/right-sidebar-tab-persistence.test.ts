@@ -271,10 +271,17 @@ describe("RightSidebar tab restoration", () => {
 
     app.unmount();
     container.remove();
+    monacoMock.api.editor.create.mockClear();
 
     const { container: restored } = mountSidebar();
     await vi.waitFor(() =>
       expect(tabActivations(restored)[0]?.textContent).toContain("package.json"),
+    );
+    await vi.waitFor(() =>
+      expect(monacoMock.api.editor.create).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        expect.objectContaining({ value: '{ "name": "willow" }' }),
+      ),
     );
     expect(fileMocks.readWorkspaceFile).toHaveBeenCalledWith({
       workspaceId: 1,

@@ -723,13 +723,17 @@ const stopSearchWatch = watchDebounced(
 watch(
   [() => props.workspaceId, () => props.state.selectedFile?.path],
   ([workspaceId, path]) => {
-    if (workspaceId && path) void loadFileContent(path);
-    else if (!path) {
-      contentGeneration += 1;
-      previewFile.value = undefined;
-      previewError.value = "";
-      previewLoading.value = false;
-    }
+    const currentWorkspaceGeneration = workspaceGeneration;
+    void workspaceSwitchPromise.then(() => {
+      if (currentWorkspaceGeneration !== workspaceGeneration || disposed) return;
+      if (workspaceId && path) void loadFileContent(path);
+      else if (!path) {
+        contentGeneration += 1;
+        previewFile.value = undefined;
+        previewError.value = "";
+        previewLoading.value = false;
+      }
+    });
   },
   { immediate: true },
 );

@@ -223,22 +223,14 @@ onBeforeUnmount(() => scheduler.dispose());
 }
 
 .markdown-new-styling a:where(:not(.not-markdown *)) {
-  color: var(--color-blue-600);
+  color: var(--primary);
   font-weight: var(--font-weight-normal);
   text-decoration-line: none;
 }
 
-.dark .markdown-new-styling a:where(:not(.not-markdown *)) {
-  color: var(--color-blue-400);
-}
-
 @media (hover: hover) {
   .markdown-new-styling a:where(:not(.not-markdown *)):hover {
-    color: var(--color-blue-400);
-  }
-
-  .dark .markdown-new-styling a:where(:not(.not-markdown *)):hover {
-    color: var(--color-blue-300);
+    color: color-mix(in oklab, var(--primary) 85%, var(--foreground));
   }
 }
 

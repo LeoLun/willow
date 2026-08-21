@@ -1,5 +1,10 @@
 import { join } from "node:path";
-import { Module, On, TrayFactoryResolver, WindowFactoryResolver } from "@willow/poetry";
+import {
+  Module,
+  On,
+  TrayFactoryResolver,
+  WindowFactoryResolver,
+} from "@willow/poetry";
 import { app, powerMonitor, screen } from "electron";
 import started from "electron-squirrel-startup";
 import { CheckAppUpdateController } from "./controllers/app-update/check.app-update.controller";
@@ -313,13 +318,15 @@ export class AppModule {
       this.initSucceeded = true;
       return true;
     } catch (error) {
+      console.error("bootstrapApplication error", error);
       this.initSucceeded = false;
       throw error;
     }
   }
 
   private showMainWindow() {
-    const mainWindow = this.windowFactoryResolver.resolveWindowFactory(MainWindow);
+    const mainWindow =
+      this.windowFactoryResolver.resolveWindowFactory(MainWindow);
 
     if (!mainWindow.win || mainWindow.win.isDestroyed()) {
       this.createWindow();

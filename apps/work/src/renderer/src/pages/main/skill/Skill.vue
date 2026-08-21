@@ -226,7 +226,7 @@ onMounted(() => void loadSkills());
                   v-for="tab in installedTabs"
                   :key="tab.id"
                   :value="tab.id"
-                  class="h-auto flex-none rounded-xl border-0 px-3 py-1.5 font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground data-[state=active]:bg-muted data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  class="h-auto flex-none rounded-xl border-0 px-3 py-1.5 font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground data-[state=active]:bg-primary/12 data-[state=active]:font-medium data-[state=active]:text-primary data-[state=active]:shadow-none"
                   :data-skill-source="tab.id"
                   data-slot="installed-skill-tab"
                 >
@@ -337,7 +337,7 @@ onMounted(() => void loadSkills());
                   v-for="group in projectGroups"
                   :key="group.workspace.id"
                   :value="group.workspace.id"
-                  class="h-auto flex-none rounded-xl border-0 px-3 py-1.5 font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground data-[state=active]:bg-muted data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  class="h-auto flex-none rounded-xl border-0 px-3 py-1.5 font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground data-[state=active]:bg-primary/12 data-[state=active]:font-medium data-[state=active]:text-primary data-[state=active]:shadow-none"
                 >
                   {{ group.workspace.name }}
                 </TabsTrigger>

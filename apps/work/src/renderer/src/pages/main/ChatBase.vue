@@ -741,7 +741,7 @@ async function applyGuidedPromptIfRequested(): Promise<void> {
               请先连接模型提供商
               <button
                 type="button"
-                class="ml-1 cursor-pointer text-blue-500 hover:underline focus-visible:underline focus-visible:outline-none"
+                class="ml-1 cursor-pointer text-primary hover:underline focus-visible:underline focus-visible:outline-none"
                 @click="openProviderSettings"
               >
                 前往设置

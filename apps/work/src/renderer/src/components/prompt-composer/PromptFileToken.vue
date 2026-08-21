@@ -11,7 +11,7 @@ const isDirectory = computed(() => props.path.endsWith("/"));
 </script>
 
 <template>
-  <span class="inline-flex items-center gap-1 text-blue-500" :title="path">
+  <span class="inline-flex items-center gap-1 text-primary" :title="path">
     <FolderIcon v-if="isDirectory" class="size-4 shrink-0" data-icon-type="directory" />
     <FileIcon v-else class="size-4 shrink-0" data-icon-type="file" />
     <span>{{ fileName }}</span>

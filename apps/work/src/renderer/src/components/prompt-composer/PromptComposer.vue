@@ -1110,24 +1110,24 @@ watch(content, (value) => {
     <TransitionGroup name="prompt-border-beam">
       <BorderBeam
         v-if="editorFocused"
-        key="red"
+        key="purple-highlight"
         :size="400"
         :path-radius="28"
         color-from="transparent"
-        color-to="#ef4444"
-        data-beam-color="red"
+        color-to="var(--primary-highlight)"
+        data-beam-color="purple-highlight"
         data-slot="prompt-border-beam"
       />
       <BorderBeam
         v-if="editorFocused"
-        key="blue"
+        key="purple"
         :size="400"
         :path-radius="28"
         :delay="3"
         :border-width="2"
         color-from="transparent"
-        color-to="#3b82f6"
-        data-beam-color="blue"
+        color-to="var(--ring)"
+        data-beam-color="purple"
         data-slot="prompt-border-beam"
       />
     </TransitionGroup>
