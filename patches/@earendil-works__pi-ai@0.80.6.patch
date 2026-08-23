@@ -1,0 +1,112 @@
+diff --git a/dist/models.generated.d.ts b/dist/models.generated.d.ts
+index 34ce1425c050693e034a3fd9de68aa0d454c535c..f77f7cce005f91722c685c7e3c36c057185122fd 100644
+--- a/dist/models.generated.d.ts
++++ b/dist/models.generated.d.ts
+@@ -4359,6 +4359,36 @@ export declare const MODELS: {
+             contextWindow: number;
+             maxTokens: number;
+         };
++        readonly "deepseek-v4-flash-vision-exp": {
++            id: string;
++            name: string;
++            api: "openai-completions";
++            provider: string;
++            baseUrl: string;
++            compat: {
++                supportsStore: false;
++                supportsDeveloperRole: false;
++                requiresReasoningContentOnAssistantMessages: true;
++                thinkingFormat: "deepseek";
++            };
++            reasoning: true;
++            thinkingLevelMap: {
++                minimal: null;
++                low: null;
++                medium: null;
++                high: string;
++                max: string;
++            };
++            input: ("text" | "image")[];
++            cost: {
++                input: number;
++                output: number;
++                cacheRead: number;
++                cacheWrite: number;
++            };
++            contextWindow: number;
++            maxTokens: number;
++        };
+         readonly "deepseek-v4-pro": {
+             id: string;
+             name: string;
+diff --git a/dist/providers/deepseek.models.d.ts b/dist/providers/deepseek.models.d.ts
+index c32ccf6d8e4db1842cf3bb8a52826494485cc36f..f7a77894aff7121fd91b822100d995a9e8cfcb11 100644
+--- a/dist/providers/deepseek.models.d.ts
++++ b/dist/providers/deepseek.models.d.ts
+@@ -29,6 +29,36 @@ export declare const DEEPSEEK_MODELS: {
+         contextWindow: number;
+         maxTokens: number;
+     };
++    readonly "deepseek-v4-flash-vision-exp": {
++        id: string;
++        name: string;
++        api: "openai-completions";
++        provider: string;
++        baseUrl: string;
++        compat: {
++            supportsStore: false;
++            supportsDeveloperRole: false;
++            requiresReasoningContentOnAssistantMessages: true;
++            thinkingFormat: "deepseek";
++        };
++        reasoning: true;
++        thinkingLevelMap: {
++            minimal: null;
++            low: null;
++            medium: null;
++            high: string;
++            max: string;
++        };
++        input: ("text" | "image")[];
++        cost: {
++            input: number;
++            output: number;
++            cacheRead: number;
++            cacheWrite: number;
++        };
++        contextWindow: number;
++        maxTokens: number;
++    };
+     readonly "deepseek-v4-pro": {
+         id: string;
+         name: string;
+diff --git a/dist/providers/deepseek.models.js b/dist/providers/deepseek.models.js
+index 12a2ad5d841121897fc71d14bdf0a1c407d09dfc..07f6b32d38095885dcd28d686105c1fac9d99566 100644
+--- a/dist/providers/deepseek.models.js
++++ b/dist/providers/deepseek.models.js
+@@ -20,6 +20,25 @@ export const DEEPSEEK_MODELS = {
+         contextWindow: 1000000,
+         maxTokens: 384000,
+     },
++    "deepseek-v4-flash-vision-exp": {
++        id: "deepseek-v4-flash-vision-exp",
++        name: "DeepSeek V4 Flash Vision Exp",
++        api: "openai-completions",
++        provider: "deepseek",
++        baseUrl: "https://api.deepseek.com",
++        compat: { "supportsStore": false, "supportsDeveloperRole": false, "requiresReasoningContentOnAssistantMessages": true, "thinkingFormat": "deepseek" },
++        reasoning: true,
++        thinkingLevelMap: { "minimal": null, "low": null, "medium": null, "high": "high", "max": "max" },
++        input: ["text", "image"],
++        cost: {
++            input: 0.14,
++            output: 0.28,
++            cacheRead: 0.0028,
++            cacheWrite: 0,
++        },
++        contextWindow: 1000000,
++        maxTokens: 384000,
++    },
+     "deepseek-v4-pro": {
+         id: "deepseek-v4-pro",
+         name: "DeepSeek V4 Pro",

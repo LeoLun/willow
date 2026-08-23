@@ -27,7 +27,7 @@ describe("AgentCore model setup", () => {
     );
   });
 
-  it("resolves the configured DeepSeek model", async () => {
+  it("resolves the configured DeepSeek models", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "willow-core-"));
     temporaryDirectories.push(cwd);
     const credentials = {
@@ -42,6 +42,9 @@ describe("AgentCore model setup", () => {
     });
 
     expect(core.getModel("deepseek", "deepseek-v4-flash").id).toBe("deepseek-v4-flash");
+    expect(core.getModel("deepseek", "deepseek-v4-flash-vision-exp").id).toBe(
+      "deepseek-v4-flash-vision-exp",
+    );
   });
 
   it("allows read and write access to the built-in skills directory", async () => {

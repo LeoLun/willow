@@ -20,8 +20,8 @@
   },
   "dependencies": {
     "@carderne/sandbox-runtime": "^0.0.69",
-    "@earendil-works/pi-agent-core": "^0.80.3",
-    "@earendil-works/pi-ai": "^0.80.3",
+    "@earendil-works/pi-agent-core": "^0.80.6",
+    "@earendil-works/pi-ai": "^0.80.6",
     "diff": "catalog:",
     "ignore": "catalog:",
     "minimatch": "catalog:",
