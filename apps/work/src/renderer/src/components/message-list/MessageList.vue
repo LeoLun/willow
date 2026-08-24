@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/vue-virtual";
 import { computed, onBeforeUnmount, watch, type StyleValue } from "vue";
-import Loading from "@/components/ui/Loading.vue";
+import { AxolotlMascot } from "@/components/mascot/Mascot";
 import { useMessageListScroll } from "@/composables/useMessageListScroll";
 import { groupMessagesIntoTurns } from "./message-turns";
 import MessageTurn from "./MessageTurn.vue";
@@ -128,7 +128,13 @@ function turnStyle(start: number): StyleValue {
       aria-label="正在工作中"
       data-slot="message-list-working"
     >
-      <Loading class="size-3 shrink-0" aria-hidden="true" />
+      <AxolotlMascot
+        :size="24"
+        expression="attentive"
+        class="shrink-0"
+        aria-hidden="true"
+        data-slot="message-list-working-mascot"
+      />
       <span class="shimmer text-sm" aria-hidden="true" data-slot="message-list-working-label">
         正在工作中
       </span>

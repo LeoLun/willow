@@ -88,6 +88,7 @@ function mountReactiveMessages(messages: Message[], streaming = false) {
 afterEach(() => {
   for (const app of mountedApps.splice(0)) app.unmount();
   document.body.replaceChildren();
+  document.documentElement.classList.remove("dark");
 });
 
 describe("pi-agent message conversion", () => {
@@ -792,6 +793,7 @@ describe("MessageList", () => {
   });
 
   it("shows the working indicator at the end only while the agent loop is active", () => {
+    document.documentElement.classList.add("dark");
     const message: Message = {
       id: "user",
       sourceKey: "user",
@@ -806,7 +808,9 @@ describe("MessageList", () => {
 
     expect(working?.getAttribute("role")).toBe("status");
     expect(working?.getAttribute("aria-label")).toBe("正在工作中");
-    expect(working?.querySelector('[data-slot="loading"]')).not.toBeNull();
+    expect(working?.querySelector('[data-slot="message-list-working-mascot"]')).not.toBeNull();
+    expect(working?.querySelector('rect[fill="#f5f5f5"]')).not.toBeNull();
+    expect(working?.querySelector('path[fill="#0d0d0d"]')).not.toBeNull();
     expect(
       working
         ?.querySelector("[data-slot=message-list-working-label]")

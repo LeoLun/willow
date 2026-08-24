@@ -10,6 +10,7 @@ import {
 } from "@willow/shadcn/components/ui/select";
 import { Folder } from "lucide-vue-next";
 import { onMounted } from "vue";
+import { AxolotlMascot } from "@/components/mascot/Mascot";
 import { useAppUpdate } from "@/composables/useAppUpdate";
 import { useWorkspaceSelection } from "@/composables/useWorkspaceSelection";
 
@@ -35,6 +36,18 @@ onMounted(async () => {
 <template>
   <div class="flex min-h-full flex-col justify-center p-8">
     <div class="mx-auto w-full max-w-3xl">
+      <header class="mb-0 flex items-center justify-center gap-5">
+        <AxolotlMascot
+          :size="60"
+          expression="attentive"
+          aria-label="Willow 吉祥物"
+          class="shrink-0"
+        />
+        <div class="flex flex-col items-start gap-2">
+          <h1 class="text-3xl font-medium tracking-tight">让 Willow 来帮你完成任务</h1>
+        </div>
+      </header>
+
       <div class="mb-3 flex min-h-8 items-center gap-2">
         <Select
           :model-value="selectedWorkspaceValue"
