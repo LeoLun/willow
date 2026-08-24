@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { LocalFileAttachment } from "@shared/api";
-import { isImageAttachment } from "@shared/local-file";
-import { FileTextIcon, ImageIcon, XIcon } from "lucide-vue-next";
+import { isDirectoryAttachment, isImageAttachment } from "@shared/local-file";
+import { FileTextIcon, FolderIcon, ImageIcon, XIcon } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 
 export type ImageFileItem =
@@ -18,6 +18,7 @@ export type ImageFileItem =
 const props = withDefaults(
   defineProps<{
     file: ImageFileItem;
+    previewSrc?: string;
     compact?: boolean;
     removable?: boolean;
   }>(),
@@ -42,8 +43,11 @@ const isImage = computed(() => {
   return isImageAttachment(props.file as LocalFileAttachment);
 });
 
+const isDirectory = computed(() => isDirectoryAttachment(props.file as LocalFileAttachment));
+
 const imageSrc = computed(() => {
   if (imageLoadError.value) return undefined;
+  if (props.previewSrc) return props.previewSrc;
 
   if ("data" in props.file && typeof props.file.data === "string" && props.file.data !== "") {
     if (props.file.data.startsWith("data:")) return props.file.data;
@@ -97,8 +101,11 @@ const fileTypeDisplay = computed(() => {
     const ext = props.file.mimeType.split("/")[1];
     if (ext) return ext.toUpperCase();
   }
+  if (isDirectory.value) return "文件夹";
   return isImage.value ? "图片" : "文件";
 });
+
+const itemLabel = computed(() => (isDirectory.value ? "文件夹" : "文件"));
 
 const fileTitle = computed(() => {
   if ("path" in props.file && typeof props.file.path === "string" && props.file.path !== "") {
@@ -121,8 +128,12 @@ const fileTitle = computed(() => {
     :title="fileTitle"
   >
     <div
-      class="flex shrink-0 items-center justify-center overflow-hidden"
-      :class="props.compact ? 'size-5 rounded-full' : 'size-9 rounded-xl bg-muted'"
+      class="flex shrink-0 items-center justify-center"
+      :class="[
+        props.compact ? 'size-5 rounded-full' : 'size-9 rounded-xl bg-muted',
+        imageSrc ? 'overflow-hidden' : 'overflow-visible',
+      ]"
+      data-slot="local-file-icon"
     >
       <img
         v-if="imageSrc"
@@ -134,6 +145,12 @@ const fileTitle = computed(() => {
       />
       <ImageIcon
         v-else-if="isImage"
+        class="text-muted-foreground"
+        :class="props.compact ? 'size-5' : 'size-4'"
+        aria-hidden="true"
+      />
+      <FolderIcon
+        v-else-if="isDirectory"
         class="text-muted-foreground"
         :class="props.compact ? 'size-5' : 'size-4'"
         aria-hidden="true"
@@ -160,7 +177,7 @@ const fileTitle = computed(() => {
       v-if="props.removable"
       type="button"
       class="inline-flex size-4 items-center justify-center rounded-full bg-foreground text-background transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-      :aria-label="`移除文件：${fileName}`"
+      :aria-label="`移除${itemLabel}：${fileName}`"
       @click="emit('remove')"
     >
       <XIcon class="size-3" aria-hidden="true" />

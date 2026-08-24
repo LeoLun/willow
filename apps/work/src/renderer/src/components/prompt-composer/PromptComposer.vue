@@ -15,6 +15,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   FilePlusIcon,
+  FolderPlusIcon,
   ListTodoIcon,
   PlusIcon,
   XIcon,
@@ -72,6 +73,13 @@ type TriggerState = {
 
 type TemplateFieldSegment = Exclude<ComposerTemplateSegment, { type: "text" }>;
 
+const SUPPORTED_CLIPBOARD_IMAGE_TYPES = new Set([
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
 interface TemplateFieldRecord {
   host: HTMLElement;
   segment: TemplateFieldSegment;
@@ -113,6 +121,7 @@ const editorFocused = ref(false);
 const selectingFiles = ref(false);
 const addPopoverOpen = ref(false);
 const attachmentError = ref("");
+const attachmentPreviews = ref<Record<string, string>>({});
 const trigger = ref<TriggerState>();
 const templateMode = ref(false);
 const templateFieldCount = ref(0);
@@ -602,15 +611,38 @@ function addAttachments(files: readonly LocalFileAttachment[]): void {
   attachments.value = [...next.values()];
 }
 
-async function selectFiles(): Promise<void> {
+function setAttachmentPreview(path: string, preview: string): void {
+  const previous = attachmentPreviews.value[path];
+  if (previous && previous !== preview) window.URL.revokeObjectURL(previous);
+  attachmentPreviews.value = { ...attachmentPreviews.value, [path]: preview };
+}
+
+function releaseAttachmentPreview(path: string): void {
+  const preview = attachmentPreviews.value[path];
+  if (!preview) return;
+  window.URL.revokeObjectURL(preview);
+  const next = { ...attachmentPreviews.value };
+  delete next[path];
+  attachmentPreviews.value = next;
+}
+
+function releaseAttachmentPreviews(): void {
+  for (const preview of Object.values(attachmentPreviews.value)) {
+    window.URL.revokeObjectURL(preview);
+  }
+  attachmentPreviews.value = {};
+}
+
+async function selectFiles(kind: "file" | "directory" = "file"): Promise<void> {
   if (props.disabled || selectingFiles.value) return;
   selectingFiles.value = true;
   attachmentError.value = "";
   try {
-    const response = await electronAPI.selectLocalFiles();
+    const response = await electronAPI.selectLocalFiles(kind === "file" ? {} : { kind });
     addAttachments(response.files);
   } catch (error) {
-    attachmentError.value = error instanceof Error ? error.message : "选择文件失败，请重试。";
+    const fallback = kind === "directory" ? "选择文件夹失败，请重试。" : "选择文件失败，请重试。";
+    attachmentError.value = error instanceof Error ? error.message : fallback;
   } finally {
     selectingFiles.value = false;
   }
@@ -630,7 +662,13 @@ function selectFilesFromPopover(): void {
   void selectFiles();
 }
 
+function selectDirectoriesFromPopover(): void {
+  addPopoverOpen.value = false;
+  void selectFiles("directory");
+}
+
 function removeAttachment(path: string): void {
+  releaseAttachmentPreview(path);
   attachments.value = attachments.value.filter((file) => file.path !== path);
 }
 
@@ -663,6 +701,7 @@ function submit(): void {
   emit("submit", payload);
   agentMode.value = "default";
   content.value = "";
+  releaseAttachmentPreviews();
   attachments.value = [];
   lastSelection = { start: 0, end: 0 };
   renderEditorContent("");
@@ -738,10 +777,40 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
     event.preventDefault();
     attachmentError.value = "";
     try {
-      const paths = pastedFiles.map((file) => electronAPI.getPathForFile(file)).filter(Boolean);
-      if (paths.length === 0) throw new Error("无法读取粘贴文件的本地路径");
-      const response = await electronAPI.inspectLocalFiles({ paths });
-      addAttachments(response.files);
+      const paths: string[] = [];
+      const clipboardImages: File[] = [];
+      for (const file of pastedFiles) {
+        const path = electronAPI.getPathForFile(file);
+        if (path) {
+          paths.push(path);
+        } else if (SUPPORTED_CLIPBOARD_IMAGE_TYPES.has(file.type)) {
+          clipboardImages.push(file);
+        } else {
+          throw new Error("仅支持粘贴没有本地路径的 PNG、JPEG、GIF 或 WebP 图片");
+        }
+      }
+
+      const [localResponse, clipboardResponse] = await Promise.all([
+        paths.length > 0 ? electronAPI.inspectLocalFiles({ paths }) : { files: [] },
+        clipboardImages.length > 0
+          ? electronAPI.persistClipboardImages({
+              images: await Promise.all(
+                clipboardImages.map(async (file) => ({
+                  name: file.name,
+                  mimeType: file.type,
+                  data: await file.arrayBuffer(),
+                })),
+              ),
+            })
+          : { files: [] },
+      ]);
+      clipboardResponse.files.forEach((file, index) => {
+        const clipboardImage = clipboardImages[index];
+        if (clipboardImage) {
+          setAttachmentPreview(file.path, window.URL.createObjectURL(clipboardImage));
+        }
+      });
+      addAttachments([...localResponse.files, ...clipboardResponse.files]);
     } catch (error) {
       attachmentError.value = error instanceof Error ? error.message : "粘贴文件失败，请重试。";
     }
@@ -819,6 +888,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener("selectionchange", updateSelectionAndPanel);
+  releaseAttachmentPreviews();
   unmountTemplateFields();
   unmountRenderedTokens();
 });
@@ -851,6 +921,7 @@ watch(content, (value) => {
           v-for="file in attachments"
           :key="file.path"
           :file="file"
+          :preview-src="attachmentPreviews[file.path]"
           compact
           removable
           @remove="removeAttachment(file.path)"
@@ -952,6 +1023,14 @@ watch(content, (value) => {
           >
             <FilePlusIcon class="size-4 text-muted-foreground" aria-hidden="true" />
             <span>文件</span>
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
+            @click="selectDirectoriesFromPopover"
+          >
+            <FolderPlusIcon class="size-4 text-muted-foreground" aria-hidden="true" />
+            <span>文件夹</span>
           </button>
         </PopoverContent>
       </Popover>

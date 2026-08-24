@@ -383,6 +383,42 @@ describe("MessageService", () => {
     expect(harness.prompt).toHaveBeenCalledWith(prompt, { images: [image] });
   });
 
+  it("passes one directory path to the model and grants recursive read-write access", async () => {
+    const directory = {
+      path: "/outside/project",
+      name: "project",
+      fileType: "文件夹",
+      kind: "directory" as const,
+    };
+    inspectLocalFiles.mockResolvedValue([directory]);
+    const harness = createHarness();
+    getAgentHarness.mockResolvedValue(harness.harness);
+
+    await service.sendMessage({
+      workspaceId: 1,
+      sessionId: "session",
+      content: "Review this project",
+      model: modelConfig,
+      attachments: [{ ...directory, path: "/link/project" }],
+    });
+
+    expect(inspectLocalFiles).toHaveBeenCalledWith(["/link/project"]);
+    expect(appendCustomEntry).toHaveBeenCalledWith(
+      1,
+      "session",
+      LOCAL_FILE_GRANT_CUSTOM_TYPE,
+      expect.objectContaining({ files: [directory] }),
+    );
+    expect(getAgentHarness).toHaveBeenCalledWith(
+      expect.objectContaining({ sandboxPolicy: { allowWrite: [directory.path] } }),
+    );
+    const prompt = harness.prompt.mock.calls[0]?.[0] as string;
+    expect(parseLocalFilePrompt(prompt)).toEqual({
+      content: "Review this project",
+      grant: expect.objectContaining({ files: [directory] }),
+    });
+  });
+
   it("grants Plan mode read-only access to inherited and new attachments", async () => {
     const inheritedGrant = {
       requestId: "grant-plan",
@@ -403,9 +439,13 @@ describe("MessageService", () => {
         },
       },
     ] as never);
-    inspectLocalFiles.mockResolvedValue([
-      { path: "/outside/new.md", name: "new.md", fileType: "MD" },
-    ]);
+    const directory = {
+      path: "/outside/project",
+      name: "project",
+      fileType: "文件夹",
+      kind: "directory" as const,
+    };
+    inspectLocalFiles.mockResolvedValue([directory]);
     const harness = createHarness();
     getAgentHarness.mockResolvedValue(harness.harness);
 
@@ -415,13 +455,13 @@ describe("MessageService", () => {
       content: "Plan the changes",
       model: modelConfig,
       agentMode: "plan",
-      attachments: [{ path: "/outside/new.md", name: "new.md", fileType: "MD" }],
+      attachments: [directory],
     });
 
     expect(getAgentHarness).toHaveBeenCalledWith(
       expect.objectContaining({
         agentMode: "plan",
-        sandboxPolicy: { allowRead: ["/outside/context.md", "/outside/new.md"] },
+        sandboxPolicy: { allowRead: ["/outside/context.md", "/outside/project"] },
       }),
     );
   });

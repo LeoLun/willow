@@ -185,6 +185,26 @@ describe("message controllers", () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
+  it("rejects an invalid attachment kind without calling the service", async () => {
+    await expect(
+      sendController.run(event, {
+        workspaceId: 1,
+        sessionId: "session",
+        content: "Hello",
+        model: { providerId: "openai", modelId: "large" },
+        attachments: [
+          {
+            path: "/tmp/project",
+            name: "project",
+            fileType: "文件夹",
+            kind: "invalid" as never,
+          },
+        ],
+      }),
+    ).resolves.toEqual({ code: 400, msg: "attachments must contain valid local files" });
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
   it("propagates message service failures", async () => {
     const sendError = new Error("send failed");
     const stopError = new Error("stop failed");

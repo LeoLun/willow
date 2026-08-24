@@ -558,6 +558,44 @@ describe("filesystem tools", () => {
     expect(requestApproval).toHaveBeenCalledTimes(2);
   });
 
+  it("limits an explicit writable directory grant to that directory tree", async () => {
+    const parent = await workspaceTemporaryDirectory(".willow-directory-grant-");
+    const cwd = join(parent, "workspace");
+    const granted = join(parent, "granted");
+    const sibling = join(parent, "sibling");
+    await Promise.all([mkdir(cwd), mkdir(granted), mkdir(sibling)]);
+    await symlink(sibling, join(granted, "escape"));
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const runtime = {
+      cwd,
+      permissionMode: "request-approval" as const,
+      requestApproval,
+      sandboxPolicy: { allowWrite: [granted] },
+    };
+    const grantedChild = join(granted, "nested", "allowed.txt");
+
+    await createWriteTool(runtime).execute("write-directory-child", {
+      path: grantedChild,
+      content: "allowed",
+    });
+    await expect(
+      createReadTool(runtime).execute("read-directory-child", { path: grantedChild }),
+    ).resolves.toEqual(expect.objectContaining({ content: [{ type: "text", text: "allowed" }] }));
+    await expect(
+      createWriteTool(runtime).execute("write-directory-sibling", {
+        path: join(sibling, "denied.txt"),
+        content: "denied",
+      }),
+    ).rejects.toThrow("Permission denied");
+    await expect(
+      createWriteTool(runtime).execute("write-directory-symlink-escape", {
+        path: join(granted, "escape", "denied.txt"),
+        content: "denied",
+      }),
+    ).rejects.toThrow("Permission denied");
+    expect(requestApproval).toHaveBeenCalledTimes(2);
+  });
+
   it("allows read-only tools inside global skills without allowing symlink escapes", async () => {
     const parent = await workspaceTemporaryDirectory(".willow-global-skills-read-");
     const cwd = join(parent, "workspace");

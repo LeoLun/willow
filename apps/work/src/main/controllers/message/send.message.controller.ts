@@ -73,6 +73,9 @@ export class SendMessageController extends IPCBaseController<
           attachment.name.trim() === "" ||
           typeof attachment.fileType !== "string" ||
           attachment.fileType.trim() === "" ||
+          (attachment.kind !== undefined &&
+            attachment.kind !== "file" &&
+            attachment.kind !== "directory") ||
           (attachment.mimeType !== undefined &&
             (typeof attachment.mimeType !== "string" || attachment.mimeType.trim() === ""))
         ) {

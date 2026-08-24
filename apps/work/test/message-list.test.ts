@@ -299,6 +299,34 @@ describe("pi-agent message conversion", () => {
     expect(container.querySelector('[data-slot="user-message-body"]')).toBeNull();
   });
 
+  it("renders a directory attachment and keeps legacy file attachments compatible", () => {
+    const content = appendLocalFileBlock("Review", {
+      requestId: "request-directory",
+      files: [
+        {
+          path: "/tmp/project",
+          name: "project",
+          fileType: "文件夹",
+          kind: "directory",
+        },
+        { path: "/tmp/legacy.md", name: "legacy.md", fileType: "MD" },
+      ],
+    });
+    const container = mountMessageList([
+      toMessage(agentMessage({ role: "user", content, timestamp: 7 })),
+    ]);
+
+    expect(container.querySelector('[data-slot="user-message-attachments"]')?.textContent).toBe(
+      "projectlegacy.md",
+    );
+    expect(container.querySelectorAll('[data-slot="local-file-card"]')).toHaveLength(2);
+    expect(
+      [...container.querySelectorAll<HTMLElement>('[data-slot="local-file-card"]')].map(
+        (card) => card.title,
+      ),
+    ).toEqual(["/tmp/project", "/tmp/legacy.md"]);
+  });
+
   it("keeps malformed attachment markers visible as plain text", () => {
     const content = "Review\n\n<willow_local_files>\nnot-json\n</willow_local_files>";
     const message = toMessage(agentMessage({ role: "user", content, timestamp: 7 }));

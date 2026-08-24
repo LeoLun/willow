@@ -13,6 +13,7 @@ export type MessageContent =
       name: string;
       fileType: string;
       mimeType?: string;
+      kind?: "file" | "directory";
     }
   | {
       type: "image";

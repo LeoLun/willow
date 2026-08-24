@@ -44,6 +44,8 @@ import type {
   GetMessageListResponse,
   InspectLocalFilesRequest,
   InspectLocalFilesResponse,
+  PersistClipboardImagesRequest,
+  PersistClipboardImagesResponse,
   GetProviderCatalogRequest,
   GetProviderCatalogResponse,
   GetStatisticsRequest,
@@ -160,6 +162,7 @@ import {
   OPEN_MANUAL_UPDATE,
   OPEN_WORKSPACE_FILE,
   OPEN_WORKSPACE_DIRECTORY,
+  PERSIST_CLIPBOARD_IMAGES,
   RENAME_WORKSPACE,
   RESOLVE_TOOL_APPROVAL,
   RESOLVE_USER_QUESTION,
@@ -321,6 +324,11 @@ const ipcObject: IRenderHook = {
     invoke<SelectLocalFilesRequest, SelectLocalFilesResponse>(SELECT_LOCAL_FILES, request),
   inspectLocalFiles: (request: InspectLocalFilesRequest) =>
     invoke<InspectLocalFilesRequest, InspectLocalFilesResponse>(INSPECT_LOCAL_FILES, request),
+  persistClipboardImages: (request: PersistClipboardImagesRequest) =>
+    invoke<PersistClipboardImagesRequest, PersistClipboardImagesResponse>(
+      PERSIST_CLIPBOARD_IMAGES,
+      request,
+    ),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   sendMessage: (request: SendMessageRequest) =>
     invoke<SendMessageRequest, SendMessageResponse>(SEND_MESSAGE, request),

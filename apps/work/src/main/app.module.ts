@@ -1,10 +1,5 @@
 import { join } from "node:path";
-import {
-  Module,
-  On,
-  TrayFactoryResolver,
-  WindowFactoryResolver,
-} from "@willow/poetry";
+import { Module, On, TrayFactoryResolver, WindowFactoryResolver } from "@willow/poetry";
 import { app, powerMonitor, screen } from "electron";
 import started from "electron-squirrel-startup";
 import { CheckAppUpdateController } from "./controllers/app-update/check.app-update.controller";
@@ -43,6 +38,7 @@ import { GetGitReviewStatusController } from "./controllers/git-review/get-statu
 import { StageGitChangesController } from "./controllers/git-review/stage.git-review.controller";
 import { UnstageGitChangesController } from "./controllers/git-review/unstage.git-review.controller";
 import { InspectLocalFilesController } from "./controllers/local-file/inspect.local-file.controller";
+import { PersistClipboardImagesController } from "./controllers/local-file/persist.clipboard-image.controller";
 import { SelectLocalFilesController } from "./controllers/local-file/select.local-file.controller";
 import { GetMessageListController } from "./controllers/message/get-list.message.controller";
 import { ResolveToolApprovalController } from "./controllers/message/resolve-tool-approval.message.controller";
@@ -194,6 +190,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     UnstageGitChangesController,
     CommitGitChangesController,
     InspectLocalFilesController,
+    PersistClipboardImagesController,
     SelectLocalFilesController,
     ReadPlanFileController,
     GetAppInfoController,
@@ -325,8 +322,7 @@ export class AppModule {
   }
 
   private showMainWindow() {
-    const mainWindow =
-      this.windowFactoryResolver.resolveWindowFactory(MainWindow);
+    const mainWindow = this.windowFactoryResolver.resolveWindowFactory(MainWindow);
 
     if (!mainWindow.win || mainWindow.win.isDestroyed()) {
       this.createWindow();

@@ -66,11 +66,16 @@ describe("message queue", () => {
     second.resolve(undefined);
   });
 
-  it("preserves and deep-copies local file attachments", async () => {
+  it("preserves and deep-copies local file and directory attachments", async () => {
     const pending = deferred<unknown>();
     const { queue, send } = createQueue();
     send.mockReturnValue(pending.promise);
-    const attachment = { path: "/tmp/a.md", name: "a.md", fileType: "MD" };
+    const attachment = {
+      path: "/tmp/project",
+      name: "project",
+      fileType: "文件夹",
+      kind: "directory" as const,
+    };
     const input = { ...payload("review"), attachments: [attachment] };
 
     queue.enqueue({ workspaceId: 1, sessionId: "session", payload: input });
@@ -78,7 +83,14 @@ describe("message queue", () => {
 
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
-        attachments: [{ path: "/tmp/a.md", name: "a.md", fileType: "MD" }],
+        attachments: [
+          {
+            path: "/tmp/project",
+            name: "project",
+            fileType: "文件夹",
+            kind: "directory",
+          },
+        ],
       }),
     );
     pending.resolve(undefined);

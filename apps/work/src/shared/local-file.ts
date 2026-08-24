@@ -7,6 +7,7 @@ export interface LocalFileAttachment {
   name: string;
   fileType: string;
   mimeType?: string;
+  kind?: "file" | "directory";
 }
 
 export interface LocalFileGrant {
@@ -29,8 +30,13 @@ function isLocalFileAttachment(value: unknown): value is LocalFileAttachment {
     file.name !== "" &&
     typeof file.fileType === "string" &&
     file.fileType !== "" &&
-    (file.mimeType === undefined || (typeof file.mimeType === "string" && file.mimeType !== ""))
+    (file.mimeType === undefined || (typeof file.mimeType === "string" && file.mimeType !== "")) &&
+    (file.kind === undefined || file.kind === "file" || file.kind === "directory")
   );
+}
+
+export function isDirectoryAttachment(file: LocalFileAttachment): boolean {
+  return file.kind === "directory";
 }
 
 export function isImageAttachment(

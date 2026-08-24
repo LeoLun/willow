@@ -7,6 +7,7 @@ import { createApp, h, nextTick, ref } from "vue";
 const ipcMocks = vi.hoisted(() => ({
   getPathForFile: vi.fn(),
   inspectLocalFiles: vi.fn(),
+  persistClipboardImages: vi.fn(),
   selectLocalFiles: vi.fn(),
 }));
 
@@ -153,6 +154,7 @@ function setCaret(editor: HTMLElement, offset: number): void {
 afterEach(() => {
   for (const app of mountedApps.splice(0)) app.unmount();
   document.body.replaceChildren();
+  vi.clearAllMocks();
 });
 
 describe("prompt composer token parser", () => {
@@ -522,6 +524,39 @@ describe("PromptComposer", () => {
     expect(mounted.container.querySelector("[data-test=mention-panel]")).toBeNull();
   });
 
+  it("selects, renders, and removes a local directory", async () => {
+    const directory = {
+      path: "/tmp/project",
+      name: "project",
+      fileType: "文件夹",
+      kind: "directory" as const,
+    };
+    ipcMocks.selectLocalFiles.mockResolvedValueOnce({ files: [directory] });
+    const mounted = mountComposer();
+    mounted.container
+      .querySelector<HTMLButtonElement>("[aria-label='添加内容或选择模式']")!
+      .click();
+    await nextTick();
+    [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "文件夹")!
+      .click();
+
+    await vi.waitFor(() => expect(mounted.attachments.value).toEqual([directory]));
+    expect(ipcMocks.selectLocalFiles).toHaveBeenCalledWith({ kind: "directory" });
+    const card = mounted.container.querySelector<HTMLElement>("[data-slot=local-file-card]")!;
+    expect(card.textContent).toContain("project");
+    expect(card.title).toBe("/tmp/project");
+    const icon = card.querySelector<HTMLElement>("[data-slot=local-file-icon]")!;
+    expect(icon.classList).toContain("overflow-visible");
+    expect(icon.classList).not.toContain("overflow-hidden");
+
+    mounted.container
+      .querySelector<HTMLButtonElement>("[aria-label='移除文件夹：project']")!
+      .click();
+    await nextTick();
+    expect(mounted.attachments.value).toEqual([]);
+  });
+
   it("adds, deduplicates, renders, and removes selected local files", async () => {
     const file = { path: "/tmp/draft.md", name: "draft.md", fileType: "MD" };
     ipcMocks.selectLocalFiles.mockResolvedValueOnce({ files: [file, file] });
@@ -633,6 +668,198 @@ describe("PromptComposer", () => {
     await vi.waitFor(() => expect(mounted.attachments.value).toHaveLength(1));
     expect(mounted.content.value).toBe("start");
     expect(ipcMocks.inspectLocalFiles).toHaveBeenCalledWith({ paths: ["/tmp/draft.md"] });
+  });
+
+  it("pastes a directory as one attachment without inserting clipboard text", async () => {
+    const mounted = mountComposer({ content: "start" });
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const directory = new File([], "project");
+    ipcMocks.getPathForFile.mockReturnValueOnce("/tmp/project");
+    ipcMocks.inspectLocalFiles.mockResolvedValueOnce({
+      files: [
+        {
+          path: "/tmp/project",
+          name: "project",
+          fileType: "文件夹",
+          kind: "directory",
+        },
+      ],
+    });
+    const paste = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, "clipboardData", {
+      value: { files: [directory], getData: () => "ignored text" },
+    });
+
+    editor.dispatchEvent(paste);
+    await vi.waitFor(() =>
+      expect(mounted.attachments.value).toEqual([
+        {
+          path: "/tmp/project",
+          name: "project",
+          fileType: "文件夹",
+          kind: "directory",
+        },
+      ]),
+    );
+    expect(mounted.content.value).toBe("start");
+    expect(ipcMocks.inspectLocalFiles).toHaveBeenCalledWith({ paths: ["/tmp/project"] });
+    expect(mounted.container.querySelectorAll("[data-slot=local-file-card]")).toHaveLength(1);
+  });
+
+  it("persists a clipboard image without a local path", async () => {
+    const mounted = mountComposer({ content: "start" });
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const data = new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer;
+    const file = new File([data], "image.png", { type: "image/png" });
+    Object.defineProperty(file, "arrayBuffer", { value: vi.fn().mockResolvedValue(data) });
+    ipcMocks.getPathForFile.mockReturnValueOnce("");
+    ipcMocks.persistClipboardImages.mockResolvedValueOnce({
+      files: [
+        {
+          path: "/user/clipboard-images/id/image.png",
+          name: "image.png",
+          fileType: "PNG",
+          mimeType: "image/png",
+        },
+      ],
+    });
+    const paste = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, "clipboardData", {
+      value: { files: [file], getData: () => "ignored text" },
+    });
+
+    editor.dispatchEvent(paste);
+    await vi.waitFor(() => expect(mounted.attachments.value).toHaveLength(1));
+
+    expect(mounted.content.value).toBe("start");
+    expect(ipcMocks.inspectLocalFiles).not.toHaveBeenCalled();
+    expect(ipcMocks.persistClipboardImages).toHaveBeenCalledWith({
+      images: [{ name: "image.png", mimeType: "image/png", data }],
+    });
+    expect(
+      mounted.container.querySelector<HTMLImageElement>("[data-slot=local-file-card] img")?.src,
+    ).toMatch(/^blob:/);
+  });
+
+  it("releases a clipboard image preview when removing the attachment", async () => {
+    const mounted = mountComposer();
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const data = new Uint8Array([1]).buffer;
+    const file = new File([data], "image.png", { type: "image/png" });
+    Object.defineProperty(file, "arrayBuffer", { value: vi.fn().mockResolvedValue(data) });
+    ipcMocks.getPathForFile.mockReturnValueOnce("");
+    ipcMocks.persistClipboardImages.mockResolvedValueOnce({
+      files: [
+        {
+          path: "/user/clipboard-images/id/image.png",
+          name: "image.png",
+          fileType: "PNG",
+          mimeType: "image/png",
+        },
+      ],
+    });
+    const paste = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, "clipboardData", { value: { files: [file] } });
+    editor.dispatchEvent(paste);
+    await vi.waitFor(() => expect(mounted.attachments.value).toHaveLength(1));
+
+    mounted.container.querySelector<HTMLButtonElement>("[aria-label^='移除文件']")!.click();
+    await nextTick();
+
+    expect(mounted.attachments.value).toEqual([]);
+  });
+
+  it("pastes local files and pathless images together", async () => {
+    const mounted = mountComposer();
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const localFile = new File(["draft"], "draft.md", { type: "text/markdown" });
+    const data = new Uint8Array([1, 2, 3]).buffer;
+    const image = new File([data], "image.png", { type: "image/png" });
+    Object.defineProperty(image, "arrayBuffer", { value: vi.fn().mockResolvedValue(data) });
+    ipcMocks.getPathForFile.mockReturnValueOnce("/tmp/draft.md").mockReturnValueOnce("");
+    ipcMocks.inspectLocalFiles.mockResolvedValueOnce({
+      files: [{ path: "/tmp/draft.md", name: "draft.md", fileType: "MD" }],
+    });
+    ipcMocks.persistClipboardImages.mockResolvedValueOnce({
+      files: [
+        {
+          path: "/user/clipboard-images/id/image.png",
+          name: "image.png",
+          fileType: "PNG",
+          mimeType: "image/png",
+        },
+      ],
+    });
+    const paste = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, "clipboardData", { value: { files: [localFile, image] } });
+
+    editor.dispatchEvent(paste);
+    await vi.waitFor(() => expect(mounted.attachments.value).toHaveLength(2));
+
+    expect(ipcMocks.inspectLocalFiles).toHaveBeenCalledWith({ paths: ["/tmp/draft.md"] });
+    expect(ipcMocks.persistClipboardImages).toHaveBeenCalledOnce();
+  });
+
+  it("rejects pathless clipboard files that are not supported images", async () => {
+    const mounted = mountComposer();
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const file = new File(["draft"], "draft.md", { type: "text/markdown" });
+    ipcMocks.getPathForFile.mockReturnValueOnce("");
+    const paste = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, "clipboardData", { value: { files: [file] } });
+
+    editor.dispatchEvent(paste);
+    await vi.waitFor(() =>
+      expect(mounted.container.querySelector("[role=alert]")?.textContent).toContain(
+        "仅支持粘贴没有本地路径",
+      ),
+    );
+
+    expect(mounted.attachments.value).toEqual([]);
+    expect(ipcMocks.persistClipboardImages).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when a clipboard image cannot be read", async () => {
+    const mounted = mountComposer();
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const file = new File(["image"], "image.png", { type: "image/png" });
+    Object.defineProperty(file, "arrayBuffer", {
+      value: vi.fn().mockRejectedValue(new Error("无法读取剪贴板图片")),
+    });
+    ipcMocks.getPathForFile.mockReturnValueOnce("");
+    const paste = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, "clipboardData", { value: { files: [file] } });
+
+    editor.dispatchEvent(paste);
+    await vi.waitFor(() =>
+      expect(mounted.container.querySelector("[role=alert]")?.textContent).toContain(
+        "无法读取剪贴板图片",
+      ),
+    );
+
+    expect(mounted.attachments.value).toEqual([]);
+    expect(ipcMocks.persistClipboardImages).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when persisting a clipboard image fails", async () => {
+    const mounted = mountComposer();
+    const editor = mounted.container.querySelector<HTMLElement>("[data-slot=prompt-editor]")!;
+    const data = new Uint8Array([1]).buffer;
+    const file = new File([data], "image.png", { type: "image/png" });
+    Object.defineProperty(file, "arrayBuffer", { value: vi.fn().mockResolvedValue(data) });
+    ipcMocks.getPathForFile.mockReturnValueOnce("");
+    ipcMocks.persistClipboardImages.mockRejectedValueOnce(new Error("保存剪贴板图片失败"));
+    const paste = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, "clipboardData", { value: { files: [file] } });
+
+    editor.dispatchEvent(paste);
+    await vi.waitFor(() =>
+      expect(mounted.container.querySelector("[role=alert]")?.textContent).toContain(
+        "保存剪贴板图片失败",
+      ),
+    );
+
+    expect(mounted.attachments.value).toEqual([]);
   });
 
   it("submits attachments with text and clears both models", async () => {

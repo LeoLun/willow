@@ -17,11 +17,15 @@ export class SelectLocalFilesController extends IPCBaseController<
   @IPC(SELECT_LOCAL_FILES)
   async run(
     event: Electron.IpcMainInvokeEvent,
-    _request: SelectLocalFilesRequest,
+    request: SelectLocalFilesRequest,
   ): Promise<ApiResponse<SelectLocalFilesResponse>> {
+    const error = this.checkParams(request);
+    if (error) return this.buildError(400, error.message);
+
+    const kind = request?.kind ?? "file";
     const options: OpenDialogOptions = {
-      title: "选择本地文件",
-      properties: ["openFile", "multiSelections"],
+      title: kind === "directory" ? "选择本地文件夹" : "选择本地文件",
+      properties: [kind === "directory" ? "openDirectory" : "openFile", "multiSelections"],
     };
     const parentWindow = BrowserWindow.fromWebContents(event.sender);
     const result = parentWindow
@@ -32,7 +36,10 @@ export class SelectLocalFilesController extends IPCBaseController<
     return this.buildResponse({ files: await this.localFileService.inspect(result.filePaths) });
   }
 
-  checkParams(_request: SelectLocalFilesRequest): Error | undefined {
+  checkParams(request: SelectLocalFilesRequest): Error | undefined {
+    if (request?.kind !== undefined && request.kind !== "file" && request.kind !== "directory") {
+      return new Error("kind must be file or directory");
+    }
     return undefined;
   }
 }

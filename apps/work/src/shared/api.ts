@@ -332,7 +332,9 @@ export interface CommitGitChangesResponse {
   commitHash: string;
 }
 
-export interface SelectLocalFilesRequest {}
+export interface SelectLocalFilesRequest {
+  kind?: "file" | "directory";
+}
 
 export interface SelectLocalFilesResponse {
   files: LocalFileAttachment[];
@@ -343,6 +345,20 @@ export interface InspectLocalFilesRequest {
 }
 
 export interface InspectLocalFilesResponse {
+  files: LocalFileAttachment[];
+}
+
+export interface ClipboardImagePayload {
+  name: string;
+  mimeType: string;
+  data: ArrayBuffer;
+}
+
+export interface PersistClipboardImagesRequest {
+  images: ClipboardImagePayload[];
+}
+
+export interface PersistClipboardImagesResponse {
   files: LocalFileAttachment[];
 }
 
