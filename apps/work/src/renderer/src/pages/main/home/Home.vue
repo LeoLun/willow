@@ -36,19 +36,18 @@ onMounted(async () => {
 <template>
   <div class="flex min-h-full flex-col justify-center p-8">
     <div class="mx-auto w-full max-w-3xl">
-      <header class="mb-0 flex items-center justify-center gap-5">
-        <AxolotlMascot
-          :size="60"
-          expression="attentive"
-          aria-label="Willow 吉祥物"
-          class="shrink-0"
-        />
-        <div class="flex flex-col items-start gap-2">
-          <h1 class="text-3xl font-medium tracking-tight">让 Willow 来帮你完成任务</h1>
-        </div>
-      </header>
-
-      <div class="mb-3 flex min-h-8 items-center gap-2">
+      <div class="mb-3 flex min-h-8 items-center gap-2 relative">
+        <header class="absolute top-[-80px] left-1/2 -translate-x-1/2 w-full flex items-center justify-center gap-5">
+          <AxolotlMascot
+            :size="60"
+            expression="attentive"
+            aria-label="Willow 吉祥物"
+            class="shrink-0"
+          />
+          <div class="flex flex-col items-start gap-2">
+            <h1 class="text-3xl font-medium tracking-tight">让 Willow 来帮你完成任务</h1>
+          </div>
+        </header>
         <Select
           :model-value="selectedWorkspaceValue"
           :disabled="workspaces.length === 0"
