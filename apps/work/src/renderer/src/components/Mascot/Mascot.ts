@@ -2364,7 +2364,7 @@ var TURN_TIME = 1.1;
  *
  * `tour` mene tout : il fait monter l'emprise sur la pose (`mix`) et fondre le
  * tour parcouru (`spin`) en meme temps. A 0 la pose de l'etat commande seule ; a
- * 1 la tete est posee a gauche et suit le curseur.
+ * 1 la tete suit le curseur autour du centre de la mascotte.
  *
  * Rien ici ne compense l'expression affichee : c'est le moteur qui melange,
  * parce que lui seul connait la pose a l'instant t. Le faire ici obligerait a
@@ -2372,9 +2372,14 @@ var TURN_TIME = 1.1;
  * encore — et les yeux sautaient a chaque changement d'humeur.
  */
 function lookTarget({ nx, ny, tour, pointer }) {
+  // Keep diagonal pointer positions inside one shared range. Clamping each axis
+  // independently lets both angles peak in a corner and can push an eye outside
+  // narrow silhouettes such as the axolotl head.
+  const distance = Math.hypot(nx, ny);
+  const range = distance > 1 ? 1 / distance : 1;
   return {
-    yaw: -26 + nx * 16,
-    pitch: 10 - ny * 13,
+    yaw: nx * range * 28,
+    pitch: -ny * range * 20,
     mix: tour,
     spin: 360 * (1 - tour),
     wander: pointer ? 0 : 1,

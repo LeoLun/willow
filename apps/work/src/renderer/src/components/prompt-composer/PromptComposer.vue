@@ -33,7 +33,7 @@ import {
 } from "vue";
 import { ContextUsageIndicator } from "@/components/session-usage";
 import { baseShadowStyles } from "@/components/ui/base-shadow";
-import BorderBeam from "@/components/ui/BorderBeam.vue";
+// import BorderBeam from "@/components/ui/BorderBeam.vue";
 import { electronAPI } from "@/lib/ipc";
 import { getSourceSelection, restoreSourceSelection, serializeComposerDom } from "./editor-dom";
 import LocalFileCard from "./LocalFileCard.vue";
@@ -1186,7 +1186,7 @@ watch(content, (value) => {
       </div>
     </div>
 
-    <TransitionGroup name="prompt-border-beam">
+    <!-- <TransitionGroup name="prompt-border-beam">
       <BorderBeam
         v-if="editorFocused"
         key="red"
@@ -1209,7 +1209,7 @@ watch(content, (value) => {
         data-beam-color="blue"
         data-slot="prompt-border-beam"
       />
-    </TransitionGroup>
+    </TransitionGroup> -->
   </div>
 </template>
 
