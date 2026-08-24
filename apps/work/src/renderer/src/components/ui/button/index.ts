@@ -12,7 +12,7 @@ export const buttonVariants = cva(
     "transition-[background-color,border-color,box-shadow,color,transform] duration-150",
     "outline-none before:pointer-events-none before:absolute before:inset-px before:rounded-[inherit]",
     "before:border before:border-white/45 before:content-['']",
-    "focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/30",
+    "focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-[#007aff]/30",
     "disabled:pointer-events-none disabled:text-[#bfbfbf] dark:disabled:text-[#bfbfbf]",
     "[&_svg]:pointer-events-none [&_svg]:shrink-0",
   ],
@@ -27,9 +27,10 @@ export const buttonVariants = cva(
           "dark:hover:bg-white/12 dark:active:bg-white/9 dark:data-[state=on]:bg-white/9",
         ],
         accent: [
-          "border-primary bg-primary text-primary-foreground",
+          "border-[#0068d8] bg-[#007aff] text-white",
           baseShadowStyles.accent,
-          "hover:bg-primary/90 active:bg-primary/85",
+          "hover:bg-[#087ff5] active:bg-[#006ee6]",
+          "dark:border-[#1687ff] dark:bg-[#0a84ff] dark:hover:bg-[#2190ff] dark:active:bg-[#0077ed]",
         ],
         secondary: [
           "border-transparent bg-black/7 text-black/80",

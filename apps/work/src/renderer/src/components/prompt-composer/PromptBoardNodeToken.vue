@@ -12,7 +12,7 @@ defineProps<{
 
 <template>
   <span
-    class="inline-flex max-w-44 items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-sm leading-5 whitespace-nowrap text-primary"
+    class="inline-flex max-w-44 items-center gap-1 rounded-md bg-violet-500/10 px-1.5 py-0.5 text-sm leading-5 whitespace-nowrap text-violet-600 dark:text-violet-400"
     :title="`${path} · ${selector}\n${summary}`"
   >
     <Kanban class="size-4 shrink-0" aria-hidden="true" />

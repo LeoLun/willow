@@ -25,16 +25,16 @@ const rangeOptions: Array<{ id: StatisticsGranularity; label: string }> = [
 
 const heatCellClasses = [
   "bg-muted/70",
-  "bg-primary/10",
-  "bg-primary/20",
-  "bg-primary/30",
-  "bg-primary/40",
-  "bg-primary/50",
-  "bg-primary/60",
-  "bg-primary/70",
-  "bg-primary/80",
-  "bg-primary/90",
-  "bg-primary",
+  "bg-blue-50 dark:bg-blue-950",
+  "bg-blue-100 dark:bg-blue-900",
+  "bg-blue-200 dark:bg-blue-800",
+  "bg-blue-300 dark:bg-blue-700",
+  "bg-blue-400 dark:bg-blue-600",
+  "bg-blue-500 dark:bg-blue-500",
+  "bg-blue-600 dark:bg-blue-400",
+  "bg-blue-700 dark:bg-blue-300",
+  "bg-blue-800 dark:bg-blue-200",
+  "bg-blue-900 dark:bg-blue-100",
 ];
 
 const tokenFormatter = new Intl.NumberFormat("zh-CN");
@@ -245,7 +245,7 @@ watch(activeRange, (granularity) => void loadStatistics(granularity), { immediat
               <Tooltip v-for="point in activityPoints" :key="point.key">
                 <TooltipTrigger as-child>
                   <span
-                    class="min-w-0 rounded-[3px] ring-ring transition-transform outline-none hover:scale-125 focus-visible:ring-2"
+                    class="min-w-0 rounded-[3px] ring-blue-500 transition-transform outline-none hover:scale-125 focus-visible:ring-2"
                     :class="[
                       getHeatCellClass(point.level),
                       activeRange === 'all' ? 'h-8' : 'aspect-square',
@@ -322,7 +322,7 @@ watch(activeRange, (granularity) => void loadStatistics(granularity), { immediat
               <div class="truncate text-xs font-medium">{{ usage.modelName }}</div>
               <div class="mt-1 h-1 overflow-hidden rounded-full bg-muted">
                 <div
-                  class="h-full rounded-full bg-primary"
+                  class="h-full rounded-full bg-blue-500"
                   :style="{ width: `${usage.share * 100}%` }"
                 ></div>
               </div>

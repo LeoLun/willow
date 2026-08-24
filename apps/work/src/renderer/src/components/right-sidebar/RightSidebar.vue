@@ -258,11 +258,7 @@ onBeforeUnmount(() => {
           v-for="view in tabViews"
           :key="view.tab.id"
           class="flex h-[32px] max-w-52 min-w-32 shrink-0 items-center rounded-xl"
-          :class="
-            activeTabId === view.tab.id
-              ? 'bg-primary/12 text-primary'
-              : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-          "
+          :class="activeTabId === view.tab.id ? 'bg-muted' : 'hover:bg-muted/60'"
           data-slot="right-sidebar-tab"
           :data-tab-id="view.tab.id"
           :data-panel-kind="view.tab.kind"
