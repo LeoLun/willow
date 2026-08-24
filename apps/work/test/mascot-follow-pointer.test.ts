@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, h, nextTick, type App } from "vue";
-import { AxolotlMascot } from "../src/renderer/src/components/Mascot/Mascot";
+import { AxolotlMascot } from "../src/renderer/src/components/mascot/Mascot";
 
 const mountedApps: App[] = [];
 let animationFrames: FrameRequestCallback[] = [];
