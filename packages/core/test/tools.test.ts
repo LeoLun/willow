@@ -268,8 +268,35 @@ describe("filesystem tools", () => {
         path,
         edits: [{ oldText: "absent", newText: "changed" }],
       }),
-    ).rejects.toThrow("not found");
+    ).rejects.toThrow(
+      'oldText was not found in the original file at edits[0]: "absent". Re-read this file',
+    );
     expect(await readFile(path, "utf8")).toBe("same\nmiddle\nsame\n");
+  });
+
+  it("identifies the failed edit and suggests the closest current line", async () => {
+    const cwd = await temporaryDirectory("willow-edit-diagnostic-");
+    const path = join(cwd, "example.ts");
+    await writeFile(path, "const alpha = 1;\nconst currentValue = calculateValue();\n", "utf8");
+    const edit = createEditTool({ cwd, permissionMode: "full-access" });
+
+    await expect(
+      edit.execute("missing-second-edit", {
+        path,
+        edits: [
+          { oldText: "const alpha = 1;", newText: "const alpha = 2;" },
+          {
+            oldText: "const currentValue = calculateValues();",
+            newText: "const currentValue = 2;",
+          },
+        ],
+      }),
+    ).rejects.toThrow(
+      /at edits\[1\].*Closest current line is 2: "const currentValue = calculateValue\(\);"/,
+    );
+    expect(await readFile(path, "utf8")).toBe(
+      "const alpha = 1;\nconst currentValue = calculateValue();\n",
+    );
   });
 
   it("validates semantic parameters before requesting permission or touching files", async () => {

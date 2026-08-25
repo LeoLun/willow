@@ -324,7 +324,9 @@ allowlist。macOS 即使在 `(allow default)` profile 下也拒绝沙箱内执�
 - 多个替换区间不重叠。
 
 编辑保留 UTF-8 BOM 和原文件换行风格，并在 details 中返回 unified diff、增加行数和删除行数。
-这些约束属于数据完整性保护，不替代权限检查。
+任一 `oldText` 缺失时整次调用不会写入文件；错误会标明失败的 `edits` 下标和文本摘要，并在存在
+可靠近似项时给出当前文件中最接近的行号和内容，帮助 Agent 重新读取后精确重试。工具不会自动
+应用模糊匹配结果。这些约束属于数据完整性保护，不替代权限检查。
 
 ## 8. 只读工具边界
 
@@ -694,6 +696,7 @@ Harness 的事件派发、会话写入、中止及 busy 状态语义。
     参数校验、三档权限模式、拒绝无副作用、归属复核、调度刷新、运行冲突和宿主错误文案。
 19. bash 读路径、可执行文件安装、localhost、PTY 和噪声 violation 关联，以及 `processList` 的
     审批、固定参数、过滤、限制与中止。
+20. `edit` 缺失文本错误能够定位具体替换项、提供可靠的当前行提示，并保持整次调用不写入。
 
 Core 测试位于
 [`packages/core/test/tools.test.ts`](../packages/core/test/tools.test.ts) 和

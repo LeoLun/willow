@@ -32,10 +32,75 @@ function restoreLineEndings(content: string, ending: string): string {
   return ending === "\n" ? content : content.replace(/\n/g, ending);
 }
 
+const PREVIEW_LENGTH = 80;
+const CLOSEST_LINE_THRESHOLD = 0.45;
+
+function previewText(text: string): string {
+  const collapsed = text.replace(/\s+/g, " ").trim();
+  return collapsed.length > PREVIEW_LENGTH ? `${collapsed.slice(0, PREVIEW_LENGTH)}…` : collapsed;
+}
+
+function bigrams(text: string): Set<string> {
+  const normalized = previewText(text);
+  const result = new Set<string>();
+  for (let index = 0; index < normalized.length - 1; index += 1) {
+    result.add(normalized.slice(index, index + 2));
+  }
+  return result;
+}
+
+function lineSimilarity(left: string, right: string): number {
+  if (left === right) return 1;
+  const leftBigrams = bigrams(left);
+  const rightBigrams = bigrams(right);
+  if (leftBigrams.size === 0 || rightBigrams.size === 0) return 0;
+  let intersection = 0;
+  for (const pair of leftBigrams) {
+    if (rightBigrams.has(pair)) intersection += 1;
+  }
+  return (2 * intersection) / (leftBigrams.size + rightBigrams.size);
+}
+
+function closestLine(
+  oldText: string,
+  content: string,
+): { lineNumber: number; text: string } | undefined {
+  const key = oldText
+    .split("\n")
+    .map((line) => line.trim())
+    .find(Boolean);
+  if (!key) return undefined;
+
+  let best: { lineNumber: number; text: string; score: number } | undefined;
+  for (const [index, text] of content.split("\n").entries()) {
+    if (text.trim() === "") continue;
+    const score = lineSimilarity(key, text.trim());
+    if (!best || score > best.score) best = { lineNumber: index + 1, text, score };
+  }
+  return best && best.score >= CLOSEST_LINE_THRESHOLD ? best : undefined;
+}
+
+function oldTextNotFoundError(editIndex: number, oldText: string, content: string): Error {
+  let message =
+    `oldText was not found in the original file at edits[${editIndex}]: ` +
+    `"${previewText(oldText)}".`;
+  const suggestion = closestLine(oldText, content);
+  if (suggestion) {
+    message +=
+      ` Closest current line is ${suggestion.lineNumber}: ` + `"${previewText(suggestion.text)}".`;
+  }
+  message +=
+    " Re-read this file and retry with its exact current text; all edits must target this path.";
+  return new Error(message);
+}
+
 export class EditTool extends ToolBase<typeof editSchema, EditToolDetails> {
   readonly name = "edit";
   readonly label = "edit";
-  readonly description = "Edit one file with unique, non-overlapping exact text replacements.";
+  readonly description =
+    "Edit one file with unique, non-overlapping exact text replacements. Copy oldText from the " +
+    "file's current content; every edit must target this path and the whole call fails atomically " +
+    "if any oldText is missing.";
   readonly parameters = editSchema;
   override readonly executionMode = "sequential";
 
@@ -74,9 +139,9 @@ export class EditTool extends ToolBase<typeof editSchema, EditToolDetails> {
         oldText: normalizeLf(edit.oldText),
         newText: normalizeLf(edit.newText),
       }));
-      const ranges = replacements.map((edit) => {
+      const ranges = replacements.map((edit, editIndex) => {
         const start = original.indexOf(edit.oldText);
-        if (start < 0) throw new Error("oldText was not found in the original file");
+        if (start < 0) throw oldTextNotFoundError(editIndex, edit.oldText, original);
         if (original.indexOf(edit.oldText, start + 1) >= 0) {
           throw new Error("oldText must match exactly one location");
         }

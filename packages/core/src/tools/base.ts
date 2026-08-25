@@ -7,7 +7,12 @@ import type {
 import type { Static, TSchema } from "typebox";
 import { Errors } from "typebox/value";
 import { authorize, throwIfAborted } from "./shared.js";
-import type { BaseDetails, ToolApprovalReason, ToolName, ToolRuntimeOptions } from "./types.js";
+import type {
+  BaseDetails,
+  ToolApprovalReason,
+  ToolName,
+  ToolRuntimeOptions,
+} from "./types.js";
 
 export type ToolExecutionContext<TInput, TDetails> = {
   toolCallId: string;
@@ -26,7 +31,9 @@ export abstract class ToolBase<
   abstract readonly parameters: TParameters;
   readonly executionMode?: ToolExecutionMode;
 
-  constructor(protected readonly options: ToolRuntimeOptions) {}
+  constructor(protected readonly options: ToolRuntimeOptions) {
+    // @TODO 构建工作空间及副作用区域
+  }
 
   async execute(
     toolCallId: string,
@@ -54,18 +61,22 @@ export abstract class ToolBase<
     }
   }
 
+  // 检查参数是否合法
   protected checkParams(_input: Static<TParameters>): Error | undefined {
     return undefined;
   }
 
+  // 检查权限是否合法
   protected async checkPermission(
     _context: ToolExecutionContext<Static<TParameters>, TDetails>,
   ): Promise<void> {}
 
+  // 执行工具
   protected abstract run(
     context: ToolExecutionContext<Static<TParameters>, TDetails>,
   ): Promise<AgentToolResult<TDetails>>;
 
+  // 构建响应
   protected buildResponse(
     content: AgentToolResult<TDetails>["content"],
     details: TDetails,
@@ -102,6 +113,8 @@ export abstract class ToolBase<
     const error = Errors(this.parameters, input)[0];
     if (!error) return;
     const path = error.instancePath || "/";
-    throw new Error(`Invalid parameters for ${this.name}: ${path} ${error.message}`);
+    throw new Error(
+      `Invalid parameters for ${this.name}: ${path} ${error.message}`,
+    );
   }
 }

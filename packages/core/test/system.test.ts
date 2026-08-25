@@ -84,9 +84,9 @@ describe("getSystemPrompt", () => {
     expect(prompt).toContain("# Built-in Tools");
     expect(prompt).toContain("`find` locates files by glob pattern");
     expect(prompt).toContain("`grep` searches text with a regular expression by default");
-    expect(prompt).toContain(
-      "`edit` changes an existing file using one or more exact replacements",
-    );
+    expect(prompt).toContain("`edit` changes one existing file using exact replacements");
+    expect(prompt).toContain("all replacements in one call must target the declared `path`");
+    expect(prompt).toContain("The call is atomic");
     expect(prompt).toContain("An approval applies to the current tool call only");
     expect(prompt).toContain(
       "Reads and writes within the workspace, system temporary directories, and configured skills directories normally require no extra approval.",
