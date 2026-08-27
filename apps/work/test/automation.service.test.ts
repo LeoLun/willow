@@ -33,6 +33,7 @@ import { SessionDao } from "../src/main/service/dao/session.dao.server";
 import { WorkspaceDao } from "../src/main/service/dao/workspace.dao.server";
 import { DbService } from "../src/main/service/db.service";
 import { UnattendedInteractionError } from "../src/main/service/message.service";
+import { PermissionModeService } from "../src/main/service/permission-mode.service";
 import { toSqliteSessionMetadata } from "../src/main/utils/session-manager";
 import type { ModelConfig } from "../src/shared/api";
 import { AUTOMATION_CHANGED_EVENT } from "../src/shared/constants";
@@ -47,6 +48,7 @@ describe("AutomationService", () => {
   let workspaceDao: WorkspaceDao;
   let sessionDao: SessionDao;
   let service: AutomationService;
+  let permissionModeService: PermissionModeService;
 
   const createSession = vi.fn();
   const sendMessage = vi.fn();
@@ -105,6 +107,7 @@ describe("AutomationService", () => {
     getConfig.mockReturnValue({ largeModel: { providerId: "openai", modelId: "large" } });
     getModel.mockReturnValue({ id: "model" });
 
+    permissionModeService = new PermissionModeService();
     service = new AutomationService(
       automationDao,
       triggerDao,
@@ -116,6 +119,7 @@ describe("AutomationService", () => {
       { getConfig } as never,
       scheduler as never,
       { sendEvent } as never,
+      permissionModeService,
     );
   });
 
@@ -624,10 +628,10 @@ describe("AutomationService", () => {
           workspaceId: workspace.id,
           content: automation.prompt,
           model: { providerId: "openai", modelId: "large" },
-          approvalMode: "delegate-approval",
           interactionMode: "unattended",
         }),
       );
+      expect(permissionModeService.get(workspace.id, "agent-1")).toBe("delegate-approval");
 
       releaseExecution();
       await vi.waitFor(() => {
@@ -811,13 +815,16 @@ describe("AutomationService", () => {
       });
       sendMessage.mockResolvedValue(assistantMessage());
 
+      // 漏跑补偿在后台派发，initialize 返回时 run 记录已落地，但收口在后台完成。
       await service.initialize();
 
       const runs = runDao.listByAutomation(automation.id, { limit: 10 });
       expect(runs).toHaveLength(1);
       expect(runs[0]?.runKind).toBe("catch_up");
       expect(runs[0]?.scheduledFor).toEqual(new Date("2026-08-10T09:00:00.000Z"));
-      expect(runs[0]?.status).toBe("completed");
+      await vi.waitFor(() => {
+        expect(runDao.findById(runs[0]!.id)?.status).toBe("completed");
+      });
     });
 
     it("does not compensate when there is no missed run", async () => {

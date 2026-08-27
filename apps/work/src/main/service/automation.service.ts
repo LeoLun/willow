@@ -32,6 +32,7 @@ import { AutomationDao, type AutomationWithTrigger } from "./dao/automation.dao.
 import { WorkspaceDao } from "./dao/workspace.dao.server";
 import { EventService } from "./event.service";
 import { MessageService, UnattendedInteractionError } from "./message.service";
+import { PermissionModeService } from "./permission-mode.service";
 import { SessionService } from "./session.service";
 import { UserConfigService } from "./user-config.service";
 
@@ -90,9 +91,14 @@ export class AutomationService {
     private readonly userConfigService: UserConfigService,
     private readonly scheduler: AutomationSchedulerService,
     private readonly eventService: EventService,
+    private readonly permissionModeService: PermissionModeService,
   ) {}
 
-  /** 应用启动时调用：收口遗留运行，加载并注册启用的自动化，随后检查漏跑。 */
+  /**
+   * 应用启动时调用：收口遗留运行，加载并注册启用的自动化，随后检查漏跑。
+   *
+   * 漏跑补偿在后台派发，不等待自动化真正执行完成，避免阻塞应用启动。
+   */
   async initialize(): Promise<void> {
     this.automationRunDao.markAllRunningInterrupted(new Date(), INTERRUPTED_MESSAGE);
     for (const automation of this.automationDao.findEnabledWithActiveTriggers()) {
@@ -103,7 +109,10 @@ export class AutomationService {
     }
   }
 
-  /** 系统休眠恢复时调用：确保调度仍注册，并再次检查漏跑。 */
+  /**
+   * 系统休眠恢复时调用：确保调度仍注册，并再次检查漏跑。
+   * 漏跑补偿同样在后台派发，不阻塞恢复流程。
+   */
   async onSystemResume(): Promise<void> {
     for (const automation of this.automationDao.findEnabledWithActiveTriggers()) {
       await this.withLock(automation.id, async () => {
@@ -455,7 +464,9 @@ export class AutomationService {
     if (!expression.hasPrev()) return;
     const previous = expression.prev();
     if (previous.getTime() <= anchor) return;
-    await this.executeRunSafely(automation, "catch_up", new Date(previous.getTime()));
+    // 漏跑补偿不阻塞启动/恢复：run 记录与 lastScheduledAt 会同步落地，
+    // 真正的消息派发在后台进行，完成后在后台收口运行记录。
+    await this.executeRunSafely(automation, "catch_up", new Date(previous.getTime()), false);
   }
 
   private async executeRunSafely(
@@ -551,12 +562,12 @@ export class AutomationService {
     model: ModelConfig,
   ): Promise<void> {
     try {
+      this.permissionModeService.set(automation.workspaceId, sessionId, "delegate-approval");
       await this.messageService.sendMessage({
         workspaceId: automation.workspaceId,
         sessionId,
         content: automation.prompt,
         model,
-        approvalMode: "delegate-approval",
         interactionMode: "unattended",
       });
       const finishedAt = new Date();

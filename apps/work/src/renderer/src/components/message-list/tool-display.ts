@@ -11,7 +11,6 @@ import {
   GlobeIcon,
   ListTodoIcon,
   MessageCircleQuestionIcon,
-  ActivityIcon,
   Clock3Icon,
   Trash2Icon,
 } from "lucide-vue-next";
@@ -78,8 +77,6 @@ export function formatToolCallTitle(name: string, args: unknown, details?: unkno
       return `搜索内容 /${text(input.pattern, "")}/`;
     case "find":
       return `搜索文件 ${text(input.pattern)}`;
-    case "processList":
-      return input.filter ? `查看进程 · ${text(input.filter)}` : "查看系统进程";
     case "webfetch":
       return `抓取网页 ${text(input.url)}`;
     case "websearch":
@@ -124,8 +121,6 @@ export function formatToolCallIcon(name: string): Component {
       return SearchIcon;
     case "find":
       return SearchIcon;
-    case "processList":
-      return ActivityIcon;
     case "webfetch":
       return GlobeIcon;
     case "websearch":
@@ -169,8 +164,6 @@ export function formatToolResultTitle(details: unknown): string | undefined {
       return `搜索内容 /${value.pattern}/`;
     case "find":
       return `搜索文件 ${value.pattern}`;
-    case "processList":
-      return value.filter ? `查看进程 · ${value.filter}` : "查看系统进程";
     case "webfetch":
       return `抓取网页 ${value.finalUrl}`;
     case "websearch":

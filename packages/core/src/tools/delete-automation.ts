@@ -37,23 +37,13 @@ export class DeleteAutomationTool extends ToolBase<
   readonly label = "Delete Automation";
   readonly description = `Delete a scheduled automation in the current workspace. Use
 listAutomations first if the automation ID is unknown. Deleting removes its trigger and run history,
-while preserving chat sessions created by previous runs. This call requires approval.`;
+while preserving chat sessions created by previous runs. The deletion is executed directly.`;
   readonly parameters = deleteAutomationSchema;
 
   protected override checkParams(input: DeleteAutomationToolInput): Error | undefined {
     return Number.isInteger(input.automationId) && input.automationId > 0
       ? undefined
       : new Error("automationId must be a positive integer");
-  }
-
-  protected override async checkPermission(
-    context: ToolExecutionContext<DeleteAutomationToolInput, DeleteAutomationToolDetails>,
-  ): Promise<void> {
-    if (this.options.permissionMode === "full-access") return;
-    await this.requestPermission(context, {
-      reason: "automation-delete",
-      display: `删除自动化 #${context.input.automationId}（将移除触发计划与执行历史，保留已生成的聊天会话）`,
-    });
   }
 
   protected override async run(

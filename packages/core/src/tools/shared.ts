@@ -1,12 +1,5 @@
-import {
-  canonicalMutationPath,
-  isSensitiveWritePath,
-  isWorkspaceMutation,
-  pathMatchesAllowedRoot,
-  resolveGlobalSkillsDirectory,
-  resolveFromCwd,
-} from "./policy.js";
-import { systemTemporaryDirectories } from "./temporary-directories.js";
+import { isExpectedToolPath, isSensitiveToolWrite } from "./directory-access.js";
+import { canonicalMutationPath, isWorkspaceMutation, resolveFromCwd } from "./policy.js";
 import type {
   PermissionMode,
   ToolApprovalHandler,
@@ -60,11 +53,10 @@ export async function authorize(
   if (signal?.aborted) throw new Error("Operation aborted");
   if (mode === "full-access") return;
   const decision = requestApproval
-    ? await requestApproval(request, signal)
+    ? await requestApproval({ ...request, permissionMode: mode }, signal)
     : "deny";
   if (signal?.aborted) throw new Error("Operation aborted");
-  if (decision !== "allow")
-    throw new Error(`Permission denied for ${request.toolName}`);
+  if (decision !== "allow") throw new Error(`Permission denied for ${request.toolName}`);
 }
 
 /**
@@ -90,7 +82,7 @@ export async function authorizeMutation(options: {
   toolName: Extract<ToolName, "write" | "edit">;
   /** 原始工具输入，随审批请求传递以便展示和审计。 */
   input: Record<string, unknown>;
-  /** 当前消息选择的权限模式。 */
+  /** Bash 快照和未提供动态 provider 时使用的兼容权限模式。 */
   permissionMode: PermissionMode;
   /** Agent 数据目录；其 `skills` 子目录属于允许的全局技能目录。 */
   agentDir?: ToolRuntimeOptions["agentDir"];
@@ -100,44 +92,25 @@ export async function authorizeMutation(options: {
   signal?: AbortSignal;
   /** 额外的读写允许根目录和敏感写入拒绝规则。 */
   sandboxPolicy?: ToolRuntimeOptions["sandboxPolicy"];
+  /** 动态读取当前会话的权限等级。 */
+  getPermissionMode?: ToolRuntimeOptions["getPermissionMode"];
 }): Promise<void> {
+  const permissionMode = options.getPermissionMode?.() ?? options.permissionMode;
   // 完全访问模式跳过 Willow 的路径边界和敏感写入策略，但仍受操作系统权限约束。
-  if (options.permissionMode === "full-access") return;
+  if (permissionMode === "full-access") return;
 
   // 敏感写入属于不可审批的硬限制，必须早于所有允许根目录判断。
-  if (
-    await isSensitiveWritePath(options.cwd, options.path, options.sandboxPolicy)
-  ) {
+  if (await isSensitiveToolWrite(options)) {
     throw new Error(`Sensitive write denied for ${options.path}`);
   }
 
-  const globalSkillsDirectory = resolveGlobalSkillsDirectory(options.agentDir);
-  const temporaryDirectories = systemTemporaryDirectories();
-
-  // 允许根目录均使用 canonical path 比较，目录内指向外部的符号链接仍会被视为越界。
-  if (
-    (await isWorkspaceMutation(options.cwd, options.path)) ||
-    (await pathMatchesAllowedRoot(
-      options.cwd,
-      options.path,
-      temporaryDirectories,
-    )) ||
-    (globalSkillsDirectory !== undefined &&
-      (await pathMatchesAllowedRoot(options.cwd, options.path, [
-        globalSkillsDirectory,
-      ]))) ||
-    (await pathMatchesAllowedRoot(
-      options.cwd,
-      options.path,
-      options.sandboxPolicy?.allowWrite,
-    ))
-  ) {
+  if (await isExpectedToolPath({ ...options, access: "write" })) {
     return;
   }
 
   // 越界批准仅用于当前 toolCallId；这里不会持久化或扩大任何允许根目录。
   await authorize(
-    options.permissionMode,
+    permissionMode,
     options.requestApproval,
     {
       toolCallId: options.toolCallId,
@@ -170,7 +143,7 @@ export async function authorizeRead(options: {
   toolName: Extract<ToolName, "read" | "ls" | "grep" | "find">;
   /** 原始工具输入，随审批请求传递以便展示和审计。 */
   input: Record<string, unknown>;
-  /** 当前消息选择的权限模式。 */
+  /** Bash 快照和未提供动态 provider 时使用的兼容权限模式。 */
   permissionMode: PermissionMode;
   /** Agent 数据目录；其 `skills` 子目录属于允许的全局技能目录。 */
   agentDir?: ToolRuntimeOptions["agentDir"];
@@ -180,42 +153,20 @@ export async function authorizeRead(options: {
   sandboxPolicy?: ToolRuntimeOptions["sandboxPolicy"];
   /** 用于在授权过程中响应任务取消。 */
   signal?: AbortSignal;
+  /** 动态读取当前会话的权限等级。 */
+  getPermissionMode?: ToolRuntimeOptions["getPermissionMode"];
 }): Promise<void> {
+  const permissionMode = options.getPermissionMode?.() ?? options.permissionMode;
   // 完全访问模式跳过 Willow 的读取边界，但仍受操作系统权限约束。
-  if (options.permissionMode === "full-access") return;
+  if (permissionMode === "full-access") return;
 
-  const globalSkillsDirectory = resolveGlobalSkillsDirectory(options.agentDir);
-  const temporaryDirectories = systemTemporaryDirectories();
-
-  // 写权限包含读取权限；各允许根目录均通过 canonical path 做包含关系判断。
-  if (
-    (await isWorkspaceMutation(options.cwd, options.path)) ||
-    (await pathMatchesAllowedRoot(
-      options.cwd,
-      options.path,
-      temporaryDirectories,
-    )) ||
-    (globalSkillsDirectory !== undefined &&
-      (await pathMatchesAllowedRoot(options.cwd, options.path, [
-        globalSkillsDirectory,
-      ]))) ||
-    (await pathMatchesAllowedRoot(
-      options.cwd,
-      options.path,
-      options.sandboxPolicy?.allowRead,
-    )) ||
-    (await pathMatchesAllowedRoot(
-      options.cwd,
-      options.path,
-      options.sandboxPolicy?.allowWrite,
-    ))
-  ) {
+  if (await isExpectedToolPath({ ...options, access: "read" })) {
     return;
   }
 
   // 未命中允许根目录时，只申请当前 toolCallId 的一次性越界读取权限。
   await authorize(
-    options.permissionMode,
+    permissionMode,
     options.requestApproval,
     {
       toolCallId: options.toolCallId,
@@ -235,10 +186,7 @@ export async function authorizeRead(options: {
  * 该路径的队尾时会删除映射，避免已完成队列长期驻留。队列直接以字符串作为键，调用方应传入
  * 由统一规则解析出的绝对路径；这里本身不解析符号链接，也不判断两个路径是否指向同一文件。
  */
-export async function withMutationQueue<T>(
-  path: string,
-  operation: () => Promise<T>,
-): Promise<T> {
+export async function withMutationQueue<T>(path: string, operation: () => Promise<T>): Promise<T> {
   // `previous` 表示当前操作必须等待的前一个队尾；首次修改无需等待实际工作。
   const previous = mutationQueues.get(path) ?? Promise.resolve();
   let release!: () => void;

@@ -64,7 +64,6 @@ model's knowledge cutoff. Prefer basic search unless the task needs deeper resea
   }
 
   protected override async checkPermission(): Promise<void> {
-    if (this.options.permissionMode === "full-access") return;
     const deniedDomains = new Set(
       (this.options.sandboxPolicy?.deniedDomains ?? []).map(normalizeHostname).filter(Boolean),
     );

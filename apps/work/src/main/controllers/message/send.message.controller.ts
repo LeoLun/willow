@@ -52,14 +52,6 @@ export class SendMessageController extends IPCBaseController<
     ) {
       return new Error("agentMode must be a supported agent mode");
     }
-    if (
-      request.approvalMode !== undefined &&
-      request.approvalMode !== "request-approval" &&
-      request.approvalMode !== "delegate-approval" &&
-      request.approvalMode !== "full-access"
-    ) {
-      return new Error("approvalMode must be a supported permission mode");
-    }
     if (request.attachments !== undefined) {
       if (!Array.isArray(request.attachments)) {
         return new Error("attachments must be an array");

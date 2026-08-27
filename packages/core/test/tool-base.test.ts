@@ -76,6 +76,7 @@ describe("ToolBase", () => {
         input: { value: "target" },
         reason: "outside-workspace-read",
         display: "target",
+        permissionMode: "request-approval",
       },
       undefined,
     );

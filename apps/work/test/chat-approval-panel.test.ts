@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   getUserConfig: vi.fn(),
   removeEventListener: vi.fn(),
   resolveToolApproval: vi.fn(),
+  setPermissionMode: vi.fn(async (request) => request),
   waitUntilReady: vi.fn(),
 }));
 
@@ -26,6 +27,7 @@ vi.mock("@/lib/ipc", () => ({
     getSkillList: mocks.getSkillList,
     getUserConfig: mocks.getUserConfig,
     resolveToolApproval: mocks.resolveToolApproval,
+    setPermissionMode: mocks.setPermissionMode,
   },
 }));
 
@@ -113,6 +115,14 @@ describe("ChatBase approval panel", () => {
     mountedApps.push(app);
     await nextTick();
 
+    await vi.waitFor(() =>
+      expect(mocks.setPermissionMode).toHaveBeenCalledWith({
+        workspaceId: 1,
+        sessionId: "session-a",
+        permissionMode: "request-approval",
+      }),
+    );
+
     expect(container.querySelector("[data-slot=prompt-editor]")).not.toBeNull();
     expect(container.querySelector("[data-slot=tool-approval-panel]")).toBeNull();
 
@@ -126,6 +136,11 @@ describe("ChatBase approval panel", () => {
     await vi.waitFor(() => {
       expect(container.querySelector("[data-slot=prompt-editor]")).not.toBeNull();
       expect(container.querySelector("[data-slot=tool-approval-panel]")).toBeNull();
+    });
+    expect(mocks.setPermissionMode).toHaveBeenCalledWith({
+      workspaceId: 1,
+      sessionId: "session-b",
+      permissionMode: "request-approval",
     });
 
     await router.push("/chat/session-a?workspaceId=1");

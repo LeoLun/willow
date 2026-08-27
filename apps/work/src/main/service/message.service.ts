@@ -12,8 +12,8 @@ import type {
   GetMessageListResponse,
   MessageEventPayload,
   ModelConfig,
-  PermissionMode,
   LocalFileAttachment,
+  PermissionMode,
   ResolveToolApprovalRequest,
   ResolveUserQuestionRequest,
 } from "@shared/api";
@@ -34,6 +34,7 @@ import { WorkspaceDao } from "./dao/workspace.dao.server";
 import { EventService } from "./event.service";
 import { LocalFileService } from "./local-file.service";
 import { MessageStreamEmitter } from "./message-stream-emitter";
+import { PermissionModeService } from "./permission-mode.service";
 import { SessionService } from "./session.service";
 import { TitleService } from "./title.service";
 import { ToolApprovalService } from "./tool-approval.service";
@@ -46,7 +47,6 @@ export type SendMessageInput = {
   content: string;
   model: ModelConfig;
   agentMode?: AgentMode;
-  approvalMode?: PermissionMode;
   attachments?: LocalFileAttachment[];
   /**
    * 仅限主进程内部使用的输入，renderer 的 IPC 无法设置。
@@ -91,6 +91,7 @@ export class MessageService {
     private readonly toolApprovalService: ToolApprovalService,
     private readonly userQuestionService: UserQuestionService,
     private readonly turnArtifactService: TurnArtifactService,
+    private readonly permissionModeService: PermissionModeService,
   ) {}
 
   async sendMessage(input: SendMessageInput): Promise<AssistantMessage> {
@@ -141,7 +142,9 @@ export class MessageService {
       );
     }
     const grantedFiles = this.mergeFiles(inheritedFiles, inspectedAttachments);
-    const permissionMode = input.approvalMode ?? "request-approval";
+    const permissionMode = this.permissionModeService.get(input.workspaceId, input.sessionId);
+    const getPermissionMode = () =>
+      this.permissionModeService.get(input.workspaceId, input.sessionId);
     const agentMode = input.agentMode ?? "default";
     const interactionMode = input.interactionMode ?? "interactive";
     const harness = await this.agentService.getAgentHarness({
@@ -152,13 +155,14 @@ export class MessageService {
       agentMode,
       sandboxPolicy: this.sandboxPolicyForFiles(grantedFiles, agentMode),
       permissionMode,
+      getPermissionMode,
       requestApproval: this.createApprovalHandler({
         workspaceId: input.workspaceId,
         sessionId: input.sessionId,
         workspacePath: workspace.path,
         userMessage: content,
         model: input.model,
-        permissionMode,
+        bashPermissionMode: permissionMode,
         agentMode,
         interactionMode,
       }),
@@ -166,7 +170,6 @@ export class MessageService {
         workspaceId: input.workspaceId,
         sessionId: input.sessionId,
         model: input.model,
-        permissionMode,
         agentMode,
         userMessage: content,
         interactionMode,
@@ -454,15 +457,21 @@ export class MessageService {
     workspacePath: string;
     userMessage: string;
     model: ModelConfig;
-    permissionMode: PermissionMode;
+    bashPermissionMode: PermissionMode;
     agentMode: AgentMode;
     interactionMode: "interactive" | "unattended";
   }): ToolApprovalHandler {
     return async (request, signal) => {
       if (signal?.aborted) return "deny";
-      if (options.permissionMode === "full-access") return "allow";
+      const { permissionMode: checkedPermissionMode, ...approvalRequest } = request;
+      const permissionMode =
+        checkedPermissionMode ??
+        (request.toolName === "bash"
+          ? options.bashPermissionMode
+          : this.permissionModeService.get(options.workspaceId, options.sessionId));
+      if (permissionMode === "full-access") return "allow";
       if (options.interactionMode === "unattended") {
-        if (options.permissionMode !== "delegate-approval") {
+        if (permissionMode !== "delegate-approval") {
           throw new UnattendedInteractionError("无人值守模式下无法请求人工审批。");
         }
         const review = await this.aiToolApprovalService.review(
@@ -471,7 +480,7 @@ export class MessageService {
             sessionId: options.sessionId,
             workspacePath: options.workspacePath,
             userMessage: options.userMessage,
-            request,
+            request: approvalRequest,
           },
           signal,
         );
@@ -479,14 +488,14 @@ export class MessageService {
         if (review.status === "approved") return "allow";
         throw new UnattendedInteractionError(review.reason);
       }
-      if (options.permissionMode !== "delegate-approval") {
+      if (permissionMode !== "delegate-approval") {
         return await this.toolApprovalService.request(
           options.workspaceId,
           options.sessionId,
-          request,
+          approvalRequest,
           {
             model: options.model,
-            permissionMode: options.permissionMode,
+            permissionMode,
             agentMode: options.agentMode,
             userMessage: options.userMessage,
           },
@@ -500,7 +509,7 @@ export class MessageService {
           sessionId: options.sessionId,
           workspacePath: options.workspacePath,
           userMessage: options.userMessage,
-          request,
+          request: approvalRequest,
         },
         signal,
       );
@@ -509,10 +518,10 @@ export class MessageService {
       return await this.toolApprovalService.request(
         options.workspaceId,
         options.sessionId,
-        request,
+        approvalRequest,
         {
           model: options.model,
-          permissionMode: options.permissionMode,
+          permissionMode,
           agentMode: options.agentMode,
           userMessage: options.userMessage,
         },
@@ -526,7 +535,6 @@ export class MessageService {
     workspaceId: number;
     sessionId: string;
     model: ModelConfig;
-    permissionMode: PermissionMode;
     agentMode: AgentMode;
     userMessage: string;
     interactionMode: "interactive" | "unattended";
@@ -543,7 +551,7 @@ export class MessageService {
         request,
         {
           model: options.model,
-          permissionMode: options.permissionMode,
+          permissionMode: this.permissionModeService.get(options.workspaceId, options.sessionId),
           agentMode: options.agentMode,
           userMessage: options.userMessage,
         },
@@ -567,13 +575,14 @@ export class MessageService {
     const session = this.sessionService.getSession(payload.workspaceId, payload.sessionId);
     const branch = await this.sessionService.getBranch(payload.workspaceId, payload.sessionId);
     const model = this.agentService.getModel(approval.model.providerId, approval.model.modelId);
+    const permissionMode = this.permissionModeService.get(payload.workspaceId, payload.sessionId);
     const fallbackApproval = this.createApprovalHandler({
       workspaceId: payload.workspaceId,
       sessionId: payload.sessionId,
       workspacePath: workspace.path,
       userMessage: approval.userMessage,
       model: approval.model,
-      permissionMode: approval.permissionMode,
+      bashPermissionMode: permissionMode,
       agentMode: approval.agentMode ?? "default",
       interactionMode: "interactive",
     });
@@ -588,7 +597,9 @@ export class MessageService {
         this.getGrantedFiles(branch),
         approval.agentMode ?? "default",
       ),
-      permissionMode: approval.permissionMode,
+      permissionMode,
+      getPermissionMode: () =>
+        this.permissionModeService.get(payload.workspaceId, payload.sessionId),
       requestApproval: async (request, signal) => {
         if (
           replayApprovalAvailable &&
@@ -604,7 +615,6 @@ export class MessageService {
         workspaceId: payload.workspaceId,
         sessionId: payload.sessionId,
         model: approval.model,
-        permissionMode: approval.permissionMode,
         agentMode: approval.agentMode ?? "default",
         userMessage: approval.userMessage,
         interactionMode: "interactive",
@@ -670,13 +680,14 @@ export class MessageService {
     const session = this.sessionService.getSession(payload.workspaceId, payload.sessionId);
     const branch = await this.sessionService.getBranch(payload.workspaceId, payload.sessionId);
     const model = this.agentService.getModel(question.model.providerId, question.model.modelId);
+    const permissionMode = this.permissionModeService.get(payload.workspaceId, payload.sessionId);
     const fallbackApproval = this.createApprovalHandler({
       workspaceId: payload.workspaceId,
       sessionId: payload.sessionId,
       workspacePath: workspace.path,
       userMessage: question.userMessage,
       model: question.model,
-      permissionMode: question.permissionMode,
+      bashPermissionMode: permissionMode,
       agentMode: question.agentMode ?? "default",
       interactionMode: "interactive",
     });
@@ -684,7 +695,6 @@ export class MessageService {
       workspaceId: payload.workspaceId,
       sessionId: payload.sessionId,
       model: question.model,
-      permissionMode: question.permissionMode,
       agentMode: question.agentMode ?? "default",
       userMessage: question.userMessage,
       interactionMode: "interactive",
@@ -700,7 +710,9 @@ export class MessageService {
         this.getGrantedFiles(branch),
         question.agentMode ?? "default",
       ),
-      permissionMode: question.permissionMode,
+      permissionMode,
+      getPermissionMode: () =>
+        this.permissionModeService.get(payload.workspaceId, payload.sessionId),
       requestApproval: fallbackApproval,
       requestUser: async (request, signal) => {
         if (replayQuestionAvailable && request.toolCallId === payload.toolCallId) {
@@ -803,6 +815,9 @@ export class MessageService {
 
     const tool = harness.getTools().find((candidate) => candidate.name === payload.toolName);
     if (!tool) {
+      if ((payload.toolName as string) === "processList") {
+        return this.createToolResult(payload, "工具已移除：processList", true);
+      }
       return this.createToolResult(payload, `无法恢复工具：${payload.toolName}`, true);
     }
     try {

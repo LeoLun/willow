@@ -4,7 +4,6 @@ import type { AskUserHandler, AskUserToolDetails } from "./ask-user.js";
 import type { CreateAutomationHandler, CreateAutomationToolDetails } from "./create-automation.js";
 import type { DeleteAutomationHandler, DeleteAutomationToolDetails } from "./delete-automation.js";
 import type { ListAutomationsHandler, ListAutomationsToolDetails } from "./list-automations.js";
-import type { ProcessListToolDetails } from "./process-list.js";
 import type { TodoItem, TodoListToolDetails } from "./todo-list.js";
 import type { UpdateAutomationHandler, UpdateAutomationToolDetails } from "./update-automation.js";
 
@@ -16,7 +15,6 @@ export const TOOL_NAMES = [
   "ls",
   "grep",
   "find",
-  "processList",
   "todoList",
   "webfetch",
   "websearch",
@@ -32,6 +30,8 @@ export const TOOL_NAMES = [
 export type ToolName = (typeof TOOL_NAMES)[number];
 
 export type PermissionMode = "request-approval" | "delegate-approval" | "full-access";
+
+export type PermissionModeProvider = () => PermissionMode;
 
 export type ToolApprovalDecision = "allow" | "deny";
 
@@ -53,6 +53,8 @@ export type ToolApprovalRequest = {
   toolCallId: string;
   toolName: ToolName;
   input: Record<string, unknown>;
+  /** 权限检查开始时捕获的等级；旧记录和兼容调用可能缺少。 */
+  permissionMode?: PermissionMode;
   reason: ToolApprovalReason;
   display: string;
   mayHavePartialEffects?: boolean;
@@ -67,7 +69,6 @@ export type SandboxPolicy = {
   allowRead?: string[];
   allowWrite?: string[];
   denyWrite?: string[];
-  allowedDomains?: string[];
   deniedDomains?: string[];
 };
 
@@ -80,7 +81,6 @@ export interface BashToolDetails extends BaseDetails {
   command: string;
   exitCode: number;
   lineCount: number;
-  sandboxed: boolean;
   truncation?: TruncationResult;
   fullOutputPath?: string;
 }
@@ -189,7 +189,6 @@ export type WillowToolDetails =
   | LsToolDetails
   | GrepToolDetails
   | FindToolDetails
-  | ProcessListToolDetails
   | TodoListToolDetails
   | WebFetchToolDetails
   | WebSearchToolDetails
@@ -206,6 +205,7 @@ export type ToolRuntimeOptions = {
   agentDir?: string;
   agentMode?: AgentMode;
   permissionMode: PermissionMode;
+  getPermissionMode?: PermissionModeProvider;
   requestApproval?: ToolApprovalHandler;
   requestUser?: AskUserHandler;
   sandboxPolicy?: SandboxPolicy;

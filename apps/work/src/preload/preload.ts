@@ -94,6 +94,8 @@ import type {
   SelectLocalFilesResponse,
   SendMessageRequest,
   SendMessageResponse,
+  SetPermissionModeRequest,
+  SetPermissionModeResponse,
   SetCredentialRequest,
   SetCredentialResponse,
   SetBuiltinSkillEnabledRequest,
@@ -171,6 +173,7 @@ import {
   SEARCH_FILES,
   INSPECT_LOCAL_FILES,
   SEND_MESSAGE,
+  SET_PERMISSION_MODE,
   SELECT_LOCAL_FILES,
   SET_CREDENTIAL,
   SET_BUILTIN_SKILL_ENABLED,
@@ -332,6 +335,8 @@ const ipcObject: IRenderHook = {
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   sendMessage: (request: SendMessageRequest) =>
     invoke<SendMessageRequest, SendMessageResponse>(SEND_MESSAGE, request),
+  setPermissionMode: (request: SetPermissionModeRequest) =>
+    invoke<SetPermissionModeRequest, SetPermissionModeResponse>(SET_PERMISSION_MODE, request),
   stopMessage: (request: StopMessageRequest) =>
     invoke<StopMessageRequest, StopMessageResponse>(STOP_MESSAGE, request),
   getMessageList: (request: GetMessageListRequest) =>

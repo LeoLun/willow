@@ -1,716 +1,125 @@
 # Willow 工具权限设计
 
-## 1. 文档目的
+本文描述当前工具权限边界。核心原则是：文件工具使用统一的 canonical 路径授权，权限等级
+按会话动态读取，Bash 直接执行命令且不参与审批。
 
-本文描述 Willow Agent 文件工具的权限模型、执行边界、审批链路和失败语义，作为后续扩展工具、
-审查安全边界及排查审批问题的依据。
+## 1. 权限等级
 
-当前系统支持以下十八个内置工具，其中 `websearch` 仅在外部传入 Tavily API Key 时注册，
-`writePlan` 和 `updatePlan` 仅在 Plan 模式注册：
-
-- `bash`：执行 shell 命令；
-- `read`：读取文本文件；
-- `write`：创建或覆盖文件；
-- `edit`：通过精确文本替换修改文件；
-- `ls`：列出目录的直接子项；
-- `grep`：搜索文件内容；
-- `find`：按 glob 搜索文件。
-- `processList`：通过固定只读命令列出宿主进程；
-- `todoList`：维护当前会话分支的结构化任务进度；
-- `webfetch`：抓取 HTTP/S 网页并转换为文本、Markdown 或 HTML。
-- `websearch`：通过固定的 Tavily Search API 查询实时网络信息。
-- `askUser`：暂停当前工具调用，通过桌面端向用户提出 1-4 个结构化问题并等待回答。
-- `createAutomation`：创建持久化的定时自动化任务，由宿主在当前工作空间中注册并启用。
-- `listAutomations`：列出当前工作空间中的定时自动化及其业务配置。
-- `updateAutomation`：修改当前工作空间中的定时自动化。
-- `deleteAutomation`：删除当前工作空间中的定时自动化及其触发计划和执行历史。
-- `writePlan`：仅在 Plan 模式下向全局计划目录新建 Markdown 计划文件。
-- `updatePlan`：仅在 Plan 模式下替换全局计划目录中已存在的 Markdown 计划。
-
-核心实现位于 [`packages/core/src/tools/`](../packages/core/src/tools/)，桌面应用的 AI 初审、用户审批
-服务与界面位于
-[`ai-tool-approval.service.ts`](../apps/work/src/main/service/ai-tool-approval.service.ts)、
-[`tool-approval.service.ts`](../apps/work/src/main/service/tool-approval.service.ts) 和
-[`ToolApprovalPanel.vue`](../apps/work/src/renderer/src/components/tool/ToolApprovalPanel.vue)。
-
-## 2. 设计目标
-
-权限系统遵循以下原则：
-
-1. **默认最小权限**：未指定模式时使用 `request-approval`。
-2. **沙箱优先**：非完全访问模式下，`bash` 通过 `@carderne/sandbox-runtime` 在 macOS
-   `sandbox-exec` 中执行。
-3. **读写边界明确**：文件工具和 shell 沙箱默认可读写当前工作区、Node.js `os.tmpdir()` 返回的
-   系统临时目录、canonical `/tmp`，以及由 `AgentCore.agentDir` 解析出的全局 `skills` 目录
-   （默认 `~/.willow/skills`），以支持管理自定义全局技能。由桌面应用传入的内置技能目录同样
-   允许读写，以支持技能脚本在自身目录维护安装状态、缓存等运行资源。
-4. **防止路径伪装**：工作区判断使用 canonical path，并检查最近存在的父目录，避免通过符号链接
-   或尚未创建的路径绕过边界。
-5. **审批单次生效**：AI 或用户对越界工具调用的批准只对当前调用有效。桌面端显式选择的本地文件
-   或文件夹附件采用独立、可审计的会话分支授权，不复用工具审批，也不扩展到附件父目录、兄弟目录
-   或其他会话。
-6. **敏感写入硬拒绝**：`.env`、私钥等敏感模式在沙箱模式下不能通过普通审批放行。
-7. **最小扩权**：shell 获批后只增加当前路径、域名、Apple Events、localhost 监听或伪终端
-   能力，并继续在沙箱中完整重跑；进程枚举使用独立的固定命令工具，不让任意 shell 裸跑。
-8. **安全失败**：缺少审批回调、对话框关闭、任务中止或无效审批都按拒绝处理。
-9. **模式按消息确定**：权限选择随每次发送消息传递，不持久化为工作区级策略。
-10. **Plan 能力最小化**：Plan 模式使用固定工具白名单，不注册 shell、通用文件修改、进程查看、
-    任务列表或自动化管理工具；该限制不因选择 `full-access` 而放宽。
-
-## 3. 公共类型
-
-权限公共类型由
-[`packages/core/src/tools/types.ts`](../packages/core/src/tools/types.ts) 导出。
+公开等级保持不变：
 
 ```ts
-type PermissionMode =
-  | "request-approval"
-  | "delegate-approval"
-  | "full-access";
-
-type ToolApprovalDecision = "allow" | "deny";
-
-type ToolApprovalReason =
-  | "outside-workspace-read"
-  | "outside-workspace-write"
-  | "network-domain"
-  | "application-launch"
-  | "executable-install"
-  | "process-inspection"
-  | "local-network-listen"
-  | "interactive-terminal"
-  | "automation-create"
-  | "automation-update"
-  | "automation-delete"
-  | "sandbox-denied";
+type PermissionMode = "request-approval" | "delegate-approval" | "full-access";
 ```
 
-审批请求结构如下：
+- `request-approval`：越界调用执行前请求用户单次批准。
+- `delegate-approval`：先交给审批代理；代理拒绝、失败、超时或无法判断时回退用户审批。
+- `full-access`：跳过 Willow 的路径边界，但不绕过操作系统权限。
 
-```ts
-type ToolApprovalRequest = {
-  toolCallId: string;
-  toolName: ToolName;
-  input: Record<string, unknown>;
-  reason: ToolApprovalReason;
-  display: string;
-  mayHavePartialEffects?: boolean;
-};
-```
+Work 主进程的 `PermissionModeService` 以 `workspaceId + sessionId` 保存当前等级，缺省为
+`request-approval`。renderer 通过独立 IPC 串行同步工作区、会话和下拉选择变化，并在发送消息前
+等待同步完成。`SendMessageRequest` 和消息队列不携带权限等级。
 
-字段含义：
+Core 的 `PermissionModeProvider` 在每次非 Bash 文件权限检查发生时读取最新等级。切换只影响尚未
+开始检查的调用，不结算或撤销已经开始、已经执行或正在等待决定的调用。自动化后台会话在发送前
+通过同一服务初始化为 `delegate-approval`。
 
-| 字段 | 含义 |
+`permissionMode` 静态字段仍是兼容默认值，也是未提供动态 provider 时非 Bash 文件工具的默认等级。
+Bash 不参与审批。
+
+## 2. 统一目录授权
+
+`read`、`write`、`edit`、`ls`、`grep`、`find` 共用目录授权器。目标路径先相对工作区解析，再以
+最近存在的父目录和 `realpath` 计算 canonical 路径，最后用路径包含关系判断边界。这同时阻止
+`..`、现有符号链接和不存在目标经符号链接父目录逃逸。
+
+非完全访问模式的免审批读取范围：
+
+- 当前 canonical 工作区；
+- 当前会话分支中经主进程验证的附件副作用空间；
+- `SandboxPolicy.allowRead` 与 `allowWrite`；
+- 系统临时目录；
+- `agentDir` 下的全局技能目录；
+- Core 注入的内置技能只读目录。
+
+非完全访问模式的免审批写入范围：
+
+- 当前 canonical 工作区；
+- 附件中明确授权写入的副作用空间；
+- `SandboxPolicy.allowWrite`；
+- 系统临时目录；
+- 全局技能目录及明确配置为可写的技能目录。
+
+附件文件只授权精确文件，附件目录递归授权。授权不扩展到父目录、兄弟路径，也不允许目录内的
+符号链接逃逸。Plan 模式只把附件授权放入 `allowRead`，且不注册通用写工具。
+
+`.env`、`.env.*`、`*.pem`、`*.key` 和 `denyWrite` 命中的敏感写入，在非完全访问模式下硬拒绝，
+不会弹审批。只有最新等级为 `full-access` 时绕过该应用层限制。
+
+其余路径统一产生 `outside-workspace-read` 或 `outside-workspace-write` 审批。批准只对当前
+`toolCallId` 有效；缺少 handler、拒绝、无效结果或中止都安全失败，且写工具必须在创建父目录、
+读取待编辑文件或写入前完成授权。
+
+## 3. Bash 边界
+
+`bash` 在所有权限模式下直接执行命令：
+
+- 恒以 `/bin/bash -lc <command>` 运行，不进入沙箱，也不触发任何审批；
+- 因此 `permissionMode` 与 `sandboxPolicy` 不影响 `bash` 的执行；
+- 受操作系统自身权限约束，本工具不做应用层路径或网络域的限制。
+
+## 4. 免审批工具
+
+以下工具不进入权限审批：
+
+| 工具 | 保留的安全或业务约束 |
 | --- | --- |
-| `toolCallId` | 将批准绑定到单个工具调用 |
-| `toolName` | 发起请求的工具 |
-| `input` | 原始工具参数，用于审计和界面展示 |
-| `reason` | 需要额外权限的原因 |
-| `display` | 面向用户显示的命令或路径 |
-| `mayHavePartialEffects` | 首轮执行是否可能已经产生部分副作用 |
-
-`AgentHarnessOptions` 接收 `permissionMode` 和异步 `requestApproval(request, signal)`。未提供
-`requestApproval` 时，所有需要逃逸沙箱或写出工作区的操作都会被拒绝。
-
-## 4. 三档权限模式
-
-### 4.1 请求批准：`request-approval`
-
-这是默认模式。
-
-- `bash` 首先在沙箱中运行；
-- `webfetch` 在每次网络请求前检查严格域名白名单，未允许域名先请求用户批准；
-- `websearch` 仅访问已配置集成的固定域名 `api.tavily.com`，不逐次请求域名批准，但仍硬拒绝
-  `deniedDomains` 中显式禁止的 Tavily 域名；
-- 未允许的网络域名、可识别的读写路径、结构化的应用启动、localhost 监听或伪终端能力被拒绝
-  后，请求用户批准；
-- 用户允许后，只把该域名、路径或对应能力加入当前调用的临时授权，并在沙箱内完整重跑；
-- `write/edit` 写入工作区外路径前请求批准；
-- `read/ls/grep/find` 读取工作区外路径前请求批准；
-- 敏感写入和无法映射到具体资源的 shell 拒绝不会提供裸跑逃逸；
-- 用户拒绝、关闭审批框或中止任务都会终止当前工具调用。
-
-批准只对当前 `toolCallId` 生效。
-
-### 4.2 替我审批：`delegate-approval`
-
-该模式保留与请求批准相同的初始安全边界，并使用设置中的小模型进行 AI 初审：
-
-- `bash` 仍先在沙箱中执行；
-- `webfetch` 仍在每次请求前执行域名检查，越界域名进入 AI 初审；
-- `websearch` 沿用已配置集成的固定域名授权，不进入 AI 初审，并继续尊重显式域名拒绝；
-- 可识别的沙箱资源拒绝、应用启动请求或 `write/edit` 准备写出工作区时，将当前用户消息、工具
-  请求、越界原因和工作区路径发送给无工具的小模型；
-- 只有严格、结构化的 AI `allow` 结果才直接放行；
-- AI 拒绝、小模型未配置、调用失败、15 秒超时或输出无法解析时，转入用户审批；
-- 用户可以拒绝或仅本次允许；任务已中止时直接拒绝，不再弹窗。
-
-该模式的意义是让低风险且明确符合当前任务的逃逸由 AI 代为确认，同时对有风险或不确定的操作
-保留用户最终决策。
-
-### 4.3 完全访问权限：`full-access`
-
-该模式不应用 Willow 的沙箱或工作区写入检查：
-
-- `bash` 直接通过 `/bin/bash -lc` 执行；
-- `webfetch` 跳过 Willow 域名策略和审批；
-- `websearch` 跳过 Willow 域名策略，只受操作系统和 Tavily 服务端限制；
-- `write/edit` 直接按目标路径写入；
-- 不发起审批。
-
-操作仍受操作系统当前进程权限、文件系统 ACL 和系统安全策略约束。
-
-## 5. 权限决策矩阵
-
-| 工具/行为 | 请求批准 | 替我审批 | 完全访问 |
-| --- | --- | --- | --- |
-| `bash` 可在沙箱内完成 | 沙箱执行 | 沙箱执行 | 直接执行 |
-| `bash` 请求未允许域名 | 允许该域名后在沙箱内重跑 | AI 通过后按域名重跑，否则转用户审批 | 不经过沙箱 |
-| `bash` 读取可识别的未允许路径 | 允许该路径后在沙箱内重跑 | AI 通过后按路径重跑，否则转用户审批 | 不经过沙箱 |
-| `bash` 写入可识别的未允许路径 | 允许该路径后在沙箱内重跑 | AI 通过后按路径重跑，否则转用户审批 | 不经过沙箱 |
-| `bash` 写入 `~/.local/bin` 或 `~/bin` | 以可执行文件安装风险明确审批后重跑 | AI 初审，未明确请求持久化安装时转用户 | 不经过沙箱 |
-| `bash` 请求启动或控制外部应用 | 允许 Apple Events 后在沙箱内重跑 | AI 通过后按当前调用重跑，否则转用户审批 | 不经过沙箱 |
-| `bash` 监听 localhost | 允许当前调用使用回环监听后重跑 | AI 通过后重跑，否则转用户审批 | 不经过沙箱 |
-| `bash` 请求伪终端 | 仅 `interactive: true` 时审批并重跑 | AI 通过后重跑，否则转用户审批 | 直接执行，不额外创建 PTY |
-| `bash` 执行 `ps/pgrep` | 失败并提示改用 `processList` | 同左 | 直接执行 |
-| `processList` 枚举宿主进程 | 执行前请求用户审批 | AI 通过后执行，否则转用户审批 | 直接执行固定命令 |
-| `bash` 未知沙箱拒绝 | 失败，不提供裸跑 | 失败，不提供裸跑 | 不经过沙箱 |
-| `webfetch` 请求允许域名 | 直接请求 | 直接请求 | 直接请求 |
-| `webfetch` 请求未允许域名 | 请求前弹窗 | AI 通过后请求，否则转用户审批 | 直接请求 |
-| `webfetch` 跨域重定向 | 逐跳授权 | 逐跳授权 | 直接跟随 |
-| `webfetch` 请求拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
-| `websearch` 请求固定 Tavily 域名 | 配置 Key 后直接请求 | 配置 Key 后直接请求 | 直接请求 |
-| `websearch` 命中拒绝域名 | 硬拒绝 | 硬拒绝 | 直接请求 |
-| `todoList` 读写会话内状态 | 直接执行 | 直接执行 | 直接执行 |
-| `askUser` 等待用户回答 | 直接请求用户回答 | 直接请求用户回答 | 直接请求用户回答 |
-| `listAutomations` 查询当前工作空间自动化 | 直接读取 | 直接读取 | 直接读取 |
-| `createAutomation` 创建定时任务 | 执行前弹窗审批 | AI 通过后创建，否则转用户审批 | 直接创建 |
-| `updateAutomation` 修改定时任务 | 执行前弹窗审批 | AI 通过后修改，否则转用户审批 | 直接修改 |
-| `deleteAutomation` 删除定时任务 | 执行前弹窗审批 | AI 通过后删除，否则转用户审批 | 直接删除 |
-| `write/edit` 工作区、系统临时目录或全局技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
-| `write/edit` 内置技能目录内写入 | 直接执行 | 直接执行 | 直接执行 |
-| `write/edit` 工作区外写入 | 执行前弹窗 | AI 通过后写入，否则转用户审批 | 直接执行 |
-| `write/edit` 敏感目标 | 硬拒绝 | 硬拒绝 | 直接执行 |
-| `read/ls/grep/find` 工作区、系统临时目录、全局或内置技能目录内读取 | 直接读取 | 直接读取 | 直接读取 |
-| `read/ls/grep/find` 工作区外读取 | 执行前弹窗 | AI 通过后读取，否则转用户审批 | 直接读取 |
-| 用户显式添加的本地文件或文件夹 | 当前会话分支内按所选路径读写 | 当前会话分支内按所选路径读写 | 受操作系统权限约束 |
-| Plan 模式显式添加的本地文件或文件夹 | 当前计划消息内按所选路径只读 | 当前计划消息内按所选路径只读 | 工具白名单仍只提供读取能力 |
-| `writePlan` 新建全局计划 | Plan 模式直接创建且不覆盖 | Plan 模式直接创建且不覆盖 | Plan 模式仍只能创建计划 |
-| `updatePlan` 修改已有全局计划 | Plan 模式直接替换已有计划 | Plan 模式直接替换已有计划 | Plan 模式仍只能修改已有计划 |
-| 缺少审批回调 | 拒绝逃逸 | 拒绝逃逸 | 不需要回调 |
-| 非 macOS 平台 | 创建任务失败 | 创建任务失败 | 可使用 |
-
-> **只读边界说明**：`read`、`ls`、`grep` 和 `find` 在非完全访问模式下检查 canonical
-> path。工作区外读取必须获得当前工具调用的一次性审批。
-
-## 6. `bash` 沙箱设计
-
-### 6.1 沙箱策略
-
-非 `full-access` 模式通过 `@carderne/sandbox-runtime` 生成 macOS Seatbelt Profile，并启动
-受控 HTTP/SOCKS 代理。基础策略为：
-
-- 用户主目录默认禁止读取，再只读放行 canonical workspace、Node.js `os.tmpdir()` 返回的系统
-  临时目录、canonical `/tmp`、由
-  `AgentCore.agentDir` 解析出的全局 `skills` 目录（默认 `~/.willow/skills`）、由
-  `AgentCoreOptions.builtinSkills` 指定的内置技能目录和明确配置路径；
-- 写入只允许 canonical workspace、Node.js `os.tmpdir()` 返回的系统临时目录、canonical
-  `/tmp`、全局 `skills` 目录、由
-  `AgentCoreOptions.builtinSkills` 指定的内置技能目录和明确配置路径；
-- `.env`、`.env.*`、`*.pem`、`*.key` 及 runtime mandatory deny 路径禁止写入；
-- 网络采用域名 allowlist，未匹配域名由 runtime ask callback 报告并拒绝；
-- Apple Events、localhost 监听、伪终端、浏览器进程能力、弱嵌套沙箱和弱网络隔离默认关闭；
-  前三项只能通过当前 bash 工具调用的一次性审批开启。
-
-`SandboxManager` 是进程级单例，因此 Core 将沙箱初始化、命令执行和 reset 串行化，防止并发
-Harness 的工作区策略互相覆盖。
-
-`AgentCore` 将实例字段 `agentDir` 传入工具运行时。相对路径按用户主目录解析，绝对路径保持其
-绝对位置，沙箱再在解析后的全局 Agent 目录下追加 `skills`。桌面应用传入的内置技能目录会同时
-合并到 `SandboxPolicy.allowRead` 和 `SandboxPolicy.allowWrite`；Core 不在沙箱实现中重复写死
-应用资源路径。
-
-### 6.2 资源拒绝与沙箱内重跑
-
-网络代理 callback 会返回未允许的具体 host。Core 仅在命令失败、stderr 拒绝路径与结构化
-violation 的 canonical path 一致时提取读写目标，避免把 PATH metadata 探测或可伪造输出误判为
-权限请求。violation monitor 还识别 Apple Events、localhost bind/inbound 和伪终端设备拒绝。
-识别到具体资源或能力后：
-
-1. 域名、读路径、写路径、用户可执行文件安装、应用启动、localhost 监听和伪终端分别构造明确
-   的审批 reason；
-2. 设置 `mayHavePartialEffects: true`；
-3. 按当前权限模式进入用户审批或 AI 初审；
-4. 获准后只将该 host、canonical path 或对应能力加入当前 `toolCallId` 的内存授权；`allowWrite`
-   同时允许读取同一精确目标，以支持 chmod、metadata 检查和安装后验证；
-5. reset 并按扩展后的策略重新初始化 runtime；
-6. 在新的沙箱中完整重跑原始命令。
-
-Apple Events 是 macOS 提供给 `open` 和 `osascript` 的共同能力，因此审批文案明确说明它可以
-启动或控制外部应用。Core 不解析 shell，也不根据可伪造的 stdout/stderr 文案授予该能力；只有
-结构化 violation 可以触发审批。授权后浏览器进程能力仍保持关闭，文件和网络策略不变。
-
-无法识别为具体资源或能力的拒绝作为普通命令错误返回，不再提供脱离沙箱重跑。单个命令最多处理
-16 次资源扩权，防止重定向或恶意命令产生无限审批循环。
-
-`interactive: true` 使用系统 `script` 在沙箱内部创建伪终端，仅用于需要 TTY 检测的命令；Willow
-不把用户键盘输入转发给该终端。`allowLocalBinding` 只开放回环监听/访问，外部网络仍经过域名
-allowlist。macOS 即使在 `(allow default)` profile 下也拒绝沙箱内执行 `/bin/ps`，因此 bash 不为
-进程枚举提供扩权或裸跑重试，而是提示使用固定命令的 `processList`。
-
-### 6.3 输出、超时与中止
-
-- stdout 和 stderr 合并并流式发送工具更新；
-- 返回内容保留最后 2000 行或 50KB；
-- 截断时完整输出写入临时目录，并通过 `fullOutputPath` 返回；
-- `timeout` 必须为正有限秒数，未传入时默认限制为 120 秒；
-- 超时或 `AbortSignal` 触发时终止整个进程组；
-- 非零退出码作为工具错误返回。
-
-路径提取仍包含输出文本启发式。如果系统返回未覆盖的新拒绝文案，该命令会安全失败，而不会
-降级为非沙箱执行。
-
-## 7. 文件写入权限
-
-### 7.1 工作区判断
-
-`write` 和 `edit` 在非完全访问模式下调用
-[`authorizeMutation`](../packages/core/src/tools/shared.ts)。
-
-在工作区和额外 `allowWrite` 判断之前，Core 检查敏感写入模式。命中 `.env`、`.env.*`、
-`*.pem`、`*.key` 或额外 `denyWrite` 时直接失败，不调用审批回调。`full-access` 明确跳过该
-限制。
-
-判断流程：
-
-1. 将相对路径解析为基于工作区的绝对路径；
-2. 从目标开始向父目录回溯，找到最近存在的路径；
-3. 对该路径执行 `realpath`，解析符号链接；
-4. 将尚未存在的剩余路径重新附加到 canonical parent；
-5. 将结果与工作区的 canonical path 比较。
-
-只有目标位于工作区 canonical path、Node.js `os.tmpdir()` 返回的系统临时目录、canonical
-`/tmp`、由 `agentDir` 解析出的全局 `skills` 目录或显式 `allowWrite` 根内时，才允许无提示写入。
-内置技能目录由 `AgentCore` 合并到 `allowWrite`。
-
-这同时覆盖：
-
-- `../` 路径逃逸；
-- 绝对路径写出工作区；
-- 工作区内符号链接指向外部目录；
-- 目标尚未创建，但最近存在的父目录位于工作区外。
-
-全局技能目录沿用相同的 canonical path 判断，目录内指向外部位置的符号链接不会获得写权限。
-`.env`、私钥等敏感写入模式也会同时应用于工作区和全局技能目录。
-
-### 7.2 写入时序
-
-工作区外写入的审批发生在创建目录、读取待编辑文件或写入内容之前，因此拒绝不会产生目标文件
-副作用。
-
-同一路径上的 `write/edit` 通过进程内 mutation queue 串行执行，避免并发工具调用相互覆盖。
-该队列只保证单个 Willow 进程内、按解析后绝对路径的串行性，不提供跨进程锁或文件事务。
-
-`write` 在队列内、写入前读取目标文件，用于在成功结果的 details 中返回目标是否为新建文件，
-以及相对覆盖前内容的增加/删除行数。桌面端据此归属并展示本轮由 `write/edit` 工具实际产生的
-文件产物；shell 或其他进程造成的文件变化不进入该产物列表。
-
-### 7.3 `edit` 的完整性约束
-
-`edit` 仅执行满足下列条件的替换：
-
-- `oldText` 非空；
-- 每个 `oldText` 在原文件中只出现一次；
-- 多个替换区间不重叠。
-
-编辑保留 UTF-8 BOM 和原文件换行风格，并在 details 中返回 unified diff、增加行数和删除行数。
-任一 `oldText` 缺失时整次调用不会写入文件；错误会标明失败的 `edits` 下标和文本摘要，并在存在
-可靠近似项时给出当前文件中最接近的行号和内容，帮助 Agent 重新读取后精确重试。工具不会自动
-应用模糊匹配结果。这些约束属于数据完整性保护，不替代权限检查。
-
-## 8. 只读工具边界
-
-`read`、`ls`、`grep` 和 `find` 在非完全访问模式下调用 `authorizeRead()`：
-
-1. 解析目标文件、目录或搜索根；
-2. 通过最近存在父目录和 `realpath()` 得到 canonical path；
-3. 工作区、Node.js `os.tmpdir()` 返回的系统临时目录、canonical `/tmp`、由 `agentDir` 解析出的
-   全局 `skills` 目录、内置技能目录、`allowRead` 或 `allowWrite` 根内直接读取；
-4. 其他路径构造 `outside-workspace-read` 审批；
-5. 获批只允许当前工具调用继续，不保存规则。
-
-- `read` 按 UTF-8 文本读取，支持行偏移和行数限制；
-- `ls` 只列出直接子项；
-- `grep/find` 默认跳过 `.git` 和 `node_modules`；
-- `grep/find` 尊重搜索根目录中的 `.gitignore`；
-- 显式将根目录设为 `.git` 或 `node_modules` 时允许搜索；
-- `grep` 跳过包含 NUL 字节的二进制文件；
-- 搜索与读取仍支持 `AbortSignal` 和统一输出截断。
-
-全局技能目录使用与其他允许根相同的 canonical path 比较，因此该目录内指向外部位置的符号链接
-仍视为越界读取并要求单次审批。`.gitignore` 只影响搜索结果，不是安全边界，也不阻止显式
-`read`。
-
-### 8.1 `webfetch` 网络边界
-
-`webfetch` 不通过 shell 沙箱执行，因此在发送每一个请求前直接应用 `SandboxPolicy`：
-
-1. 使用标准 `URL` 解析并将 hostname 规范化为小写精确值；
-2. `deniedDomains` 优先，命中时硬拒绝；
-3. `allowedDomains` 或当前工具调用已批准域名直接放行；
-4. 其他域名构造 `network-domain` 审批；
-5. 获批域名只加入当前 `toolCallId` 的内存集合。
-
-HTTP URL 会在访问前升级为 HTTPS。工具关闭自动重定向并最多手动跟随 10 跳，每个新目标在请求前
-重复上述授权流程；重定向审批设置 `mayHavePartialEffects: true`，因为前序请求已经发出。
-`full-access` 跳过该域名授权，但仍执行 URL、120 秒超时、10 跳重定向和 5MB 响应限制。
-
-### 8.2 `websearch` 网络边界
-
-`websearch` 是显式配置的固定服务集成，只在 `AgentCoreOptions.tavilyApiKey` 为非空时注册。工具
-仅向 `https://api.tavily.com/search` 发送查询，不接受 URL、域名或请求头参数，API Key 只进入
-Bearer Authorization Header，不写入工具输出、details、会话或日志。
-
-保存 Tavily API Key 表示用户授权 Willow 使用该固定服务，因此 `request-approval` 和
-`delegate-approval` 不为每次搜索重复弹出域名审批。两种沙箱模式仍检查
-`SandboxPolicy.deniedDomains`，显式拒绝 `api.tavily.com` 时在发出请求前硬拒绝；`full-access`
-与其他工具一致跳过该策略。搜索保留参数校验、25 秒超时、AbortSignal 和稳定 HTTP 错误语义。
-
-### 8.3 `todoList` 会话状态边界
-
-`todoList` 只维护当前 Agent Harness 中的结构化任务列表，不读取文件、不访问网络，也不启动外部
-应用，因此三种权限模式下均可直接执行，不触发审批。工具调用省略 `todos` 时读取当前列表，传入
-数组时整表替换，传入空数组时清空。
-
-每次成功结果都在 tool result details 中保存完整列表。创建新的 Harness 时，Core 从当前 session
-分支最后一个结构有效、执行成功的 `todoList` 结果恢复状态；因此刷新、继续会话和分支操作沿用
-现有消息持久化语义，无需额外数据库表或会话白名单。
-
-### 8.4 `askUser` 交互边界
-
-`askUser` 不读取文件、不访问网络，也不受权限模式影响。工具通过 `AgentHarnessOptions.requestUser`
-把问题与当前 `toolCallId` 交给宿主，并等待回答或取消。每次调用可包含 1-4 个问题，每题包含
-2-4 个选项，并可声明多选；桌面端统一补充“其他”自定义回答入口。问题文本在单次调用内必须唯一，
-同一问题的选项标签也必须唯一。
-
-桌面端按 FIFO 展示问题，并按 `workspaceId + sessionId` 隔离状态。派发问题前，主进程先写入
-`willow.user-question` custom entry，保存问题 payload、模型、权限模式和原用户消息；回答或跳过后
-写入对应的 `answered` entry。读取历史时按当前 branch 重放这些 entry，恢复最早的未决询问。
-
-客户端重启后，原问题 Promise 和 Agent Harness 已不存在。用户提交恢复出的询问时，
-`MessageService` 使用持久化上下文重建 Harness，将回答只注入匹配原 `toolCallId` 的一次
-`askUser` 重放，追加缺失的 tool result，然后调用 `continue()` 继续生成。提交接口先返回，续跑在
-后台完成，状态仍通过原消息事件流反馈。
-
-等待期间中止 Agent 时，`AbortSignal` 会把问题持久化为已跳过并释放队列；缺少 `requestUser`
-handler 时工具明确失败。成功结果的 details 保存每个问题及其选择/自定义回答，用于会话中的工具
-详情展示；用户跳过时返回空答案而非推断默认项。
-
-### 8.5 `processList` 进程查看边界
-
-`processList` 不接受可执行文件或任意参数，只能调用固定的
-`/bin/ps -axo pid=,ppid=,user=,etime=,command=`。可选 `filter` 在 Core 内做不区分大小写的文本
-过滤，`limit` 限制为 1-200，默认返回 50 行。`request-approval` 和 `delegate-approval` 在执行前
-以 `process-inspection` 请求单次授权；`full-access` 跳过 Willow 审批。中止信号直接传给固定
-子进程，输出缓冲上限为 2MB。
-
-该工具是 macOS `sandbox-exec` 无法运行 `/bin/ps` 时的窄能力替代，不接受 shell 片段，也不会
-复用 `allowBrowserProcess` 或把任意 bash 命令移到沙箱外执行。
-
-### 8.6 `createAutomation` 定时任务创建边界
-
-`createAutomation` 不读取文件、不访问网络，也不写工作区，但它会在宿主数据库中持久化一条定时自动化并在主进程注册调度，属于持久化副作用，因此非 `full-access` 模式下必须审批。审批 reason 为 `automation-create`，审批展示文案包含 cron 表达式和标题/提示词摘要；审批通过后才调用宿主创建，拒绝不会产生任何持久化副作用，因此不设置 `mayHavePartialEffects`。
-
-工具输入：`prompt`（必填）、`cronExpression`（必填，五段：分 时 日 月 周）、`title`/`timezone`/`model`（可选）。Core 只做参数结构校验；cron 语义、时区、模型可解析性与标题自动生成由宿主在创建时校验，错误以可读文案返回给 Agent。自动化始终创建在当前会话工作空间；时区缺省记录宿主系统时区，模型缺省跟随用户默认大模型。
-
-宿主通过 `AgentHarnessOptions.createAutomation` 注入创建回调（Core 不直接接触数据库或调度器）；未注入回调时工具明确失败。创建的自动化会立即启用并注册调度，用户可在自动化页面查看、修改或删除。
-
-### 8.7 自动化查询、修改与删除边界
-
-`listAutomations`、`updateAutomation` 和 `deleteAutomation` 的宿主回调都绑定当前 Agent Harness
-对应的工作空间。Core 不接受 `workspaceId` 参数；Work App 在查询时只返回当前工作空间记录，并在
-修改或删除前重新检查目标归属。不存在和属于其他工作空间的 ID 统一返回“当前工作空间中不存在该
-自动化”，避免泄露其他工作空间信息。
-
-`listAutomations` 是当前工作空间内的只读查询，三种权限模式均直接执行。结果按更新时间倒序返回
-ID、标题、提示词、状态、cron、时区和模型配置，供 Agent 在用户未提供 ID 时定位目标。
-
-`updateAutomation` 至少包含一项变更，可修改标题、提示词、cron、时区、启停状态和模型；传入
-`model: null` 表示恢复跟随默认模型。它不允许修改工作空间或独立修改 trigger `isActive`。
-`deleteAutomation` 只接受自动化 ID，并沿用宿主的运行中冲突保护；删除会级联移除 trigger 和运行
-历史，但保留已生成的聊天会话。
-
-修改和删除都属于持久化副作用，非 `full-access` 模式分别以 `automation-update` 和
-`automation-delete` 请求单次审批。审批通过后才调用宿主 handler，因此拒绝本身不会产生部分副
-作用；`full-access` 延续统一语义，不发起审批。宿主继续负责业务校验、调度刷新、变更事件和稳定
-错误文案。
-
-### 8.8 本地文件与文件夹附件
-
-桌面端允许用户通过系统选择器或粘贴显式添加普通文件和文件夹。主进程使用 `realpath` 和 `stat`
-验证路径，只接受现存普通文件或目录，并按 canonical path 去重。目录作为单个附件处理，不在添加时
-递归枚举或解析其内容；文件和目录都不会复制到工作区。
-
-每次发送附件时，主进程生成随机 `requestId`，将 canonical 附件清单写入当前 session branch 的
-`willow.local-file-grant` custom entry，并在实际用户消息末尾写入带相同 `requestId` 的结构化附件块。
-后续创建 Harness 时，桌面端只合并同时满足以下条件的授权：
-
-1. custom entry 类型和数据结构合法；
-2. 当前 branch 中存在匹配 `requestId` 的已持久化用户消息附件块；
-3. 附件路径来自 custom entry，而不是 renderer 或消息正文。
-
-匹配后的 canonical 文件或目录路径作为 `SandboxPolicy.allowWrite` 传给当前 Harness；Core 的既有
-规则会同时允许读取该路径。普通文件授权仅覆盖该精确文件；目录授权覆盖该目录及其后代，不覆盖
-父目录或兄弟目录，目录内指向外部位置的符号链接也不会获得权限。授权随 branch 历史继承，因此
-fork 在分叉点之后保留已有附件授权，但其他会话和工作区不继承。孤立、损坏或用户伪造的附件块
-不会扩权。
-
-附件授权不覆盖敏感写入硬限制：非 `full-access` 模式下，`.env`、私钥等目标仍禁止写入。
-Core 仍不持久化任何会话白名单；持久化、匹配和审计均由 Work App 在每次创建 Harness 前完成。
-
-Plan 模式把相同的已验证文件或目录路径传入 `SandboxPolicy.allowRead`，而不是 `allowWrite`。
-同时 Plan 工具白名单不包含 `bash`、`write` 或 `edit`，因此附件和历史授权路径只能作为规划上下文
-读取。
-
-### 8.9 Plan 模式与计划文件工具
-
-Plan 模式仅注册 `read`、`ls`、`grep`、`find`、`webfetch`、按配置启用的 `websearch`、
-`askUser`、`writePlan` 和 `updatePlan`。`bash`、通用写入、进程查看、任务列表及自动化工具不会被创建，
-因此该边界独立于提示词和三档权限模式。
-
-`writePlan` 不接受路径，只接受计划名称和完整 Markdown 内容。工具将名称规范为安全 slug，固定在
-由 `AgentCore.agentDir` 解析出的 `plan` 子目录内，以 `YYYY-MM-DD-<slug>.md` 创建文件；同名时
-递增数字后缀并使用独占创建，绝不覆盖已有文件。选择 Plan 模式即授权这一项窄副作用，不会授权
-写入全局 Agent 目录的其他位置或当前工作区。
-
-`updatePlan` 只接受不含目录的安全 Markdown 文件名和完整替换内容。目标必须是同一 `plan` 子目录
-中已存在的普通文件；缺失文件、非 Markdown 名称、路径穿越和符号链接均失败。工具使用进程内
-mutation queue 串行化同一计划的修改，并遵循任务中止检查。Plan 模式将全局计划目录加入只读策略，
-使 Agent 可以先通过 `ls`、`find` 和 `read` 审阅现有计划，但不会把该目录加入通用写授权。
-
-## 9. 端到端权限传递
-
-权限模式和 Agent 模式由 renderer 的 Prompt Composer 选择，并随当前消息传递：
-
-```mermaid
-flowchart LR
-  A["PromptComposer<br/>PermissionMode"] --> B["SendMessageRequest<br/>approvalMode"]
-  B --> C["SendMessageController"]
-  C --> D["MessageService"]
-  D --> E["AgentService"]
-  E --> F["AgentCore.getAgentHarness"]
-  F --> G["createWillowTools"]
-```
-
-`agentMode: "plan"` 沿同一发送链路进入 `AgentCore.getAgentHarness`，决定 Additional Role 提示词、
-工具白名单和附件只读策略。该值也随未决审批或用户问题恢复上下文持久化；旧记录缺省按
-`"default"` 恢复。
-
-关键语义：
-
-- `SendMessageRequest.approvalMode` 为可选字段，用于兼容旧调用方；
-- `MessageService` 对缺失值应用 `request-approval` 默认值；
-- 模式在创建本次消息对应的 Agent Harness 时固定；
-- renderer 会保留当前选择供下一条消息使用，但不会写入工作区配置。
-- `askUser` 使用独立的 `requestUser` 回调与用户问题事件，不进入工具权限审批或 AI 初审。
-
-## 10. 审批生命周期
-
-### 10.1 主进程审批服务
-
-`MessageService` 负责决定当前请求进入用户审批还是 AI 初审。`delegate-approval` 调用
-`AiToolApprovalService`，使用用户配置的 `smallModel` 和独立内存会话；模型无工具且
-`thinkingLevel` 为 `off`。AI 输入是结构化 JSON，输出必须严格为：
-
-```json
-{"decision":"allow","reason":"简短安全理由"}
-```
-
-只有合法的 `allow` 自动通过。AI 拒绝或异常时，`ToolApprovalService` 为用户审批生成随机 UUID
-`approvalId`，并维护：
-
-- `pending`：等待结果的审批项；
-- `queue`：审批顺序；
-- `activeApprovalId`：当前唯一展示的审批。
-
-审批按 FIFO 串行展示。一个审批完成后才派发下一个，避免多个模态框同时竞争。同一会话的
-`requested` 和 `decided` custom entry 也通过独立的持久化队列串行追加，避免并发工具审批以同一
-parent 写成不同 session branch。
-
-```mermaid
-sequenceDiagram
-  participant Tool as Core Tool
-  participant Message as MessageService
-  participant AI as AiToolApprovalService
-  participant Approval as ToolApprovalService
-  participant UI as Renderer Dialog
-
-  Tool->>Message: requestApproval(request, signal)
-  alt request-approval
-    Message->>Approval: 请求用户审批
-  else delegate-approval
-    Message->>AI: 当前任务与工具请求
-    alt AI 明确通过
-      AI-->>Message: allow
-      Message-->>Tool: allow
-    else AI 拒绝或异常
-      AI-->>Message: rejected/failed + reason
-      Message->>Approval: 请求用户兜底审批
-    end
-  end
-  Approval->>Approval: 生成 approvalId 并入队
-  Approval-->>UI: TOOL_APPROVAL_EVENT
-  UI->>Approval: RESOLVE_TOOL_APPROVAL allow/deny
-  Approval-->>Message: ToolApprovalDecision
-  Message-->>Tool: allow 或 deny
-```
-
-审批事件包含 `workspaceId` 和 `sessionId`。renderer 只处理与当前页面匹配的请求。
-
-### 10.2 用户决策
-
-`request-approval` 总是显示审批框；`delegate-approval` 仅在 AI 拒绝或异常时显示，并附带 AI
-结论和简短理由。用户操作为：
-
-- **拒绝**：当前工具调用失败；
-- **仅本次允许**：只允许当前审批对应的工具调用；
-- **关闭对话框**：等同拒绝。
-
-无效、已完成或已中止的 `approvalId` 返回 `resolved: false`，不能被重复使用。
-审批正常完成或因任务中止而自动拒绝时，主进程会广播对应 `approvalId` 的结算事件；renderer
-仅在事件仍匹配当前面板时清除它，避免并发请求的新面板被旧事件覆盖。若 renderer 错过事件后
-提交了已失效请求，也会清除该陈旧面板并等待会话历史或后续实时事件恢复当前审批。
-
-### 10.3 中止与清理
-
-停止任务时，`MessageService` 调用 `harness.abort()`。对应 `AbortSignal` 会：
-
-- 终止正在运行的 shell 进程组；
-- 使文件和搜索工具在下一中止检查点失败；
-- 将等待中的审批自动结算为 `deny`；
-- 从 `pending`、审批队列和 active 状态中移除等待项；
-- 继续派发队列中的下一项。
-
-拒绝、关闭对话框、中止和正常决策都会移除 signal listener，避免遗留等待项。
-
-### 10.4 未决审批恢复
-
-`ToolApprovalService` 在派发用户审批事件前，先向当前 session branch 追加
-`willow.tool-approval` custom entry。`requested` entry 保存审批展示信息以及恢复所需的模型、
-权限模式和原用户消息；审批完成或任务中止后追加对应的 `decided` entry。
-
-读取消息历史时，主进程按 branch 顺序重放这些 entry，并将最早的未决审批作为
-`pendingToolApproval` 返回。renderer 按 `workspaceId + sessionId` 隔离审批状态，在进入对应会话
-时恢复审批面板。历史请求开始后如果收到更新的实时审批事件，renderer 不允许较旧的历史响应覆盖
-该事件。
-
-客户端重启后，原审批 Promise 和 Agent Harness 已不存在。用户提交决定时，`MessageService`
-使用已保存的模型、权限模式和 session metadata 重建 Harness：
-
-- 验证审批并写入 `decided` entry 后立即返回，renderer 随即关闭审批面板；
-- 拒绝时为原 `toolCallId` 追加错误 tool result，再继续生成后续回复；
-- 允许时重新执行原工具输入，只对匹配的 `toolCallId` 和工具名称消费一次该决定；
-- 恢复期间产生的其他越界请求仍进入正常审批流程；
-- 工具重放和 Agent 续跑作为会话后台任务执行，状态通过原消息事件流反馈。
-
-当前 `@earendil-works/pi-agent-core@0.80.6` 的 `AgentHarness` 没有公开无新用户消息的续跑方法。
-仓库通过 pnpm 补丁增加 `continue()`，内部复用依赖已有的 `runAgentLoopContinue`，并保持
-Harness 的事件派发、会话写入、中止及 busy 状态语义。
-
-同一会话出现多个未决审批时，持久化恢复顺序与运行时 FIFO 队列一致；提交决定时按
-`approvalId` 精确匹配，不能使用其他会话或其他工具调用的审批。
-
-## 11. 错误与安全失败语义
-
-| 场景 | 结果 |
-| --- | --- |
-| 默认模式未传入 | 使用 `request-approval` |
-| 非完全访问模式没有 handler | 安全拒绝 |
-| AI 明确返回合法 `allow` | 当前调用直接放行 |
-| AI 拒绝、未配置、失败、超时或无效输出 | 转用户审批 |
-| AI 审批期间任务中止 | 直接拒绝，不弹用户审批框 |
-| 用户拒绝 | 工具抛出权限拒绝错误 |
-| 对话框关闭 | 按拒绝处理 |
-| 审批等待期间停止任务 | 自动拒绝并释放队列 |
-| 重复提交 approvalId | 返回未解析，不重复授权 |
-| 非 macOS 使用沙箱模式 | 创建 Agent Harness 时明确报错 |
-| `full-access` 在非 macOS | 正常创建，受系统进程权限约束 |
-| shell 超时或中止 | 终止进程组并返回错误 |
-| shell 非零退出且非沙箱拒绝 | 作为普通命令错误返回 |
-| bash 请求进程枚举 | 明确提示使用 `processList`，不审批裸跑 |
-| `processList` 未获授权 | 执行固定 `/bin/ps` 前安全拒绝 |
-
-## 12. 信任边界与非目标
-
-当前权限系统提供的是 Willow 进程内的工具执行策略，不是完整的主机安全容器。
-
-明确的非目标和限制：
-
-- 不分析 shell AST，也不在执行前预测命令需要哪些权限；
-- 不允许 bash 在沙箱外运行 `ps/pgrep`；宿主进程枚举仅通过固定参数的 `processList`；
-- 不为单个 shell 子命令授权；资源获批后仍会完整重跑整条命令；
-- Apple Events 获批后对当前工具调用中的完整命令生效，不能限制为只执行 `open`；它也能支持
-  `osascript` 控制外部应用，因此必须作为独立能力明确展示；
-- 不提供永久白名单、会话规则或“始终允许”；
-- 不提供跨进程文件锁、回滚或事务；
-- `full-access` 不绕过操作系统权限；
-- `webfetch` 的应用层域名授权不是独立主机容器；显式允许的 IP 字面量按普通 hostname 访问；
-- 当前沙箱模式仅支持 macOS，未实现 Linux namespace/seccomp 或 Windows sandbox；
-- 首轮沙箱命令和扩权后沙箱重跑之间不具备原子性。
-- AI 审批是保守的辅助判断，不构成独立安全边界；用户仍可覆盖 AI 拒绝。
-- AI 只接收当前用户消息和当前工具请求，不接收完整会话历史。
-
-新增工具时必须先判断其属于只读、工作区内写入还是潜在沙箱逃逸，并显式接入相应的授权入口，
-不能仅依靠 UI 文案表达权限。
-
-内置工具通过 `ToolBase` 统一保证参数校验先于权限校验、权限校验先于执行。只读工具在基类权限
-钩子中调用 `authorizeRead()`，文件修改工具调用 `authorizeMutation()`；需要在执行期发现具体
-逃逸资源的 `bash` 通过基类的单次审批辅助方法调用同一 `authorize()` 契约。基类不会吞掉权限
-拒绝或执行错误，所有失败仍以异常形式交给 Agent Runtime 标记为错误工具结果。
-
-## 13. 测试要求
-
-权限相关变更至少应覆盖：
-
-1. 三种模式下的 `bash` 与 `webfetch` 执行矩阵；
-2. 域名、写路径和应用启动能力获批后仅扩展当前调用，并在沙箱内重跑；
-3. 未知沙箱拒绝不会触发通用审批或裸跑；
-4. 工作区内、工作区外和符号链接逃逸的读写；
-5. 敏感写入硬拒绝以及 `full-access` 的显式绕过；
-6. 缺失审批 handler 时的安全拒绝；
-7. 非 macOS 平台行为；
-8. 审批 FIFO、一次性 resolution 和 AbortSignal 清理；
-9. AI 严格 JSON、未配置、失败、超时、无效输出和 AbortSignal；
-10. 对话框权限原因、AI 理由、allow、deny 和关闭行为；
-11. 停止任务时 shell、AI 调用、工具和审批等待项的释放；
-12. 真实 macOS runtime 对读取、写入、域名 allowlist 和 Apple Events 默认关闭的限制。
-13. `webfetch` 初始请求和跨域重定向逐跳授权、格式转换、大小限制、超时和中止。
-14. `websearch` 的条件注册、固定域名拒绝、Bearer 鉴权、参数校验、响应解析、超时、中止和密钥
-    不泄漏。
-15. `todoList` 的读取、整表替换、清空、顺序执行、历史恢复和损坏结果忽略。
-16. `askUser` 的参数唯一性、回答/跳过结果、FIFO、会话隔离、AbortSignal 清理、未决询问持久化、
-    客户端重启后的工具重放与续跑，以及详情渲染。
-17. `createAutomation` 的参数校验、三档权限模式（审批通过/拒绝/委托/直接创建）、未注入回调的安全
-    失败、宿主错误文案透传、AbortSignal 中止，以及主进程的创建工作空间绑定与校验错误返回。
-18. `listAutomations` 的工作空间隔离和免审批查询，以及 `updateAutomation`、`deleteAutomation` 的
-    参数校验、三档权限模式、拒绝无副作用、归属复核、调度刷新、运行冲突和宿主错误文案。
-19. bash 读路径、可执行文件安装、localhost、PTY 和噪声 violation 关联，以及 `processList` 的
-    审批、固定参数、过滤、限制与中止。
-20. `edit` 缺失文本错误能够定位具体替换项、提供可靠的当前行提示，并保持整次调用不写入。
-
-Core 测试位于
-[`packages/core/test/tools.test.ts`](../packages/core/test/tools.test.ts) 和
-[`packages/core/test/webfetch.test.ts`](../packages/core/test/webfetch.test.ts)、
-[`packages/core/test/websearch.test.ts`](../packages/core/test/websearch.test.ts) 和
-[`packages/core/test/todo-list.test.ts`](../packages/core/test/todo-list.test.ts)，主进程审批测试位于
-[`apps/work/test/tool-approval.test.ts`](../apps/work/test/tool-approval.test.ts)。
-
-## 14. 后续演进建议
-
-如果未来需要提高隔离强度，建议按以下顺序演进：
-
-1. 将剩余 shell 路径拒绝识别完全升级为结构化 violation 事件；
-2. 为 Linux 和 Windows 启用并验证 runtime 的平台 adapter；
-3. 将 shell 执行器和 sandbox adapter 显式注入，降低平台测试成本；
-4. 增加审批超时和主进程退出时的统一清理；
-5. 在保持单次授权默认值的前提下，设计可审计的会话级规则。
+| `webfetch` | URL/协议校验、HTTPS 升级、每一跳 `deniedDomains`、超时、5MB、重定向上限和中止 |
+| `websearch` | 固定 Tavily 接口、密钥保护、参数校验、`deniedDomains`、超时和中止 |
+| `todoList` | 参数校验和当前 Harness 内状态 |
+| `askUser` | 独立用户问题事件与中止处理 |
+| `listAutomations` | 工作区隔离和宿主查询约束 |
+| `createAutomation` | 参数校验、工作区归属、宿主持久化和调度约束 |
+| `updateAutomation` | 参数校验、归属复核、运行冲突和宿主更新约束 |
+| `deleteAutomation` | 参数校验、归属复核、运行冲突和宿主删除约束 |
+
+“免审批”只移除权限等级分支，不移除硬拒绝、输入验证、超时、中止或宿主业务错误。特别是
+`webfetch` 的初始请求和每次重定向都检查拒绝域名；`full-access` 也不绕过该拒绝列表。
+
+## 5. 工具集合与历史兼容
+
+默认模式注册 Bash、六个文件工具、todo、web、askUser 和四个自动化工具；Plan 模式只注册只读
+文件工具、web、askUser 与计划文件工具。`websearch` 仅在配置 Tavily Key 时注册。
+
+宿主进程列表工具已经从实现、工厂、注册、公共类型、提示词和桌面展示中移除。为避免旧会话加载
+失败，历史审批 reason（包括 `process-inspection`、沙箱相关 reason 和旧自动化 reason）仍可解析
+和展示。恢复规则：
+
+- 旧审批被拒绝时，不执行旧调用；
+- 旧 web/自动化审批被允许时，按当前免审批实现重放；
+- 旧宿主进程列表审批被允许时，以“工具已移除”错误结果继续会话。
+
+## 6. 审批生命周期
+
+Core 只调用 `requestApproval(request, signal)`，不实现 UI 或代理判断。Work 在每次回调发生时读取
+最新会话等级：`full-access` 直接允许，`delegate-approval` 走审批代理并按现有规则回退用户，
+`request-approval` 进入用户审批队列。
+
+审批按 `workspaceId + sessionId + toolCallId` 隔离并 FIFO 展示；决定仅结算匹配项。停止任务会中止
+等待并以拒绝结算。未决审批写入 session branch，重启后可恢复；允许恢复时用新的 Harness 重放
+单个工具调用，拒绝时直接生成错误结果，然后继续 agent 会话。
+
+## 7. 测试要求
+
+权限变更至少覆盖：
+
+- bash 直接执行：输出、退出码、超时、中止与截断；
+- 工作区、附件文件、附件目录、临时目录、全局/内置技能、额外读写根和读写差异；
+- 不存在目标、`..` 与符号链接逃逸；
+- 敏感写入和 `full-access` 绕过；
+- 六个文件工具的一致判定、单次审批、缺失 handler、拒绝和中止；
+- 连续调用间动态切换三种等级；
+- web 与自动化工具在三种等级下均不调用审批，同时保留拒绝列表和业务错误；
+- 会话默认值、隔离、IPC 参数校验、快速切换顺序、发送前同步和自动化初始化；
+- 工具注册、导出、提示和展示不再含已移除工具，以及历史未决审批迁移。
+
+Core 测试使用 `pnpm --filter @willow/core test`。

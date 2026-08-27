@@ -20,7 +20,6 @@ describe("tool display summaries", () => {
     ["ls", { path: "src" }, "查询 src"],
     ["grep", { pattern: "needle" }, "搜索内容 /needle/"],
     ["find", { pattern: "**/*.ts" }, "搜索文件 **/*.ts"],
-    ["processList", { filter: "kdocs-cli" }, "查看进程 · kdocs-cli"],
     ["webfetch", { url: "https://example.com/docs" }, "抓取网页 https://example.com/docs"],
     ["websearch", { query: "Willow 最新消息" }, "搜索 Willow 最新消息"],
     ["todoList", {}, "读取任务列表"],
@@ -79,9 +78,6 @@ describe("tool display summaries", () => {
         query: "Willow 最新消息",
       }),
     ).toBe("搜索 Willow 最新消息");
-    expect(formatToolResultTitle({ kind: "processList", filter: "kdocs-cli" })).toBe(
-      "查看进程 · kdocs-cli",
-    );
     expect(
       formatToolResultTitle({
         kind: "todoList",

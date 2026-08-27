@@ -57,21 +57,6 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
 }
 
-function formatChanges(input: UpdateAutomationToolInput): string {
-  const changes: string[] = [];
-  if (input.title !== undefined) changes.push(`标题=${input.title.trim()}`);
-  if (input.prompt !== undefined) {
-    const prompt = input.prompt.replace(/\s+/g, " ").trim();
-    changes.push(`提示词=${prompt.slice(0, 40)}${prompt.length > 40 ? "…" : ""}`);
-  }
-  if (input.cronExpression !== undefined) changes.push(`计划=${input.cronExpression.trim()}`);
-  if (input.timezone !== undefined) changes.push(`时区=${input.timezone.trim()}`);
-  if (input.status !== undefined) changes.push(`状态=${input.status}`);
-  if (input.model === null) changes.push("模型=跟随默认模型");
-  if (input.model) changes.push(`模型=${input.model.providerId}/${input.model.modelId}`);
-  return changes.join("；");
-}
-
 export class UpdateAutomationTool extends ToolBase<
   typeof updateAutomationSchema,
   UpdateAutomationToolDetails
@@ -80,8 +65,8 @@ export class UpdateAutomationTool extends ToolBase<
   readonly label = "Update Automation";
   readonly description = `Update an existing scheduled automation in the current workspace. Use
 listAutomations first if the automation ID is unknown. At least one field must be changed. Set model
-to null to follow the user's default model. This call requires approval because it changes a
-persistent unattended task.`;
+to null to follow the user's default model. The change is executed directly without a separate
+tool approval.`;
   readonly parameters = updateAutomationSchema;
 
   protected override checkParams(input: UpdateAutomationToolInput): Error | undefined {
@@ -116,16 +101,6 @@ persistent unattended task.`;
       return new Error("at least one automation field must be provided");
     }
     return undefined;
-  }
-
-  protected override async checkPermission(
-    context: ToolExecutionContext<UpdateAutomationToolInput, UpdateAutomationToolDetails>,
-  ): Promise<void> {
-    if (this.options.permissionMode === "full-access") return;
-    await this.requestPermission(context, {
-      reason: "automation-update",
-      display: `修改自动化 #${context.input.automationId}：${formatChanges(context.input)}`,
-    });
   }
 
   protected override async run(

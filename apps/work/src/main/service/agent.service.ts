@@ -37,6 +37,7 @@ type AgentServiceOptions = Omit<AgentCoreOptions, "models" | "sessionRepo" | "ta
   metadata: SessionMetadata;
   agentMode?: AgentMode;
   permissionMode: import("@willow/core").PermissionMode;
+  getPermissionMode: import("@willow/core").PermissionModeProvider;
   requestApproval: ToolApprovalHandler;
   requestUser: AskUserHandler;
   sandboxPolicy?: AgentHarnessOptions["sandboxPolicy"];
@@ -153,6 +154,7 @@ export class AgentService {
     metadata,
     agentMode,
     permissionMode,
+    getPermissionMode,
     requestApproval,
     requestUser,
     sandboxPolicy,
@@ -174,6 +176,7 @@ export class AgentService {
       metadata,
       agentMode,
       permissionMode,
+      getPermissionMode,
       requestApproval,
       requestUser,
       sandboxPolicy,

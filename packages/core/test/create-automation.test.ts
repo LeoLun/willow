@@ -3,7 +3,6 @@ import {
   createCreateAutomationTool,
   type CreateAutomationHandler,
   type ToolApprovalHandler,
-  type ToolApprovalRequest,
 } from "../src/index.js";
 
 const cwd = process.cwd();
@@ -20,7 +19,7 @@ const validInput = {
 };
 
 describe("createAutomation tool", () => {
-  it("creates an automation after approval and reports the result", async () => {
+  it("creates an automation directly and reports the result", async () => {
     const requestApproval = approvalHandler();
     const createAutomation = vi.fn<CreateAutomationHandler>(async () => ({
       ok: true,
@@ -37,14 +36,7 @@ describe("createAutomation tool", () => {
 
     const result = await tool.execute("call-1", validInput);
 
-    expect(requestApproval).toHaveBeenCalledTimes(1);
-    const request = requestApproval.mock.calls[0]?.[0] as ToolApprovalRequest;
-    expect(request.toolCallId).toBe("call-1");
-    expect(request.toolName).toBe("createAutomation");
-    expect(request.reason).toBe("automation-create");
-    expect(request.display).toContain("0 9 * * 1-5");
-    expect(request.display).toContain("每日审查");
-
+    expect(requestApproval).not.toHaveBeenCalled();
     expect(createAutomation).toHaveBeenCalledWith(validInput);
     expect(result.content).toEqual([
       { type: "text", text: expect.stringContaining("定时任务已创建") as string },
@@ -57,7 +49,7 @@ describe("createAutomation tool", () => {
     });
   });
 
-  it("rejects the call when approval is denied without invoking the handler", async () => {
+  it("does not consult the approval handler in request-approval mode", async () => {
     const requestApproval = approvalHandler("deny");
     const createAutomation = vi.fn<CreateAutomationHandler>(async () => ({
       ok: true,
@@ -72,11 +64,12 @@ describe("createAutomation tool", () => {
       createAutomation,
     });
 
-    await expect(tool.execute("call-1", validInput)).rejects.toThrow(/denied|拒绝/i);
-    expect(createAutomation).not.toHaveBeenCalled();
+    await expect(tool.execute("call-1", validInput)).resolves.toBeDefined();
+    expect(requestApproval).not.toHaveBeenCalled();
+    expect(createAutomation).toHaveBeenCalledOnce();
   });
 
-  it("delegates the approval decision in delegate-approval mode", async () => {
+  it("does not consult the approval handler in delegate-approval mode", async () => {
     const requestApproval = approvalHandler("allow");
     const createAutomation = vi.fn<CreateAutomationHandler>(async () => ({
       ok: true,
@@ -92,7 +85,7 @@ describe("createAutomation tool", () => {
     });
 
     const result = await tool.execute("call-2", { ...validInput, cronExpression: "0 * * * *" });
-    expect(requestApproval).toHaveBeenCalledTimes(1);
+    expect(requestApproval).not.toHaveBeenCalled();
     expect(result.details).toMatchObject({ automationId: 7 });
   });
 

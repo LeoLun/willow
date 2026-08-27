@@ -146,17 +146,26 @@ describe("websearch tool", () => {
     ).rejects.toThrow("invalid");
   });
 
-  it("rejects a configured Tavily domain denial before fetching", async () => {
-    const fetchMock = vi.fn<typeof fetch>();
-    vi.stubGlobal("fetch", fetchMock);
+  it.each(["request-approval", "delegate-approval", "full-access"] as const)(
+    "rejects a configured Tavily domain denial without approval in %s mode",
+    async (permissionMode) => {
+      const fetchMock = vi.fn<typeof fetch>();
+      const requestApproval = vi.fn(async () => "allow" as const);
+      vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      createWebSearchTool(
-        runtime({ sandboxPolicy: { deniedDomains: ["API.TAVILY.COM."] } }),
-      ).execute("denied", { query: "test" }),
-    ).rejects.toThrow("Network domain is denied by policy: api.tavily.com");
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
+      await expect(
+        createWebSearchTool(
+          runtime({
+            permissionMode,
+            requestApproval,
+            sandboxPolicy: { deniedDomains: ["API.TAVILY.COM."] },
+          }),
+        ).execute("denied", { query: "test" }),
+      ).rejects.toThrow("Network domain is denied by policy: api.tavily.com");
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(requestApproval).not.toHaveBeenCalled();
+    },
+  );
 
   it("propagates caller aborts to the Tavily request", async () => {
     const fetchMock = vi.fn<typeof fetch>(

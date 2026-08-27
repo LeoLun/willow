@@ -85,6 +85,7 @@ const modelLoadError = ref(false);
 const providers = shallowRef<ProviderInfo[]>([]);
 const selectedModel = shallowRef<ModelConfig | undefined>(composerPreferences.value.model);
 const approvalMode = ref<PermissionMode>(composerPreferences.value.approvalMode);
+let permissionModeSync = Promise.resolve();
 const agentMode = ref<AgentMode>("default");
 const reasoningEffort = ref<string | undefined>(composerPreferences.value.reasoningEffort);
 const fileSearchPanel = shallowRef<ComposerPanelNavigationHandle>();
@@ -492,6 +493,16 @@ watch(
   { flush: "sync" },
 );
 watch(
+  [workspaceId, sessionId, approvalMode],
+  ([nextWorkspaceId, nextSessionId, nextPermissionMode]) => {
+    if (nextWorkspaceId === undefined || nextSessionId === undefined) return;
+    void syncPermissionMode(nextWorkspaceId, nextSessionId, nextPermissionMode).catch((error) => {
+      console.error("同步工具权限等级失败:", error);
+    });
+  },
+  { immediate: true },
+);
+watch(
   [workspaceId, sessionId, currentSessionRunning],
   ([nextWorkspaceId, nextSessionId, running]) => {
     if (nextWorkspaceId !== undefined && nextSessionId !== undefined && !running) {
@@ -527,6 +538,24 @@ onBeforeUnmount(() => {
   removePlanPreviewListener?.();
 });
 
+function syncPermissionMode(
+  currentWorkspaceId: number,
+  currentSessionId: string,
+  permissionMode: PermissionMode,
+): Promise<void> {
+  const operation = permissionModeSync
+    .catch(() => undefined)
+    .then(async () => {
+      await electronAPI.setPermissionMode({
+        workspaceId: currentWorkspaceId,
+        sessionId: currentSessionId,
+        permissionMode,
+      });
+    });
+  permissionModeSync = operation;
+  return operation;
+}
+
 function enqueueMessage(
   currentWorkspaceId: number,
   currentSessionId: string,
@@ -544,7 +573,6 @@ function enqueueMessage(
       attachments: payload.attachments,
       model: payload.model,
       agentMode: payload.agentMode,
-      approvalMode: payload.approvalMode ?? "request-approval",
       reasoningEffort: payload.reasoningEffort,
     },
   });
@@ -567,6 +595,7 @@ async function createSessionAndEnqueue(
     if (isNavigationFailure(navigationFailure)) throw navigationFailure;
 
     await nextTick();
+    await syncPermissionMode(currentWorkspaceId, currentSessionId, approvalMode.value);
     enqueueMessage(currentWorkspaceId, currentSessionId, payload);
   } catch (error) {
     creationError.value = getErrorMessage(error, "创建会话失败，请重试。");
@@ -576,7 +605,7 @@ async function createSessionAndEnqueue(
   }
 }
 
-function sendMessage(payload: ComposerSubmitPayload): void {
+async function sendMessage(payload: ComposerSubmitPayload): Promise<void> {
   const content = payload.content;
   const hasAttachments = payload.attachments.length > 0;
   const model = payload.model;
@@ -595,6 +624,12 @@ function sendMessage(payload: ComposerSubmitPayload): void {
 
   creationError.value = "";
   if (currentSessionId) {
+    try {
+      await syncPermissionMode(currentWorkspaceId, currentSessionId, approvalMode.value);
+    } catch (error) {
+      creationError.value = getErrorMessage(error, "同步工具权限等级失败，请重试。");
+      return;
+    }
     enqueueMessage(currentWorkspaceId, currentSessionId, payload);
   } else {
     void createSessionAndEnqueue(currentWorkspaceId, payload);

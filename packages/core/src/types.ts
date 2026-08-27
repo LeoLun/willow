@@ -5,7 +5,12 @@ import type { AskUserHandler } from "./tools/ask-user.js";
 import type { CreateAutomationHandler } from "./tools/create-automation.js";
 import type { DeleteAutomationHandler } from "./tools/delete-automation.js";
 import type { ListAutomationsHandler } from "./tools/list-automations.js";
-import type { PermissionMode, SandboxPolicy, ToolApprovalHandler } from "./tools/types.js";
+import type {
+  PermissionMode,
+  PermissionModeProvider,
+  SandboxPolicy,
+  ToolApprovalHandler,
+} from "./tools/types.js";
 import type { UpdateAutomationHandler } from "./tools/update-automation.js";
 
 export interface AgentOptions {
@@ -35,6 +40,7 @@ export type AgentHarnessOptions = {
   metadata?: SessionMetadata;
   agentMode?: AgentMode;
   permissionMode?: PermissionMode;
+  getPermissionMode?: PermissionModeProvider;
   requestApproval?: ToolApprovalHandler;
   requestUser?: AskUserHandler;
   sandboxPolicy?: SandboxPolicy;

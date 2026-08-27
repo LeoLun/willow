@@ -13,6 +13,7 @@ import {
   UnattendedInteractionError,
   type SendMessageInput,
 } from "../src/main/service/message.service";
+import { PermissionModeService } from "../src/main/service/permission-mode.service";
 import type { SessionService } from "../src/main/service/session.service";
 import type { TitleService } from "../src/main/service/title.service";
 import type { ToolApprovalService } from "../src/main/service/tool-approval.service";
@@ -73,6 +74,7 @@ describe("MessageService unattended mode", () => {
   let requestApproval: ReturnType<typeof vi.fn>;
   let requestQuestion: ReturnType<typeof vi.fn>;
   let service: MessageService;
+  let permissionModeService: PermissionModeService;
   let capturedOptions: {
     requestApproval?: ToolApprovalHandler;
     requestUser?: AskUserHandler;
@@ -118,6 +120,7 @@ describe("MessageService unattended mode", () => {
       })),
     } as unknown as TurnArtifactService;
 
+    permissionModeService = new PermissionModeService();
     service = new MessageService(
       sessionService,
       agentService,
@@ -129,6 +132,7 @@ describe("MessageService unattended mode", () => {
       toolApprovalService,
       userQuestionService,
       turnArtifactService,
+      permissionModeService,
     );
   });
 
@@ -141,11 +145,15 @@ describe("MessageService unattended mode", () => {
     };
   }
 
+  function setMode(mode: "request-approval" | "delegate-approval" | "full-access"): void {
+    permissionModeService.set(1, "session-1", mode);
+  }
+
   it("allows tool calls when the AI approval approves them", async () => {
     review.mockResolvedValue({ status: "approved", reason: "任务需要" });
+    setMode("delegate-approval");
     await service.sendMessage({
       ...baseInput(),
-      approvalMode: "delegate-approval",
       interactionMode: "unattended",
     });
 
@@ -156,9 +164,9 @@ describe("MessageService unattended mode", () => {
 
   it("throws for rejected AI approvals without falling back to human approval", async () => {
     review.mockResolvedValue({ status: "rejected", reason: "操作风险过高" });
+    setMode("delegate-approval");
     await service.sendMessage({
       ...baseInput(),
-      approvalMode: "delegate-approval",
       interactionMode: "unattended",
     });
 
@@ -170,9 +178,9 @@ describe("MessageService unattended mode", () => {
 
   it("throws for failed or timed-out AI approvals without falling back", async () => {
     review.mockResolvedValue({ status: "failed", reason: "AI 审批超时，请由用户确认。" });
+    setMode("delegate-approval");
     await service.sendMessage({
       ...baseInput(),
-      approvalMode: "delegate-approval",
       interactionMode: "unattended",
     });
 
@@ -182,9 +190,9 @@ describe("MessageService unattended mode", () => {
   });
 
   it("throws when a non-delegate mode is used unattended", async () => {
+    setMode("request-approval");
     await service.sendMessage({
       ...baseInput(),
-      approvalMode: "request-approval",
       interactionMode: "unattended",
     });
 
@@ -194,9 +202,9 @@ describe("MessageService unattended mode", () => {
   });
 
   it("throws for ask-user instead of persisting a pending question", async () => {
+    setMode("delegate-approval");
     await service.sendMessage({
       ...baseInput(),
-      approvalMode: "delegate-approval",
       interactionMode: "unattended",
     });
 
@@ -221,7 +229,8 @@ describe("MessageService unattended mode", () => {
 
   it("keeps interactive approvals unchanged", async () => {
     requestApproval.mockResolvedValue("deny");
-    await service.sendMessage({ ...baseInput(), approvalMode: "request-approval" });
+    setMode("request-approval");
+    await service.sendMessage(baseInput());
 
     const handler = capturedOptions.requestApproval!;
     await expect(handler(approvalRequest)).resolves.toBe("deny");
@@ -232,7 +241,8 @@ describe("MessageService unattended mode", () => {
   it("keeps interactive delegate-approval fallback behavior unchanged", async () => {
     review.mockResolvedValue({ status: "rejected", reason: "由用户确认" });
     requestApproval.mockResolvedValue("allow");
-    await service.sendMessage({ ...baseInput(), approvalMode: "delegate-approval" });
+    setMode("delegate-approval");
+    await service.sendMessage(baseInput());
 
     const handler = capturedOptions.requestApproval!;
     await expect(handler(approvalRequest)).resolves.toBe("allow");
@@ -241,7 +251,8 @@ describe("MessageService unattended mode", () => {
 
   it("keeps interactive ask-user behavior unchanged", async () => {
     requestQuestion.mockResolvedValue({ question: { "继续吗？": ["是"] } });
-    await service.sendMessage({ ...baseInput(), approvalMode: "request-approval" });
+    setMode("request-approval");
+    await service.sendMessage(baseInput());
 
     const handler = capturedOptions.requestUser!;
     await expect(

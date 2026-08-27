@@ -635,12 +635,21 @@ export interface SendMessageRequest {
   content: string;
   model: ModelConfig;
   agentMode?: AgentMode;
-  approvalMode?: PermissionMode;
   attachments?: LocalFileAttachment[];
 }
 
 export interface SendMessageResponse {
   message: AssistantMessage;
+}
+
+export interface SetPermissionModeRequest {
+  workspaceId: number;
+  sessionId: string;
+  permissionMode: PermissionMode;
+}
+
+export interface SetPermissionModeResponse {
+  permissionMode: PermissionMode;
 }
 
 export interface StopMessageRequest {

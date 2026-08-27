@@ -57,9 +57,9 @@ describe("webfetch parameters and formats", () => {
         { headers: { "content-type": "text/html; charset=utf-8" } },
       ),
     );
-    const result = await createWebFetchTool(
-      runtime({ sandboxPolicy: { allowedDomains: ["EXAMPLE.COM."] } }),
-    ).execute("markdown", { url: "http://Example.com/docs" });
+    const result = await createWebFetchTool(runtime()).execute("markdown", {
+      url: "http://Example.com/docs",
+    });
 
     expect(fetchMock).toHaveBeenCalledWith(
       new URL("https://example.com/docs"),
@@ -109,8 +109,8 @@ describe("webfetch parameters and formats", () => {
 });
 
 describe("webfetch domain authorization", () => {
-  it.each(["request-approval", "delegate-approval"] as const)(
-    "requests one-call approval before fetching in %s mode",
+  it.each(["request-approval", "delegate-approval", "full-access"] as const)(
+    "fetches directly without approval in %s mode",
     async (permissionMode) => {
       const fetchMock = mockResponses(new Response("allowed"));
       const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
@@ -119,17 +119,7 @@ describe("webfetch domain authorization", () => {
         { url: "https://Example.com/value" },
       );
 
-      expect(requestApproval).toHaveBeenCalledWith(
-        {
-          toolCallId: "network",
-          toolName: "webfetch",
-          input: { url: "https://Example.com/value" },
-          reason: "network-domain",
-          display: "example.com",
-          mayHavePartialEffects: false,
-        },
-        undefined,
-      );
+      expect(requestApproval).not.toHaveBeenCalled();
       expect(fetchMock).toHaveBeenCalledOnce();
       expect(result.content).toEqual([{ type: "text", text: "allowed" }]);
     },
@@ -138,12 +128,7 @@ describe("webfetch domain authorization", () => {
   it("allows configured domains without approval and gives denied domains precedence", async () => {
     const fetchMock = mockResponses(new Response("allowed"));
     const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
-    const allowedTool = createWebFetchTool(
-      runtime({
-        requestApproval,
-        sandboxPolicy: { allowedDomains: ["example.com"] },
-      }),
-    );
+    const allowedTool = createWebFetchTool(runtime({ requestApproval }));
     await allowedTool.execute("allowed", { url: "https://example.com" });
     expect(requestApproval).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledOnce();
@@ -151,10 +136,7 @@ describe("webfetch domain authorization", () => {
     const deniedTool = createWebFetchTool(
       runtime({
         requestApproval,
-        sandboxPolicy: {
-          allowedDomains: ["example.com"],
-          deniedDomains: ["EXAMPLE.COM."],
-        },
+        sandboxPolicy: { deniedDomains: ["EXAMPLE.COM."] },
       }),
     );
     await expect(deniedTool.execute("denied", { url: "https://example.com" })).rejects.toThrow(
@@ -163,41 +145,44 @@ describe("webfetch domain authorization", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it("fails closed on rejection or a missing approval callback", async () => {
-    const fetchMock = vi.fn<typeof fetch>();
-    vi.stubGlobal("fetch", fetchMock);
+  it("ignores rejection and a missing approval callback", async () => {
+    const fetchMock = mockResponses(new Response("first"), new Response("second"));
     const deny = vi.fn<ToolApprovalHandler>(async () => "deny");
 
     await expect(
       createWebFetchTool(runtime({ requestApproval: deny })).execute("denied", {
         url: "https://example.com",
       }),
-    ).rejects.toThrow("Permission denied for webfetch");
+    ).resolves.toBeDefined();
     await expect(
       createWebFetchTool(runtime({ requestApproval: undefined })).execute("missing", {
         url: "https://example.com",
       }),
-    ).rejects.toThrow("Permission denied for webfetch");
+    ).resolves.toBeDefined();
+    expect(deny).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("enforces denied domains in full-access mode", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+
+    await expect(
+      createWebFetchTool(
+        runtime({
+          permissionMode: "full-access",
+          requestApproval,
+          sandboxPolicy: { deniedDomains: ["example.com"] },
+        }),
+      ).execute("full", { url: "https://example.com" }),
+    ).rejects.toThrow("denied by policy");
+
+    expect(requestApproval).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("bypasses domain policy in full-access mode", async () => {
-    const fetchMock = mockResponses(new Response("allowed"));
-    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
-
-    await createWebFetchTool(
-      runtime({
-        permissionMode: "full-access",
-        requestApproval,
-        sandboxPolicy: { deniedDomains: ["example.com"] },
-      }),
-    ).execute("full", { url: "https://example.com" });
-
-    expect(requestApproval).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
-  it("authorizes every redirect domain and caches domains within the call", async () => {
+  it("follows redirect domains without approval", async () => {
     const fetchMock = mockResponses(
       new Response(null, { status: 302, headers: { location: "https://second.test/a" } }),
       new Response(null, { status: 302, headers: { location: "https://second.test/b" } }),
@@ -208,41 +193,24 @@ describe("webfetch domain authorization", () => {
       url: "https://first.test/start",
     });
 
-    expect(requestApproval).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        display: "first.test",
-        mayHavePartialEffects: false,
-      }),
-      undefined,
-    );
-    expect(requestApproval).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        display: "second.test",
-        mayHavePartialEffects: true,
-      }),
-      undefined,
-    );
-    expect(requestApproval).toHaveBeenCalledTimes(2);
+    expect(requestApproval).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(result.details.redirectCount).toBe(2);
     expect(result.details.finalUrl).toBe("https://second.test/b");
   });
 
-  it("does not fetch a redirected domain when its approval is rejected", async () => {
+  it("does not fetch a redirected domain denied by policy", async () => {
     const fetchMock = mockResponses(
       new Response(null, { status: 302, headers: { location: "https://blocked.test/" } }),
     );
-    const requestApproval = vi.fn<ToolApprovalHandler>(async (request) =>
-      request.display === "first.test" ? "allow" : "deny",
-    );
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
 
     await expect(
-      createWebFetchTool(runtime({ requestApproval })).execute("redirect-denied", {
-        url: "https://first.test/",
-      }),
-    ).rejects.toThrow("Permission denied for webfetch");
+      createWebFetchTool(
+        runtime({ requestApproval, sandboxPolicy: { deniedDomains: ["blocked.test"] } }),
+      ).execute("redirect-denied", { url: "https://first.test/" }),
+    ).rejects.toThrow("denied by policy");
+    expect(requestApproval).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

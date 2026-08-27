@@ -1,5 +1,10 @@
 import { join } from "node:path";
-import { Module, On, TrayFactoryResolver, WindowFactoryResolver } from "@willow/poetry";
+import {
+  Module,
+  On,
+  TrayFactoryResolver,
+  WindowFactoryResolver,
+} from "@willow/poetry";
 import { app, powerMonitor, screen } from "electron";
 import started from "electron-squirrel-startup";
 import { CheckAppUpdateController } from "./controllers/app-update/check.app-update.controller";
@@ -44,6 +49,7 @@ import { GetMessageListController } from "./controllers/message/get-list.message
 import { ResolveToolApprovalController } from "./controllers/message/resolve-tool-approval.message.controller";
 import { ResolveUserQuestionController } from "./controllers/message/resolve-user-question.message.controller";
 import { SendMessageController } from "./controllers/message/send.message.controller";
+import { SetPermissionModeController } from "./controllers/message/set-permission-mode.message.controller";
 import { StopMessageController } from "./controllers/message/stop.message.controller";
 import { ReadPlanFileController } from "./controllers/plan-file/read.plan-file.controller";
 import { GetProviderCatalogController } from "./controllers/provider/get-catalog.provider.controller";
@@ -92,6 +98,7 @@ import { FileSearchService } from "./service/file-search.service";
 import { GitReviewService } from "./service/git-review.service";
 import { LocalFileService } from "./service/local-file.service";
 import { MessageService } from "./service/message.service";
+import { PermissionModeService } from "./service/permission-mode.service";
 import { PlanFileService } from "./service/plan-file.service";
 import { ProviderCatalogService } from "./service/provider-catalog.service";
 import { SessionManagerFactory } from "./service/session-manager.factory";
@@ -152,6 +159,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     WorkspaceFileWatcherService,
     LocalFileService,
     MessageService,
+    PermissionModeService,
     PlanFileService,
     TurnArtifactService,
     ToolApprovalService,
@@ -214,6 +222,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     SetTavilyApiKeyController,
     DeleteTavilyApiKeyController,
     SendMessageController,
+    SetPermissionModeController,
     StopMessageController,
     GetMessageListController,
     ResolveToolApprovalController,
@@ -293,25 +302,34 @@ export class AppModule {
     }
 
     try {
+      console.log("bootstrapApplication init db");
       this.dbService.init();
+      console.log("bootstrapApplication initialize automation");
       await this.automationService.initialize();
+      console.log("bootstrapApplication set list automations handler");
       this.agentService.setListAutomationsHandler((workspaceId) =>
         this.automationService.listAutomationsFromAgent(workspaceId),
       );
+      console.log("bootstrapApplication set create automation handler");
       this.agentService.setCreateAutomationHandler((workspaceId, input) =>
         this.automationService.createAutomationFromAgent(input, workspaceId),
       );
+      console.log("bootstrapApplication set update automation handler");
       this.agentService.setUpdateAutomationHandler((workspaceId, input) =>
         this.automationService.updateAutomationFromAgent(input, workspaceId),
       );
+      console.log("bootstrapApplication set delete automation handler");
       this.agentService.setDeleteAutomationHandler((workspaceId, input) =>
         this.automationService.deleteAutomationFromAgent(input, workspaceId),
       );
+      console.log("bootstrapApplication set resume listener");
       if (!this.resumeListenerRegistered) {
         powerMonitor.on("resume", this.onSystemResume);
         this.resumeListenerRegistered = true;
       }
+      console.log("bootstrapApplication create window");
       this.createWindow();
+      console.log("bootstrapApplication set init succeeded");
       this.initSucceeded = true;
       return true;
     } catch (error) {
@@ -322,7 +340,8 @@ export class AppModule {
   }
 
   private showMainWindow() {
-    const mainWindow = this.windowFactoryResolver.resolveWindowFactory(MainWindow);
+    const mainWindow =
+      this.windowFactoryResolver.resolveWindowFactory(MainWindow);
 
     if (!mainWindow.win || mainWindow.win.isDestroyed()) {
       this.createWindow();

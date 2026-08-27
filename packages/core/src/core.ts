@@ -51,9 +51,6 @@ export class AgentCore {
 
   async getAgentHarness(options: AgentHarnessOptions) {
     const permissionMode = options.permissionMode ?? "request-approval";
-    if (permissionMode !== "full-access" && process.platform !== "darwin") {
-      throw new Error("Sandboxed permission modes are currently supported only on macOS");
-    }
     const session = options.metadata
       ? await this.sessionManager.open(options.metadata)
       : await this.sessionManager.create({});
@@ -93,6 +90,7 @@ export class AgentCore {
         agentDir: this.agentDir,
         agentMode,
         permissionMode,
+        getPermissionMode: options.getPermissionMode,
         requestApproval: options.requestApproval,
         requestUser: options.requestUser,
         sandboxPolicy,

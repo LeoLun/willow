@@ -18,7 +18,6 @@ function payload(content: string) {
   return {
     content,
     model: { providerId: "provider", modelId: "model" },
-    approvalMode: "request-approval" as const,
     reasoningEffort: "high",
   };
 }

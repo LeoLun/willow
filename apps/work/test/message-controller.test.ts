@@ -4,8 +4,10 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GetMessageListController } from "../src/main/controllers/message/get-list.message.controller";
 import { SendMessageController } from "../src/main/controllers/message/send.message.controller";
+import { SetPermissionModeController } from "../src/main/controllers/message/set-permission-mode.message.controller";
 import { StopMessageController } from "../src/main/controllers/message/stop.message.controller";
 import type { MessageService } from "../src/main/service/message.service";
+import { PermissionModeService } from "../src/main/service/permission-mode.service";
 import type {
   GetMessageListRequest,
   SendMessageRequest,
@@ -24,6 +26,8 @@ const messageService = {
 const sendController = new SendMessageController(messageService);
 const stopController = new StopMessageController(messageService);
 const listController = new GetMessageListController(messageService);
+const permissionModeService = new PermissionModeService();
+const permissionModeController = new SetPermissionModeController(permissionModeService);
 
 describe("message controllers", () => {
   beforeEach(() => {
@@ -140,20 +144,35 @@ describe("message controllers", () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it("rejects an invalid approval mode without calling the service", async () => {
+  it("updates and validates permission mode independently from sending messages", async () => {
+    expect(permissionModeService.get(1, "session")).toBe("request-approval");
+    expect(permissionModeService.get(2, "session")).toBe("request-approval");
+
     await expect(
-      sendController.run(event, {
+      permissionModeController.run(event, {
         workspaceId: 1,
         sessionId: "session",
-        content: "Hello",
-        model: { providerId: "openai", modelId: "large" },
-        approvalMode: "invalid" as never,
+        permissionMode: "delegate-approval",
+      }),
+    ).resolves.toEqual({
+      code: 0,
+      data: { permissionMode: "delegate-approval" },
+      msg: "ok",
+    });
+    expect(permissionModeService.get(1, "session")).toBe("delegate-approval");
+    expect(permissionModeService.get(2, "session")).toBe("request-approval");
+    expect(permissionModeService.get(1, "other-session")).toBe("request-approval");
+
+    await expect(
+      permissionModeController.run(event, {
+        workspaceId: 1,
+        sessionId: "session",
+        permissionMode: "invalid" as never,
       }),
     ).resolves.toEqual({
       code: 400,
-      msg: "approvalMode must be a supported permission mode",
+      msg: "permissionMode must be a supported permission mode",
     });
-    expect(sendMessage).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid agent mode without calling the service", async () => {

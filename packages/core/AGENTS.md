@@ -9,7 +9,7 @@ These instructions apply to all work under `packages/core/` and supplement the r
 runtime. The complete permission architecture is documented in
 [`../../docs/permission-design.md`](../../docs/permission-design.md).
 
-Before planning or changing tools, permission modes, sandbox behavior, approval contracts, path
+Before planning or changing tools, permission modes, bash execution, approval contracts, path
 authorization, or tool execution details, read that design document in full. Keep it synchronized
 with material behavior or public-interface changes.
 
@@ -40,46 +40,33 @@ type PermissionMode =
 Maintain these invariants:
 
 - `request-approval` is the safe default when no mode is supplied.
-- A permission mode is selected per Agent Harness/message; Core must not persist workspace or
-  session allowlists.
+- The Work App owns the session-level permission mode. Non-Bash file tools receive a provider and
+  read it at authorization time; Core must not persist workspace or session allowlists.
 - An approval applies only to one `toolCallId`. Do not introduce permanent or implicit approval
   rules without an explicit design change.
-- `AgentHarnessOptions` accepts the mode and an asynchronous
-  `requestApproval(request, signal)` callback.
+- `AgentHarnessOptions` accepts a static compatibility mode, an optional dynamic provider, and an
+  asynchronous `requestApproval(request, signal)` callback. Non-Bash file tools read the latest
+  mode dynamically; `bash` no longer participates in approval.
 - In either non-full-access mode, a missing approval callback must safely deny any required escape.
-- `delegate-approval` keeps sandbox-first execution and delegates the decision through the approval
-  callback. The Work App may use AI review, but Core must never auto-approve this mode.
-- `full-access` bypasses Willow sandbox and workspace-write authorization, but never claims to
-  bypass operating-system permissions.
-- Sandboxed modes currently support macOS only. On other platforms, Agent Harness creation must
-  fail clearly; `full-access` must remain usable.
+- `delegate-approval` delegates the outside-boundary decision through the approval callback. The
+  Work App may use AI review, but Core must never auto-approve this mode.
+- `full-access` bypasses Willow workspace-write and read authorization, but never claims to bypass
+  operating-system permissions.
+- Non-full-access modes are platform-independent now that `bash` is no longer sandboxed.
 
 ## Tool Authorization Boundaries
 
 ### `bash`
 
-- In `request-approval` and `delegate-approval`, execute the complete command with macOS
-  `sandbox-exec` through `@carderne/sandbox-runtime`.
-- Deny reads below the user home directory by default, then re-allow the canonical workspace,
-  system temporary directory, the global skills directory derived from `agentDir`, and explicitly
-  configured or one-call-approved paths.
-- Write only below the canonical workspace, system temporary directory, the global skills
-  directory derived from `agentDir`, and explicitly configured or one-call-approved paths.
-  Sensitive write patterns must remain hard-blocked.
-- Route network traffic through the runtime proxy and enforce exact-domain allowlists.
-- When a blocked domain or identifiable write path is approved, add only that resource to the
-  current tool call's in-memory grants and rerun the complete command inside the expanded sandbox.
-- Never turn an unknown sandbox denial into an unsandboxed retry.
-- Set `mayHavePartialEffects` on that approval because the first run may already have changed files
-  inside the workspace.
-- Do not parse shell syntax to pre-authorize individual subcommands.
+- `bash` runs the command directly with `/bin/bash -lc` in every permission mode. It does not run
+  inside a sandbox and never triggers approval, so `permissionMode` and `sandboxPolicy` do not
+  affect its execution.
 - Abort and timeout must terminate the spawned process group.
 - Stream combined stdout/stderr updates. Return at most the last 2000 lines or 50KB and retain the
   complete output in a temporary log when truncated.
 
-Any change that broadens the sandbox profile, bypasses sandbox-first execution, changes denial
-detection, or weakens process termination is security-sensitive and requires corresponding tests
-and documentation updates.
+Any change that weakens process termination or changes how `bash` is spawned is
+security-sensitive and requires corresponding tests and documentation updates.
 
 ### `write` and `edit`
 
@@ -112,16 +99,18 @@ approval. Canonicalize paths so symlink escapes cannot bypass the boundary.
 
 ## Approval and Error Semantics
 
-- Approval reasons include `outside-workspace-read`, `outside-workspace-write`, and
-  `network-domain`. `sandbox-denied` remains a legacy public value but must not trigger a generic
-  unsandboxed retry.
+- Approval reasons that are still produced are `outside-workspace-read` and
+  `outside-workspace-write`. The sandbox-oriented reasons (`network-domain`,
+  `application-launch`, `executable-install`, `process-inspection`, `local-network-listen`,
+  `interactive-terminal`, and `sandbox-denied`) remain valid public values only for parsing and
+  displaying legacy pending approvals from older sessions; no tool produces them anymore.
 - Include the original tool input, tool name, call ID, and a user-displayable command or path in
   every approval request.
 - A denial must fail the current tool call without granting later calls.
 - Propagate AbortSignal through tool execution and approval waiting.
 - Reject invalid numeric parameters such as non-positive limits/timeouts before execution.
 - Return structured tool details needed by the Work App summaries: paths, actual line counts,
-  match/result counts, exit code, sandbox state, truncation metadata, and edit diff statistics.
+  match/result counts, exit code, truncation metadata, and edit diff statistics.
 - Do not expose a successful result when a shell command exits nonzero or an operation was aborted.
 
 ## Testing Requirements
@@ -135,14 +124,10 @@ pnpm --filter @willow/core test
 For tool or permission changes, cover the affected branches, including as applicable:
 
 - all three permission modes;
-- sandbox success, denial, delegated approval, rejection, and approved rerun;
+- direct `bash` execution: output, nonzero exit, timeout, abort, and truncation;
 - missing approval callbacks and abort cleanup;
-- macOS and non-macOS behavior;
 - workspace, outside-workspace, nonexistent, and symlink-escape paths;
 - argument validation, truncation, binary skipping, `.gitignore`, and deterministic limits;
-- exact-edit failures, BOM/newline preservation, diff and line statistics;
-- a real macOS `sandbox-exec` integration test for workspace writes, outside writes, and network
-  denial when sandbox behavior changes.
+- exact-edit failures, BOM/newline preservation, diff and line statistics.
 
-Also run repository typechecking and linting for public API or cross-package changes. Tests that
-invoke real `sandbox-exec` may need to run outside an enclosing development sandbox.
+Also run repository typechecking and linting for public API or cross-package changes.

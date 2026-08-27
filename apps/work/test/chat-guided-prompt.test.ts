@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   getUserConfig: vi.fn(),
   removeEventListener: vi.fn(),
   resolveToolApproval: vi.fn(),
+  setPermissionMode: vi.fn(async (request) => request),
   waitUntilReady: vi.fn(),
 }));
 
@@ -22,6 +23,7 @@ vi.mock("@/lib/ipc", () => ({
     getSessionList: mocks.getSessionList,
     getUserConfig: mocks.getUserConfig,
     resolveToolApproval: mocks.resolveToolApproval,
+    setPermissionMode: mocks.setPermissionMode,
   },
 }));
 

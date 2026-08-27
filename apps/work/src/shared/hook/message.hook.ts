@@ -3,6 +3,8 @@ import type {
   GetMessageListResponse,
   SendMessageRequest,
   SendMessageResponse,
+  SetPermissionModeRequest,
+  SetPermissionModeResponse,
   ResolveToolApprovalRequest,
   ResolveToolApprovalResponse,
   ResolveUserQuestionRequest,
@@ -13,6 +15,7 @@ import type {
 
 export interface IMessageApi {
   sendMessage(request: SendMessageRequest): Promise<SendMessageResponse>;
+  setPermissionMode(request: SetPermissionModeRequest): Promise<SetPermissionModeResponse>;
   stopMessage(request: StopMessageRequest): Promise<StopMessageResponse>;
   getMessageList(request: GetMessageListRequest): Promise<GetMessageListResponse>;
   resolveToolApproval(request: ResolveToolApprovalRequest): Promise<ResolveToolApprovalResponse>;

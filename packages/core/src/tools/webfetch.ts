@@ -71,15 +71,8 @@ HTTP URLs are upgraded to HTTPS. The default format is Markdown. Responses are l
     context.signal?.addEventListener("abort", abortListener, { once: true });
 
     try {
-      const approvedDomains = new Set<string>();
       const initialUrl = parseHttpUrl(context.input.url);
-      const fetched = await this.fetchFollowingRedirects(
-        context,
-        initialUrl,
-        format,
-        approvedDomains,
-        controller.signal,
-      );
+      const fetched = await this.fetchFollowingRedirects(initialUrl, format, controller.signal);
       const contentType = fetched.response.headers.get("content-type") ?? "";
       const content = await readResponseText(fetched.response, controller.signal);
       const title = extractTitle(content, contentType);
@@ -114,10 +107,8 @@ HTTP URLs are upgraded to HTTPS. The default format is Markdown. Responses are l
   }
 
   private async fetchFollowingRedirects(
-    context: ToolExecutionContext<WebFetchToolInput, WebFetchToolDetails>,
     initialUrl: URL,
     format: WebFetchFormat,
-    approvedDomains: Set<string>,
     signal: AbortSignal,
   ): Promise<FetchResult> {
     const headers = createHeaders(format);
@@ -126,7 +117,7 @@ HTTP URLs are upgraded to HTTPS. The default format is Markdown. Responses are l
     let wasRetried = false;
 
     while (true) {
-      await this.authorizeDomain(context, currentUrl, approvedDomains, redirectCount > 0);
+      this.checkDeniedDomain(currentUrl);
       let response = await fetch(currentUrl, {
         signal,
         headers,
@@ -162,29 +153,12 @@ HTTP URLs are upgraded to HTTPS. The default format is Markdown. Responses are l
     }
   }
 
-  private async authorizeDomain(
-    context: ToolExecutionContext<WebFetchToolInput, WebFetchToolDetails>,
-    url: URL,
-    approvedDomains: Set<string>,
-    mayHavePartialEffects: boolean,
-  ): Promise<void> {
-    if (this.options.permissionMode === "full-access") return;
-
+  private checkDeniedDomain(url: URL): void {
     const hostname = normalizeHostname(url.hostname);
     const deniedDomains = normalizedDomains(this.options.sandboxPolicy?.deniedDomains);
     if (deniedDomains.has(hostname)) {
       throw new Error(`Network domain is denied by policy: ${hostname}`);
     }
-
-    const allowedDomains = normalizedDomains(this.options.sandboxPolicy?.allowedDomains);
-    if (allowedDomains.has(hostname) || approvedDomains.has(hostname)) return;
-
-    await this.requestPermission(context, {
-      reason: "network-domain",
-      display: hostname,
-      mayHavePartialEffects,
-    });
-    approvedDomains.add(hostname);
   }
 }
 

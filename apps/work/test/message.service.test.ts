@@ -8,6 +8,7 @@ import type { WorkspaceDao } from "../src/main/service/dao/workspace.dao.server"
 import type { EventService } from "../src/main/service/event.service";
 import type { LocalFileService } from "../src/main/service/local-file.service";
 import { MessageService } from "../src/main/service/message.service";
+import { PermissionModeService } from "../src/main/service/permission-mode.service";
 import type { SessionService } from "../src/main/service/session.service";
 import type { TitleService } from "../src/main/service/title.service";
 import type { ToolApprovalService } from "../src/main/service/tool-approval.service";
@@ -139,12 +140,14 @@ describe("MessageService", () => {
   } as unknown as TurnArtifactService;
 
   let service: MessageService;
+  let permissionModeService: PermissionModeService;
 
   it("loads an AgentHarness with the persisted-session continuation API", () => {
     expect(AgentHarness.prototype.continue).toBeTypeOf("function");
   });
 
   beforeEach(() => {
+    permissionModeService = new PermissionModeService();
     service = new MessageService(
       sessionService,
       agentService,
@@ -156,6 +159,7 @@ describe("MessageService", () => {
       toolApprovalService,
       userQuestionService,
       turnArtifactService,
+      permissionModeService,
     );
     findById.mockReturnValue({
       id: 1,
@@ -213,6 +217,7 @@ describe("MessageService", () => {
       agentMode: "default",
       sandboxPolicy: { allowWrite: [] },
       permissionMode: "request-approval",
+      getPermissionMode: expect.any(Function),
       requestApproval: expect.any(Function),
       requestUser: expect.any(Function),
     });
@@ -728,17 +733,74 @@ describe("MessageService", () => {
     });
   });
 
+  it("passes a static Bash snapshot and a live non-Bash permission provider", async () => {
+    permissionModeService.set(1, "session", "request-approval");
+    getAgentHarness.mockResolvedValue(createHarness().harness);
+
+    await service.sendMessage({
+      workspaceId: 1,
+      sessionId: "session",
+      content: "Inspect files",
+      model: modelConfig,
+    });
+
+    const options = getAgentHarness.mock.calls.at(-1)?.[0];
+    expect(options?.permissionMode).toBe("request-approval");
+    expect(options?.getPermissionMode()).toBe("request-approval");
+
+    permissionModeService.set(1, "session", "full-access");
+    expect(options?.permissionMode).toBe("request-approval");
+    expect(options?.getPermissionMode()).toBe("full-access");
+
+    requestApproval.mockResolvedValue("allow");
+    await expect(
+      options?.requestApproval?.({
+        toolCallId: "bash-snapshot",
+        toolName: "bash",
+        input: { command: "cat /outside/file" },
+        permissionMode: "request-approval",
+        reason: "outside-workspace-read",
+        display: "/outside/file",
+      }),
+    ).resolves.toBe("allow");
+    expect(requestApproval).toHaveBeenCalledOnce();
+
+    await expect(
+      options?.requestApproval?.({
+        toolCallId: "started-before-switch",
+        toolName: "read",
+        input: { path: "/outside/file" },
+        permissionMode: "request-approval",
+        reason: "outside-workspace-read",
+        display: "/outside/file",
+      }),
+    ).resolves.toBe("allow");
+    expect(requestApproval).toHaveBeenCalledTimes(2);
+
+    await expect(
+      options?.requestApproval?.({
+        toolCallId: "dynamic-read",
+        toolName: "read",
+        input: { path: "/outside/file" },
+        permissionMode: "full-access",
+        reason: "outside-workspace-read",
+        display: "/outside/file",
+      }),
+    ).resolves.toBe("allow");
+    expect(requestApproval).toHaveBeenCalledTimes(2);
+  });
+
   it("uses AI approval for delegated escapes and skips the user dialog when approved", async () => {
     const harness = createHarness();
     getAgentHarness.mockResolvedValue(harness.harness);
     review.mockResolvedValue({ status: "approved", reason: "Matches the current task." });
 
+    permissionModeService.set(1, "session", "delegate-approval");
     await service.sendMessage({
       workspaceId: 1,
       sessionId: "session",
       content: "Install the requested package",
       model: modelConfig,
-      approvalMode: "delegate-approval",
     });
     const handler = getAgentHarness.mock.calls.at(-1)?.[0].requestApproval;
     const decision = await handler?.({
@@ -766,12 +828,12 @@ describe("MessageService", () => {
     review.mockResolvedValue({ status: "rejected", reason: "The command is too broad." });
     requestApproval.mockResolvedValue("allow");
 
+    permissionModeService.set(1, "session", "delegate-approval");
     await service.sendMessage({
       workspaceId: 1,
       sessionId: "session",
       content: "Clean generated files",
       model: modelConfig,
-      approvalMode: "delegate-approval",
     });
     const handler = getAgentHarness.mock.calls.at(-1)?.[0].requestApproval;
     const toolRequest = {
@@ -989,6 +1051,55 @@ describe("MessageService", () => {
     );
   });
 
+  it("continues with a removed-tool error for an allowed legacy process approval", async () => {
+    const appendMessage = vi.fn(async () => undefined);
+    const continueRun = vi.fn(async () => assistantMessage);
+    const getTools = vi.fn(() => []);
+    const recoveredHarness = createHarness();
+    Object.assign(recoveredHarness.harness as object, {
+      appendMessage,
+      continue: continueRun,
+      getTools,
+    });
+    getAgentHarness.mockResolvedValue(recoveredHarness.harness);
+    const approval = {
+      model: modelConfig,
+      permissionMode: "request-approval" as const,
+      userMessage: "Inspect host processes",
+      payload: {
+        approvalId: "approval-legacy-process",
+        workspaceId: 1,
+        sessionId: "session",
+        toolCallId: "call-legacy-process",
+        toolName: "processList" as never,
+        input: {},
+        reason: "process-inspection" as const,
+        display: "host processes",
+      },
+    };
+    resolveApproval.mockResolvedValue({ approval, live: false });
+
+    await expect(
+      service.resolveToolApproval({
+        approvalId: approval.payload.approvalId,
+        workspaceId: approval.payload.workspaceId,
+        sessionId: approval.payload.sessionId,
+        decision: "allow",
+      }),
+    ).resolves.toBe(true);
+
+    await vi.waitFor(() => expect(continueRun).toHaveBeenCalledOnce());
+    expect(getTools).toHaveBeenCalledOnce();
+    expect(appendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "toolResult",
+        toolCallId: "call-legacy-process",
+        isError: true,
+        content: [{ type: "text", text: "工具已移除：processList" }],
+      }),
+    );
+  });
+
   it("bypasses AI in request-approval mode and denies aborted delegated reviews", async () => {
     const harness = createHarness();
     getAgentHarness.mockResolvedValue(harness.harness);
@@ -999,7 +1110,6 @@ describe("MessageService", () => {
       sessionId: "session",
       content: "Run command",
       model: modelConfig,
-      approvalMode: "request-approval",
     });
     const requestHandler = getAgentHarness.mock.calls.at(-1)?.[0].requestApproval;
     const toolRequest = {

@@ -8,7 +8,6 @@ import { createFindTool } from "./find.js";
 import { createGrepTool } from "./grep.js";
 import { createListAutomationsTool } from "./list-automations.js";
 import { createLsTool } from "./ls.js";
-import { createProcessListTool } from "./process-list.js";
 import { createReadTool } from "./read.js";
 import { createTodoListTool } from "./todo-list.js";
 import type { ToolRuntimeOptions } from "./types.js";
@@ -43,7 +42,6 @@ export function createWillowTools(options: ToolRuntimeOptions): AgentTool[] {
     createLsTool(options),
     createGrepTool(options),
     createFindTool(options),
-    createProcessListTool(options),
     createTodoListTool(options),
     createWebFetchTool(options),
   ];
@@ -66,8 +64,8 @@ export * from "./find.js";
 export * from "./grep.js";
 export * from "./ls.js";
 export * from "./list-automations.js";
+export * from "./directory-access.js";
 export * from "./policy.js";
-export * from "./process-list.js";
 export * from "./read.js";
 export * from "./todo-list.js";
 export * from "./update-automation.js";

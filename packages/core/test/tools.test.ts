@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -9,7 +9,6 @@ import {
   createFindTool,
   createGrepTool,
   createLsTool,
-  createProcessListTool,
   createReadTool,
   createWillowTools,
   createWriteTool,
@@ -44,7 +43,7 @@ afterEach(async () => {
 describe("filesystem tools", () => {
   it("creates every built-in tool through ToolBase-backed factories", () => {
     const tools = createWillowTools({ cwd: process.cwd(), permissionMode: "full-access" });
-    expect(tools).toHaveLength(15);
+    expect(tools).toHaveLength(14);
     expect(tools.every((tool) => tool instanceof ToolBase)).toBe(true);
   });
 
@@ -746,313 +745,143 @@ describe("filesystem tools", () => {
     });
     expect(await readFile(join(cwd, ".env.local"), "utf8")).toBe("SECRET=value\n");
   });
+
+  it("reads the latest permission mode for every non-bash file tool call", async () => {
+    const root = await workspaceTemporaryDirectory(".willow-dynamic-permission-");
+    const cwd = join(root, "workspace");
+    const outside = join(root, "outside.txt");
+    await mkdir(cwd);
+    await writeFile(outside, "outside", "utf8");
+    let mode: "request-approval" | "delegate-approval" | "full-access" = "request-approval";
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+    const read = createReadTool({
+      cwd,
+      permissionMode: "request-approval",
+      getPermissionMode: () => mode,
+      requestApproval,
+    });
+
+    await expect(read.execute("request", { path: outside })).rejects.toThrow(
+      "Permission denied for read",
+    );
+    mode = "full-access";
+    await expect(read.execute("full", { path: outside })).resolves.toMatchObject({
+      content: [{ type: "text", text: "outside" }],
+    });
+    mode = "delegate-approval";
+    requestApproval.mockResolvedValueOnce("allow");
+    await expect(read.execute("delegate", { path: outside })).resolves.toMatchObject({
+      content: [{ type: "text", text: "outside" }],
+    });
+    expect(requestApproval).toHaveBeenCalledTimes(2);
+    expect(requestApproval.mock.calls.map(([request]) => request.permissionMode)).toEqual([
+      "request-approval",
+      "delegate-approval",
+    ]);
+  });
 });
 
 describe("bash tool", () => {
-  it("denies process listing before execution when approval is unavailable or rejected", async () => {
-    const cwd = await temporaryDirectory("willow-process-list-denied-");
-    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
-
-    await expect(
-      createProcessListTool({
-        cwd,
-        permissionMode: "request-approval",
-        requestApproval,
-      }).execute("process-list-denied", {}),
-    ).rejects.toThrow("Permission denied for processList");
-    await expect(
-      createProcessListTool({ cwd, permissionMode: "delegate-approval" }).execute(
-        "process-list-unhandled",
-        {},
-      ),
-    ).rejects.toThrow("Permission denied for processList");
-    expect(requestApproval).toHaveBeenCalledTimes(1);
+  it("runs commands directly in every permission mode without approval", async () => {
+    const cwd = await temporaryDirectory("willow-bash-direct-");
+    const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
+    for (const permissionMode of [
+      "request-approval",
+      "delegate-approval",
+      "full-access",
+    ] as const) {
+      requestApproval.mockClear();
+      const onUpdate = vi.fn();
+      const result = await createBashTool({ cwd, permissionMode, requestApproval }).execute(
+        "bash-direct",
+        { command: "printf 'hello'" },
+        undefined,
+        onUpdate,
+      );
+      expect(result.content).toEqual([{ type: "text", text: "hello" }]);
+      expect(result.details).toMatchObject({
+        msg: "执行 printf 'hello'",
+        kind: "bash",
+        exitCode: 0,
+      });
+      expect(requestApproval).not.toHaveBeenCalled();
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          details: expect.objectContaining({ msg: "执行 printf 'hello'", kind: "bash" }),
+        }),
+      );
+    }
   });
 
-  it("executes commands directly in full-access mode", async () => {
-    const cwd = await temporaryDirectory("willow-bash-full-");
-    const onUpdate = vi.fn();
+  it("runs an interactive command as a no-op option", async () => {
+    const cwd = await temporaryDirectory("willow-bash-interactive-");
     const result = await createBashTool({ cwd, permissionMode: "full-access" }).execute(
-      "bash-full",
-      { command: "printf 'hello'" },
-      undefined,
-      onUpdate,
+      "bash-interactive",
+      { command: "printf 'interactive'", interactive: true },
     );
-    expect(result.content).toEqual([{ type: "text", text: "hello" }]);
-    expect(result.details).toMatchObject({
-      msg: "执行 printf 'hello'",
-      kind: "bash",
-      sandboxed: false,
-      exitCode: 0,
-    });
-    expect(onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        details: expect.objectContaining({ msg: "执行 printf 'hello'", kind: "bash" }),
-      }),
-    );
+    expect(result.content).toEqual([{ type: "text", text: "interactive" }]);
   });
 
-  it.runIf(process.platform === "darwin")(
-    "executes safe commands through sandbox-exec",
-    async () => {
-      const cwd = await temporaryDirectory("willow-bash-sandbox-");
-      const result = await createBashTool({ cwd, permissionMode: "request-approval" }).execute(
-        "bash-sandbox",
-        { command: "printf 'sandboxed'" },
-      );
-      expect(result.content).toEqual([{ type: "text", text: "sandboxed" }]);
-      expect(result.details).toMatchObject({ kind: "bash", sandboxed: true, exitCode: 0 });
-    },
-  );
+  it("throws on a failing command with its exit code", async () => {
+    const cwd = await temporaryDirectory("willow-bash-failure-");
+    await expect(
+      createBashTool({ cwd, permissionMode: "request-approval" }).execute("bash-failure", {
+        command: "exit 3",
+      }),
+    ).rejects.toThrow("Command exited with code 3");
+  });
 
-  it.runIf(process.platform === "darwin")(
-    "reads and writes /tmp through sandbox-exec without approval",
-    async () => {
-      const cwd = await temporaryDirectory("willow-bash-slash-tmp-");
-      const slashTmpDirectory = await mkdtemp("/tmp/willow-bash-sandbox-");
-      temporaryDirectories.push(slashTmpDirectory);
-      const outputPath = join(slashTmpDirectory, "output.txt");
-      const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
+  it("times out a long-running command", async () => {
+    const cwd = await temporaryDirectory("willow-bash-timeout-");
+    await expect(
+      createBashTool({ cwd, permissionMode: "full-access" }).execute("bash-timeout", {
+        command: "sleep 5",
+        timeout: 0.1,
+      }),
+    ).rejects.toThrow("Command timed out after 0.1 seconds");
+  });
 
-      const result = await createBashTool({
-        cwd,
-        permissionMode: "request-approval",
-        requestApproval,
-      }).execute("bash-slash-tmp", {
-        command: `printf 'temporary' > ${JSON.stringify(outputPath)} && cat ${JSON.stringify(outputPath)}`,
-      });
+  it("aborts a running command on AbortSignal", async () => {
+    const cwd = await temporaryDirectory("willow-bash-abort-");
+    const controller = new AbortController();
+    const pending = createBashTool({ cwd, permissionMode: "full-access" }).execute(
+      "bash-abort",
+      { command: "sleep 5" },
+      controller.signal,
+    );
+    controller.abort();
+    await expect(pending).rejects.toThrow("Operation aborted");
+  });
 
-      expect(result.content).toEqual([{ type: "text", text: "temporary" }]);
-      expect(await readFile(outputPath, "utf8")).toBe("temporary");
-      expect(requestApproval).not.toHaveBeenCalled();
-    },
-  );
+  it("rejects an invalid timeout before execution", async () => {
+    const cwd = await temporaryDirectory("willow-bash-invalid-timeout-");
+    await expect(
+      createBashTool({ cwd, permissionMode: "full-access" }).execute("bash-invalid-timeout", {
+        command: "printf 'hi'",
+        timeout: 0,
+      }),
+    ).rejects.toThrow("Invalid timeout");
+  });
 
-  it.runIf(process.platform === "darwin")(
-    "approves an outside read and retries through sandbox-exec",
-    async () => {
-      const root = await workspaceTemporaryDirectory(".willow-sandbox-read-");
-      const cwd = join(root, "workspace");
-      const outside = join(root, "outside.txt");
-      await mkdir(cwd);
-      await writeFile(outside, "outside", "utf8");
-      const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
-
-      const result = await createBashTool({
-        cwd,
-        permissionMode: "request-approval",
-        requestApproval,
-      }).execute("bash-outside-read", { command: `cat ${JSON.stringify(outside)}` });
-
-      expect(result.content).toEqual([{ type: "text", text: "outside" }]);
-      expect(requestApproval).toHaveBeenCalledWith(
-        expect.objectContaining({
-          reason: "outside-workspace-read",
-          display: outside,
-          mayHavePartialEffects: true,
-        }),
-        undefined,
-      );
-    },
-  );
-
-  it.runIf(process.platform === "darwin")(
-    "lists processes through the fixed read-only command after approval",
-    async () => {
-      const cwd = await temporaryDirectory("willow-process-list-");
-      const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
-
-      const result = await createProcessListTool({
-        cwd,
-        permissionMode: "request-approval",
-        requestApproval,
-      }).execute("process-list", {
-        filter: "vitest",
-        limit: 5,
-      });
-
-      expect(result.content[0]).toMatchObject({ type: "text" });
-      expect(requestApproval).toHaveBeenCalledWith(
-        expect.objectContaining({
-          toolCallId: "process-list",
-          toolName: "processList",
-          reason: "process-inspection",
-          display: "/bin/ps -axo pid=,ppid=,user=,etime=,command=",
-        }),
-        undefined,
-      );
-      expect(result.details).toMatchObject({ kind: "processList", filter: "vitest" });
-    },
-  );
-
-  it.runIf(process.platform === "darwin")(
-    "approves loopback binding without broadening the domain allowlist",
-    async () => {
-      const cwd = await temporaryDirectory("willow-bash-local-binding-");
-      const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
-      const command =
-        '/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -c \'import socket; server=socket.socket(); server.bind(("127.0.0.1", 0)); print("bound", end=""); server.close()\'';
-
-      const result = await createBashTool({
-        cwd,
-        permissionMode: "request-approval",
-        requestApproval,
-      }).execute("bash-local-binding", { command });
-
-      expect(result.content).toEqual([{ type: "text", text: "bound" }]);
-      expect(requestApproval).toHaveBeenCalledWith(
-        expect.objectContaining({ reason: "local-network-listen" }),
-        undefined,
-      );
-    },
-  );
-
-  it.runIf(process.platform === "darwin")(
-    "approves pseudo-terminal access only for an interactive command",
-    async () => {
-      const cwd = await temporaryDirectory("willow-bash-interactive-");
-      const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
-
-      const result = await createBashTool({
-        cwd,
-        permissionMode: "request-approval",
-        requestApproval,
-      }).execute("bash-interactive", {
-        command: "test -t 0 && printf 'tty'",
-        interactive: true,
-      });
-
-      expect(result.content[0]).toMatchObject({ type: "text" });
-      expect(result.content[0].type === "text" ? result.content[0].text : "").toContain("tty");
-      expect(requestApproval).toHaveBeenCalledWith(
-        expect.objectContaining({ reason: "interactive-terminal" }),
-        undefined,
-      );
-    },
-  );
-
-  it.runIf(process.platform === "darwin")(
-    "requests approval for a domain denied by the real sandbox proxy",
-    async () => {
-      const cwd = await temporaryDirectory("willow-bash-network-approval-");
-      const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
-
-      await expect(
-        createBashTool({
-          cwd,
-          permissionMode: "request-approval",
-          requestApproval,
-        }).execute("bash-network-approval", {
-          command: "curl -fsS --connect-timeout 5 https://example.com",
-        }),
-      ).rejects.toThrow("Permission denied");
-      expect(requestApproval).toHaveBeenCalledWith(
-        expect.objectContaining({
-          toolCallId: "bash-network-approval",
-          reason: "network-domain",
-          display: "example.com",
-          mayHavePartialEffects: true,
-        }),
-        undefined,
-      );
-    },
-  );
-
-  const globalSkillsDirectory = join(homedir(), ".willow", "skills");
-  it.runIf(process.platform === "darwin" && existsSync(globalSkillsDirectory))(
-    "reads the global Willow skills directory through sandbox-exec",
-    async () => {
-      const cwd = await temporaryDirectory("willow-bash-global-skills-");
-      const result = await createBashTool({
-        cwd,
-        agentDir: ".willow",
-        permissionMode: "request-approval",
-      }).execute("bash-global-skills", {
-        command: `test -r ${JSON.stringify(globalSkillsDirectory)} && printf 'skills-readable'`,
-      });
-
-      expect(result.content).toEqual([{ type: "text", text: "skills-readable" }]);
-      expect(result.details).toMatchObject({ kind: "bash", sandboxed: true, exitCode: 0 });
-    },
-  );
-
-  it.runIf(process.platform === "darwin")(
-    "writes custom global skills through sandbox-exec",
-    async () => {
-      const root = await workspaceTemporaryDirectory(".willow-global-skills-write-");
-      const cwd = join(root, "workspace");
-      const agentDir = join(root, "global-agent");
-      const skillsDirectory = join(agentDir, "skills");
-      const skillPath = join(skillsDirectory, "custom", "SKILL.md");
-      await mkdir(cwd);
-      await mkdir(skillsDirectory, { recursive: true });
-      const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
-
-      const result = await createBashTool({
-        cwd,
-        agentDir,
-        permissionMode: "request-approval",
-        requestApproval,
-      }).execute("bash-write-global-skill", {
-        command: `mkdir -p ${JSON.stringify(join(skillsDirectory, "custom"))} && printf 'name: custom\\n' > ${JSON.stringify(skillPath)}`,
-      });
-
-      expect(result.details).toMatchObject({ kind: "bash", sandboxed: true, exitCode: 0 });
-      expect(await readFile(skillPath, "utf8")).toBe("name: custom\n");
-      expect(requestApproval).not.toHaveBeenCalled();
-    },
-  );
-
-  it.runIf(process.platform === "darwin")(
-    "requests, delegates, and bypasses approval for sandbox escapes",
-    async () => {
-      const root = await workspaceTemporaryDirectory(".willow-sandbox-");
-      const cwd = join(root, "workspace");
-      await mkdir(cwd);
-      const requestApproval = vi.fn<ToolApprovalHandler>(async () => "deny");
-      const command = "printf 'outside' > ../outside.txt";
-
-      await expect(
-        createBashTool({
-          cwd,
-          permissionMode: "request-approval",
-          requestApproval,
-        }).execute("request", { command }),
-      ).rejects.toThrow("Permission denied");
-      expect(requestApproval).toHaveBeenCalledWith(
-        expect.objectContaining({
-          reason: "outside-workspace-write",
-          mayHavePartialEffects: true,
-        }),
-        undefined,
-      );
-
-      const delegatedApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
-      const delegated = await createBashTool({
-        cwd,
-        permissionMode: "delegate-approval",
-        requestApproval: delegatedApproval,
-      }).execute("delegate", { command });
-      expect(delegatedApproval).toHaveBeenCalledWith(
-        expect.objectContaining({ toolCallId: "delegate", reason: "outside-workspace-write" }),
-        undefined,
-      );
-      expect(delegated.details).toMatchObject({ sandboxed: true, exitCode: 0 });
-      expect(await readFile(join(root, "outside.txt"), "utf8")).toBe("outside");
-
-      await expect(
-        createBashTool({ cwd, permissionMode: "delegate-approval" }).execute(
-          "delegate-without-handler",
-          { command },
-        ),
-      ).rejects.toThrow("Permission denied");
-
-      await createBashTool({ cwd, permissionMode: "full-access" }).execute("full", {
-        command: "printf 'full' > ../outside.txt",
-      });
-      expect(await readFile(join(root, "outside.txt"), "utf8")).toBe("full");
-    },
-  );
+  it("truncates output and keeps the full log in a temporary file", async () => {
+    const cwd = await temporaryDirectory("willow-bash-truncate-");
+    const result = await createBashTool({ cwd, permissionMode: "full-access" }).execute(
+      "bash-truncate",
+      {
+        command:
+          "for i in $(seq 1 1500); do printf 'line-%s-abcdefghijklmnopqrstuvwxyz0123456789\\n' \"$i\"; done",
+      },
+    );
+    expect(result.details).toMatchObject({
+      kind: "bash",
+      exitCode: 0,
+      truncation: expect.objectContaining({ truncated: true }),
+    });
+    const details = result.details;
+    if (details.kind === "bash") {
+      expect(details.fullOutputPath).toBeTruthy();
+    }
+  });
 });
 
 describe("search tools", () => {

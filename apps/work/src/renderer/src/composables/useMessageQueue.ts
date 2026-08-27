@@ -2,7 +2,6 @@ import type {
   AgentMode,
   ModelConfig,
   LocalFileAttachment,
-  PermissionMode,
   SendMessageRequest,
   StopMessageRequest,
 } from "@shared/api";
@@ -15,7 +14,6 @@ export interface QueuedMessagePayload {
   attachments?: LocalFileAttachment[];
   model: ModelConfig;
   agentMode?: AgentMode;
-  approvalMode?: PermissionMode;
   reasoningEffort?: string;
 }
 
@@ -126,7 +124,6 @@ export function createMessageQueueState(
         content: nextMessage.payload.content,
         model: nextMessage.payload.model,
         agentMode: nextMessage.payload.agentMode,
-        approvalMode: nextMessage.payload.approvalMode,
         attachments: nextMessage.payload.attachments,
       });
     } catch (error) {

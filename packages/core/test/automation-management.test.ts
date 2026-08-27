@@ -6,7 +6,6 @@ import {
   type DeleteAutomationHandler,
   type ListAutomationsHandler,
   type ToolApprovalHandler,
-  type ToolApprovalRequest,
   type UpdateAutomationHandler,
 } from "../src/index.js";
 
@@ -100,7 +99,7 @@ describe("updateAutomation tool", () => {
     }));
   }
 
-  it("updates after approval and reports the changed automation", async () => {
+  it("updates directly and reports the changed automation", async () => {
     const requestApproval = approvalHandler();
     const updateAutomation = successfulHandler();
     const tool = createUpdateAutomationTool({
@@ -112,14 +111,7 @@ describe("updateAutomation tool", () => {
 
     const result = await tool.execute("update-1", input);
 
-    const request = requestApproval.mock.calls[0]?.[0] as ToolApprovalRequest;
-    expect(request).toMatchObject({
-      toolCallId: "update-1",
-      toolName: "updateAutomation",
-      reason: "automation-update",
-    });
-    expect(request.display).toContain("#7");
-    expect(request.display).toContain("0 10 * * *");
+    expect(requestApproval).not.toHaveBeenCalled();
     expect(updateAutomation).toHaveBeenCalledWith(input);
     expect(result.details).toMatchObject({
       kind: "updateAutomation",
@@ -128,42 +120,22 @@ describe("updateAutomation tool", () => {
     });
   });
 
-  it.each(["request-approval", "delegate-approval"] as const)(
-    "does not update when %s approval is denied",
+  it.each(["request-approval", "delegate-approval", "full-access"] as const)(
+    "does not consult approval in %s mode",
     async (permissionMode) => {
       const updateAutomation = successfulHandler();
+      const requestApproval = approvalHandler("deny");
       const tool = createUpdateAutomationTool({
         cwd,
         permissionMode,
-        requestApproval: approvalHandler("deny"),
+        requestApproval,
         updateAutomation,
       });
-      await expect(tool.execute("update-denied", input)).rejects.toThrow(/denied|拒绝/i);
-      expect(updateAutomation).not.toHaveBeenCalled();
+      await expect(tool.execute("update-direct", input)).resolves.toBeDefined();
+      expect(requestApproval).not.toHaveBeenCalled();
+      expect(updateAutomation).toHaveBeenCalledOnce();
     },
   );
-
-  it("uses delegated approval and skips approval in full-access mode", async () => {
-    const delegatedApproval = approvalHandler();
-    const delegated = createUpdateAutomationTool({
-      cwd,
-      permissionMode: "delegate-approval",
-      requestApproval: delegatedApproval,
-      updateAutomation: successfulHandler(),
-    });
-    await delegated.execute("update-delegated", input);
-    expect(delegatedApproval).toHaveBeenCalledTimes(1);
-
-    const fullApproval = approvalHandler();
-    const full = createUpdateAutomationTool({
-      cwd,
-      permissionMode: "full-access",
-      requestApproval: fullApproval,
-      updateAutomation: successfulHandler(),
-    });
-    await full.execute("update-full", input);
-    expect(fullApproval).not.toHaveBeenCalled();
-  });
 
   it("validates input before approval", async () => {
     const requestApproval = approvalHandler();
@@ -234,7 +206,7 @@ describe("deleteAutomation tool", () => {
     }));
   }
 
-  it("deletes after approval and describes the destructive scope", async () => {
+  it("deletes directly and reports the result", async () => {
     const requestApproval = approvalHandler();
     const deleteAutomation = successfulHandler();
     const tool = createDeleteAutomationTool({
@@ -246,31 +218,24 @@ describe("deleteAutomation tool", () => {
 
     const result = await tool.execute("delete-1", { automationId: 9 });
 
-    const request = requestApproval.mock.calls[0]?.[0] as ToolApprovalRequest;
-    expect(request).toMatchObject({
-      toolCallId: "delete-1",
-      toolName: "deleteAutomation",
-      reason: "automation-delete",
-    });
-    expect(request.display).toContain("执行历史");
-    expect(request.display).toContain("聊天会话");
+    expect(requestApproval).not.toHaveBeenCalled();
     expect(result.details).toMatchObject({ kind: "deleteAutomation", automationId: 9 });
   });
 
-  it.each(["request-approval", "delegate-approval"] as const)(
-    "does not delete when %s approval is denied",
+  it.each(["request-approval", "delegate-approval", "full-access"] as const)(
+    "does not consult approval in %s mode",
     async (permissionMode) => {
       const deleteAutomation = successfulHandler();
+      const requestApproval = approvalHandler("deny");
       const tool = createDeleteAutomationTool({
         cwd,
         permissionMode,
-        requestApproval: approvalHandler("deny"),
+        requestApproval,
         deleteAutomation,
       });
-      await expect(tool.execute("delete-denied", { automationId: 9 })).rejects.toThrow(
-        /denied|拒绝/i,
-      );
-      expect(deleteAutomation).not.toHaveBeenCalled();
+      await expect(tool.execute("delete-direct", { automationId: 9 })).resolves.toBeDefined();
+      expect(requestApproval).not.toHaveBeenCalled();
+      expect(deleteAutomation).toHaveBeenCalledOnce();
     },
   );
 

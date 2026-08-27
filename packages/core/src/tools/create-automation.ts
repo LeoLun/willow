@@ -90,7 +90,7 @@ Rules and constraints:
 - The prompt runs unattended: tool approvals use the AI reviewer and cannot ask the user.
 - When timezone is omitted, the user's system timezone is recorded.
 - When model is omitted, the automation follows the user's default model at run time.
-- This call requires approval because it creates a persistent, recurring task.`;
+- Creating the automation is a direct tool action and does not request a separate tool approval.`;
   readonly parameters = createAutomationSchema;
 
   constructor(options: ToolRuntimeOptions) {
@@ -117,18 +117,6 @@ Rules and constraints:
       return new Error("model must include non-empty providerId and modelId");
     }
     return undefined;
-  }
-
-  protected override async checkPermission(
-    context: ToolExecutionContext<CreateAutomationToolInput, CreateAutomationToolDetails>,
-  ): Promise<void> {
-    if (this.options.permissionMode === "full-access") return;
-    const { title, cronExpression, prompt } = context.input;
-    const summary = title?.trim() || prompt.replace(/\s+/g, " ").trim().slice(0, 24);
-    await this.requestPermission(context, {
-      reason: "automation-create",
-      display: `创建定时任务：${cronExpression.trim()}（${summary}）`,
-    });
   }
 
   protected override async run(

@@ -7,12 +7,7 @@ import type {
 import type { Static, TSchema } from "typebox";
 import { Errors } from "typebox/value";
 import { authorize, throwIfAborted } from "./shared.js";
-import type {
-  BaseDetails,
-  ToolApprovalReason,
-  ToolName,
-  ToolRuntimeOptions,
-} from "./types.js";
+import type { BaseDetails, ToolApprovalReason, ToolName, ToolRuntimeOptions } from "./types.js";
 
 export type ToolExecutionContext<TInput, TDetails> = {
   toolCallId: string;
@@ -113,8 +108,6 @@ export abstract class ToolBase<
     const error = Errors(this.parameters, input)[0];
     if (!error) return;
     const path = error.instancePath || "/";
-    throw new Error(
-      `Invalid parameters for ${this.name}: ${path} ${error.message}`,
-    );
+    throw new Error(`Invalid parameters for ${this.name}: ${path} ${error.message}`);
   }
 }

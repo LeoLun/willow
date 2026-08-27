@@ -86,22 +86,3 @@ export async function isSensitiveWritePath(
     return minimatch(basename(canonicalPath), pattern, { dot: true, matchBase: true });
   });
 }
-
-export function sandboxDenyWritePatterns(
-  cwd: string,
-  policy?: SandboxPolicy,
-  additionalWritableRoots: readonly string[] = [],
-): string[] {
-  const writableRoots = [resolve(cwd), ...additionalWritableRoots.map((root) => resolve(root))];
-  const defaultPatterns = writableRoots.flatMap((root) =>
-    DEFAULT_DENY_WRITE_PATTERNS.map((pattern) => resolve(root, "**", pattern)),
-  );
-  return [
-    ...defaultPatterns,
-    ...(policy?.denyWrite ?? []).flatMap((pattern) =>
-      pattern.includes("/") || isAbsolute(pattern) || pattern.startsWith("~")
-        ? [expandPolicyPath(cwd, pattern)]
-        : writableRoots.map((root) => resolve(root, "**", pattern)),
-    ),
-  ];
-}
