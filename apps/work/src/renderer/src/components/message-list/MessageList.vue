@@ -130,7 +130,7 @@ function turnStyle(start: number): StyleValue {
     >
       <AxolotlMascot
         :size="24"
-        expression="attentive"
+        expression="bouncing"
         class="shrink-0"
         aria-hidden="true"
         data-slot="message-list-working-mascot"

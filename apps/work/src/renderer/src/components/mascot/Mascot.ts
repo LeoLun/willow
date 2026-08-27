@@ -58,6 +58,39 @@ function createRng(seed) {
 }
 /** Arrondi court : divise par ~2 le poids des chaines de path generees a 60 fps. */
 var r2 = (v) => Math.round(v * 100) / 100;
+var BOUNCE_DURATION = 1.2;
+var BOUNCE_ANCHOR_Y = 100;
+var BOUNCE_KEYFRAMES = [
+  { progress: 0, y: 0, scaleX: 1, scaleY: 1 },
+  { progress: 0.15, y: 0, scaleX: 1.1, scaleY: 0.9 },
+  { progress: 0.28, y: -6, scaleX: 0.94, scaleY: 1.06 },
+  { progress: 0.5, y: -24, scaleX: 1, scaleY: 1 },
+  { progress: 0.7, y: -12, scaleX: 1.03, scaleY: 0.97 },
+  { progress: 0.86, y: 0, scaleX: 1.12, scaleY: 0.88 },
+  { progress: 1, y: 0, scaleX: 1, scaleY: 1 },
+];
+/**
+ * Six-pose squash-and-stretch loop, anchored at the mascot's feet so the SVG
+ * keeps its requested box and never pushes surrounding layout around.
+ */
+function bounceTransformAt(t) {
+  const progress = (((t / BOUNCE_DURATION) % 1) + 1) % 1;
+  let from = BOUNCE_KEYFRAMES[0];
+  let to = BOUNCE_KEYFRAMES[BOUNCE_KEYFRAMES.length - 1];
+  for (let i = 1; i < BOUNCE_KEYFRAMES.length; i++) {
+    if (progress <= BOUNCE_KEYFRAMES[i].progress) {
+      to = BOUNCE_KEYFRAMES[i];
+      from = BOUNCE_KEYFRAMES[i - 1];
+      break;
+    }
+  }
+  const span = to.progress - from.progress;
+  const eased = easings.easeInOutCubic(span > 0 ? (progress - from.progress) / span : 0);
+  const y = r2(lerp(from.y, to.y, eased));
+  const scaleX = r2(lerp(from.scaleX, to.scaleX, eased));
+  const scaleY = r2(lerp(from.scaleY, to.scaleY, eased));
+  return `translate(0 ${y}) translate(0 ${BOUNCE_ANCHOR_Y}) scale(${scaleX} ${scaleY}) translate(0 ${-BOUNCE_ANCHOR_Y})`;
+}
 //#endregion
 //#region src/bot/decor.ts
 /**
@@ -2476,7 +2509,7 @@ function blockAt(blocks, t) {
 }
 //#endregion
 //#region src/components/BloubBot.vue?vue&type=script&setup=true&lang.ts
-var _hoisted_1 = ["width", "height", "viewBox", "aria-label"];
+var _hoisted_1 = ["width", "height", "viewBox", "aria-label", "overflow"];
 var _hoisted_2 = ["x", "y", "width", "height"];
 var _hoisted_3 = ["d"];
 var _hoisted_4 = ["d", "transform", "opacity"];
@@ -2517,6 +2550,10 @@ var BloubBot_default = /* @__PURE__ */ defineComponent({
       frozenAt: { default: void 0 },
       cycle: { default: () => defaultCycle().blocks },
       follow: {
+        type: Boolean,
+        default: false,
+      },
+      bounce: {
         type: Boolean,
         default: false,
       },
@@ -2892,6 +2929,7 @@ var BloubBot_default = /* @__PURE__ */ defineComponent({
             viewBox: `${-unref(VB)} ${-unref(VB)} ${unref(VB) * 2} ${unref(VB) * 2}`,
             role: "img",
             "aria-label": props.ariaLabel ?? unref(t)("app.botAria"),
+            overflow: props.bounce ? "visible" : void 0,
           },
           [
             createElementVNode("defs", null, [
@@ -3010,6 +3048,13 @@ var BloubBot_default = /* @__PURE__ */ defineComponent({
                 128,
               )),
             ]),
+            createElementVNode(
+              "g",
+              {
+                transform: props.bounce ? bounceTransformAt(clock) : void 0,
+                "data-slot": "mascot-bounce-layer",
+              },
+              [
             createElementVNode("g", _hoisted_8, [
               (openBlock(true),
               createElementBlock(
@@ -3169,6 +3214,10 @@ var BloubBot_default = /* @__PURE__ */ defineComponent({
                 128,
               )),
             ]),
+              ],
+              8,
+              ["transform"],
+            ),
           ],
           8,
           _hoisted_1,
@@ -3205,6 +3254,7 @@ var AxolotlMascot_default = /* @__PURE__ */ defineComponent({
     const EXPRESSION_IDS = {
       neutral: "neutre",
       attentive: "attentif",
+      bouncing: "attentif",
       surprised: "surpris",
       excited: "excite",
       happy: "heureux",
@@ -3252,6 +3302,7 @@ var AxolotlMascot_default = /* @__PURE__ */ defineComponent({
               paper: background.value,
               expression: internalExpression.value,
               follow: props.followPointer,
+              bounce: props.expression === "bouncing" && props.animated,
               "frozen-at": props.animated ? void 0 : 1,
               "aria-label": props.ariaLabel,
             },
@@ -3265,6 +3316,7 @@ var AxolotlMascot_default = /* @__PURE__ */ defineComponent({
             "paper",
             "expression",
             "follow",
+            "bounce",
             "frozen-at",
             "aria-label",
           ],
@@ -3281,6 +3333,7 @@ var axolotl_mascot_default = AxolotlMascot_default;
 export type AxolotlExpression =
   | "neutral"
   | "attentive"
+  | "bouncing"
   | "surprised"
   | "excited"
   | "happy"

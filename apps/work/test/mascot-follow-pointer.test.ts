@@ -18,6 +18,41 @@ async function advanceAnimation(frameCount: number): Promise<void> {
   await nextTick();
 }
 
+async function advanceAnimationBy(milliseconds: number): Promise<void> {
+  if (animationTime === 0) {
+    const callback = animationFrames.shift();
+    if (!callback) throw new Error("mascot animation frame was not scheduled");
+    animationTime = 1;
+    callback(animationTime);
+  }
+
+  let remaining = milliseconds;
+  while (remaining > 0) {
+    const callback = animationFrames.shift();
+    if (!callback) throw new Error("mascot animation frame was not scheduled");
+    const step = Math.min(remaining, 64);
+    animationTime += step;
+    remaining -= step;
+    callback(animationTime);
+  }
+  await nextTick();
+}
+
+function bouncePose(svg: SVGSVGElement): { y: number; scaleX: number; scaleY: number } {
+  const transform = svg
+    .querySelector<SVGGElement>('[data-slot="mascot-bounce-layer"]')
+    ?.getAttribute("transform");
+  const values = transform?.match(
+    /^translate\(0 (-?[\d.]+)\) translate\(0 100\) scale\(([\d.]+) ([\d.]+)\) translate\(0 -100\)$/,
+  );
+  if (!values) throw new Error(`unexpected mascot bounce transform: ${transform}`);
+  return {
+    y: Number(values[1]),
+    scaleX: Number(values[2]),
+    scaleY: Number(values[3]),
+  };
+}
+
 function eyeCenterX(svg: SVGSVGElement): number {
   const eyes = [...svg.querySelectorAll<SVGPathElement>("mask path[transform]")];
   if (eyes.length === 0) throw new Error("mascot eyes were not rendered");
@@ -84,5 +119,70 @@ describe("AxolotlMascot pointer following", () => {
     window.dispatchEvent(new MouseEvent("pointermove", { clientX: 24, clientY: 500 }));
     await advanceAnimation(2);
     expect(eyeCenterX(svg)).toBeLessThan(0);
+  });
+});
+
+describe("AxolotlMascot bouncing expression", () => {
+  it("loops through the six squash-and-stretch poses", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const app = createApp({
+      render: () => h(AxolotlMascot, { expression: "bouncing" }),
+    });
+    app.mount(container);
+    mountedApps.push(app);
+
+    const svg = container.querySelector<SVGSVGElement>("svg");
+    if (!svg) throw new Error("mascot SVG was not rendered");
+    expect(svg.getAttribute("overflow")).toBe("visible");
+    expect(bouncePose(svg)).toEqual({ y: 0, scaleX: 1, scaleY: 1 });
+
+    await advanceAnimationBy(180);
+    expect(bouncePose(svg)).toEqual({ y: 0, scaleX: 1.1, scaleY: 0.9 });
+
+    await advanceAnimationBy(156);
+    expect(bouncePose(svg)).toEqual({ y: -6, scaleX: 0.94, scaleY: 1.06 });
+
+    await advanceAnimationBy(264);
+    expect(bouncePose(svg)).toEqual({ y: -24, scaleX: 1, scaleY: 1 });
+
+    await advanceAnimationBy(240);
+    expect(bouncePose(svg)).toEqual({ y: -12, scaleX: 1.03, scaleY: 0.97 });
+
+    await advanceAnimationBy(192);
+    expect(bouncePose(svg)).toEqual({ y: 0, scaleX: 1.12, scaleY: 0.88 });
+
+    await advanceAnimationBy(168);
+    expect(bouncePose(svg)).toEqual({ y: 0, scaleX: 1, scaleY: 1 });
+  });
+
+  it("stays still and reuses the attentive face when animation is disabled", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const app = createApp({
+      render: () =>
+        h("div", [
+          h(AxolotlMascot, { expression: "bouncing", animated: false }),
+          h(AxolotlMascot, { expression: "attentive", animated: false }),
+        ]),
+    });
+    app.mount(container);
+    mountedApps.push(app);
+
+    const svgs = [...container.querySelectorAll<SVGSVGElement>("svg")];
+    expect(svgs).toHaveLength(2);
+    expect(
+      svgs[0].querySelector('[data-slot="mascot-bounce-layer"]')?.getAttribute("transform"),
+    ).toBeNull();
+    expect(svgs[0].getAttribute("overflow")).toBeNull();
+    expect(
+      [...svgs[0].querySelectorAll("mask path[transform]")].map((eye) =>
+        eye.getAttribute("transform"),
+      ),
+    ).toEqual(
+      [...svgs[1].querySelectorAll("mask path[transform]")].map((eye) =>
+        eye.getAttribute("transform"),
+      ),
+    );
   });
 });
