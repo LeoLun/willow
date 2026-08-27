@@ -4,10 +4,13 @@ import type { AgentMode } from "./agent-mode.js";
 import type { AskUserHandler } from "./tools/ask-user.js";
 import type { CreateAutomationHandler } from "./tools/create-automation.js";
 import type { DeleteAutomationHandler } from "./tools/delete-automation.js";
+import type { EscalationStore } from "./tools/escalation-store.js";
 import type { ListAutomationsHandler } from "./tools/list-automations.js";
 import type {
   PermissionMode,
   PermissionModeProvider,
+  PermissionEngine,
+  PermissionEventSink,
   SandboxPolicy,
   ToolApprovalHandler,
 } from "./tools/types.js";
@@ -41,6 +44,9 @@ export type AgentHarnessOptions = {
   agentMode?: AgentMode;
   permissionMode?: PermissionMode;
   getPermissionMode?: PermissionModeProvider;
+  permissionEngine?: PermissionEngine;
+  permissionEventSink?: PermissionEventSink;
+  escalationStore?: EscalationStore;
   requestApproval?: ToolApprovalHandler;
   requestUser?: AskUserHandler;
   sandboxPolicy?: SandboxPolicy;

@@ -90,7 +90,7 @@ Rules and constraints:
 - The prompt runs unattended: tool approvals use the AI reviewer and cannot ask the user.
 - When timezone is omitted, the user's system timezone is recorded.
 - When model is omitted, the automation follows the user's default model at run time.
-- Creating the automation is a direct tool action and does not request a separate tool approval.`;
+- Creating the automation requires one-call permission review unless full-access mode is active.`;
   readonly parameters = createAutomationSchema;
 
   constructor(options: ToolRuntimeOptions) {

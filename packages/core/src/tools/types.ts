@@ -33,6 +33,131 @@ export type PermissionMode = "request-approval" | "delegate-approval" | "full-ac
 
 export type PermissionModeProvider = () => PermissionMode;
 
+export type PermissionAction = "allow" | "review" | "deny";
+
+export type RiskLevel = "low" | "medium" | "high" | "critical";
+
+export type ApprovalReason = {
+  type: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type ApprovalAction =
+  | {
+      type: "exec";
+      command: string;
+      cwd: string;
+      interactive: boolean;
+      sandboxPermissions: "default" | "elevated";
+      justification?: string;
+      escalationToken?: string;
+    }
+  | {
+      type: "filesystem";
+      operation: "read" | "write";
+      paths: string[];
+      cwd: string;
+    }
+  | {
+      type: "network";
+      url: string;
+      method: string;
+    }
+  | {
+      type: "automation";
+      operation: "create" | "update" | "delete" | "list";
+      input: Record<string, unknown>;
+    }
+  | {
+      type: "internal";
+      capability: string;
+    };
+
+export type PermissionDecision = {
+  action: PermissionAction;
+  risk: RiskLevel;
+  reason: ApprovalReason;
+  ruleId: string;
+  autoReviewable?: boolean;
+  requestedPermissions?: Record<string, unknown>;
+};
+
+export type ToolPermissionContext = {
+  sessionId: string;
+  toolCallId: string;
+  toolName: ToolName;
+  input: Record<string, unknown>;
+  workspaceRoot: string;
+  action: ApprovalAction;
+  sandboxPolicy?: SandboxPolicy;
+  agentDir?: string;
+};
+
+export interface PermissionPolicy {
+  supports(context: ToolPermissionContext): boolean;
+  evaluate(context: ToolPermissionContext): Promise<PermissionDecision>;
+}
+
+export interface PermissionEngine {
+  evaluate(context: ToolPermissionContext): Promise<PermissionDecision>;
+}
+
+export type SandboxMode = "read-only" | "workspace-write" | "full-access";
+
+export type SandboxViolation = {
+  type: "filesystem-read" | "filesystem-write" | "network" | "process" | "unknown";
+  path?: string;
+  host?: string;
+  message: string;
+};
+
+export type BashErrorCode =
+  | "PERMISSION_DENIED"
+  | "USER_DENIED"
+  | "SANDBOX_DENIED"
+  | "SANDBOX_UNAVAILABLE"
+  | "COMMAND_FAILED"
+  | "TIMEOUT"
+  | "ABORTED"
+  | "SPAWN_FAILED";
+
+export type PermissionEvent =
+  | {
+      type: "decision";
+      sessionId: string;
+      toolCallId: string;
+      toolName: ToolName;
+      permissionMode: PermissionMode;
+      action: ApprovalAction;
+      decision: PermissionDecision;
+    }
+  | {
+      type: "approval";
+      sessionId: string;
+      toolCallId: string;
+      decision: "allow" | "deny";
+    }
+  | {
+      type: "sandbox";
+      sessionId: string;
+      toolCallId: string;
+      mode: SandboxMode;
+      denied: boolean;
+      violations: SandboxViolation[];
+    }
+  | {
+      type: "execution";
+      sessionId: string;
+      toolCallId: string;
+      toolName: ToolName;
+      outcome: "succeeded" | "failed";
+      durationMs: number;
+      error?: string;
+    };
+
+export type PermissionEventSink = (event: PermissionEvent) => void | Promise<void>;
+
 export type ToolApprovalDecision = "allow" | "deny";
 
 export type ToolApprovalReason =
@@ -47,6 +172,7 @@ export type ToolApprovalReason =
   | "automation-create"
   | "automation-update"
   | "automation-delete"
+  | "command-risk"
   | "sandbox-denied";
 
 export type ToolApprovalRequest = {
@@ -58,6 +184,12 @@ export type ToolApprovalRequest = {
   reason: ToolApprovalReason;
   display: string;
   mayHavePartialEffects?: boolean;
+  action?: ApprovalAction;
+  risk?: RiskLevel;
+  ruleId?: string;
+  approvalReason?: ApprovalReason;
+  autoReviewable?: boolean;
+  requestedPermissions?: Record<string, unknown>;
 };
 
 export type ToolApprovalHandler = (
@@ -83,6 +215,8 @@ export interface BashToolDetails extends BaseDetails {
   lineCount: number;
   truncation?: TruncationResult;
   fullOutputPath?: string;
+  sandboxMode?: SandboxMode;
+  sandboxViolations?: SandboxViolation[];
 }
 
 export interface ReadToolDetails extends BaseDetails {
@@ -202,10 +336,14 @@ export type WillowToolDetails =
 
 export type ToolRuntimeOptions = {
   cwd: string;
+  sessionId?: string;
   agentDir?: string;
   agentMode?: AgentMode;
   permissionMode: PermissionMode;
   getPermissionMode?: PermissionModeProvider;
+  permissionEngine?: PermissionEngine;
+  permissionEventSink?: PermissionEventSink;
+  escalationStore?: import("./escalation-store.js").EscalationStore;
   requestApproval?: ToolApprovalHandler;
   requestUser?: AskUserHandler;
   sandboxPolicy?: SandboxPolicy;

@@ -26,7 +26,13 @@ import {
   parseLocalFilePrompt,
   type LocalFileGrant,
 } from "@shared/local-file";
-import type { AskUserAnswers, AskUserHandler, ToolApprovalHandler } from "@willow/core";
+import {
+  EscalationStore,
+  type AskUserAnswers,
+  type AskUserHandler,
+  type SandboxViolation,
+  type ToolApprovalHandler,
+} from "@willow/core";
 import { Injectable } from "@willow/poetry";
 import { AgentService } from "./agent.service";
 import { AiToolApprovalService } from "./ai-tool-approval.service";
@@ -319,11 +325,14 @@ export class MessageService {
   }
 
   async resolveToolApproval(request: ResolveToolApprovalRequest): Promise<boolean> {
-    const key = this.taskKey(request.workspaceId, request.sessionId);
+    const location = this.toolApprovalService.locate(request.approvalId);
+    if (!location) return false;
+    const { workspaceId, sessionId } = location;
+    const key = this.taskKey(workspaceId, sessionId);
     if (this.busySessions.has(key)) {
       const resolution = await this.toolApprovalService.resolve(
-        request.workspaceId,
-        request.sessionId,
+        workspaceId,
+        sessionId,
         request.approvalId,
         request.decision,
       );
@@ -334,8 +343,8 @@ export class MessageService {
     let continuingInBackground = false;
     try {
       const resolution = await this.toolApprovalService.resolve(
-        request.workspaceId,
-        request.sessionId,
+        workspaceId,
+        sessionId,
         request.approvalId,
         request.decision,
         "recovered",
@@ -469,10 +478,12 @@ export class MessageService {
         (request.toolName === "bash"
           ? options.bashPermissionMode
           : this.permissionModeService.get(options.workspaceId, options.sessionId));
-      if (permissionMode === "full-access") return "allow";
       if (options.interactionMode === "unattended") {
         if (permissionMode !== "delegate-approval") {
           throw new UnattendedInteractionError("无人值守模式下无法请求人工审批。");
+        }
+        if (approvalRequest.autoReviewable === false) {
+          throw new UnattendedInteractionError("该权限请求必须由用户亲自确认。");
         }
         const review = await this.aiToolApprovalService.review(
           {
@@ -488,6 +499,21 @@ export class MessageService {
         if (review.status === "approved") return "allow";
         throw new UnattendedInteractionError(review.reason);
       }
+      if (approvalRequest.autoReviewable === false) {
+        return await this.toolApprovalService.request(
+          options.workspaceId,
+          options.sessionId,
+          approvalRequest,
+          {
+            model: options.model,
+            permissionMode,
+            agentMode: options.agentMode,
+            userMessage: options.userMessage,
+          },
+          signal,
+        );
+      }
+      if (permissionMode === "full-access") return "allow";
       if (permissionMode !== "delegate-approval") {
         return await this.toolApprovalService.request(
           options.workspaceId,
@@ -587,6 +613,7 @@ export class MessageService {
       interactionMode: "interactive",
     });
     let replayApprovalAvailable = true;
+    const escalationStore = recoveredEscalationStore(payload, workspace.path);
     const harness = await this.agentService.getAgentHarness({
       workspaceId: payload.workspaceId,
       cwd: workspace.path,
@@ -598,6 +625,7 @@ export class MessageService {
         approval.agentMode ?? "default",
       ),
       permissionMode,
+      escalationStore,
       getPermissionMode: () =>
         this.permissionModeService.get(payload.workspaceId, payload.sessionId),
       requestApproval: async (request, signal) => {
@@ -855,4 +883,36 @@ export class MessageService {
       timestamp: Date.now(),
     };
   }
+}
+
+function recoveredEscalationStore(
+  payload: import("@shared/api").ToolApprovalEventPayload,
+  cwd: string,
+): EscalationStore | undefined {
+  if (
+    payload.action?.type !== "exec" ||
+    payload.action.sandboxPermissions !== "elevated" ||
+    !payload.action.escalationToken
+  ) {
+    return undefined;
+  }
+  const metadata = payload.approvalReason?.metadata;
+  const violations = metadata?.violations;
+  if (!isSandboxViolations(violations)) return undefined;
+  const store = new EscalationStore(payload.sessionId);
+  store.restore(payload.action.escalationToken, payload.action.command, cwd, violations);
+  return store;
+}
+
+function isSandboxViolations(value: unknown): value is SandboxViolation[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (entry) =>
+        typeof entry === "object" &&
+        entry !== null &&
+        typeof (entry as Partial<SandboxViolation>).type === "string" &&
+        typeof (entry as Partial<SandboxViolation>).message === "string",
+    )
+  );
 }

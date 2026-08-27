@@ -58,6 +58,10 @@ export class ToolApprovalService {
   private readonly queue: string[] = [];
   private readonly resolving = new Set<string>();
   private readonly persistenceQueues = new Map<string, Promise<void>>();
+  private readonly approvalLocations = new Map<
+    string,
+    { workspaceId: number; sessionId: string }
+  >();
   private activeApprovalId?: string;
 
   constructor(
@@ -75,19 +79,25 @@ export class ToolApprovalService {
   ): Promise<ToolApprovalDecision> {
     if (signal?.aborted) return "deny";
     const approvalId = randomUUID();
-    const payload: ToolApprovalEventPayload = {
-      ...request,
+    const payload = immutable({
+      ...structuredClone(request),
       approvalId,
       workspaceId,
       sessionId,
       aiReview,
-    };
+    }) as ToolApprovalEventPayload;
     const approval: PersistedToolApproval = { ...recovery, payload };
-    await this.appendEntry(workspaceId, sessionId, {
-      version: 1,
-      type: "requested",
-      approval,
-    });
+    this.approvalLocations.set(approvalId, { workspaceId, sessionId });
+    try {
+      await this.appendEntry(workspaceId, sessionId, {
+        version: 1,
+        type: "requested",
+        approval,
+      });
+    } catch (error) {
+      this.approvalLocations.delete(approvalId);
+      throw error;
+    }
     if (signal?.aborted) {
       await this.appendDecision(workspaceId, sessionId, approvalId, "deny");
       return "deny";
@@ -129,6 +139,7 @@ export class ToolApprovalService {
       const hasPendingRequest = this.pending.has(approvalId);
       const live = mode === "live" && hasPendingRequest;
       await this.appendDecision(workspaceId, sessionId, approvalId, decision);
+      this.approvalLocations.delete(approvalId);
       if (hasPendingRequest) this.settle(approvalId, decision);
       return { approval, live };
     } finally {
@@ -143,6 +154,10 @@ export class ToolApprovalService {
     return (await this.getPendingApprovals(workspaceId, sessionId))[0];
   }
 
+  locate(approvalId: string): { workspaceId: number; sessionId: string } | undefined {
+    return this.approvalLocations.get(approvalId);
+  }
+
   private async getPendingApprovals(
     workspaceId: number,
     sessionId: string,
@@ -154,8 +169,13 @@ export class ToolApprovalService {
       if (!data) continue;
       if (data.type === "requested") {
         pending.set(data.approval.payload.approvalId, data.approval);
+        this.approvalLocations.set(data.approval.payload.approvalId, {
+          workspaceId,
+          sessionId,
+        });
       } else {
         pending.delete(data.approvalId);
+        this.approvalLocations.delete(data.approvalId);
       }
     }
     return [...pending.values()];
@@ -244,4 +264,11 @@ export class ToolApprovalService {
     }
     return data as ToolApprovalEntryData;
   }
+}
+
+function immutable<T extends object>(value: T): Readonly<T> {
+  for (const nested of Object.values(value)) {
+    if (nested && typeof nested === "object") immutable(nested as object);
+  }
+  return Object.freeze(value);
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ToolApprovalDecision, ToolApprovalEventPayload } from "@shared/api";
 import { Button } from "@willow/shadcn/components/ui/button";
-import { Bot, CircleAlert, LoaderCircle, SquareTerminal } from "lucide-vue-next";
+import { Bot, CircleAlert, LoaderCircle, ShieldAlert, SquareTerminal } from "lucide-vue-next";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
@@ -22,6 +22,7 @@ const reasonLabel = computed(() => {
     "automation-create": "创建持久化的定时任务",
     "automation-update": "修改持久化的定时任务",
     "automation-delete": "删除持久化的定时任务",
+    "command-risk": "命令需要额外权限确认",
     "local-network-listen": "监听本机回环网络端口",
     "interactive-terminal": "启用交互式终端能力",
     "sandbox-denied": "沙箱拒绝了命令",
@@ -49,8 +50,9 @@ const partialEffectsMessage = computed(() => {
       "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整重跑该命令。",
     "network-domain":
       "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整重跑该命令。",
+    "command-risk": "允许后仅执行当前这一次工具调用，不会创建永久允许规则。",
     "sandbox-denied":
-      "沙箱内的首轮执行可能已经产生部分工作区内副作用；允许后将仅放行上述资源，并在沙箱中完整重跑该命令。",
+      "先前的沙箱执行可能已产生部分工作区内副作用；允许后将仅以 full-access 执行这一次完全相同的命令。",
   } satisfies Record<ToolApprovalEventPayload["reason"], string>;
   return messages[props.request.reason];
 });
@@ -62,6 +64,29 @@ const showEffectsMessage = computed(
     props.request.reason === "automation-update" ||
     props.request.reason === "automation-delete",
 );
+const riskLabel = computed(() => {
+  const labels = {
+    low: "低",
+    medium: "中",
+    high: "高",
+    critical: "严重",
+  } as const;
+  return props.request.risk ? labels[props.request.risk] : undefined;
+});
+const justification = computed(() =>
+  props.request.action?.type === "exec" ? props.request.action.justification : undefined,
+);
+const violations = computed(() => {
+  const value = props.request.approvalReason?.metadata?.violations;
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (entry): entry is { message: string } =>
+      typeof entry === "object" &&
+      entry !== null &&
+      "message" in entry &&
+      typeof entry.message === "string",
+  );
+});
 
 async function decide(decision: ToolApprovalDecision): Promise<void> {
   if (submitting.value) return;
@@ -93,6 +118,19 @@ async function decide(decision: ToolApprovalDecision): Promise<void> {
         <h2 id="tool-approval-title" class="text-sm font-medium">
           {{ reasonLabel }}
         </h2>
+        <p v-if="request.approvalReason" class="text-xs leading-5 text-muted-foreground">
+          {{ request.approvalReason.message }}
+        </p>
+      </div>
+
+      <div
+        v-if="riskLabel"
+        class="flex items-center gap-1.5 text-xs text-muted-foreground"
+        data-slot="tool-approval-risk"
+      >
+        <ShieldAlert class="size-4" aria-hidden="true" />
+        <span>风险：{{ riskLabel }}</span>
+        <span v-if="request.ruleId">· {{ request.ruleId }}</span>
       </div>
 
       <pre
@@ -108,6 +146,30 @@ async function decide(decision: ToolApprovalDecision): Promise<void> {
       >
         {{ partialEffectsMessage }}
       </p>
+
+      <div
+        v-if="justification"
+        class="grid gap-1 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs"
+        data-slot="tool-approval-justification"
+      >
+        <span class="font-medium">Agent 提权理由</span>
+        <span class="break-words text-muted-foreground">{{ justification }}</span>
+      </div>
+
+      <div
+        v-if="violations.length"
+        class="grid gap-1 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs"
+        data-slot="tool-approval-violations"
+      >
+        <span class="font-medium">沙箱拒绝记录</span>
+        <span
+          v-for="(violation, index) in violations"
+          :key="index"
+          class="font-mono break-words text-muted-foreground"
+        >
+          {{ violation.message }}
+        </span>
+      </div>
 
       <div
         v-if="request.aiReview"

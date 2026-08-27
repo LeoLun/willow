@@ -41,6 +41,7 @@ type AgentServiceOptions = Omit<AgentCoreOptions, "models" | "sessionRepo" | "ta
   requestApproval: ToolApprovalHandler;
   requestUser: AskUserHandler;
   sandboxPolicy?: AgentHarnessOptions["sandboxPolicy"];
+  escalationStore?: AgentHarnessOptions["escalationStore"];
 };
 
 type SimpleAgentOptions = {
@@ -158,6 +159,7 @@ export class AgentService {
     requestApproval,
     requestUser,
     sandboxPolicy,
+    escalationStore,
     ...options
   }: AgentServiceOptions) {
     const sessionRepo = this.sessionManagerFactory.create(workspaceId);
@@ -180,6 +182,7 @@ export class AgentService {
       requestApproval,
       requestUser,
       sandboxPolicy,
+      escalationStore,
       listAutomations: this.listAutomationsHandler
         ? (input) => this.listAutomationsHandler!(workspaceId, input)
         : undefined,

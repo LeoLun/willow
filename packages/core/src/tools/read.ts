@@ -7,7 +7,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import { Type, type Static } from "typebox";
 import { ToolBase, type ToolExecutionContext } from "./base.js";
-import { authorizeRead, resolveFromCwd, throwIfAborted } from "./shared.js";
+import { resolveFromCwd, throwIfAborted } from "./shared.js";
 import type { ReadToolDetails, ToolRuntimeOptions } from "./types.js";
 
 const readSchema = Type.Object({
@@ -33,19 +33,6 @@ export class ReadTool extends ToolBase<typeof readSchema, ReadToolDetails> {
       return new Error("limit must be at least 1");
     }
     return undefined;
-  }
-
-  protected override async checkPermission(
-    context: ToolExecutionContext<ReadToolInput, ReadToolDetails>,
-  ): Promise<void> {
-    await authorizeRead({
-      ...this.options,
-      path: context.input.path,
-      toolCallId: context.toolCallId,
-      toolName: this.name,
-      input: context.input,
-      signal: context.signal,
-    });
   }
 
   protected override async run(context: ToolExecutionContext<ReadToolInput, ReadToolDetails>) {

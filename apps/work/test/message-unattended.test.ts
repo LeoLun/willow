@@ -189,6 +189,21 @@ describe("MessageService unattended mode", () => {
     expect(requestApproval).not.toHaveBeenCalled();
   });
 
+  it("fails closed without consulting AI for human-only reviews", async () => {
+    setMode("delegate-approval");
+    await service.sendMessage({
+      ...baseInput(),
+      interactionMode: "unattended",
+    });
+
+    const handler = capturedOptions.requestApproval!;
+    await expect(handler({ ...approvalRequest, autoReviewable: false })).rejects.toThrow(
+      "必须由用户亲自确认",
+    );
+    expect(review).not.toHaveBeenCalled();
+    expect(requestApproval).not.toHaveBeenCalled();
+  });
+
   it("throws when a non-delegate mode is used unattended", async () => {
     setMode("request-approval");
     await service.sendMessage({
@@ -246,6 +261,28 @@ describe("MessageService unattended mode", () => {
 
     const handler = capturedOptions.requestApproval!;
     await expect(handler(approvalRequest)).resolves.toBe("allow");
+    expect(requestApproval).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends human-only delegated reviews directly to the user", async () => {
+    requestApproval.mockResolvedValue("allow");
+    setMode("delegate-approval");
+    await service.sendMessage(baseInput());
+
+    const handler = capturedOptions.requestApproval!;
+    await expect(handler({ ...approvalRequest, autoReviewable: false })).resolves.toBe("allow");
+    expect(review).not.toHaveBeenCalled();
+    expect(requestApproval).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not auto-accept a human-only escalation in full-access mode", async () => {
+    requestApproval.mockResolvedValue("allow");
+    setMode("full-access");
+    await service.sendMessage(baseInput());
+
+    const handler = capturedOptions.requestApproval!;
+    await expect(handler({ ...approvalRequest, autoReviewable: false })).resolves.toBe("allow");
+    expect(review).not.toHaveBeenCalled();
     expect(requestApproval).toHaveBeenCalledTimes(1);
   });
 

@@ -40,27 +40,31 @@ type PermissionMode =
 Maintain these invariants:
 
 - `request-approval` is the safe default when no mode is supplied.
-- The Work App owns the session-level permission mode. Non-Bash file tools receive a provider and
-  read it at authorization time; Core must not persist workspace or session allowlists.
+- The Work App owns the session-level permission mode. Core captures it once when each tool call
+  starts permission evaluation and uses that snapshot for both routing and execution.
 - An approval applies only to one `toolCallId`. Do not introduce permanent or implicit approval
   rules without an explicit design change.
-- `AgentHarnessOptions` accepts a static compatibility mode, an optional dynamic provider, and an
-  asynchronous `requestApproval(request, signal)` callback. Non-Bash file tools read the latest
-  mode dynamically; `bash` no longer participates in approval.
+- Every built-in tool goes through `ToolBase`, `ApprovalAction` normalization, and the Harness-local
+  `PermissionEngine`. An unregistered tool policy must fail closed.
+- `ALLOW`, `REVIEW`, and `DENY` are action decisions. Modes only route `REVIEW`; `full-access`
+  cannot override `DENY`.
 - In either non-full-access mode, a missing approval callback must safely deny any required escape.
-- `delegate-approval` delegates the outside-boundary decision through the approval callback. The
-  Work App may use AI review, but Core must never auto-approve this mode.
-- `full-access` bypasses Willow workspace-write and read authorization, but never claims to bypass
-  operating-system permissions.
-- Non-full-access modes are platform-independent now that `bash` is no longer sandboxed.
+- `delegate-approval` may use AI review only when `autoReviewable !== false`; elevated Bash is
+  always human-only.
+- Create one `PermissionEngine`, `EscalationStore`, and optional event sink per Harness.
 
 ## Tool Authorization Boundaries
 
 ### `bash`
 
-- `bash` runs the command directly with `/bin/bash -lc` in every permission mode. It does not run
-  inside a sandbox and never triggers approval, so `permissionMode` and `sandboxPolicy` do not
-  affect its execution.
+- Always run the deterministic Bash policy before spawning. Hard-denied commands must never spawn,
+  including in `full-access`.
+- Non-full-access calls run through the pinned sandbox runtime in `workspace-write`; runtime setup,
+  wrap, or reset failure is `SANDBOX_UNAVAILABLE` and must never fall back to a bare shell.
+- Serialize the process-global sandbox Manager lifecycle with the shared asynchronous mutex.
+- Sandbox denial returns a bound one-time token. Elevated retries require the exact command,
+  canonical cwd, token, and justification, and are never auto-reviewable.
+- Remove common secrets and credentials from inherited shell environments.
 - Abort and timeout must terminate the spawned process group.
 - Stream combined stdout/stderr updates. Return at most the last 2000 lines or 50KB and retain the
   complete output in a temporary log when truncated.
@@ -70,24 +74,24 @@ security-sensitive and requires corresponding tests and documentation updates.
 
 ### `write` and `edit`
 
-- In non-full-access modes, authorize the target before creating directories, reading for edit, or
-  writing.
+- Authorize the target before creating directories, reading for edit, or writing.
 - Resolve relative paths from the workspace and compare canonical paths.
 - Resolve the nearest existing parent so nonexistent targets cannot evade checks.
 - Treat workspace symlinks pointing outside the workspace as outside-workspace writes.
 - Allow workspace-contained and global-skills-contained writes without prompting.
-- In `request-approval`, require a one-time approval before an outside-workspace write.
-- In `delegate-approval`, delegate the outside-workspace decision through the approval callback.
+- Sensitive files, Git hooks/config, and shell startup files are hard-denied in every mode.
 - Serialize mutations to the same resolved absolute path within the process.
 - `edit` must use unique, nonempty, non-overlapping exact replacements and preserve UTF-8 BOM and
   the original newline style. Return a unified diff and added/removed line counts.
 
 ### Read-only tools
 
-In non-full-access modes, `read`, `ls`, `grep`, and `find` must authorize their target or search
-root before reading. Workspace paths, the global skills directory derived from `agentDir`, and
+`read`, `ls`, `grep`, and `find` must authorize their target or search root before reading.
+Workspace paths, the global skills directory derived from `agentDir`, and
 explicitly configured `allowRead`/`allowWrite` roots are allowed; other paths require one-call
 approval. Canonicalize paths so symlink escapes cannot bypass the boundary.
+
+Credential directories, `.env*`, PEM files, and key files are hard-denied in every mode.
 
 - `read` supports 1-indexed offsets and line limits, with the common 2000-line/50KB bound.
 - `ls` lists only direct children in deterministic order.
@@ -99,13 +103,8 @@ approval. Canonicalize paths so symlink escapes cannot bypass the boundary.
 
 ## Approval and Error Semantics
 
-- Approval reasons that are still produced are `outside-workspace-read` and
-  `outside-workspace-write`. The sandbox-oriented reasons (`network-domain`,
-  `application-launch`, `executable-install`, `process-inspection`, `local-network-listen`,
-  `interactive-terminal`, and `sandbox-denied`) remain valid public values only for parsing and
-  displaying legacy pending approvals from older sessions; no tool produces them anymore.
-- Include the original tool input, tool name, call ID, and a user-displayable command or path in
-  every approval request.
+- Include the normalized Action, risk, rule ID, structured reason, `autoReviewable`, minimal scope,
+  original input, tool name, call ID, and display text in every approval request.
 - A denial must fail the current tool call without granting later calls.
 - Propagate AbortSignal through tool execution and approval waiting.
 - Reject invalid numeric parameters such as non-positive limits/timeouts before execution.
@@ -124,10 +123,12 @@ pnpm --filter @willow/core test
 For tool or permission changes, cover the affected branches, including as applicable:
 
 - all three permission modes;
-- direct `bash` execution: output, nonzero exit, timeout, abort, and truncation;
+- permission policy coverage for every built-in tool, hard-deny priority, and fail-closed unknowns;
+- Bash analysis, sandbox execution, escalation, output, nonzero exit, timeout, abort, and truncation;
 - missing approval callbacks and abort cleanup;
 - workspace, outside-workspace, nonexistent, and symlink-escape paths;
 - argument validation, truncation, binary skipping, `.gitignore`, and deterministic limits;
-- exact-edit failures, BOM/newline preservation, diff and line statistics.
+- exact-edit failures, BOM/newline preservation, diff and line statistics;
+- real platform sandbox smoke and child-process escape attacks where supported.
 
 Also run repository typechecking and linting for public API or cross-package changes.

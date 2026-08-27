@@ -3,7 +3,9 @@ import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
 import { AGENT_DIR } from "./constant";
 import { getPlanModePrompt } from "./prompt/plan-mode.js";
+import { EscalationStore } from "./tools/escalation-store.js";
 import { createWillowTools } from "./tools/index.js";
+import { DefaultPermissionEngine } from "./tools/permission-engine.js";
 import { restoreTodoList } from "./tools/todo-list.js";
 import type { AgentCoreOptions, AgentHarnessOptions } from "./types";
 import { resolvePlanDirectory } from "./utils/agent-paths.js";
@@ -60,6 +62,9 @@ export class AgentCore {
       agentMode === "plan" ? getPlanModePrompt(resolvePlanDirectory(this.agentDir)) : "";
     const { systemPrompt } = await this.loader.reload(roleAdditional);
     const initialTodoList = restoreTodoList(await session.getBranch());
+    const sessionId = (await session.getMetadata()).id;
+    const permissionEngine = options.permissionEngine ?? new DefaultPermissionEngine();
+    const escalationStore = options.escalationStore ?? new EscalationStore(sessionId);
 
     const shouldExtendSandboxPolicy = this.builtinSkills !== undefined || agentMode === "plan";
     const sandboxPolicy = shouldExtendSandboxPolicy
@@ -87,10 +92,14 @@ export class AgentCore {
       thinkingLevel: "high",
       tools: createWillowTools({
         cwd: this.cwd,
+        sessionId,
         agentDir: this.agentDir,
         agentMode,
         permissionMode,
         getPermissionMode: options.getPermissionMode,
+        permissionEngine,
+        permissionEventSink: options.permissionEventSink,
+        escalationStore,
         requestApproval: options.requestApproval,
         requestUser: options.requestUser,
         sandboxPolicy,

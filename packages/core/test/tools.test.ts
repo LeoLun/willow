@@ -726,7 +726,7 @@ describe("filesystem tools", () => {
     expect(requestApproval).not.toHaveBeenCalled();
   });
 
-  it("hard-blocks sensitive writes in sandboxed modes", async () => {
+  it("hard-blocks sensitive writes in every permission mode", async () => {
     const cwd = await temporaryDirectory("willow-sensitive-write-");
     const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
 
@@ -739,11 +739,12 @@ describe("filesystem tools", () => {
     ).rejects.toThrow("Sensitive write denied");
     expect(requestApproval).not.toHaveBeenCalled();
 
-    await createWriteTool({ cwd, permissionMode: "full-access" }).execute("write-env-full", {
-      path: ".env.local",
-      content: "SECRET=value\n",
-    });
-    expect(await readFile(join(cwd, ".env.local"), "utf8")).toBe("SECRET=value\n");
+    await expect(
+      createWriteTool({ cwd, permissionMode: "full-access" }).execute("write-env-full", {
+        path: ".env.local",
+        content: "SECRET=value\n",
+      }),
+    ).rejects.toThrow("Sensitive write denied");
   });
 
   it("reads the latest permission mode for every non-bash file tool call", async () => {
@@ -782,35 +783,28 @@ describe("filesystem tools", () => {
 });
 
 describe("bash tool", () => {
-  it("runs commands directly in every permission mode without approval", async () => {
+  it("runs directly in full-access mode without approval", async () => {
     const cwd = await temporaryDirectory("willow-bash-direct-");
     const requestApproval = vi.fn<ToolApprovalHandler>(async () => "allow");
-    for (const permissionMode of [
-      "request-approval",
-      "delegate-approval",
-      "full-access",
-    ] as const) {
-      requestApproval.mockClear();
-      const onUpdate = vi.fn();
-      const result = await createBashTool({ cwd, permissionMode, requestApproval }).execute(
-        "bash-direct",
-        { command: "printf 'hello'" },
-        undefined,
-        onUpdate,
-      );
-      expect(result.content).toEqual([{ type: "text", text: "hello" }]);
-      expect(result.details).toMatchObject({
-        msg: "执行 printf 'hello'",
-        kind: "bash",
-        exitCode: 0,
-      });
-      expect(requestApproval).not.toHaveBeenCalled();
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          details: expect.objectContaining({ msg: "执行 printf 'hello'", kind: "bash" }),
-        }),
-      );
-    }
+    const onUpdate = vi.fn();
+    const result = await createBashTool({
+      cwd,
+      permissionMode: "full-access",
+      requestApproval,
+    }).execute("bash-direct", { command: "printf 'hello'" }, undefined, onUpdate);
+    expect(result.content).toEqual([{ type: "text", text: "hello" }]);
+    expect(result.details).toMatchObject({
+      msg: "执行 printf 'hello'",
+      kind: "bash",
+      exitCode: 0,
+      sandboxMode: "full-access",
+    });
+    expect(requestApproval).not.toHaveBeenCalled();
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({ msg: "执行 printf 'hello'", kind: "bash" }),
+      }),
+    );
   });
 
   it("runs an interactive command as a no-op option", async () => {
@@ -825,7 +819,7 @@ describe("bash tool", () => {
   it("throws on a failing command with its exit code", async () => {
     const cwd = await temporaryDirectory("willow-bash-failure-");
     await expect(
-      createBashTool({ cwd, permissionMode: "request-approval" }).execute("bash-failure", {
+      createBashTool({ cwd, permissionMode: "full-access" }).execute("bash-failure", {
         command: "exit 3",
       }),
     ).rejects.toThrow("Command exited with code 3");

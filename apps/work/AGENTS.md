@@ -62,3 +62,9 @@ For renderer changes, run the relevant automated checks plus `pnpm --filter Will
 ## Security and IPC
 
 Keep cross-process APIs narrow: define shared IPC contracts in `src/shared/` and expose only required functionality through preload. Never log credentials or include credential values in error messages.
+
+For tool approvals, the main process owns and persists the immutable request payload. The renderer
+may submit only `approvalId` and `allow/deny`; it must never echo command, workspace/session,
+normalized Action, or requested permission scope as authority. Preserve the existing global FIFO
+approval composable and pending-approval recovery flow. Human-only (`autoReviewable: false`)
+requests must bypass AI review, and unattended sessions must fail closed.

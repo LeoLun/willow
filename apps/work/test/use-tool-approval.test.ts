@@ -143,8 +143,6 @@ describe("useToolApproval", () => {
 
     expect(mocks.resolveToolApproval).toHaveBeenCalledWith({
       approvalId: first.approvalId,
-      workspaceId: first.workspaceId,
-      sessionId: first.sessionId,
       decision: "allow",
     });
     expect(mounted.approval.currentApproval.value).toBe(second);

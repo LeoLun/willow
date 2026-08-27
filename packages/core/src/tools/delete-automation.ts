@@ -37,7 +37,8 @@ export class DeleteAutomationTool extends ToolBase<
   readonly label = "Delete Automation";
   readonly description = `Delete a scheduled automation in the current workspace. Use
 listAutomations first if the automation ID is unknown. Deleting removes its trigger and run history,
-while preserving chat sessions created by previous runs. The deletion is executed directly.`;
+while preserving chat sessions created by previous runs. Deletion requires one-call permission
+review unless full-access mode is active.`;
   readonly parameters = deleteAutomationSchema;
 
   protected override checkParams(input: DeleteAutomationToolInput): Error | undefined {

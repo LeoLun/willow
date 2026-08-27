@@ -4,13 +4,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { diffLines } from "diff";
 import { Type, type Static } from "typebox";
 import { ToolBase, type ToolExecutionContext } from "./base.js";
-import {
-  authorizeMutation,
-  countLines,
-  resolveFromCwd,
-  throwIfAborted,
-  withMutationQueue,
-} from "./shared.js";
+import { countLines, resolveFromCwd, throwIfAborted, withMutationQueue } from "./shared.js";
 import type { ToolRuntimeOptions, WriteToolDetails } from "./types.js";
 
 const writeSchema = Type.Object({
@@ -26,19 +20,6 @@ export class WriteTool extends ToolBase<typeof writeSchema, WriteToolDetails> {
   readonly description = "Create or overwrite a UTF-8 file, creating parent directories.";
   readonly parameters = writeSchema;
   override readonly executionMode = "sequential";
-
-  protected override async checkPermission(
-    context: ToolExecutionContext<WriteToolInput, WriteToolDetails>,
-  ): Promise<void> {
-    await authorizeMutation({
-      ...this.options,
-      path: context.input.path,
-      toolCallId: context.toolCallId,
-      toolName: this.name,
-      input: context.input,
-      signal: context.signal,
-    });
-  }
 
   protected override async run(context: ToolExecutionContext<WriteToolInput, WriteToolDetails>) {
     const { input, signal } = context;

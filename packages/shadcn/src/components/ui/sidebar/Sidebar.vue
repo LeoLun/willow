@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { Sheet, SheetContent } from "@willow/shadcn/components/ui/sheet";
-import SheetDescription from "@willow/shadcn/components/ui/sheet/SheetDescription.vue";
-import SheetHeader from "@willow/shadcn/components/ui/sheet/SheetHeader.vue";
-import SheetTitle from "@willow/shadcn/components/ui/sheet/SheetTitle.vue";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@willow/shadcn/components/ui/sheet";
 import type { SidebarProps } from ".";
 import { cn } from "../../../lib/utils";
 import { SIDEBAR_WIDTH_MOBILE, useSidebar } from "./utils";

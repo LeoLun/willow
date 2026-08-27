@@ -99,7 +99,7 @@ describe("updateAutomation tool", () => {
     }));
   }
 
-  it("updates directly and reports the changed automation", async () => {
+  it("updates after approval and reports the changed automation", async () => {
     const requestApproval = approvalHandler();
     const updateAutomation = successfulHandler();
     const tool = createUpdateAutomationTool({
@@ -111,7 +111,10 @@ describe("updateAutomation tool", () => {
 
     const result = await tool.execute("update-1", input);
 
-    expect(requestApproval).not.toHaveBeenCalled();
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "automation-update", autoReviewable: true }),
+      undefined,
+    );
     expect(updateAutomation).toHaveBeenCalledWith(input);
     expect(result.details).toMatchObject({
       kind: "updateAutomation",
@@ -120,8 +123,8 @@ describe("updateAutomation tool", () => {
     });
   });
 
-  it.each(["request-approval", "delegate-approval", "full-access"] as const)(
-    "does not consult approval in %s mode",
+  it.each(["request-approval", "delegate-approval"] as const)(
+    "denies a rejected review in %s mode",
     async (permissionMode) => {
       const updateAutomation = successfulHandler();
       const requestApproval = approvalHandler("deny");
@@ -131,11 +134,25 @@ describe("updateAutomation tool", () => {
         requestApproval,
         updateAutomation,
       });
-      await expect(tool.execute("update-direct", input)).resolves.toBeDefined();
-      expect(requestApproval).not.toHaveBeenCalled();
-      expect(updateAutomation).toHaveBeenCalledOnce();
+      await expect(tool.execute("update-direct", input)).rejects.toThrow("Permission denied");
+      expect(requestApproval).toHaveBeenCalledOnce();
+      expect(updateAutomation).not.toHaveBeenCalled();
     },
   );
+
+  it("auto-accepts review without a callback in full-access mode", async () => {
+    const updateAutomation = successfulHandler();
+    const requestApproval = approvalHandler("deny");
+    const tool = createUpdateAutomationTool({
+      cwd,
+      permissionMode: "full-access",
+      requestApproval,
+      updateAutomation,
+    });
+    await expect(tool.execute("update-full", input)).resolves.toBeDefined();
+    expect(requestApproval).not.toHaveBeenCalled();
+    expect(updateAutomation).toHaveBeenCalledOnce();
+  });
 
   it("validates input before approval", async () => {
     const requestApproval = approvalHandler();
@@ -206,7 +223,7 @@ describe("deleteAutomation tool", () => {
     }));
   }
 
-  it("deletes directly and reports the result", async () => {
+  it("deletes after approval and reports the result", async () => {
     const requestApproval = approvalHandler();
     const deleteAutomation = successfulHandler();
     const tool = createDeleteAutomationTool({
@@ -218,12 +235,15 @@ describe("deleteAutomation tool", () => {
 
     const result = await tool.execute("delete-1", { automationId: 9 });
 
-    expect(requestApproval).not.toHaveBeenCalled();
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "automation-delete", autoReviewable: true }),
+      undefined,
+    );
     expect(result.details).toMatchObject({ kind: "deleteAutomation", automationId: 9 });
   });
 
-  it.each(["request-approval", "delegate-approval", "full-access"] as const)(
-    "does not consult approval in %s mode",
+  it.each(["request-approval", "delegate-approval"] as const)(
+    "denies a rejected review in %s mode",
     async (permissionMode) => {
       const deleteAutomation = successfulHandler();
       const requestApproval = approvalHandler("deny");
@@ -233,9 +253,11 @@ describe("deleteAutomation tool", () => {
         requestApproval,
         deleteAutomation,
       });
-      await expect(tool.execute("delete-direct", { automationId: 9 })).resolves.toBeDefined();
-      expect(requestApproval).not.toHaveBeenCalled();
-      expect(deleteAutomation).toHaveBeenCalledOnce();
+      await expect(tool.execute("delete-direct", { automationId: 9 })).rejects.toThrow(
+        "Permission denied",
+      );
+      expect(requestApproval).toHaveBeenCalledOnce();
+      expect(deleteAutomation).not.toHaveBeenCalled();
     },
   );
 

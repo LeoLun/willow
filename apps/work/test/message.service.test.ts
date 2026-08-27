@@ -95,6 +95,7 @@ describe("MessageService", () => {
   const requestApproval = vi.fn<ToolApprovalService["request"]>();
   const getPendingApproval = vi.fn<ToolApprovalService["getPendingApproval"]>();
   const resolveApproval = vi.fn<ToolApprovalService["resolve"]>();
+  const locateApproval = vi.fn<ToolApprovalService["locate"]>();
   const requestQuestion = vi.fn<UserQuestionService["request"]>();
   const getPendingQuestion = vi.fn<UserQuestionService["getPendingQuestion"]>();
   const resolveQuestion = vi.fn<UserQuestionService["resolve"]>();
@@ -128,6 +129,7 @@ describe("MessageService", () => {
     getPendingApproval,
     request: requestApproval,
     resolve: resolveApproval,
+    locate: locateApproval,
   } as unknown as ToolApprovalService;
   const userQuestionService = {
     getPendingQuestion,
@@ -148,6 +150,7 @@ describe("MessageService", () => {
 
   beforeEach(() => {
     permissionModeService = new PermissionModeService();
+    locateApproval.mockReturnValue({ workspaceId: 1, sessionId: "session" });
     service = new MessageService(
       sessionService,
       agentService,
@@ -897,8 +900,6 @@ describe("MessageService", () => {
     await expect(
       service.resolveToolApproval({
         approvalId: approval.payload.approvalId,
-        workspaceId: approval.payload.workspaceId,
-        sessionId: approval.payload.sessionId,
         decision: "allow",
       }),
     ).resolves.toBe(true);
@@ -966,8 +967,6 @@ describe("MessageService", () => {
     resolveApproval.mockResolvedValue({ approval, live: false });
     const resolved = service.resolveToolApproval({
       approvalId: approval.payload.approvalId,
-      workspaceId: approval.payload.workspaceId,
-      sessionId: approval.payload.sessionId,
       decision: "deny",
     });
 
@@ -1026,8 +1025,6 @@ describe("MessageService", () => {
     await expect(
       service.resolveToolApproval({
         approvalId: approval.payload.approvalId,
-        workspaceId: approval.payload.workspaceId,
-        sessionId: approval.payload.sessionId,
         decision: "deny",
       }),
     ).resolves.toBe(true);
@@ -1082,8 +1079,6 @@ describe("MessageService", () => {
     await expect(
       service.resolveToolApproval({
         approvalId: approval.payload.approvalId,
-        workspaceId: approval.payload.workspaceId,
-        sessionId: approval.payload.sessionId,
         decision: "allow",
       }),
     ).resolves.toBe(true);

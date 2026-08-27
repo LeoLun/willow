@@ -717,8 +717,6 @@ export type ToolApprovalResolvedEventPayload = Pick<
 
 export interface ResolveToolApprovalRequest {
   approvalId: string;
-  workspaceId: number;
-  sessionId: string;
   decision: ToolApprovalDecision;
 }
 

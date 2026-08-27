@@ -84,8 +84,6 @@ const useToolApprovalState = createGlobalState(() => {
     if (!approval) throw new Error("审批请求已失效");
     const response = await electronAPI.resolveToolApproval({
       approvalId,
-      workspaceId: approval.workspaceId,
-      sessionId: approval.sessionId,
       decision,
     });
     if (!response.resolved) {

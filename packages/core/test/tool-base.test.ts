@@ -70,14 +70,14 @@ describe("ToolBase", () => {
     });
     expect(tool.events).toEqual(["params", "permission", "run"]);
     expect(requestApproval).toHaveBeenCalledWith(
-      {
+      expect.objectContaining({
         toolCallId: "test-call",
         toolName: "read",
         input: { value: "target" },
         reason: "outside-workspace-read",
         display: "target",
         permissionMode: "request-approval",
-      },
+      }),
       undefined,
     );
   });

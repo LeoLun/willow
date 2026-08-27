@@ -3,13 +3,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { createPatch, diffLines } from "diff";
 import { Type, type Static } from "typebox";
 import { ToolBase, type ToolExecutionContext } from "./base.js";
-import {
-  authorizeMutation,
-  countLines,
-  resolveFromCwd,
-  throwIfAborted,
-  withMutationQueue,
-} from "./shared.js";
+import { countLines, resolveFromCwd, throwIfAborted, withMutationQueue } from "./shared.js";
 import type { EditToolDetails, ToolRuntimeOptions } from "./types.js";
 
 const replacementSchema = Type.Object({
@@ -109,19 +103,6 @@ export class EditTool extends ToolBase<typeof editSchema, EditToolDetails> {
       return new Error("oldText must not be empty");
     }
     return undefined;
-  }
-
-  protected override async checkPermission(
-    context: ToolExecutionContext<EditToolInput, EditToolDetails>,
-  ): Promise<void> {
-    await authorizeMutation({
-      ...this.options,
-      path: context.input.path,
-      toolCallId: context.toolCallId,
-      toolName: this.name,
-      input: context.input,
-      signal: context.signal,
-    });
   }
 
   protected override async run(context: ToolExecutionContext<EditToolInput, EditToolDetails>) {

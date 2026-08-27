@@ -3,7 +3,6 @@ import minimatch from "minimatch";
 import { Type, type Static } from "typebox";
 import { ToolBase, type ToolExecutionContext } from "./base.js";
 import { resolveSearchFiles } from "./search-files.js";
-import { authorizeRead } from "./shared.js";
 import type { FindToolDetails, ToolRuntimeOptions } from "./types.js";
 
 const findSchema = Type.Object({
@@ -24,19 +23,6 @@ export class FindTool extends ToolBase<typeof findSchema, FindToolDetails> {
     const limit = input.limit ?? 1000;
     if (!Number.isInteger(limit) || limit < 1) return new Error("limit must be at least 1");
     return undefined;
-  }
-
-  protected override async checkPermission(
-    context: ToolExecutionContext<FindToolInput, FindToolDetails>,
-  ): Promise<void> {
-    await authorizeRead({
-      ...this.options,
-      path: context.input.path || ".",
-      toolCallId: context.toolCallId,
-      toolName: this.name,
-      input: context.input,
-      signal: context.signal,
-    });
   }
 
   protected override async run(context: ToolExecutionContext<FindToolInput, FindToolDetails>) {

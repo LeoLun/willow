@@ -195,6 +195,26 @@ describe("ToolApprovalService", () => {
     );
   });
 
+  it("creates an immutable main-process payload and locates it by opaque id", async () => {
+    const { sendEvent, service } = createApprovalServices();
+    const request = {
+      toolCallId: "immutable-call",
+      toolName: "bash" as const,
+      input: { command: "printf safe" },
+      reason: "command-risk" as const,
+      display: "printf safe",
+    };
+    void service.request(1, "session", request, recovery);
+    request.input.command = "printf changed";
+
+    await vi.waitFor(() => expect(sendEvent).toHaveBeenCalledOnce());
+    const payload = sendEvent.mock.calls[0]![1];
+    expect(payload.input).toEqual({ command: "printf safe" });
+    expect(Object.isFrozen(payload)).toBe(true);
+    expect(Object.isFrozen(payload.input)).toBe(true);
+    expect(service.locate(payload.approvalId)).toEqual({ workspaceId: 1, sessionId: "session" });
+  });
+
   it("recovers an unresolved approval from a new service instance", async () => {
     const state = createApprovalServices();
     void state.service.request(
@@ -221,6 +241,7 @@ describe("ToolApprovalService", () => {
         payload: expect.objectContaining({ approvalId, toolCallId: "recover-call" }),
       }),
     );
+    expect(recoveredService.locate(approvalId)).toEqual({ workspaceId: 1, sessionId: "session" });
     await expect(recoveredService.resolve(1, "session", approvalId, "allow")).resolves.toEqual(
       expect.objectContaining({ live: false }),
     );
@@ -261,8 +282,6 @@ describe("ResolveToolApprovalController", () => {
     const event = undefined as unknown as Electron.IpcMainInvokeEvent;
     const request = {
       approvalId: "approval",
-      workspaceId: 1,
-      sessionId: "session",
       decision: "allow" as const,
     };
 

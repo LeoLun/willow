@@ -19,6 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.73",
     "@earendil-works/pi-agent-core": "^0.80.6",
     "@earendil-works/pi-ai": "^0.80.6",
     "diff": "catalog:",

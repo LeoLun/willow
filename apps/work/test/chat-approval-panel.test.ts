@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
   getConfiguredProviders: vi.fn(),
   getProviderCatalog: vi.fn(),
+  getMessageList: vi.fn(),
   getSessionList: vi.fn(),
   getSkillList: vi.fn(),
   getUserConfig: vi.fn(),
@@ -23,11 +24,20 @@ vi.mock("@/lib/ipc", () => ({
   electronAPI: {
     getConfiguredProviders: mocks.getConfiguredProviders,
     getProviderCatalog: mocks.getProviderCatalog,
+    getMessageList: mocks.getMessageList,
     getSessionList: mocks.getSessionList,
     getSkillList: mocks.getSkillList,
     getUserConfig: mocks.getUserConfig,
     resolveToolApproval: mocks.resolveToolApproval,
     setPermissionMode: mocks.setPermissionMode,
+  },
+}));
+
+vi.mock("@/components/layout/BaseHeader.vue", () => ({
+  default: {
+    setup(_: unknown, { slots }: { slots: { left?: () => unknown; right?: () => unknown } }) {
+      return () => [slots.left?.(), slots.right?.()];
+    },
   },
 }));
 
@@ -43,6 +53,7 @@ import { useToolApprovalListener } from "../src/renderer/src/composables/useTool
 import ChatBase from "../src/renderer/src/pages/main/ChatBase.vue";
 
 const mountedApps: App[] = [];
+let persistedApproval: ToolApprovalEventPayload | undefined;
 
 const ChatSlot = defineComponent({
   setup(_, { slots }) {
@@ -75,6 +86,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.getConfiguredProviders.mockResolvedValue({ providerIds: [] });
   mocks.getProviderCatalog.mockResolvedValue({ providers: [] });
+  persistedApproval = undefined;
+  mocks.getMessageList.mockImplementation(async (request: { sessionId: string }) => ({
+    messages: [],
+    artifacts: [],
+    pendingToolApproval: request.sessionId === "session-a" ? persistedApproval : undefined,
+  }));
   mocks.getSessionList.mockResolvedValue({ sessions: [] });
   mocks.getSkillList.mockResolvedValue({ skills: [] });
   mocks.getUserConfig.mockResolvedValue({});
@@ -126,7 +143,8 @@ describe("ChatBase approval panel", () => {
     expect(container.querySelector("[data-slot=prompt-editor]")).not.toBeNull();
     expect(container.querySelector("[data-slot=tool-approval-panel]")).toBeNull();
 
-    getApprovalListener()(createRequest());
+    persistedApproval = createRequest();
+    getApprovalListener()(persistedApproval);
     await vi.waitFor(() => {
       expect(container.querySelector("[data-slot=prompt-editor]")).toBeNull();
       expect(container.querySelector("[data-slot=tool-approval-panel]")).not.toBeNull();

@@ -69,7 +69,7 @@ describe("ToolApprovalPanel", () => {
       '<img src=x onerror="window.hacked=true"> Too broad.',
     );
     expect(mounted.container.querySelector("img")).toBeNull();
-    expect(mounted.container.textContent).toContain("可能已经产生部分工作区内副作用");
+    expect(mounted.container.textContent).toContain("可能已产生部分工作区内副作用");
 
     const allow = [...mounted.container.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("仅本次允许"),
@@ -150,6 +150,37 @@ describe("ToolApprovalPanel", () => {
 
     expect(mounted.container.textContent).toContain("AI 审批不可用");
     expect(mounted.container.textContent).toContain("未配置小模型。");
+  });
+
+  it("shows normalized risk, justification, rule, and sandbox violations", () => {
+    const mounted = mountPanel(
+      createRequest({
+        risk: "high",
+        ruleId: "bash.sandbox-escalation",
+        action: {
+          type: "exec",
+          command: "printf elevated",
+          cwd: "/workspace",
+          interactive: false,
+          sandboxPermissions: "elevated",
+          justification: "The output path is required.",
+        },
+        approvalReason: {
+          type: "bash.sandbox-escalation",
+          message: "One-time full access requested.",
+          metadata: {
+            violations: [{ type: "filesystem-write", message: "deny file-write /outside" }],
+          },
+        },
+      }),
+    );
+
+    expect(
+      mounted.container.querySelector("[data-slot=tool-approval-risk]")?.textContent,
+    ).toContain("风险：高");
+    expect(mounted.container.textContent).toContain("bash.sandbox-escalation");
+    expect(mounted.container.textContent).toContain("The output path is required.");
+    expect(mounted.container.textContent).toContain("deny file-write /outside");
   });
 
   it("describes a domain allowlist request as a scoped sandbox grant", () => {

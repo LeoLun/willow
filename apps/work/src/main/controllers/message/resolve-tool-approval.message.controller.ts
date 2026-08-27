@@ -31,12 +31,6 @@ export class ResolveToolApprovalController extends IPCBaseController<
     if (!request || typeof request.approvalId !== "string" || request.approvalId.trim() === "") {
       return new Error("approvalId must be a non-empty string");
     }
-    if (!Number.isInteger(request.workspaceId) || request.workspaceId <= 0) {
-      return new Error("workspaceId must be a positive integer");
-    }
-    if (typeof request.sessionId !== "string" || request.sessionId.trim() === "") {
-      return new Error("sessionId must be a non-empty string");
-    }
     if (request.decision !== "allow" && request.decision !== "deny") {
       return new Error("decision must be allow or deny");
     }

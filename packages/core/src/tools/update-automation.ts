@@ -65,8 +65,8 @@ export class UpdateAutomationTool extends ToolBase<
   readonly label = "Update Automation";
   readonly description = `Update an existing scheduled automation in the current workspace. Use
 listAutomations first if the automation ID is unknown. At least one field must be changed. Set model
-to null to follow the user's default model. The change is executed directly without a separate
-tool approval.`;
+to null to follow the user's default model. The change requires one-call permission review unless
+full-access mode is active.`;
   readonly parameters = updateAutomationSchema;
 
   protected override checkParams(input: UpdateAutomationToolInput): Error | undefined {

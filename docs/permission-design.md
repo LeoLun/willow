@@ -1,125 +1,120 @@
 # Willow 工具权限设计
 
-本文描述当前工具权限边界。核心原则是：文件工具使用统一的 canonical 路径授权，权限等级
-按会话动态读取，Bash 直接执行命令且不参与审批。
+本文是 Willow 内建工具权限链路的权威说明。项目内容不能放宽这里的内建规则。
 
-## 1. 权限等级
+## 1. 统一链路
 
-公开等级保持不变：
+每次工具调用都依次经过：
+
+```text
+Tool Call → 参数校验 → ApprovalAction 归一化 → Permission Engine
+          → ALLOW / REVIEW / DENY → PermissionMode 路由 → Executor
+          → Bash 非 full-access 额外进入 OS Sandbox
+```
+
+`PermissionDecision.action` 描述当前 Action 的结论：
+
+- `allow`：直接进入执行器；
+- `review`：按本次调用开始权限检查时捕获的模式路由；
+- `deny`：立即失败，任何模式都不能覆盖。
+
+公开模式保持三档：
 
 ```ts
 type PermissionMode = "request-approval" | "delegate-approval" | "full-access";
 ```
 
-- `request-approval`：越界调用执行前请求用户单次批准。
-- `delegate-approval`：先交给审批代理；代理拒绝、失败、超时或无法判断时回退用户审批。
-- `full-access`：跳过 Willow 的路径边界，但不绕过操作系统权限。
+- `request-approval`：`review` 进入人工单次审批；
+- `delegate-approval`：仅 `autoReviewable !== false` 的请求先交 AI Reviewer，未批准、失败或超时回退人工；
+- `full-access`：自动接受 `review`，但仍执行参数校验和 Permission Engine，不能绕过 `deny`。
 
-Work 主进程的 `PermissionModeService` 以 `workspaceId + sessionId` 保存当前等级，缺省为
-`request-approval`。renderer 通过独立 IPC 串行同步工作区、会话和下拉选择变化，并在发送消息前
-等待同步完成。`SendMessageRequest` 和消息队列不携带权限等级。
+Core 在权限检查开始时只读取一次当前模式，并把该快照同时用于审批路由和 Bash 执行配置，避免调用中途切换造成 TOCTOU。缺少人工 handler 时安全拒绝。无人值守会话只能自动处理可交给 Reviewer 的请求；需要人工的请求安全失败。
 
-Core 的 `PermissionModeProvider` 在每次非 Bash 文件权限检查发生时读取最新等级。切换只影响尚未
-开始检查的调用，不结算或撤销已经开始、已经执行或正在等待决定的调用。自动化后台会话在发送前
-通过同一服务初始化为 `delegate-approval`。
+每个 Harness 创建独立的 `PermissionEngine`、`EscalationStore` 和可选 `PermissionEventSink`。未注册策略的工具 fail closed。事件 sink 发出判断、审批、沙箱和执行结果结构化事件；一期不写独立 JSONL。
 
-`permissionMode` 静态字段仍是兼容默认值，也是未提供动态 provider 时非 Bash 文件工具的默认等级。
-Bash 不参与审批。
+## 2. Action 与审批契约
 
-## 2. 统一目录授权
+所有工具输入归一化为 `exec`、`filesystem`、`network`、`automation` 或 `internal` Action。`ToolApprovalRequest` 同时携带 Action、风险等级、规则 ID、结构化理由、`autoReviewable` 和最小权限范围，并保留 `reason`、`display`、`input` 以恢复旧会话。
 
-`read`、`write`、`edit`、`ls`、`grep`、`find` 共用目录授权器。目标路径先相对工作区解析，再以
-最近存在的父目录和 `realpath` 计算 canonical 路径，最后用路径包含关系判断边界。这同时阻止
-`..`、现有符号链接和不存在目标经符号链接父目录逃逸。
+审批只对当前 `toolCallId` 和当前 Action 有效。Work 主进程创建、深拷贝并冻结审批 payload，renderer 只能回传不可预测的 `approvalId` 与 `allow/deny`，不能回传或修改 workspace、session、命令或权限范围。审批 FIFO 展示并写入 session branch；停止任务以拒绝结算，未决项可在重启后恢复。旧 reason 继续兼容显示。
 
-非完全访问模式的免审批读取范围：
+## 3. 内建策略
 
-- 当前 canonical 工作区；
-- 当前会话分支中经主进程验证的附件副作用空间；
-- `SandboxPolicy.allowRead` 与 `allowWrite`；
-- 系统临时目录；
-- `agentDir` 下的全局技能目录；
-- Core 注入的内置技能只读目录。
-
-非完全访问模式的免审批写入范围：
-
-- 当前 canonical 工作区；
-- 附件中明确授权写入的副作用空间；
-- `SandboxPolicy.allowWrite`；
-- 系统临时目录；
-- 全局技能目录及明确配置为可写的技能目录。
-
-附件文件只授权精确文件，附件目录递归授权。授权不扩展到父目录、兄弟路径，也不允许目录内的
-符号链接逃逸。Plan 模式只把附件授权放入 `allowRead`，且不注册通用写工具。
-
-`.env`、`.env.*`、`*.pem`、`*.key` 和 `denyWrite` 命中的敏感写入，在非完全访问模式下硬拒绝，
-不会弹审批。只有最新等级为 `full-access` 时绕过该应用层限制。
-
-其余路径统一产生 `outside-workspace-read` 或 `outside-workspace-write` 审批。批准只对当前
-`toolCallId` 有效；缺少 handler、拒绝、无效结果或中止都安全失败，且写工具必须在创建父目录、
-读取待编辑文件或写入前完成授权。
-
-## 3. Bash 边界
-
-`bash` 在所有权限模式下直接执行命令：
-
-- 恒以 `/bin/bash -lc <command>` 运行，不进入沙箱，也不触发任何审批；
-- 因此 `permissionMode` 与 `sandboxPolicy` 不影响 `bash` 的执行；
-- 受操作系统自身权限约束，本工具不做应用层路径或网络域的限制。
-
-## 4. 免审批工具
-
-以下工具不进入权限审批：
-
-| 工具 | 保留的安全或业务约束 |
+| 工具 | 内建结论 |
 | --- | --- |
-| `webfetch` | URL/协议校验、HTTPS 升级、每一跳 `deniedDomains`、超时、5MB、重定向上限和中止 |
-| `websearch` | 固定 Tavily 接口、密钥保护、参数校验、`deniedDomains`、超时和中止 |
-| `todoList` | 参数校验和当前 Harness 内状态 |
-| `askUser` | 独立用户问题事件与中止处理 |
-| `listAutomations` | 工作区隔离和宿主查询约束 |
-| `createAutomation` | 参数校验、工作区归属、宿主持久化和调度约束 |
-| `updateAutomation` | 参数校验、归属复核、运行冲突和宿主更新约束 |
-| `deleteAutomation` | 参数校验、归属复核、运行冲突和宿主删除约束 |
+| `read/ls/grep/find` | 授权根内 `allow`；普通越界 `review`；凭证目录、`.env*`、`*.pem`、`*.key` 等敏感读取 `deny` |
+| `write/edit` | 工作区、附件授权区、临时目录和技能授权区内 `allow`；普通越界 `review`；敏感文件、Git hooks/config 和 shell rc `deny` |
+| `bash` | hard-deny 优先；已知只读/构建/测试命令 `allow`；安装、删除、Git 写入和未知命令 `review` |
+| `create/update/deleteAutomation` | `review`，可由 Reviewer 自动审批 |
+| `webfetch/websearch` | 默认 `allow`；初始请求和每次重定向仍执行 denied-domain hard deny |
+| `todoList/askUser/listAutomations` | 显式 `allow` |
+| 受固定计划路径约束的计划工具 | 显式 `allow` |
 
-“免审批”只移除权限等级分支，不移除硬拒绝、输入验证、超时、中止或宿主业务错误。特别是
-`webfetch` 的初始请求和每次重定向都检查拒绝域名；`full-access` 也不绕过该拒绝列表。
+文件路径相对工作区解析，并用最近存在父目录与 `realpath` 得到 canonical path。边界判断必须覆盖不存在目标、`..`、符号链接逃逸和相邻前缀目录。工作区、经主进程验证的附件范围、系统临时目录、全局/内置技能授权区及显式 `SandboxPolicy` 构成允许根；写权限隐含读取权限。Plan 模式只给附件读取授权。
 
-## 5. 工具集合与历史兼容
+敏感规则是 hard deny，`full-access` 也不能覆盖。`SandboxPolicy` 和未来的项目策略不能放宽内建 hard deny。
 
-默认模式注册 Bash、六个文件工具、todo、web、askUser 和四个自动化工具；Plan 模式只注册只读
-文件工具、web、askUser 与计划文件工具。`websearch` 仅在配置 Tavily Key 时注册。
+## 4. Bash 分析与执行
 
-宿主进程列表工具已经从实现、工厂、注册、公共类型、提示词和桌面展示中移除。为避免旧会话加载
-失败，历史审批 reason（包括 `process-inspection`、沙箱相关 reason 和旧自动化 reason）仍可解析
-和展示。恢复规则：
+`BashToolInput` 包含固定工作区 `command`、最长 600 秒的 `timeout`、兼容的 `interactive`，以及：
 
-- 旧审批被拒绝时，不执行旧调用；
-- 旧 web/自动化审批被允许时，按当前免审批实现重放；
-- 旧宿主进程列表审批被允许时，以“工具已移除”错误结果继续会话。
+```ts
+sandboxPermissions?: "default" | "elevated";
+justification?: string; // 最长 1000 字符
+escalationToken?: string;
+```
 
-## 6. 审批生命周期
+Command Analyzer 不尝试完整解析 shell，只提取命令片段、管道、重定向、替换、sudo、敏感资源、包安装、Git 写入和破坏性行为。复合命令只有全部片段都是已知安全命令，且没有重定向或命令替换时才能 `allow`。sudo、凭证访问、根目录破坏、系统磁盘和关机操作等确定性规则直接 `deny`。
 
-Core 只调用 `requestApproval(request, signal)`，不实现 UI 或代理判断。Work 在每次回调发生时读取
-最新会话等级：`full-access` 直接允许，`delegate-approval` 走审批代理并按现有规则回退用户，
-`request-approval` 进入用户审批队列。
+`full-access` 在 Permission Engine 允许后直接使用 shell。其他模式使用 `@anthropic-ai/sandbox-runtime@0.0.73` 的 `workspace-write`：
 
-审批按 `workspaceId + sessionId + toolCallId` 隔离并 FIFO 展示；决定仅结算匹配项。停止任务会中止
-等待并以拒绝结算。未决审批写入 session branch，重启后可恢复；允许恢复时用新的 Harness 重放
-单个工具调用，拒绝时直接生成错误结果，然后继续 agent 会话。
+- 工作区、附件写授权区、系统临时目录和技能授权区可写；其他位置只读或不可访问；
+- SSH、云凭证目录、环境文件和密钥不可读写；Git hooks/config 与 shell 启动文件不可写；
+- Apple Events、PTY、危险 Unix socket 和本地监听默认关闭；
+- 主 Agent 网络使用非 strict allowlist，未匹配宿主默认允许，但 `deniedDomains` 优先拒绝；
+- 继承环境会移除常见 API key、云凭证、token、secret 和 password 变量；
+- stdout/stderr 流式合并，保留截断日志、超时和进程组终止语义。
 
-## 7. 测试要求
+runtime Manager 是进程级状态，Core 用全局异步互斥串行完成 initialize、wrap、execute、reset。依赖检测、初始化、包装或 reset 失败统一返回 `SANDBOX_UNAVAILABLE`；非 full-access 绝不回退裸 shell。
 
-权限变更至少覆盖：
+## 5. 沙箱提权
 
-- bash 直接执行：输出、退出码、超时、中止与截断；
-- 工作区、附件文件、附件目录、临时目录、全局/内置技能、额外读写根和读写差异；
-- 不存在目标、`..` 与符号链接逃逸；
-- 敏感写入和 `full-access` 绕过；
-- 六个文件工具的一致判定、单次审批、缺失 handler、拒绝和中止；
-- 连续调用间动态切换三种等级；
-- web 与自动化工具在三种等级下均不调用审批，同时保留拒绝列表和业务错误；
-- 会话默认值、隔离、IPC 参数校验、快速切换顺序、发送前同步和自动化初始化；
-- 工具注册、导出、提示和展示不再含已移除工具，以及历史未决审批迁移。
+沙箱拒绝不会在同一工具调用内自动重跑：
 
-Core 测试使用 `pnpm --filter @willow/core test`。
+1. 返回 `SANDBOX_DENIED`、结构化 violation 和五分钟一次性 token；
+2. token 绑定 Harness/session、原命令、canonical cwd 和 violation；
+3. Agent 必须用完全相同命令、`elevated`、token 和非空 justification 发起新调用；
+4. hard deny 仍先执行；合法 token 产生 `autoReviewable: false` 的 escalation `review`；
+5. 仅人工“仅本次允许”可执行一次 full-access；批准、拒绝或执行失败后能力都失效；
+6. 过期、复用、跨 session/cwd、命令变化或参数缺失都拒绝。
+
+token 在显示人工审批前即验证并消费，验证后的 violation 随不可变审批记录持久化，以便未决审批重启恢复；恢复只重建该条已验证的单次能力。
+
+## 6. 验证要求
+
+权限改动至少覆盖：
+
+- 所有 `ToolName` 有策略、unknown-tool fail closed、hard deny 优先和三档路由矩阵；
+- canonical 路径、附件/临时/技能授权、不存在目标、symlink escape 与敏感文件；
+- Bash analyzer、拒绝时不 spawn、超时/中止/非零/截断和环境变量清理；
+- workspace-write 的工作区写、外部写拒绝、`/tmp`、敏感读取、网络及子进程绕过攻击；
+- escalation 的正确、过期、复用、命令/cwd/session 不匹配、人工拒绝和只执行一次；
+- Work 的 Reviewer 路由、unattended fail closed、IPC 防伪、FIFO、停止与重启恢复；
+- Vue 面板的风险、规则、justification、violation 和历史 reason 展示。
+
+常用命令：
+
+```sh
+pnpm --filter @willow/core test
+pnpm --filter @willow/core typecheck
+pnpm --filter Willow test
+pnpm --filter Willow typecheck
+pnpm lint
+pnpm format:check
+```
+
+macOS 还应运行真实 Seatbelt smoke/attack tests，并用仓库内 Electron 开发客户端手动验证三档模式。
+
+## 7. 后续范围
+
+一期不加载 repository-owned 权限配置，也不覆盖 MCP/Subagent。独立 JSONL 脱敏审计、指标、Reviewer 低权限调查工具与独立沙箱、策略存储、缓存和拒绝效果识别留后续阶段。

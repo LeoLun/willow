@@ -65,6 +65,8 @@ export * from "./grep.js";
 export * from "./ls.js";
 export * from "./list-automations.js";
 export * from "./directory-access.js";
+export * from "./escalation-store.js";
+export * from "./permission-engine.js";
 export * from "./policy.js";
 export * from "./read.js";
 export * from "./todo-list.js";

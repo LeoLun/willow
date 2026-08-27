@@ -9,7 +9,7 @@ import minimatch from "minimatch";
 import { Type, type Static } from "typebox";
 import { ToolBase, type ToolExecutionContext } from "./base.js";
 import { resolveSearchFiles } from "./search-files.js";
-import { authorizeRead, throwIfAborted } from "./shared.js";
+import { throwIfAborted } from "./shared.js";
 import type { GrepToolDetails, ToolRuntimeOptions } from "./types.js";
 
 const grepSchema = Type.Object({
@@ -45,19 +45,6 @@ export class GrepTool extends ToolBase<typeof grepSchema, GrepToolDetails> {
       }
     }
     return undefined;
-  }
-
-  protected override async checkPermission(
-    context: ToolExecutionContext<GrepToolInput, GrepToolDetails>,
-  ): Promise<void> {
-    await authorizeRead({
-      ...this.options,
-      path: context.input.path || ".",
-      toolCallId: context.toolCallId,
-      toolName: this.name,
-      input: context.input,
-      signal: context.signal,
-    });
   }
 
   protected override async run(context: ToolExecutionContext<GrepToolInput, GrepToolDetails>) {
