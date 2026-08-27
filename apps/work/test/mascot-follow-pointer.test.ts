@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, h, nextTick, type App } from "vue";
+import { createApp, h, nextTick, ref, type App } from "vue";
 import { AxolotlMascot } from "../src/renderer/src/components/mascot/Mascot";
 
 const mountedApps: App[] = [];
@@ -154,6 +154,28 @@ describe("AxolotlMascot bouncing expression", () => {
 
     await advanceAnimationBy(168);
     expect(bouncePose(svg)).toEqual({ y: 0, scaleX: 1, scaleY: 1 });
+  });
+
+  it("starts from the normal pose when switching to bouncing", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const expression = ref<"attentive" | "bouncing">("attentive");
+    const app = createApp({
+      render: () => h(AxolotlMascot, { expression: expression.value }),
+    });
+    app.mount(container);
+    mountedApps.push(app);
+
+    const svg = container.querySelector<SVGSVGElement>("svg");
+    if (!svg) throw new Error("mascot SVG was not rendered");
+    await advanceAnimationBy(600);
+
+    expression.value = "bouncing";
+    await nextTick();
+    expect(bouncePose(svg)).toEqual({ y: 0, scaleX: 1, scaleY: 1 });
+
+    await advanceAnimationBy(600);
+    expect(bouncePose(svg)).toEqual({ y: -24, scaleX: 1, scaleY: 1 });
   });
 
   it("stays still and reuses the attentive face when animation is disabled", () => {

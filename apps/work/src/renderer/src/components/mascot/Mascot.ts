@@ -2616,6 +2616,7 @@ var BloubBot_default = /* @__PURE__ */ defineComponent({
     let nextAt = Infinity;
     let last = 0;
     let clock = 0;
+    let bounceSince = 0;
     /** Date d'horloge a laquelle le bloc courant a commence. */
     let blockStart = 0;
     /**
@@ -2855,6 +2856,12 @@ var BloubBot_default = /* @__PURE__ */ defineComponent({
      * premiere image et l'animation exportee ne bouge pas.
      */
     watch(() => props.frozenAt, redrawFrozen);
+    watch(
+      () => props.bounce,
+      (on) => {
+        if (on) bounceSince = clock;
+      },
+    );
     /**
      * L'ecoute du pointeur ne vit que le temps du suivi. `immediate` parce que la
      * vue peut s'ouvrir deja en mode suivi ; le garde sur `frozenAt` parce qu'une
@@ -3051,7 +3058,7 @@ var BloubBot_default = /* @__PURE__ */ defineComponent({
             createElementVNode(
               "g",
               {
-                transform: props.bounce ? bounceTransformAt(clock) : void 0,
+                transform: props.bounce ? bounceTransformAt(clock - bounceSince) : void 0,
                 "data-slot": "mascot-bounce-layer",
               },
               [
