@@ -82,6 +82,12 @@ describe("AiToolApprovalService", () => {
     expect(getSimpleAgent).toHaveBeenCalledWith(
       expect.objectContaining({ source: "approval", workspaceId: 1, sessionId: "session" }),
     );
+    const systemPrompt = getSimpleAgent.mock.calls[0][0].systemPrompt;
+    expect(systemPrompt).toContain("Your goal is to minimize interruptions.");
+    expect(systemPrompt).toContain("Default to approval");
+    expect(systemPrompt).toContain(
+      "Deny only when the supplied context shows a specific, credible risk",
+    );
     expect(JSON.parse(prompt.mock.calls[0][0])).toEqual(
       expect.objectContaining({
         userMessage: "Fetch the requested URL",
