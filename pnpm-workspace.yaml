@@ -8,7 +8,7 @@ catalog:
   tsyringe: ^4.10.0
   typescript: 6.0.3
   inversify: ^6.2.1
-  "@earendil-works/pi-ai": ^0.80.6
+  "@earendil-works/pi-ai": ^0.84.4
   "@earendil-works/pi-agent-core": ^0.80.6
   diff: ^8.0.4
   ignore: ^7.0.5

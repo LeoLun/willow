@@ -21,7 +21,7 @@
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.73",
     "@earendil-works/pi-agent-core": "^0.80.6",
-    "@earendil-works/pi-ai": "^0.80.6",
+    "@earendil-works/pi-ai": "^0.84.4",
     "diff": "catalog:",
     "ignore": "catalog:",
     "minimatch": "catalog:",

@@ -9,6 +9,7 @@ describe("ProviderCatalogService", () => {
     const expected = builtinProviders().filter(
       (provider) =>
         provider.auth.apiKey?.login !== undefined &&
+        provider.id !== "amazon-bedrock" &&
         provider.id !== "cloudflare-ai-gateway" &&
         provider.id !== "cloudflare-workers-ai",
     );
@@ -45,5 +46,15 @@ describe("ProviderCatalogService", () => {
       .find((provider) => provider.id === "deepseek")
       ?.models.find((model) => model.id === "deepseek-v4-pro");
     expect(deepseekV4Pro?.thinkingLevels).toEqual(["high", "max"]);
+
+    const deepseekVision = catalog
+      .find((provider) => provider.id === "deepseek")
+      ?.models.find((model) => model.id === "deepseek-v4-flash-vision-exp");
+    expect(deepseekVision?.thinkingLevels).toEqual(["low", "high", "max"]);
+
+    const glmFlash = catalog
+      .find((provider) => provider.id === "zai")
+      ?.models.find((model) => model.id === "glm-5.3-flash");
+    expect(glmFlash?.thinkingLevels).toEqual(["low", "high", "max"]);
   });
 });

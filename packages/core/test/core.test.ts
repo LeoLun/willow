@@ -32,6 +32,7 @@ describe("AgentCore model setup", () => {
     temporaryDirectories.push(cwd);
     const credentials = {
       read: vi.fn(async () => ({ type: "api_key" as const, key: "sk-test" })),
+      list: vi.fn(async () => []),
       modify: vi.fn(async (_providerId, update) => update({ type: "api_key", key: "sk-test" })),
       delete: vi.fn(async () => undefined),
     } satisfies CredentialStore;
@@ -45,6 +46,7 @@ describe("AgentCore model setup", () => {
     expect(core.getModel("deepseek", "deepseek-v4-flash-vision-exp").id).toBe(
       "deepseek-v4-flash-vision-exp",
     );
+    expect(core.getModel("zai", "glm-5.3-flash").id).toBe("glm-5.3-flash");
   });
 
   it("allows read and write access to the built-in skills directory", async () => {
@@ -53,6 +55,7 @@ describe("AgentCore model setup", () => {
     temporaryDirectories.push(cwd, builtinSkillsDirectory);
     const credentials = {
       read: vi.fn(async () => ({ type: "api_key" as const, key: "sk-test" })),
+      list: vi.fn(async () => []),
       modify: vi.fn(async (_providerId, update) => update({ type: "api_key", key: "sk-test" })),
       delete: vi.fn(async () => undefined),
     } satisfies CredentialStore;
@@ -86,6 +89,7 @@ describe("AgentCore model setup", () => {
     temporaryDirectories.push(cwd, builtinSkillsDirectory);
     const credentials = {
       read: vi.fn(async () => ({ type: "api_key" as const, key: "sk-test" })),
+      list: vi.fn(async () => []),
       modify: vi.fn(async (_providerId, update) => update({ type: "api_key", key: "sk-test" })),
       delete: vi.fn(async () => undefined),
     } satisfies CredentialStore;
@@ -119,6 +123,7 @@ describe("AgentCore model setup", () => {
     temporaryDirectories.push(cwd);
     const credentials = {
       read: vi.fn(async () => ({ type: "api_key" as const, key: "sk-test" })),
+      list: vi.fn(async () => []),
       modify: vi.fn(async (_providerId, update) => update({ type: "api_key", key: "sk-test" })),
       delete: vi.fn(async () => undefined),
     } satisfies CredentialStore;
@@ -157,6 +162,7 @@ describe("AgentCore model setup", () => {
     temporaryDirectories.push(cwd);
     const credentials = {
       read: vi.fn(async () => ({ type: "api_key" as const, key: "sk-test" })),
+      list: vi.fn(async () => []),
       modify: vi.fn(async (_providerId, update) => update({ type: "api_key", key: "sk-test" })),
       delete: vi.fn(async () => undefined),
     } satisfies CredentialStore;

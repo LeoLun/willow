@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { Credential, CredentialStore } from "@earendil-works/pi-ai";
+import type { Credential, CredentialInfo, CredentialStore } from "@earendil-works/pi-ai";
 import { app } from "electron";
 import type { CredentialDao } from "../service/dao/credential.dao.server";
 import { CREDENTIAL_KEY_FILE_NAME, LocalCredentialCipher } from "./credential-cipher";
@@ -58,6 +58,17 @@ export class ElectronCredentialStore implements CredentialStore {
     } catch (error) {
       throw this.createStorageError("read", providerId, error);
     }
+  }
+
+  /** 枚举已保存凭证的非敏感元数据，不向调用方暴露解密后的凭证内容。 */
+  async list(): Promise<readonly CredentialInfo[]> {
+    const entries = await Promise.all(
+      this.credentialDao.findProviderIds().map(async (providerId) => {
+        const credential = await this.read(providerId);
+        return credential ? { providerId, type: credential.type } : undefined;
+      }),
+    );
+    return entries.filter((entry): entry is CredentialInfo => entry !== undefined);
   }
 
   /** 不读取旧值，直接加密并覆盖 provider 对应的凭证。 */

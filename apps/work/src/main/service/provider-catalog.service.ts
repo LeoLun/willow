@@ -3,7 +3,11 @@ import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import type { ProviderInfo, ThinkingLevel } from "@shared/api";
 import { Injectable } from "@willow/poetry";
 
-const MULTI_FIELD_API_KEY_PROVIDERS = new Set(["cloudflare-ai-gateway", "cloudflare-workers-ai"]);
+const MULTI_FIELD_API_KEY_PROVIDERS = new Set([
+  "amazon-bedrock",
+  "cloudflare-ai-gateway",
+  "cloudflare-workers-ai",
+]);
 
 @Injectable()
 export class ProviderCatalogService {

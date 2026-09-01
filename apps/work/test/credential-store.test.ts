@@ -70,6 +70,29 @@ describe("ElectronCredentialStore", () => {
     await expect(createStore().read("openai")).resolves.toBeUndefined();
   });
 
+  it("returns an empty credential metadata list when no credentials exist", async () => {
+    await expect(createStore().list()).resolves.toEqual([]);
+  });
+
+  it("lists credential metadata without exposing credential secrets", async () => {
+    const store = createStore();
+    await store.set("openai", apiKey("sk-secret"));
+    await store.set("github-copilot", {
+      type: "oauth",
+      access: "access-secret",
+      refresh: "refresh-secret",
+      expires: Date.now() + 60_000,
+    });
+
+    const metadata = await store.list();
+
+    expect(metadata).toEqual([
+      { providerId: "openai", type: "api_key" },
+      { providerId: "github-copilot", type: "oauth" },
+    ]);
+    expect(JSON.stringify(metadata)).not.toContain("secret");
+  });
+
   it("encrypts, stores, and reads a credential", async () => {
     const store = createStore();
     const credential = apiKey("sk-test");
