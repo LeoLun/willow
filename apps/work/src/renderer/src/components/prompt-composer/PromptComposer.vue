@@ -1100,7 +1100,11 @@ watch(content, (value) => {
               <ChevronDownIcon class="size-3.5 shrink-0" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="bottom" align="end" class="w-48">
+          <DropdownMenuContent
+            side="bottom"
+            align="end"
+            class="max-h-[min(20rem,var(--reka-dropdown-menu-content-available-height))] w-48"
+          >
             <DropdownMenuRadioGroup
               :model-value="model ? modelValueKey(model) : undefined"
               @update:model-value="selectModel"

@@ -74,8 +74,34 @@ describe("AppUpdateButton", () => {
       progress: 42,
     };
     const container = mountButton();
-    expect(container.querySelector("[role=progressbar]")?.getAttribute("aria-valuenow")).toBe("42");
-    expect(container.textContent).toContain("下载进度 42%");
+    const progressbar = container.querySelector("[role=progressbar]");
+    expect(progressbar?.getAttribute("aria-valuemin")).toBe("1");
+    expect(progressbar?.getAttribute("aria-valuemax")).toBe("100");
+    expect(progressbar?.getAttribute("aria-valuenow")).toBe("42");
+    expect(progressbar?.getAttribute("aria-label")).toBe("下载进度 42%");
+    expect(container.textContent).toContain("42%");
+    expect(container.querySelector<HTMLElement>("[data-update-progress-fill]")?.style.width).toBe(
+      "42%",
+    );
+  });
+
+  it.each([
+    { input: 0, expected: 1 },
+    { input: -10, expected: 1 },
+    { input: 120, expected: 100 },
+  ])("clamps download progress $input to $expected", ({ input, expected }) => {
+    mocks.state.value = {
+      status: "downloading",
+      currentVersion: "1.0.0",
+      latestVersion: "1.0.1",
+      progress: input,
+    };
+    const container = mountButton();
+    const progressbar = container.querySelector("[role=progressbar]");
+    expect(progressbar?.getAttribute("aria-valuenow")).toBe(String(expected));
+    expect(container.querySelector<HTMLElement>("[data-update-progress-fill]")?.style.width).toBe(
+      `${expected}%`,
+    );
   });
 
   it("asks for confirmation before restarting with running sessions", () => {
@@ -91,5 +117,21 @@ describe("AppUpdateButton", () => {
     container.querySelector("button")!.click();
     expect(mocks.openDialog).toHaveBeenCalledOnce();
     expect(mocks.restartToUpdate).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed download", async () => {
+    mocks.state.value = {
+      status: "downloadFailed",
+      currentVersion: "1.0.0",
+      latestVersion: "1.0.1",
+      progress: 0,
+    };
+    const container = mountButton();
+    const button = container.querySelector("button")!;
+    expect(button.title).toBe("下载失败，点击重试");
+    expect(container.textContent).toContain("更新");
+    button.click();
+    await nextTick();
+    expect(mocks.downloadUpdate).toHaveBeenCalledOnce();
   });
 });

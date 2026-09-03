@@ -9,18 +9,22 @@ import { useMessageStatus } from "@/composables/useMessage";
 const { state, visible, downloadUpdate, restartToUpdate, openManualUpdate } = useAppUpdate();
 const { hasRunningSessions } = useMessageStatus();
 const { openDialog } = useDialog();
-const progress = computed(() => (state.value.status === "downloading" ? state.value.progress : 0));
-const progressOffset = computed(() => 100 - progress.value);
+
+const isDownloading = computed(() => state.value.status === "downloading");
+const progress = computed(() => {
+  if (state.value.status !== "downloading") return 0;
+  return Math.min(100, Math.max(1, Math.round(state.value.progress)));
+});
 const title = computed(() =>
   state.value.status === "downloadFailed" ? "下载失败，点击重试" : undefined,
 );
 
 async function handleClick(): Promise<void> {
-  console.log("handleClick", state.value.status);
+  const currentState = state.value;
 
-  if (state.value.status === "manualAvailable") {
+  if (currentState.status === "manualAvailable") {
     await openManualUpdate();
-  } else if (state.value.status === "ready") {
+  } else if (currentState.status === "ready") {
     if (hasRunningSessions.value) {
       openDialog(
         RestartUpdateDialog,
@@ -30,7 +34,7 @@ async function handleClick(): Promise<void> {
     } else {
       await restartToUpdate();
     }
-  } else if (state.value.status === "hotAvailable" || state.value.status === "downloadFailed") {
+  } else if (currentState.status === "hotAvailable" || currentState.status === "downloadFailed") {
     await downloadUpdate();
   }
 }
@@ -39,41 +43,40 @@ async function handleClick(): Promise<void> {
 <template>
   <Button
     v-if="visible"
-    :size="state.status === 'downloading' ? 'icon-sm' : 'sm'"
-    :variant="state.status === 'downloading' ? 'ghost' : 'default'"
+    size="sm"
+    :variant="isDownloading ? 'ghost' : 'default'"
+    class="relative h-7 w-16 overflow-hidden rounded-full px-0"
+    :class="isDownloading && 'bg-primary/15 text-primary disabled:opacity-100'"
     :title="title"
-    :disabled="state.status === 'downloading'"
+    :disabled="isDownloading"
     @click="handleClick"
   >
-    <template v-if="state.status === 'downloading'">
-      <svg
-        class="size-5 -rotate-90"
-        viewBox="0 0 36 36"
+    <template v-if="isDownloading">
+      <span
+        class="absolute inset-0"
         role="progressbar"
+        aria-valuemin="1"
+        aria-valuemax="100"
         :aria-valuenow="progress"
+        :aria-label="`下载进度 ${progress}%`"
       >
-        <circle
-          cx="18"
-          cy="18"
-          r="16"
-          fill="none"
-          stroke="currentColor"
-          stroke-opacity=".2"
-          stroke-width="3"
+        <span
+          data-update-progress-fill
+          class="absolute inset-y-0 left-0 bg-primary transition-[width] duration-200 ease-linear"
+          :style="{ width: `${progress}%` }"
+          aria-hidden="true"
         />
-        <circle
-          cx="18"
-          cy="18"
-          r="16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="3"
-          pathLength="100"
-          stroke-linecap="round"
-          :stroke-dasharray="100"
-          :stroke-dashoffset="progressOffset"
-        />
-      </svg>
+      </span>
+      <span class="relative z-10 text-primary" aria-hidden="true">{{ progress }}%</span>
+      <span
+        class="absolute inset-y-0 left-0 z-20 overflow-hidden transition-[width] duration-200 ease-linear"
+        :style="{ width: `${progress}%` }"
+        aria-hidden="true"
+      >
+        <span class="flex h-full w-16 items-center justify-center text-primary-foreground">
+          {{ progress }}%
+        </span>
+      </span>
     </template>
     <template v-else>{{ state.status === "ready" ? "重启" : "更新" }}</template>
   </Button>
