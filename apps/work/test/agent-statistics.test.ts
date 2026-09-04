@@ -53,8 +53,8 @@ vi.mock("@earendil-works/pi-agent-core/node", () => ({
   NodeExecutionEnv: class NodeExecutionEnv {},
 }));
 
-vi.mock("@earendil-works/pi-ai/providers/all", () => ({
-  builtinModels: () => ({
+vi.mock("../src/main/service/provider/provider-registry", () => ({
+  createWillowModels: () => ({
     getProvider: mocks.getProvider,
     getModel: mocks.getModel,
   }),

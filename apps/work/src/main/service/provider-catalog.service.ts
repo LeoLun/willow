@@ -1,7 +1,7 @@
 import { getSupportedThinkingLevels, type Provider } from "@earendil-works/pi-ai";
-import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import type { ProviderInfo, ThinkingLevel } from "@shared/api";
 import { Injectable } from "@willow/poetry";
+import { willowProviders } from "./provider/provider-registry";
 
 const MULTI_FIELD_API_KEY_PROVIDERS = new Set([
   "amazon-bedrock",
@@ -11,7 +11,7 @@ const MULTI_FIELD_API_KEY_PROVIDERS = new Set([
 
 @Injectable()
 export class ProviderCatalogService {
-  private readonly providers = builtinProviders().filter(
+  private readonly providers = willowProviders().filter(
     (provider) =>
       provider.auth.apiKey?.login !== undefined && !MULTI_FIELD_API_KEY_PROVIDERS.has(provider.id),
   );

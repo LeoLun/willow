@@ -1,12 +1,12 @@
 import "reflect-metadata";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import { describe, expect, it } from "vitest";
 import { ProviderCatalogService } from "../src/main/service/provider-catalog.service";
+import { willowProviders } from "../src/main/service/provider/provider-registry";
 
 describe("ProviderCatalogService", () => {
   it("maps every interactive API-key provider and its models", () => {
-    const expected = builtinProviders().filter(
+    const expected = willowProviders().filter(
       (provider) =>
         provider.auth.apiKey?.login !== undefined &&
         provider.id !== "amazon-bedrock" &&
@@ -32,6 +32,26 @@ describe("ProviderCatalogService", () => {
         thinkingLevels: expect.any(Array),
       }),
     );
+
+    const radeonCloud = catalog.find((provider) => provider.id === "radeon-cloud");
+    expect(radeonCloud).toMatchObject({
+      name: "Radeon Cloud",
+      apiKeyLabel: "Radeon Cloud API key",
+      models: [
+        {
+          id: "DeepSeek-V4-Flash-Vision-Exp",
+          name: "DeepSeek-V4-Flash-Vision-Exp",
+          contextWindow: 1_000_000,
+          thinkingLevels: ["low", "high", "max"],
+        },
+        {
+          id: "DeepSeek-V4-Flash",
+          name: "DeepSeek-V4-Flash-0731",
+          contextWindow: 1_000_000,
+          thinkingLevels: ["low", "high", "max"],
+        },
+      ],
+    });
 
     for (const provider of expected) {
       const catalogProvider = catalog.find((candidate) => candidate.id === provider.id);

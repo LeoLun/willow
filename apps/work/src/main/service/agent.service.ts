@@ -6,7 +6,6 @@ import {
 } from "@earendil-works/pi-agent-core";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { AssistantMessage, Model, MutableModels } from "@earendil-works/pi-ai";
-import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import {
   AgentCore,
   type AgentMode,
@@ -27,6 +26,7 @@ import { Injectable } from "@willow/poetry";
 import type { StatisticsRunSource } from "../db/schema";
 import { BuiltinSkillService } from "./builtin-skill.service";
 import { CredentialService } from "./credential.service";
+import { createWillowModels } from "./provider/provider-registry";
 import { SessionManagerFactory } from "./session-manager.factory";
 import { StatisticsService } from "./statistics.service";
 import { TAVILY_CREDENTIAL_ID } from "./tavily.service";
@@ -98,7 +98,7 @@ export class AgentService {
     private readonly builtinSkillService: BuiltinSkillService,
   ) {
     const credentialStore = this.credentialService.getCredentialStore();
-    this.models = builtinModels({ credentials: credentialStore });
+    this.models = createWillowModels({ credentials: credentialStore });
   }
 
   getModels() {
