@@ -37,9 +37,19 @@ export class SessionService {
     return toSqliteSessionMetadata(stored);
   }
 
-  async getMessageList(workspaceId: number, agentSessionId: string): Promise<AgentMessage[]> {
+  async getMessageList(
+    workspaceId: number,
+    agentSessionId: string,
+  ): Promise<Array<AgentMessage & { completedAt?: number }>> {
     const branch = await this.getBranch(workspaceId, agentSessionId);
-    return branch.flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
+    return branch.flatMap<AgentMessage & { completedAt?: number }>((entry) => {
+      if (entry.type !== "message") return [];
+      if (entry.message.role === "user") return [entry.message];
+      // The harness appends message entries at message_end. The message's own
+      // timestamp is its creation time and must remain unchanged for identity.
+      const completedAt = Date.parse(entry.timestamp);
+      return [{ ...entry.message, ...(Number.isFinite(completedAt) ? { completedAt } : {}) }];
+    });
   }
 
   async getBranch(workspaceId: number, agentSessionId: string): Promise<SessionTreeEntry[]> {

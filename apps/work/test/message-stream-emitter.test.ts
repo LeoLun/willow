@@ -57,6 +57,7 @@ describe("MessageStreamEmitter", () => {
     vi.useFakeTimers();
     const emit = vi.fn();
     const stream = new MessageStreamEmitter("session", emit);
+    vi.setSystemTime(114000);
     stream.push(update("done", "done"));
     stream.push({
       type: "message_end",
@@ -64,6 +65,8 @@ describe("MessageStreamEmitter", () => {
     });
 
     expect(emit.mock.calls.map(([payload]) => payload.event.type)).toEqual(["update", "end"]);
+    expect(emit.mock.calls[1][0].event.completedAt).toBe(114000);
+    expect(emit.mock.calls[1][0].event.message.timestamp).toBe(1);
     vi.runAllTimers();
     expect(emit).toHaveBeenCalledTimes(2);
   });

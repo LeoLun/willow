@@ -18,6 +18,15 @@ import {
   getMessageCopyText,
 } from "../src/renderer/src/components/message-list/message-toolbar";
 
+async function expandTurnProcesses(container: HTMLElement) {
+  for (const trigger of container.querySelectorAll<HTMLButtonElement>(
+    "[data-slot=turn-process-trigger]",
+  )) {
+    if (trigger.getAttribute("aria-expanded") === "false") trigger.click();
+  }
+  await nextTick();
+}
+
 const mountedApps: ReturnType<typeof createApp>[] = [];
 
 function agentMessage(value: unknown): AgentMessage {
@@ -47,16 +56,17 @@ function streamEvent(value: unknown): MessageStreamEvent {
   return event as MessageStreamEvent;
 }
 
-function mountMessageList(messages: Message[], streaming = false) {
+async function mountExpandedMessageList(messages: Message[], streaming = false) {
   const container = document.createElement("div");
   document.body.append(container);
   const app = createApp({ render: () => h(MessageList, { messages, streaming }) });
   app.mount(container);
   mountedApps.push(app);
+  await expandTurnProcesses(container);
   return container;
 }
 
-function mountReactiveMessageList(message: Message) {
+async function mountExpandedReactiveMessageList(message: Message) {
   const container = document.createElement("div");
   const currentMessage = shallowRef(message);
   document.body.append(container);
@@ -65,10 +75,11 @@ function mountReactiveMessageList(message: Message) {
   });
   app.mount(container);
   mountedApps.push(app);
+  await expandTurnProcesses(container);
   return { container, currentMessage };
 }
 
-function mountReactiveMessages(messages: Message[], streaming = false) {
+async function mountExpandedReactiveMessages(messages: Message[], streaming = false) {
   const container = document.createElement("div");
   const currentMessages = shallowRef(messages);
   const currentStreaming = shallowRef(streaming);
@@ -82,6 +93,7 @@ function mountReactiveMessages(messages: Message[], streaming = false) {
   });
   app.mount(container);
   mountedApps.push(app);
+  await expandTurnProcesses(container);
   return { container, currentMessages, currentStreaming };
 }
 
@@ -214,7 +226,7 @@ describe("pi-agent message conversion", () => {
     ]);
   });
 
-  it("preserves and renders provider errors returned by the agent", () => {
+  it("preserves and renders provider errors returned by the agent", async () => {
     const message = toMessage(
       agentMessage({
         role: "assistant",
@@ -230,7 +242,7 @@ describe("pi-agent message conversion", () => {
       errorMessage: "503: Service is too busy",
     });
 
-    const container = mountMessageList([message]);
+    const container = await mountExpandedMessageList([message]);
     const alert = container.querySelector('[data-slot="assistant-error"]');
     expect(alert?.getAttribute("role")).toBe("alert");
     expect(alert?.textContent).toContain("模型服务请求失败");
@@ -244,7 +256,7 @@ describe("pi-agent message conversion", () => {
     expect(messages.map((message) => message.id)).toEqual(["user:5::0", "user:5::1"]);
   });
 
-  it("separates persisted local file metadata from visible user text", () => {
+  it("separates persisted local file metadata from visible user text", async () => {
     const content = appendLocalFileBlock("Review this", {
       requestId: "request-1",
       files: [{ path: "/tmp/design.md", name: "design.md", fileType: "MD" }],
@@ -261,7 +273,7 @@ describe("pi-agent message conversion", () => {
       { type: "text", text: "Review this" },
       { type: "localFile", path: "/tmp/design.md", name: "design.md", fileType: "MD" },
     ]);
-    const container = mountMessageList([message]);
+    const container = await mountExpandedMessageList([message]);
     expect(container.textContent).toContain("Review this");
     expect(container.textContent).toContain("design.md");
     expect(container.textContent).not.toContain("willow_local_files");
@@ -285,12 +297,12 @@ describe("pi-agent message conversion", () => {
     );
   });
 
-  it("renders a file-only user message without an empty text bubble", () => {
+  it("renders a file-only user message without an empty text bubble", async () => {
     const content = appendLocalFileBlock("", {
       requestId: "request-2",
       files: [{ path: "/tmp/plan.md", name: "plan.md", fileType: "MD" }],
     });
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       toMessage(agentMessage({ role: "user", content, timestamp: 7 })),
     ]);
 
@@ -300,7 +312,7 @@ describe("pi-agent message conversion", () => {
     expect(container.querySelector('[data-slot="user-message-body"]')).toBeNull();
   });
 
-  it("renders a directory attachment and keeps legacy file attachments compatible", () => {
+  it("renders a directory attachment and keeps legacy file attachments compatible", async () => {
     const content = appendLocalFileBlock("Review", {
       requestId: "request-directory",
       files: [
@@ -313,7 +325,7 @@ describe("pi-agent message conversion", () => {
         { path: "/tmp/legacy.md", name: "legacy.md", fileType: "MD" },
       ],
     });
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       toMessage(agentMessage({ role: "user", content, timestamp: 7 })),
     ]);
 
@@ -334,7 +346,7 @@ describe("pi-agent message conversion", () => {
     expect(message.content).toEqual([{ type: "text", text: content }]);
   });
 
-  it("renders user message images using LocalFileCard with thumbnail", () => {
+  it("renders user message images using LocalFileCard with thumbnail", async () => {
     const message: Message = {
       id: "user-img",
       sourceKey: "user-img",
@@ -346,7 +358,7 @@ describe("pi-agent message conversion", () => {
         { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
       ],
     };
-    const container = mountMessageList([message]);
+    const container = await mountExpandedMessageList([message]);
     expect(container.querySelector('[data-slot="user-message-attachments"]')).not.toBeNull();
     const fileCard = container.querySelector('[data-slot="local-file-card"]');
     expect(fileCard).not.toBeNull();
@@ -355,7 +367,7 @@ describe("pi-agent message conversion", () => {
     expect(img?.getAttribute("src")).toContain("data:image/png;base64,aGVsbG8=");
   });
 
-  it("deduplicates localFile and image content for the same attachment into a single card", () => {
+  it("deduplicates localFile and image content for the same attachment into a single card", async () => {
     const message: Message = {
       id: "user-dedup",
       sourceKey: "user-dedup",
@@ -379,7 +391,7 @@ describe("pi-agent message conversion", () => {
         },
       ],
     };
-    const container = mountMessageList([message]);
+    const container = await mountExpandedMessageList([message]);
     const cards = container.querySelectorAll('[data-slot="local-file-card"]');
     expect(cards).toHaveLength(1);
     expect(cards[0].textContent).toContain("codex.png");
@@ -614,7 +626,7 @@ describe("MessageList", () => {
           { type: "text", text: "**保留 Markdown**" },
         ],
       };
-      const container = mountMessageList([message]);
+      const container = await mountExpandedMessageList([message]);
       const toolbar = container.querySelector("[data-slot=message-toolbar]");
       const copyButton = toolbar?.querySelector<HTMLButtonElement>("[data-slot=message-copy]");
 
@@ -658,8 +670,8 @@ describe("MessageList", () => {
     }
   });
 
-  it("keeps copy disabled for a message without text content", () => {
-    const container = mountMessageList([
+  it("keeps copy disabled for a message without text content", async () => {
+    const container = await mountExpandedMessageList([
       {
         id: "user-image",
         sourceKey: "user-image",
@@ -729,7 +741,7 @@ describe("MessageList", () => {
         content: [{ type: "text", text: "**第二轮最终回复**" }],
       },
     ];
-    const { container, currentStreaming } = mountReactiveMessages(messages, true);
+    const { container, currentStreaming } = await mountExpandedReactiveMessages(messages, true);
     await nextTick();
 
     let assistantMessages = container.querySelectorAll("[data-slot=assistant-message]");
@@ -754,8 +766,8 @@ describe("MessageList", () => {
     });
   });
 
-  it("does not show a copy toolbar when a completed loop ends with a tool", () => {
-    const container = mountMessageList([
+  it("does not show a copy toolbar when a completed loop ends with a tool", async () => {
+    const container = await mountExpandedMessageList([
       {
         id: "user",
         sourceKey: "user",
@@ -792,7 +804,7 @@ describe("MessageList", () => {
     ).toBeNull();
   });
 
-  it("shows the working indicator at the end only while the agent loop is active", () => {
+  it("shows the working indicator at the end only while the agent loop is active", async () => {
     document.documentElement.classList.add("dark");
     const message: Message = {
       id: "user",
@@ -802,7 +814,7 @@ describe("MessageList", () => {
       status: "completed",
       content: [{ type: "text", text: "开始处理" }],
     };
-    const runningContainer = mountMessageList([message], true);
+    const runningContainer = await mountExpandedMessageList([message], true);
     const working = runningContainer.querySelector("[data-slot=message-list-working]");
     const messageList = runningContainer.querySelector("[data-slot=message-list]");
 
@@ -818,12 +830,12 @@ describe("MessageList", () => {
     ).toBe(true);
     expect(messageList?.lastElementChild).toBe(working);
 
-    const completedContainer = mountMessageList([message]);
+    const completedContainer = await mountExpandedMessageList([message]);
     expect(completedContainer.querySelector("[data-slot=message-list-working]")).toBeNull();
   });
 
   it("shows streaming thinking expanded and lets the user collapse it", async () => {
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       {
         id: "assistant",
         sourceKey: "assistant",
@@ -864,7 +876,7 @@ describe("MessageList", () => {
   });
 
   it("shows completed thinking collapsed and lets the user expand redacted content", async () => {
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       {
         id: "assistant",
         sourceKey: "assistant",
@@ -895,7 +907,7 @@ describe("MessageList", () => {
   });
 
   it("renders available thinking content with Comark markdown", async () => {
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       {
         id: "assistant",
         sourceKey: "assistant",
@@ -935,7 +947,7 @@ describe("MessageList", () => {
       status: "streaming",
       content: [{ type: "thinking", thinking: "第一段", status: "streaming" }],
     };
-    const { container, currentMessage } = mountReactiveMessageList(streamingMessage);
+    const { container, currentMessage } = await mountExpandedReactiveMessageList(streamingMessage);
 
     const thinkingContent = await vi.waitFor(() => {
       const element = container.querySelector<HTMLElement>("[data-slot=thinking-content]");
@@ -998,7 +1010,7 @@ describe("MessageList", () => {
       status: "streaming",
       content: [{ type: "thinking", thinking: "即将完成", status: "streaming" }],
     };
-    const { container, currentMessage } = mountReactiveMessageList(streamingMessage);
+    const { container, currentMessage } = await mountExpandedReactiveMessageList(streamingMessage);
     await nextTick();
 
     const thinkingBlock = container.querySelector("[data-slot=thinking-block]");
@@ -1058,7 +1070,7 @@ describe("MessageList", () => {
         details: circularDetails,
       },
     ];
-    const container = mountMessageList(messages);
+    const container = await mountExpandedMessageList(messages);
     await nextTick();
 
     expect(container.querySelector("script")).toBeNull();
@@ -1110,7 +1122,7 @@ describe("MessageList", () => {
         isError: true,
       },
     ];
-    const container = mountMessageList(messages);
+    const container = await mountExpandedMessageList(messages);
     await nextTick();
 
     expect(container.querySelector("[data-slot=user-message]")?.textContent).toContain("hello");
@@ -1134,7 +1146,7 @@ describe("MessageList", () => {
     const fileSource = "[UserMessage.vue](apps/work/UserMessage.vue)";
     const boardSource =
       '<board-node path=".agents/panel/index.html" selector="#status" tag="section" label="Status">Project status</board-node>';
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       {
         id: "user",
         sourceKey: "user",
@@ -1190,7 +1202,7 @@ describe("MessageList", () => {
         content: [{ type: "text", text: "**工具原文**" }],
       },
     ];
-    const container = mountMessageList(messages);
+    const container = await mountExpandedMessageList(messages);
 
     await vi.waitFor(() => {
       expect(container.querySelector("[data-slot=assistant-message] h1")?.textContent).toBe("标题");
@@ -1213,7 +1225,7 @@ describe("MessageList", () => {
   });
 
   it("keeps object-like text literal while streaming markdown", async () => {
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       {
         id: "assistant",
         sourceKey: "assistant",
@@ -1255,7 +1267,7 @@ describe("MessageList", () => {
         },
       },
     ];
-    const container = mountMessageList(messages);
+    const container = await mountExpandedMessageList(messages);
     await nextTick();
 
     const trigger = container.querySelector<HTMLButtonElement>(
@@ -1282,7 +1294,7 @@ describe("MessageList", () => {
   });
 
   it("shows shimmer while a web search is running", async () => {
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       {
         id: "assistant",
         sourceKey: "assistant",
@@ -1360,7 +1372,7 @@ describe("MessageList", () => {
         },
       },
     ];
-    const container = mountMessageList(messages);
+    const container = await mountExpandedMessageList(messages);
     await nextTick();
 
     const block = container.querySelector("[data-slot=ask-user-result-block]");
@@ -1423,7 +1435,7 @@ describe("MessageList", () => {
         },
       },
     ];
-    const container = mountMessageList(messages);
+    const container = await mountExpandedMessageList(messages);
     await nextTick();
 
     const block = container.querySelector("[data-slot=websearch-result-block]");
@@ -1472,7 +1484,7 @@ describe("MessageList", () => {
         details: { msg: "读取完成", kind: "read", path: "answer.ts", offset: 1, lineCount: 1 },
       },
     ];
-    const container = mountMessageList(messages);
+    const container = await mountExpandedMessageList(messages);
     await nextTick();
 
     const toolMessages = container.querySelectorAll("[data-slot=tool-message]");
@@ -1512,7 +1524,7 @@ describe("MessageList", () => {
       toolCallId: "call-1",
       toolName: "read",
     };
-    const { container, currentMessages } = mountReactiveMessages([assistant]);
+    const { container, currentMessages } = await mountExpandedReactiveMessages([assistant]);
     await nextTick();
 
     const trigger = container.querySelector<HTMLButtonElement>("[data-slot=tool-message] button");
@@ -1536,8 +1548,8 @@ describe("MessageList", () => {
     expect(summary?.classList.contains("shimmer")).toBe(false);
   });
 
-  it("renders multiple tool calls independently and keeps unmatched results visible", async () => {
-    const container = mountMessageList([
+  it("groups multiple tool calls and keeps unmatched results visible after expansion", async () => {
+    const container = await mountExpandedMessageList([
       {
         id: "assistant",
         sourceKey: "assistant",
@@ -1572,11 +1584,115 @@ describe("MessageList", () => {
     ]);
     await nextTick();
 
+    const groupTrigger = container.querySelector<HTMLButtonElement>(
+      "[data-slot=tool-message-group] button",
+    );
+    expect(groupTrigger?.textContent).toContain("读取文件 3 次");
+    expect(groupTrigger?.getAttribute("aria-expanded")).toBe("false");
+    groupTrigger?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll("[data-slot=tool-message]")).toHaveLength(3),
+    );
     const toolMessages = container.querySelectorAll("[data-slot=tool-message]");
     expect(toolMessages).toHaveLength(3);
     expect(toolMessages[0]?.textContent).toContain("读取 a.ts");
     expect(toolMessages[1]?.textContent).toContain("读取 b.ts");
     expect(toolMessages[2]?.textContent).toContain("工具结果 · read");
+  });
+
+  it("preserves group expansion through appended calls and out-of-order results", async () => {
+    const call = (id: string) => ({
+      type: "toolCall" as const,
+      id,
+      name: "read",
+      arguments: { path: `${id}.ts` },
+    });
+    const assistant: Message = {
+      id: "a",
+      sourceKey: "a",
+      role: "assistant",
+      timestamp: 1,
+      status: "streaming",
+      content: [call("one"), call("two")],
+    };
+    const { container, currentMessages, currentStreaming } = await mountExpandedReactiveMessages(
+      [assistant],
+      true,
+    );
+    await nextTick();
+    const trigger = container.querySelector<HTMLButtonElement>(
+      "[data-slot=tool-message-group] button",
+    )!;
+    trigger.click();
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll("[data-slot=tool-message]")).toHaveLength(2),
+    );
+    const result = (id: string): Message => ({
+      id: `result-${id}`,
+      sourceKey: id,
+      role: "toolResult",
+      timestamp: 2,
+      status: "completed",
+      toolCallId: id,
+      toolName: "read",
+      content: [{ type: "text", text: `output-${id}` }],
+    });
+    currentMessages.value = [
+      { ...assistant, content: [call("one"), call("two"), call("three")] },
+      result("two"),
+    ];
+    await vi.waitFor(() => expect(trigger.textContent).toContain("读取文件 3 次"));
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const child = container.querySelectorAll<HTMLButtonElement>(
+      "[data-slot=tool-message] button",
+    )[1]!;
+    child.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("output-two"));
+    currentMessages.value = [
+      { ...assistant, status: "completed", content: [call("one"), call("two"), call("three")] },
+      result("two"),
+      result("one"),
+      result("three"),
+    ];
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector("[data-slot=tool-group-summary]")?.classList.contains("shimmer"),
+      ).toBe(false),
+    );
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(container.textContent).toContain("output-two");
+    currentStreaming.value = false;
+    await nextTick();
+    expect(
+      container.querySelector("[data-slot=turn-process-trigger]")?.getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(container.querySelector("[data-slot=tool-message-group]")).toBeNull();
+  });
+
+  it.each(["text", "thinking"] as const)("breaks tool groups at %s content", async (type) => {
+    const call = (id: string) => ({
+      type: "toolCall" as const,
+      id,
+      name: "read",
+      arguments: { path: id },
+    });
+    const separator =
+      type === "text"
+        ? { type, text: "separator" }
+        : { type, thinking: "separator", status: "completed" as const };
+    const container = await mountExpandedMessageList([
+      {
+        id: "a",
+        sourceKey: "a",
+        role: "assistant",
+        timestamp: 1,
+        status: "completed",
+        content: [call("1"), call("2"), separator, call("3"), call("4")],
+      },
+    ]);
+    await nextTick();
+    expect(container.querySelectorAll("[data-slot=tool-message-group]")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-slot=assistant-message]")).toHaveLength(1);
   });
 
   it("renders math, Mermaid diagrams, and highlighted code blocks", async () => {
@@ -1604,7 +1720,7 @@ describe("MessageList", () => {
       "**Markdown alias**",
       "```",
     ].join("\n");
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       {
         id: "assistant",
         sourceKey: "assistant",
@@ -1635,7 +1751,7 @@ describe("MessageList", () => {
   });
 
   it("keeps raw HTML inert in assistant markdown", async () => {
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       {
         id: "assistant",
         sourceKey: "assistant",
@@ -1663,7 +1779,7 @@ describe("MessageList", () => {
   });
 
   it("streams thinking while auto-closing only the last text node", async () => {
-    const container = mountMessageList([
+    const container = await mountExpandedMessageList([
       {
         id: "assistant",
         sourceKey: "assistant",

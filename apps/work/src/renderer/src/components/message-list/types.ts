@@ -50,6 +50,7 @@ export interface Message {
   sourceKey: string;
   role: MessageRole;
   timestamp: number;
+  completedAt?: number;
   status: "streaming" | "completed";
   content: MessageContent[];
   toolCallId?: string;

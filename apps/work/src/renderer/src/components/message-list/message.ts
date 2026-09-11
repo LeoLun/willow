@@ -13,6 +13,7 @@ type AgentMessageLike = {
   role?: unknown;
   content?: unknown;
   timestamp?: unknown;
+  completedAt?: unknown;
   toolCallId?: unknown;
   toolName?: unknown;
   details?: unknown;
@@ -196,6 +197,7 @@ export function toMessage(
     sourceKey,
     role,
     timestamp,
+    ...(toTimestamp(value.completedAt) > 0 ? { completedAt: toTimestamp(value.completedAt) } : {}),
     status,
     content: toContentList(value, role, thinkingStatuses),
     toolCallId: typeof value.toolCallId === "string" ? value.toolCallId : undefined,
@@ -261,6 +263,13 @@ function replaceMessage(
 ): Message[] {
   const current = messages[index];
   const next = toMessage(agentMessage, status, current.id, getThinkingStatuses(current));
+  if (
+    status === "completed" &&
+    next.completedAt === undefined &&
+    current.completedAt !== undefined
+  ) {
+    next.completedAt = current.completedAt;
+  }
   return messages.map((message, messageIndex) => (messageIndex === index ? next : message));
 }
 
@@ -294,10 +303,16 @@ export function applyMessageStreamEvent(
   timeline: MessageTimeline,
   event: MessageStreamEvent,
 ): MessageTimeline {
+  const sourceMessage =
+    event.type === "update"
+      ? undefined
+      : event.type === "end" && event.completedAt !== undefined
+        ? { ...event.message, completedAt: event.completedAt }
+        : event.message;
   const activeIndex = timeline.activeMessageId
     ? timeline.messages.findIndex((message) => message.id === timeline.activeMessageId)
     : -1;
-  const sourceKey = event.type === "update" ? undefined : getMessageSourceKey(event.message);
+  const sourceKey = event.type === "update" ? undefined : getMessageSourceKey(sourceMessage!);
   const sourceIndex =
     event.type === "update"
       ? timeline.messages.findLastIndex(
@@ -309,12 +324,12 @@ export function applyMessageStreamEvent(
   if (event.type === "start") {
     if (sourceIndex >= 0) {
       return {
-        messages: replaceMessage(timeline.messages, sourceIndex, event.message, "streaming"),
+        messages: replaceMessage(timeline.messages, sourceIndex, sourceMessage!, "streaming"),
         activeMessageId: timeline.messages[sourceIndex].id,
       };
     }
     const message = toMessage(
-      event.message,
+      sourceMessage!,
       "streaming",
       createUniqueId(timeline.messages, sourceKey!),
     );
@@ -324,7 +339,7 @@ export function applyMessageStreamEvent(
   if (existingIndex < 0) {
     if (event.type === "update") return timeline;
     const message = toMessage(
-      event.message,
+      sourceMessage!,
       event.type === "end" ? "completed" : "streaming",
       createUniqueId(timeline.messages, sourceKey!),
     );
@@ -394,7 +409,7 @@ export function applyMessageStreamEvent(
   }
 
   return {
-    messages: replaceMessage(timeline.messages, existingIndex, event.message, "completed"),
+    messages: replaceMessage(timeline.messages, existingIndex, sourceMessage!, "completed"),
     activeMessageId: undefined,
   };
 }

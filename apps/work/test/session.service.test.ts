@@ -109,6 +109,14 @@ describe("SessionService", () => {
       stopReason: "stop",
       timestamp: 2,
     });
+    const storedBranch = await session.getBranch();
+    const assistantEntry = storedBranch.find(
+      (entry) => entry.type === "message" && entry.message.role === "assistant",
+    )!;
+    expect((await sessionService.getMessageList(workspaceId, "messages"))[1]).toMatchObject({
+      timestamp: 2,
+      completedAt: Date.parse(assistantEntry.timestamp),
+    });
     await session.moveTo(firstId);
     await session.appendCustomEntry("ui-only", { ignored: true });
     await session.appendMessage({ role: "user", content: "Revised", timestamp: 3 });

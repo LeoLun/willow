@@ -72,7 +72,7 @@ export class MessageStreamEmitter {
       this.emit({
         type: "stream",
         sessionId: this.sessionId,
-        event: { type: "end", message: event.message },
+        event: { type: "end", message: event.message, completedAt: Date.now() },
       });
       return;
     }

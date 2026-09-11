@@ -257,3 +257,49 @@ export function getSafeFaviconUrl(value: unknown): string | undefined {
   const url = getSafeExternalUrl(value);
   return url?.startsWith("https:") ? url : undefined;
 }
+
+export interface ToolGroupEntry {
+  key: string;
+  toolCall?: import("./types").ToolCallContent;
+  result?: import("./types").Message;
+}
+
+const toolGroupLabels: Readonly<Record<string, string>> = {
+  read: "读取文件",
+  write: "写入文件",
+  edit: "编辑文件",
+  bash: "运行命令",
+  ls: "列出文件",
+  grep: "搜索内容",
+  find: "搜索文件",
+  websearch: "搜索网络",
+  webfetch: "抓取网页",
+  writePlan: "保存计划",
+  updatePlan: "更新计划",
+  todoList: "任务列表",
+  askUser: "询问用户",
+  listAutomations: "查询自动化",
+  createAutomation: "创建自动化",
+  updateAutomation: "修改自动化",
+  deleteAutomation: "删除自动化",
+};
+
+export function formatToolGroupTitle(tools: readonly ToolGroupEntry[]): string {
+  const counts = new Map<string, number>();
+  let failures = 0;
+  for (const tool of tools) {
+    const kind = asRecord(tool.result?.details).kind;
+    const name =
+      tool.toolCall?.name || tool.result?.toolName || (typeof kind === "string" ? kind : "");
+    const label = Object.hasOwn(toolGroupLabels, name)
+      ? toolGroupLabels[name]!
+      : name
+        ? `调用 ${name}`
+        : "工具调用";
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+    if (tool.result?.isError) failures += 1;
+  }
+  const parts = [...counts].map(([label, count]) => `${label} ${count} 次`);
+  if (failures > 0) parts.push(`失败 ${failures} 次`);
+  return parts.join("、");
+}

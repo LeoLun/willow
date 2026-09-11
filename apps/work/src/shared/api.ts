@@ -599,6 +599,8 @@ export type MessageStreamEvent =
   | {
       type: "start" | "end";
       message: AgentMessage;
+      /** Wall-clock time when message_end was received (milliseconds). */
+      completedAt?: number;
     }
   | {
       type: "update";
@@ -692,7 +694,7 @@ export interface TurnArtifactBundle {
 }
 
 export interface GetMessageListResponse {
-  messages: AgentMessage[];
+  messages: Array<AgentMessage & { completedAt?: number }>;
   artifacts: TurnArtifactBundle[];
   pendingToolApproval?: ToolApprovalEventPayload;
   pendingUserQuestion?: UserQuestionEventPayload;
