@@ -5,7 +5,7 @@ import {
   CollapsibleTrigger,
 } from "@willow/shadcn/components/ui/collapsible";
 import { ChevronDownIcon, WrenchIcon } from "lucide-vue-next";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { formatToolGroupTitle, type ToolGroupEntry } from "../tool-display";
 import ToolMessage from "./ToolMessage.vue";
 
@@ -16,6 +16,14 @@ const pending = computed(() =>
   props.tools.some((tool) => !tool.result || tool.result.status === "streaming"),
 );
 const failed = computed(() => props.tools.some((tool) => tool.result?.isError));
+
+watch(
+  pending,
+  (value) => {
+    open.value = value;
+  },
+  { immediate: true },
+);
 </script>
 
 <template>

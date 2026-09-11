@@ -1588,8 +1588,7 @@ describe("MessageList", () => {
       "[data-slot=tool-message-group] button",
     );
     expect(groupTrigger?.textContent).toContain("读取文件 3 次");
-    expect(groupTrigger?.getAttribute("aria-expanded")).toBe("false");
-    groupTrigger?.click();
+    expect(groupTrigger?.getAttribute("aria-expanded")).toBe("true");
     await vi.waitFor(() =>
       expect(container.querySelectorAll("[data-slot=tool-message]")).toHaveLength(3),
     );
@@ -1600,7 +1599,7 @@ describe("MessageList", () => {
     expect(toolMessages[2]?.textContent).toContain("工具结果 · read");
   });
 
-  it("preserves group expansion through appended calls and out-of-order results", async () => {
+  it("expands pending groups and collapses after all out-of-order results complete", async () => {
     const call = (id: string) => ({
       type: "toolCall" as const,
       id,
@@ -1623,7 +1622,7 @@ describe("MessageList", () => {
     const trigger = container.querySelector<HTMLButtonElement>(
       "[data-slot=tool-message-group] button",
     )!;
-    trigger.click();
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
     await vi.waitFor(() =>
       expect(container.querySelectorAll("[data-slot=tool-message]")).toHaveLength(2),
     );
@@ -1659,14 +1658,23 @@ describe("MessageList", () => {
         container.querySelector("[data-slot=tool-group-summary]")?.classList.contains("shimmer"),
       ).toBe(false),
     );
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(container.textContent).toContain("output-two");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    trigger.click();
+    await vi.waitFor(() => expect(trigger.getAttribute("aria-expanded")).toBe("true"));
     currentStreaming.value = false;
     await nextTick();
     expect(
       container.querySelector("[data-slot=turn-process-trigger]")?.getAttribute("aria-expanded"),
     ).toBe("false");
     expect(container.querySelector("[data-slot=tool-message-group]")).toBeNull();
+    await expandTurnProcesses(container);
+    await vi.waitFor(() =>
+      expect(
+        container
+          .querySelector("[data-slot=tool-message-group] button")
+          ?.getAttribute("aria-expanded"),
+      ).toBe("false"),
+    );
   });
 
   it.each(["text", "thinking"] as const)("breaks tool groups at %s content", async (type) => {
