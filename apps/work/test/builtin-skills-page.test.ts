@@ -2,6 +2,19 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, nextTick, type App } from "vue";
+import { createMemoryHistory, createRouter } from "vue-router";
+
+vi.mock("@/components/layout/BaseHeader.vue", async () => {
+  const { h, defineComponent } = await import("vue");
+  return {
+    default: defineComponent({
+      setup:
+        (_, { slots }) =>
+        () =>
+          h("header", slots.left?.()),
+    }),
+  };
+});
 
 const mocks = vi.hoisted(() => ({
   getBuiltinSkillList: vi.fn(),
@@ -54,6 +67,12 @@ async function mountPage(): Promise<HTMLElement> {
   const container = document.createElement("div");
   document.body.append(container);
   const app = createApp(Skill);
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/skill", component: Skill }],
+  });
+  app.use(router);
+  await router.push("/skill");
   app.mount(container);
   mountedApps.push(app);
   await nextTick();

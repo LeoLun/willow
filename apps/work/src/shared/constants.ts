@@ -73,3 +73,7 @@ export const DELETE_AUTOMATION = "DELETE_AUTOMATION";
 export const RUN_AUTOMATION_NOW = "RUN_AUTOMATION_NOW";
 export const LIST_AUTOMATION_RUNS = "LIST_AUTOMATION_RUNS";
 export const AUTOMATION_CHANGED_EVENT = "AUTOMATION_CHANGED_EVENT";
+export const GET_MCP = "mcp:get";
+export const MANAGE_MCP = "mcp:manage";
+export const MCP_STATUS_EVENT = "mcp:status";
+export const MCP_AUTH_REQUIRED_EVENT = "mcp:auth-required";

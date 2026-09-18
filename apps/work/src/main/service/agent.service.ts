@@ -85,6 +85,15 @@ type StatisticsInterceptorOptions = {
  */
 @Injectable()
 export class AgentService {
+  private mcpManagerProvider?: (workspaceId: number) => Promise<import("@willow/core").McpRuntime>;
+  setMcpManagerProvider(
+    provider: (workspaceId: number) => Promise<import("@willow/core").McpRuntime>,
+  ) {
+    this.mcpManagerProvider = provider;
+  }
+  async getMcpManager(workspaceId: number) {
+    return this.mcpManagerProvider?.(workspaceId);
+  }
   private models: MutableModels;
   private listAutomationsHandler?: WorkspaceListAutomationsHandler;
   private createAutomationHandler?: WorkspaceCreateAutomationHandler;
@@ -168,6 +177,7 @@ export class AgentService {
       credential?.type === "api_key" && credential.key?.trim() ? credential.key.trim() : undefined;
     const core = new AgentCore({
       ...options,
+      mcp: await this.mcpManagerProvider?.(workspaceId),
       models: this.models,
       sessionRepo,
       builtinSkills: this.builtinSkillService.getCoreOptions(),

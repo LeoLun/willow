@@ -21,6 +21,9 @@ describe("core exports", () => {
       "deleteAutomation",
       "writePlan",
       "updatePlan",
+      "mcpSearch",
+      "mcpDescribe",
+      "mcpCall",
     ]);
   });
 
@@ -34,7 +37,11 @@ describe("core exports", () => {
 
       expect(tools.map((tool) => tool.name)).toEqual(
         TOOL_NAMES.filter(
-          (name) => name !== "websearch" && name !== "writePlan" && name !== "updatePlan",
+          (name) =>
+            name !== "websearch" &&
+            name !== "writePlan" &&
+            name !== "updatePlan" &&
+            !name.startsWith("mcp"),
         ),
       );
     }
@@ -48,7 +55,9 @@ describe("core exports", () => {
     });
 
     expect(tools.map((tool) => tool.name)).toEqual(
-      TOOL_NAMES.filter((name) => name !== "writePlan" && name !== "updatePlan"),
+      TOOL_NAMES.filter(
+        (name) => name !== "writePlan" && name !== "updatePlan" && !name.startsWith("mcp"),
+      ),
     );
   });
 

@@ -884,3 +884,48 @@ export type AutomationChangedEvent = {
   automationId: number;
   type: "created" | "updated" | "deleted" | "run-started" | "run-finished";
 };
+export type McpTarget =
+  | { scope: "global"; workspaceId?: never }
+  | { scope?: "project"; workspaceId: number };
+export type McpAuthRequiredEvent = McpTarget & { serverName: string; cancelled?: boolean };
+export type GetMcpRequest = McpTarget;
+export type McpProjectEvent = Omit<import("@willow/core").McpStatusSnapshot, "servers"> &
+  McpTarget & {
+    servers: (import("@willow/core").McpServerStatus & { source: "global" | "project" })[];
+  };
+export type GetMcpResponse = McpTarget & {
+  configRevision: string;
+  configError?: string;
+  servers: (import("@willow/core").McpServerStatus & {
+    source: "global" | "project";
+    definition: import("@willow/core").McpServerDefinition;
+    hasCredentials: boolean;
+    secretNames: string[];
+    hasPlaintextSecrets: boolean;
+  })[];
+  status: McpProjectEvent;
+};
+export type ManageMcpRequest = McpTarget & {
+  serverName: string;
+  action:
+    | "save"
+    | "delete"
+    | "connect"
+    | "disconnect"
+    | "reconnect"
+    | "login"
+    | "cancel-login"
+    | "logout"
+    | "set-token"
+    | "migrate-secrets"
+    | "tools";
+  definition?: import("@willow/core").McpServerDefinition;
+  configRevision?: string;
+  token?: string;
+  clientSecret?: string;
+  secrets?: Record<string, string>;
+};
+export type ManageMcpResponse = {
+  project: GetMcpResponse;
+  tools?: import("@willow/core").McpToolDescription[];
+};

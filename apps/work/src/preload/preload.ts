@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent, webUtils } from "electron";
 import type { IRenderHook } from "../shared";
 import type {
+  GetMcpRequest,
+  GetMcpResponse,
+  ManageMcpRequest,
+  ManageMcpResponse,
+} from "../shared/api";
+import type {
   ApiResponse,
   AppUpdateRequest,
   AppUpdateResponse,
@@ -123,6 +129,7 @@ import type {
   UpdateAutomationRequest,
   UpdateAutomationResponse,
 } from "../shared/api";
+import { GET_MCP, MANAGE_MCP } from "../shared/constants";
 import {
   CREATE_SESSION,
   CHECK_APP_UPDATE,
@@ -201,6 +208,9 @@ async function invoke<TRequest, TResponse>(event: string, request: TRequest): Pr
 }
 
 const ipcObject: IRenderHook = {
+  getMcp: (request: GetMcpRequest) => invoke<GetMcpRequest, GetMcpResponse>(GET_MCP, request),
+  manageMcp: (request: ManageMcpRequest) =>
+    invoke<ManageMcpRequest, ManageMcpResponse>(MANAGE_MCP, request),
   registerEvent: async (
     request: RegisterEventRequest,
     callback?: (event: string, data: any) => void,

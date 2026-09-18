@@ -37,6 +37,12 @@ function pathToName(path: string): string {
 export function formatToolCallTitle(name: string, args: unknown, details?: unknown): string {
   const input = asRecord(args);
   switch (name) {
+    case "mcpSearch":
+      return `搜索 MCP 工具 · ${text(input.query, "全部")}`;
+    case "mcpDescribe":
+      return `查看 MCP 工具 · ${text(input.serverName)} / ${text(input.toolName)}`;
+    case "mcpCall":
+      return `调用 MCP 工具 · ${text(input.serverName)} / ${text(input.toolName)}`;
     case "bash":
       return `$ ${text(input.command)}`;
     case "read": {
@@ -274,6 +280,9 @@ const toolGroupLabels: Readonly<Record<string, string>> = {
   find: "搜索文件",
   websearch: "搜索网络",
   webfetch: "抓取网页",
+  mcpSearch: "搜索 MCP 工具",
+  mcpDescribe: "查看 MCP 工具",
+  mcpCall: "调用 MCP 工具",
   writePlan: "保存计划",
   updatePlan: "更新计划",
   todoList: "任务列表",

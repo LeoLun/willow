@@ -12,6 +12,8 @@ const props = defineProps<{
 const submitting = ref(false);
 const errorMessage = ref("");
 const reasonLabel = computed(() => {
+  if (props.request.action?.type === "mcp")
+    return `调用 MCP 工具：${props.request.action.serverName} / ${props.request.action.toolName}`;
   const labels = {
     "outside-workspace-read": "读取目标位于工作区外",
     "outside-workspace-write": "写入目标位于工作区外",

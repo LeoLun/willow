@@ -8,6 +8,9 @@ import { createFindTool } from "./find.js";
 import { createGrepTool } from "./grep.js";
 import { createListAutomationsTool } from "./list-automations.js";
 import { createLsTool } from "./ls.js";
+import { McpCallTool } from "./mcp-call.js";
+import { McpDescribeTool } from "./mcp-describe.js";
+import { McpSearchTool } from "./mcp-search.js";
 import { createReadTool } from "./read.js";
 import { createTodoListTool } from "./todo-list.js";
 import type { ToolRuntimeOptions } from "./types.js";
@@ -31,6 +34,11 @@ export function createWillowTools(options: ToolRuntimeOptions): AgentTool[] {
     tools.push(createAskUserTool(options));
     tools.push(createWritePlanTool(options));
     tools.push(createUpdatePlanTool(options));
+    if (options.mcp)
+      tools.push(
+        new McpSearchTool(options) as AgentTool<any>,
+        new McpDescribeTool(options) as AgentTool<any>,
+      );
     return tools;
   }
 
@@ -51,9 +59,18 @@ export function createWillowTools(options: ToolRuntimeOptions): AgentTool[] {
   tools.push(createCreateAutomationTool(options));
   tools.push(createUpdateAutomationTool(options));
   tools.push(createDeleteAutomationTool(options));
+  if (options.mcp)
+    tools.push(
+      new McpSearchTool(options) as AgentTool<any>,
+      new McpDescribeTool(options) as AgentTool<any>,
+      new McpCallTool(options) as AgentTool<any>,
+    );
   return tools;
 }
 
+export * from "./mcp-search.js";
+export * from "./mcp-describe.js";
+export * from "./mcp-call.js";
 export * from "./base.js";
 export * from "./ask-user.js";
 export * from "./bash.js";

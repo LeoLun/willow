@@ -635,6 +635,14 @@ export class MessageService {
           request.toolName === payload.toolName
         ) {
           replayApprovalAvailable = false;
+          if (
+            request.toolName === "mcpCall" &&
+            (payload.action?.type !== "mcp" ||
+              request.action?.type !== "mcp" ||
+              payload.action.fingerprint !== request.action.fingerprint ||
+              JSON.stringify(payload.input) !== JSON.stringify(request.input))
+          )
+            return "deny";
           return decision;
         }
         return fallbackApproval(request, signal);
@@ -849,6 +857,16 @@ export class MessageService {
       return this.createToolResult(payload, `无法恢复工具：${payload.toolName}`, true);
     }
     try {
+      if (payload.toolName === "mcpCall") {
+        const manager = await this.agentService.getMcpManager(payload.workspaceId);
+        if (
+          payload.action?.type !== "mcp" ||
+          !manager ||
+          manager.fingerprint(payload.action.serverName) !== payload.action.fingerprint
+        ) {
+          return this.createToolResult(payload, "MCP 配置已变化，请重新发起调用。", true);
+        }
+      }
       const result = await tool.execute(payload.toolCallId, payload.input as never);
       return {
         role: "toolResult",
@@ -856,7 +874,7 @@ export class MessageService {
         toolName: payload.toolName,
         content: result.content ?? [],
         details: result.details,
-        isError: false,
+        isError: result.details?.kind === "mcp" && result.details.isError === true,
         timestamp: Date.now(),
       };
     } catch (error) {

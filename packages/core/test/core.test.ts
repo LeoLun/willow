@@ -6,7 +6,9 @@ import type { CredentialStore } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentCore } from "../src/core.js";
+import { McpManager } from "../src/mcp/manager.js";
 import type { ToolRuntimeOptions } from "../src/tools/types.js";
+import { DefaultResourceLoader } from "../src/utils/resource-loader.js";
 
 const capturedToolOptions = vi.hoisted(() => [] as ToolRuntimeOptions[]);
 
@@ -47,6 +49,40 @@ describe("AgentCore model setup", () => {
       "deepseek-v4-flash-vision-exp",
     );
     expect(core.getModel("zai", "glm-5.3-flash").id).toBe("glm-5.3-flash");
+  });
+
+  it("includes the project MCP catalog in the agent prompt and passes its runtime to tools", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "willow-core-mcp-"));
+    temporaryDirectories.push(cwd);
+    const models = builtinModels();
+    const manager = new McpManager({
+      cwd,
+      namespace: "test",
+      credentials: {
+        read: async () => undefined,
+        write: async () => undefined,
+        delete: async () => undefined,
+      },
+      openBrowser: async () => undefined,
+    });
+    const reload = vi.spyOn(DefaultResourceLoader.prototype, "reload");
+    try {
+      await manager.register("codegraph", { command: "codegraph", args: ["serve", "--mcp"] });
+      const core = new AgentCore({
+        cwd,
+        models,
+        mcp: manager,
+        sessionRepo: new InMemorySessionRepo(),
+      });
+      await core.getAgentHarness({ model: models.getModel("deepseek", "deepseek-v4-flash")! });
+      expect(reload.mock.calls[reload.mock.calls.length - 1]?.[0]).toContain('"name":"codegraph"');
+      expect(reload.mock.calls[reload.mock.calls.length - 1]?.[0]).toContain("mcpCall");
+      expect(capturedToolOptions[0].mcp).toBe(manager);
+      expect(manager.snapshot().connectedCount).toBe(0);
+    } finally {
+      reload.mockRestore();
+      await manager.dispose();
+    }
   });
 
   it("allows read and write access to the built-in skills directory", async () => {

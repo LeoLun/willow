@@ -26,6 +26,7 @@ export interface Agent {
 }
 
 export type AgentCoreOptions = {
+  mcp?: import("./mcp/types.js").McpRuntime;
   cwd: string;
   models: MutableModels;
   sessionRepo: SessionRepo;

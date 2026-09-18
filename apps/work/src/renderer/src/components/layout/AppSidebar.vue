@@ -134,7 +134,7 @@ const workspaceGroups = computed(() => [
 const quickAccess: QuickAccessItem[] = [
   { id: "task", label: "新建任务", icon: Folder },
   { id: "auto", label: "自动化", icon: Clock3 },
-  { id: "skill", label: "技能", icon: Blocks },
+  { id: "skill", label: "技能 & MCP", icon: Blocks },
 ];
 
 function isWorkspaceOpen(workspaceId: number) {
@@ -410,6 +410,17 @@ watch(selectedSessionId, (sessionId, previousSessionId) => {
                         <PinOff v-if="workspace.pinned" aria-hidden="true" />
                         <Pin v-else aria-hidden="true" />
                         {{ workspace.pinned ? "取消置顶" : "置顶" }}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        @select="
+                          router.push({
+                            name: 'skill',
+                            query: { view: 'mcp', workspaceId: String(workspace.id) },
+                          })
+                        "
+                      >
+                        <Blocks aria-hidden="true" />
+                        MCP 服务
                       </DropdownMenuItem>
                       <DropdownMenuItem @select="openRenameWorkspaceDialog(workspace)">
                         <Pencil aria-hidden="true" />

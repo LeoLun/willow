@@ -16,6 +16,8 @@ import type {
 const READ_TOOLS = new Set<ToolName>(["read", "ls", "grep", "find"]);
 const WRITE_TOOLS = new Set<ToolName>(["write", "edit"]);
 const INTERNAL_TOOLS = new Set<ToolName>([
+  "mcpSearch",
+  "mcpDescribe",
   "todoList",
   "askUser",
   "listAutomations",
@@ -322,6 +324,23 @@ class NetworkPermissionPolicy implements PermissionPolicy {
   }
 }
 
+class McpPermissionPolicy implements PermissionPolicy {
+  supports(context: ToolPermissionContext): boolean {
+    return context.toolName === "mcpCall";
+  }
+  async evaluate(context: ToolPermissionContext): Promise<PermissionDecision> {
+    if (context.action.type !== "mcp" || !context.action.fingerprint)
+      return decision("deny", "high", "mcp.invalid-action", "Invalid MCP call action.");
+    return decision(
+      "review",
+      "high",
+      "mcp.call",
+      "MCP tool calls require one-call approval.",
+      true,
+    );
+  }
+}
+
 class InternalPermissionPolicy implements PermissionPolicy {
   supports(context: ToolPermissionContext): boolean {
     return INTERNAL_TOOLS.has(context.toolName);
@@ -344,6 +363,7 @@ export class DefaultPermissionEngine implements PermissionEngine {
       new FilePermissionPolicy(),
       new AutomationPermissionPolicy(),
       new NetworkPermissionPolicy(),
+      new McpPermissionPolicy(),
       new InternalPermissionPolicy(),
     ],
   ) {}
@@ -368,6 +388,13 @@ export class DefaultPermissionEngine implements PermissionEngine {
 
 function requestedPermissions(action: ApprovalAction): Record<string, unknown> {
   switch (action.type) {
+    case "mcp":
+      return {
+        capability: "mcp-call-once",
+        serverName: action.serverName,
+        toolName: action.toolName,
+        fingerprint: action.fingerprint,
+      };
     case "exec":
       return {
         capability: action.sandboxPermissions === "elevated" ? "full-access-once" : "exec-once",
@@ -388,8 +415,18 @@ function requestedPermissions(action: ApprovalAction): Record<string, unknown> {
 export function normalizeApprovalAction(
   toolName: ToolName,
   input: Record<string, unknown>,
-  options: Pick<ToolRuntimeOptions, "cwd">,
+  options: Pick<ToolRuntimeOptions, "cwd" | "mcp">,
 ): ApprovalAction {
+  if (toolName === "mcpCall") {
+    const serverName = String(input.serverName ?? "");
+    return {
+      type: "mcp",
+      serverName,
+      toolName: String(input.toolName ?? ""),
+      arguments: input.arguments as Record<string, unknown>,
+      fingerprint: options.mcp?.fingerprint(serverName) ?? "",
+    };
+  }
   if (toolName === "bash") {
     return {
       type: "exec",

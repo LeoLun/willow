@@ -25,6 +25,9 @@ export const TOOL_NAMES = [
   "deleteAutomation",
   "writePlan",
   "updatePlan",
+  "mcpSearch",
+  "mcpDescribe",
+  "mcpCall",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -44,6 +47,13 @@ export type ApprovalReason = {
 };
 
 export type ApprovalAction =
+  | {
+      type: "mcp";
+      serverName: string;
+      toolName: string;
+      arguments: Record<string, unknown>;
+      fingerprint: string;
+    }
   | {
       type: "exec";
       command: string;
@@ -332,9 +342,20 @@ export type WillowToolDetails =
   | UpdateAutomationToolDetails
   | DeleteAutomationToolDetails
   | WritePlanToolDetails
-  | UpdatePlanToolDetails;
+  | UpdatePlanToolDetails
+  | McpToolDetails;
+
+export interface McpToolDetails extends BaseDetails {
+  kind: "mcp";
+  serverName?: string;
+  toolName?: string;
+  resultCount?: number;
+  truncated?: boolean;
+  isError?: boolean;
+}
 
 export type ToolRuntimeOptions = {
+  mcp?: import("../mcp/types.js").McpRuntime;
   cwd: string;
   sessionId?: string;
   agentDir?: string;

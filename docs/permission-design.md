@@ -34,7 +34,7 @@ Core 在权限检查开始时只读取一次当前模式，并把该快照同时
 
 ## 2. Action 与审批契约
 
-所有工具输入归一化为 `exec`、`filesystem`、`network`、`automation` 或 `internal` Action。`ToolApprovalRequest` 同时携带 Action、风险等级、规则 ID、结构化理由、`autoReviewable` 和最小权限范围，并保留 `reason`、`display`、`input` 以恢复旧会话。
+所有工具输入归一化为 `exec`、`filesystem`、`network`、`automation` 、`mcp` 或 `internal` Action。`ToolApprovalRequest` 同时携带 Action、风险等级、规则 ID、结构化理由、`autoReviewable` 和最小权限范围，并保留 `reason`、`display`、`input` 以恢复旧会话。
 
 审批只对当前 `toolCallId` 和当前 Action 有效。Work 主进程创建、深拷贝并冻结审批 payload，renderer 只能回传不可预测的 `approvalId` 与 `allow/deny`，不能回传或修改 workspace、session、命令或权限范围。审批 FIFO 展示并写入 session branch；停止任务以拒绝结算，未决项可在重启后恢复。旧 reason 继续兼容显示。
 
@@ -47,6 +47,8 @@ Core 在权限检查开始时只读取一次当前模式，并把该快照同时
 | `bash` | hard-deny 优先；已知只读/构建/测试命令 `allow`；安装、删除、Git 写入和未知命令 `review` |
 | `create/update/deleteAutomation` | `review`，可由 Reviewer 自动审批 |
 | `webfetch/websearch` | 默认 `allow`；初始请求和每次重定向仍执行 denied-domain hard deny |
+| `mcpSearch/mcpDescribe` | 显式 `allow`，可连接已配置的全局及项目有效服务；不启动禁用的服务 |
+| `mcpCall` | `review`，不信任 `readOnlyHint`，审批绑定工具调用、参数和配置指纹；Plan 模式不注册 |
 | `todoList/askUser/listAutomations` | 显式 `allow` |
 | 受固定计划路径约束的计划工具 | 显式 `allow` |
 
@@ -117,4 +119,39 @@ macOS 还应运行真实 Seatbelt smoke/attack tests，并用仓库内 Electron 
 
 ## 7. 后续范围
 
-一期不加载 repository-owned 权限配置，也不覆盖 MCP/Subagent。独立 JSONL 脱敏审计、指标、Reviewer 低权限调查工具与独立沙箱、策略存储、缓存和拒绝效果识别留后续阶段。
+一期不加载 repository-owned 权限配置，也不覆盖 Subagent。独立 JSONL 脱敏审计、指标、Reviewer 低权限调查工具与独立沙箱、策略存储、缓存和拒绝效果识别留后续阶段。
+
+
+## 8. MCP 服务边界
+
+MCP 全局服务由共享运行时持有，项目服务由项目运行时持有；组合目录由项目同名配置覆盖全局配置，
+包括禁用项。全局连接、凭据和缓存共享，删除项目不清理全局资源。工具代理通过 Harness 独立的 PermissionEngine 和单次审批执行。
+`mcp` Action 包含服务名、原始工具名、参数与绑定来源的配置指纹；全局/项目来源变化也使旧审批失效。
+执行前及连接完成后再次核对有效服务来源，防止覆盖关系变化后执行旧审批。服务更新后旧审批不得执行；恢复审批也必须
+核对这些字段。`request-approval`、`delegate-approval`、`full-access` 保持现有路由，缺少回调安全拒绝。
+Plan 模式只提供目录搜索与工具描述。工具的 `readOnlyHint` 不作为权限依据。
+
+项目中配置的 MCP 服务默认信任，不维护独立服务信任状态，也不需要确认信任。
+连接、登录、目录发现与工具调用均不读取信任记录。保存配置不自动启动服务，禁用服务仍拒绝连接和调用。
+`mcpCall` 保留会话权限审批和配置指纹校验，配置变化使旧调用审批失效。
+本地 stdio 通过无 shell 的进程启动，采用 SDK 的最小环境及显式环境变量，
+不继承任意宿主密钥，不执行配置中的动态密钥命令。stdio 服务运行在主机上，
+**不进入 Bash OS Sandbox**，因此工具调用审批不能限制服务本身在后台的文件或网络行为。
+
+HTTP 服务使用通用 `url`、可选 `type` 和 `headers` 配置，不需要自定义 `auth` 开关。
+未提供 Authorization 请求头时使用 OAuth 凭据并处理服务的认证响应。
+工具发现、描述或调用遇到需要认证时通过主进程请求渲染端弹出登录引导，
+用户点击「去登录」后发起浏览器登录，等待授权后继续连接；关闭引导、停止任务或移除服务取消待完成的授权。
+同一服务的并发工具请求共用一次登录，任务停止取消待完成的授权。状态读取和保存配置不发起登录。HTTP 服务拒绝重定向和跨 origin 凭证转发，
+仅明确不支持 Streamable HTTP 时回退 SSE；显式 `type: "sse"` 直接使用 SSE。
+状态读取不启动服务、不登录；缓存目录不计为已连接。调用不会在断线后自动重放，停止任务取消
+其请求，项目删除和应用退出清理 transport 与进程。
+
+全局 `userData/mcp.json` 和项目 `.mcp.json` 保存配置及 `${willow:...}` 密钥引用。Work 使用本机
+`app.getPath("userData")/willow.db` 的 `mcp_credentials` SQLite 表保存 AES-256-GCM 加密凭证，
+包括 Bearer Token、OAuth access/refresh token、客户端密钥和敏感环境变量/headers。
+加密密钥沿用 `userData/credential.key`，不使用系统钥匙串。密文 envelope 绑定作用域、项目（全局为 null）与存储 key；
+key 包含全局或 canonical 项目路径派生的命名空间、服务名和配置指纹，OAuth 凭证额外绑定 issuer。
+Renderer 只能写入/替换/删除密钥或读取保存状态，不能读回明文。现有文件中的明文值只在用户显式
+转存或保存配置时改为 SQLite 加密存储。注销删除认证 Token，保留独立配置密钥；删除服务或项目
+清理相关凭证与缓存，删除项目不删除磁盘项目文件。

@@ -2,6 +2,7 @@ import { AgentHarness, type ExecutionEnv, type SessionRepo } from "@earendil-wor
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
 import { AGENT_DIR } from "./constant";
+import { getMcpPrompt } from "./prompt/mcp.js";
 import { getPlanModePrompt } from "./prompt/plan-mode.js";
 import { EscalationStore } from "./tools/escalation-store.js";
 import { createWillowTools } from "./tools/index.js";
@@ -13,6 +14,7 @@ import { DefaultResourceLoader } from "./utils/resource-loader";
 
 // AgentCore 每个工作空间一个
 export class AgentCore {
+  private readonly mcp?: AgentCoreOptions["mcp"];
   private models: MutableModels;
   private env: ExecutionEnv;
   private cwd: string; // 工作目录
@@ -23,6 +25,7 @@ export class AgentCore {
   private tavilyApiKey?: string;
 
   constructor(options: AgentCoreOptions) {
+    this.mcp = options.mcp;
     this.cwd = options.cwd;
     this.agentDir = options.agentDir || AGENT_DIR;
     this.env = new NodeExecutionEnv({ cwd: this.cwd });
@@ -58,8 +61,12 @@ export class AgentCore {
       : await this.sessionManager.create({});
 
     const agentMode = options.agentMode ?? "default";
-    const roleAdditional =
-      agentMode === "plan" ? getPlanModePrompt(resolvePlanDirectory(this.agentDir)) : "";
+    const roleAdditional = [
+      agentMode === "plan" ? getPlanModePrompt(resolvePlanDirectory(this.agentDir)) : "",
+      this.mcp ? getMcpPrompt(this.mcp.snapshot(), agentMode) : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
     const { systemPrompt } = await this.loader.reload(roleAdditional);
     const initialTodoList = restoreTodoList(await session.getBranch());
     const sessionId = (await session.getMetadata()).id;
@@ -91,6 +98,7 @@ export class AgentCore {
       model: options.model,
       thinkingLevel: "high",
       tools: createWillowTools({
+        mcp: this.mcp,
         cwd: this.cwd,
         sessionId,
         agentDir: this.agentDir,
@@ -115,6 +123,12 @@ export class AgentCore {
       followUpMode: "all",
     });
 
+    harness.on("tool_result", (event) => {
+      const details = event.details as import("./tools/types.js").McpToolDetails | undefined;
+      if (event.toolName === "mcpCall" && details?.kind === "mcp")
+        return { isError: details.isError === true };
+      return undefined;
+    });
     return harness;
   }
 }

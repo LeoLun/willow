@@ -77,6 +77,20 @@ export const credentials = sqliteTable("credentials", {
   encryptedData: blob("encrypted_data", { mode: "buffer" }).notNull(),
 });
 
+export const mcpCredentials = sqliteTable("mcp_credentials", {
+  key: text("key").primaryKey(),
+  workspaceId: integer("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
+  serverName: text("server_name").notNull(),
+  encryptedData: blob("encrypted_data", { mode: "buffer" }).notNull(),
+});
+
+export const mcpMetadata = sqliteTable("mcp_metadata", {
+  key: text("key").primaryKey(),
+  workspaceId: integer("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
+  serverName: text("server_name").notNull(),
+  tools: text("tools", { mode: "json" }).$type<import("@willow/core").Tool[]>().notNull(),
+});
+
 export const userConfigs = sqliteTable("user_configs", {
   id: integer("id").primaryKey(),
   largeModelProviderId: text("large_model_provider_id"),

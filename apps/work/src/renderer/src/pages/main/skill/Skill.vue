@@ -5,9 +5,25 @@ import { Switch } from "@willow/shadcn/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@willow/shadcn/components/ui/tabs";
 import { Blocks, FolderKanban, RefreshCw, Search } from "lucide-vue-next";
 import { computed, onMounted, ref, shallowRef } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import BaseHeader from "@/components/layout/BaseHeader.vue";
 import { Button } from "@/components/ui/button";
 import { electronAPI } from "@/lib/ipc";
+import Mcp from "./Mcp.vue";
+
+const route = useRoute();
+const router = useRouter();
+const selectedView = computed(() => (route.query.view === "mcp" ? "mcp" : "skill"));
+function selectView(view: string | number) {
+  void router.replace({ query: { ...route.query, view: view === "mcp" ? "mcp" : undefined } });
+}
+function selectMcpProject(workspaceId: number) {
+  void router.replace({ query: { ...route.query, workspaceId: String(workspaceId) } });
+}
+const mcpWorkspaceId = computed(() => {
+  const value = Number(route.query.workspaceId);
+  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+});
 
 interface ProjectSkillGroup {
   workspace: WorkspaceInfo;
@@ -165,8 +181,22 @@ onMounted(() => void loadSkills());
 
 <template>
   <div class="flex h-full min-h-0 flex-col bg-background" data-slot="builtin-skills-page">
-    <BaseHeader />
-    <div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
+    <BaseHeader>
+      <template #left>
+        <Tabs :model-value="selectedView" @update:model-value="selectView">
+          <TabsList class="ml-3 h-8" aria-label="选择技能或 MCP">
+            <TabsTrigger value="skill" class="px-3 text-xs">技能</TabsTrigger>
+            <TabsTrigger value="mcp" class="px-3 text-xs">MCP</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </template>
+    </BaseHeader>
+    <Mcp
+      v-if="selectedView === 'mcp'"
+      :workspace-id="mcpWorkspaceId"
+      @select-project="selectMcpProject"
+    />
+    <div v-else class="min-h-0 min-w-0 flex-1 overflow-y-auto">
       <main class="mx-auto w-full max-w-5xl px-6 pt-6 pb-16 sm:px-10 lg:px-14">
         <header>
           <h1 class="text-2xl font-semibold tracking-tight text-foreground">技能</h1>

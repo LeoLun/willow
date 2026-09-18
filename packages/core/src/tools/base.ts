@@ -234,6 +234,8 @@ export abstract class ToolBase<
 
 function approvalDisplay(action: ApprovalAction): string {
   switch (action.type) {
+    case "mcp":
+      return `${action.serverName} / ${action.toolName}\n${JSON.stringify(action.arguments)}`;
     case "exec":
       return action.command;
     case "filesystem":

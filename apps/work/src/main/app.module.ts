@@ -1,10 +1,5 @@
 import { join } from "node:path";
-import {
-  Module,
-  On,
-  TrayFactoryResolver,
-  WindowFactoryResolver,
-} from "@willow/poetry";
+import { Module, On, TrayFactoryResolver, WindowFactoryResolver } from "@willow/poetry";
 import { app, powerMonitor, screen } from "electron";
 import started from "electron-squirrel-startup";
 import { CheckAppUpdateController } from "./controllers/app-update/check.app-update.controller";
@@ -45,6 +40,8 @@ import { UnstageGitChangesController } from "./controllers/git-review/unstage.gi
 import { InspectLocalFilesController } from "./controllers/local-file/inspect.local-file.controller";
 import { PersistClipboardImagesController } from "./controllers/local-file/persist.clipboard-image.controller";
 import { SelectLocalFilesController } from "./controllers/local-file/select.local-file.controller";
+import { GetMcpController } from "./controllers/mcp/get.mcp.controller";
+import { ManageMcpController } from "./controllers/mcp/manage.mcp.controller";
 import { GetMessageListController } from "./controllers/message/get-list.message.controller";
 import { ResolveToolApprovalController } from "./controllers/message/resolve-tool-approval.message.controller";
 import { ResolveUserQuestionController } from "./controllers/message/resolve-user-question.message.controller";
@@ -88,6 +85,7 @@ import { AutomationTriggerDao } from "./service/dao/automation-trigger.dao.serve
 import { AutomationDao } from "./service/dao/automation.dao.server";
 import { BuiltinSkillSettingDao } from "./service/dao/builtin-skill-setting.dao.server";
 import { CredentialDao } from "./service/dao/credential.dao.server";
+import { McpDao } from "./service/dao/mcp.dao.server";
 import { SessionDao } from "./service/dao/session.dao.server";
 import { StatisticsDao } from "./service/dao/statistics.dao.server";
 import { UserConfigDao } from "./service/dao/user-config.dao.server";
@@ -97,6 +95,7 @@ import { EventService } from "./service/event.service";
 import { FileSearchService } from "./service/file-search.service";
 import { GitReviewService } from "./service/git-review.service";
 import { LocalFileService } from "./service/local-file.service";
+import { McpService } from "./service/mcp.service";
 import { MessageService } from "./service/message.service";
 import { PermissionModeService } from "./service/permission-mode.service";
 import { PlanFileService } from "./service/plan-file.service";
@@ -128,6 +127,8 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
   windows: [MainWindow],
   trays: process.platform === "darwin" ? [MacMenuBar] : [],
   providers: [
+    McpService,
+    McpDao,
     DbService,
     AutoLaunchService,
     BoardPanelService,
@@ -169,6 +170,8 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     WorkspaceService,
   ],
   controllers: [
+    GetMcpController,
+    ManageMcpController,
     EventController,
     GetAppUpdateStateController,
     CheckAppUpdateController,
@@ -250,6 +253,7 @@ export class AppModule {
     private workspaceFileWatcherService: WorkspaceFileWatcherService,
     private automationService: AutomationService,
     private agentService: AgentService,
+    private mcpService: McpService,
   ) {}
 
   private readonly onSystemResume = () => {
@@ -273,6 +277,7 @@ export class AppModule {
   @On("before-quit")
   async onBeforeQuit() {
     await this.automationService.shutdown();
+    await this.mcpService.shutdown();
     await this.workspaceFileWatcherService.closeAll();
     this.dbService.close();
   }
@@ -304,6 +309,9 @@ export class AppModule {
     try {
       console.log("bootstrapApplication init db");
       this.dbService.init();
+      this.agentService.setMcpManagerProvider((workspaceId) =>
+        this.mcpService.getManager(workspaceId),
+      );
       console.log("bootstrapApplication initialize automation");
       await this.automationService.initialize();
       console.log("bootstrapApplication set list automations handler");
@@ -340,8 +348,7 @@ export class AppModule {
   }
 
   private showMainWindow() {
-    const mainWindow =
-      this.windowFactoryResolver.resolveWindowFactory(MainWindow);
+    const mainWindow = this.windowFactoryResolver.resolveWindowFactory(MainWindow);
 
     if (!mainWindow.win || mainWindow.win.isDestroyed()) {
       this.createWindow();

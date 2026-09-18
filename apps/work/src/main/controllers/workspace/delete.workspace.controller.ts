@@ -1,3 +1,4 @@
+import { McpService } from "@main/service/mcp.service";
 import { WorkspaceNotFoundError, WorkspaceService } from "@main/service/workspace.service";
 import type { ApiResponse, DeleteWorkspaceRequest, DeleteWorkspaceResponse } from "@shared/api";
 import { DELETE_WORKSPACE } from "@shared/constants";
@@ -10,7 +11,10 @@ export class DeleteWorkspaceController extends IPCBaseController<
   DeleteWorkspaceRequest,
   DeleteWorkspaceResponse
 > {
-  constructor(private readonly workspaceService: WorkspaceService) {
+  constructor(
+    private readonly workspaceService: WorkspaceService,
+    private readonly mcpService?: McpService,
+  ) {
     super();
   }
 
@@ -23,6 +27,7 @@ export class DeleteWorkspaceController extends IPCBaseController<
     if (error) return this.buildError(400, error.message);
 
     try {
+      await this.mcpService?.deleteProject(request.workspaceId);
       this.workspaceService.deleteWorkspace(request.workspaceId);
       return this.buildResponse({});
     } catch (error) {
