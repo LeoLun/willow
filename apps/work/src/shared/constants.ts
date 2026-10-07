@@ -77,3 +77,10 @@ export const GET_MCP = "mcp:get";
 export const MANAGE_MCP = "mcp:manage";
 export const MCP_STATUS_EVENT = "mcp:status";
 export const MCP_AUTH_REQUIRED_EVENT = "mcp:auth-required";
+
+export const READ_MEMORY = "READ_MEMORY";
+export const OPEN_MEMORY = "OPEN_MEMORY";
+
+export const SAVE_MEMORY = "SAVE_MEMORY";
+
+export const SET_MEMORY_ENABLED = "SET_MEMORY_ENABLED";

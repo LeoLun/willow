@@ -43,6 +43,8 @@ export function formatToolCallTitle(name: string, args: unknown, details?: unkno
       return `查看 MCP 工具 · ${text(input.serverName)} / ${text(input.toolName)}`;
     case "mcpCall":
       return `调用 MCP 工具 · ${text(input.serverName)} / ${text(input.toolName)}`;
+    case "memory_update":
+      return `更新${input.scope === "global" ? "全局" : "项目"}记忆 · ${text(input.section)}`;
     case "bash":
       return `$ ${text(input.command)}`;
     case "read": {
@@ -110,6 +112,8 @@ export function formatToolCallTitle(name: string, args: unknown, details?: unkno
 
 export function formatToolCallIcon(name: string): Component {
   switch (name) {
+    case "memory_update":
+      return BookOpenTextIcon;
     case "bash":
       return SquareTerminalIcon;
     case "read":

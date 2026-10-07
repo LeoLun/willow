@@ -1,8 +1,9 @@
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import minimatch from "minimatch";
+import { authorizeMemoryPath, getMemoryPath } from "../memory/paths.js";
 import { isExpectedToolPath } from "./directory-access.js";
-import { canonicalMutationPath, isPathInside } from "./policy.js";
+import { canonicalMutationPath, isPathInside, isSensitiveWritePath } from "./policy.js";
 import type {
   ApprovalAction,
   PermissionDecision,
@@ -190,6 +191,45 @@ class FilePermissionPolicy implements PermissionPolicy {
   }
 }
 
+class MemoryPermissionPolicy implements PermissionPolicy {
+  supports(context: ToolPermissionContext): boolean {
+    return context.toolName === "memory_update";
+  }
+  async evaluate(context: ToolPermissionContext): Promise<PermissionDecision> {
+    if (
+      context.action.type !== "filesystem" ||
+      context.action.operation !== "write" ||
+      context.action.paths.length !== 1 ||
+      (context.input.scope !== "global" && context.input.scope !== "project")
+    )
+      return decision("deny", "high", "memory.invalid-action", "Invalid memory action.");
+    try {
+      const options = { cwd: context.workspaceRoot, projectTrusted: context.projectTrusted };
+      const expected = getMemoryPath(options, context.input.scope);
+      if (
+        context.action.paths[0] !== expected ||
+        (await isSensitivePath(context.workspaceRoot, expected, "write")) ||
+        (await isSensitiveWritePath(context.workspaceRoot, expected, context.sandboxPolicy))
+      )
+        return decision(
+          "deny",
+          "critical",
+          "memory.invalid-target",
+          "Memory target is outside its fixed scope or sensitive.",
+        );
+      await authorizeMemoryPath(options, context.input.scope);
+      return decision(
+        "allow",
+        "low",
+        "memory.fixed-file",
+        "Only the fixed memory file may be updated.",
+      );
+    } catch (error) {
+      return decision("deny", "high", "memory.invalid-path", String(error));
+    }
+  }
+}
+
 class BashPermissionPolicy implements PermissionPolicy {
   supports(context: ToolPermissionContext): boolean {
     return context.toolName === "bash";
@@ -361,6 +401,7 @@ export class DefaultPermissionEngine implements PermissionEngine {
     private readonly policies: PermissionPolicy[] = [
       new BashPermissionPolicy(),
       new FilePermissionPolicy(),
+      new MemoryPermissionPolicy(),
       new AutomationPermissionPolicy(),
       new NetworkPermissionPolicy(),
       new McpPermissionPolicy(),
@@ -417,6 +458,14 @@ export function normalizeApprovalAction(
   input: Record<string, unknown>,
   options: Pick<ToolRuntimeOptions, "cwd" | "mcp">,
 ): ApprovalAction {
+  if (toolName === "memory_update") {
+    return {
+      type: "filesystem",
+      operation: "write",
+      paths: [getMemoryPath(options, input.scope === "global" ? "global" : "project")],
+      cwd: options.cwd,
+    };
+  }
   if (toolName === "mcpCall") {
     const serverName = String(input.serverName ?? "");
     return {

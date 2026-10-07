@@ -929,3 +929,25 @@ export type ManageMcpResponse = {
   project: GetMcpResponse;
   tools?: import("@willow/core").McpToolDescription[];
 };
+
+export type MemoryFileRequest =
+  | { scope: "global"; workspaceId?: never }
+  | { scope: "project"; workspaceId: number };
+
+export interface ReadMemoryResponse {
+  memory: import("@willow/core").MemorySnapshot;
+}
+export interface OpenMemoryResponse {}
+
+export type SaveMemoryRequest = MemoryFileRequest & {
+  content: string;
+  expectedContent: string | null;
+};
+export interface SaveMemoryResponse extends ReadMemoryResponse {}
+
+export interface SetMemoryEnabledRequest {
+  enabled: boolean;
+}
+export interface SetMemoryEnabledResponse {
+  enabled: boolean;
+}

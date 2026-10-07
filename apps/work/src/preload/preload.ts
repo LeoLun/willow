@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent, webUtils } from "electron";
 import type { IRenderHook } from "../shared";
+import type { MemoryFileRequest, ReadMemoryResponse, OpenMemoryResponse } from "../shared/api";
 import type {
   GetMcpRequest,
   GetMcpResponse,
@@ -129,6 +130,13 @@ import type {
   UpdateAutomationRequest,
   UpdateAutomationResponse,
 } from "../shared/api";
+import type {
+  SaveMemoryRequest,
+  SaveMemoryResponse,
+  SetMemoryEnabledRequest,
+  SetMemoryEnabledResponse,
+} from "../shared/api";
+import { SET_MEMORY_ENABLED, SAVE_MEMORY, READ_MEMORY, OPEN_MEMORY } from "../shared/constants";
 import { GET_MCP, MANAGE_MCP } from "../shared/constants";
 import {
   CREATE_SESSION,
@@ -316,6 +324,14 @@ const ipcObject: IRenderHook = {
     invoke<ReadWorkspaceFileRequest, ReadWorkspaceFileResponse>(READ_WORKSPACE_FILE, request),
   readPlanFile: (request: ReadPlanFileRequest) =>
     invoke<ReadPlanFileRequest, ReadPlanFileResponse>(READ_PLAN_FILE, request),
+  setMemoryEnabled: (request: SetMemoryEnabledRequest) =>
+    invoke<SetMemoryEnabledRequest, SetMemoryEnabledResponse>(SET_MEMORY_ENABLED, request),
+  saveMemory: (request: SaveMemoryRequest) =>
+    invoke<SaveMemoryRequest, SaveMemoryResponse>(SAVE_MEMORY, request),
+  readMemory: (request: MemoryFileRequest) =>
+    invoke<MemoryFileRequest, ReadMemoryResponse>(READ_MEMORY, request),
+  openMemory: (request: MemoryFileRequest) =>
+    invoke<MemoryFileRequest, OpenMemoryResponse>(OPEN_MEMORY, request),
   openWorkspaceFile: (request: OpenWorkspaceFileRequest) =>
     invoke<OpenWorkspaceFileRequest, OpenWorkspaceFileResponse>(OPEN_WORKSPACE_FILE, request),
   revealWorkspaceEntry: (request: RevealWorkspaceEntryRequest) =>

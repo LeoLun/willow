@@ -51,6 +51,7 @@ Core 在权限检查开始时只读取一次当前模式，并把该快照同时
 | `mcpCall` | `review`，不信任 `readOnlyHint`，审批绑定工具调用、参数和配置指纹；Plan 模式不注册 |
 | `todoList/askUser/listAutomations` | 显式 `allow` |
 | 受固定计划路径约束的计划工具 | 显式 `allow` |
+| `memory_update` | 独立 filesystem write 策略；固定全局/可信工作区记忆文件 `allow`，非法目标 `deny`；Plan 模式不注册 |
 
 文件路径相对工作区解析，并用最近存在父目录与 `realpath` 得到 canonical path。边界判断必须覆盖不存在目标、`..`、符号链接逃逸和相邻前缀目录。工作区、经主进程验证的附件范围、系统临时目录、全局/内置技能授权区及显式 `SandboxPolicy` 构成允许根；写权限隐含读取权限。Plan 模式只给附件读取授权。
 
@@ -155,3 +156,26 @@ key 包含全局或 canonical 项目路径派生的命名空间、服务名和�
 Renderer 只能写入/替换/删除密钥或读取保存状态，不能读回明文。现有文件中的明文值只在用户显式
 转存或保存配置时改为 SQLite 加密存储。注销删除认证 Token，保留独立配置密钥；删除服务或项目
 清理相关凭证与缓存，删除项目不删除磁盘项目文件。
+
+## 9. 长期记忆边界
+
+Core 每次 `before_agent_start` 重新加载全局 `~/.willow/memory/MEMORY.md` 与可信工作区
+`<workspace>/.willow/memory/MEMORY.md`，作为参考资料注入。当前指令和会话上下文优先于记忆，项目记忆优先于全局。
+Core 的 `projectTrusted` 默认为 false；Work 将用户已添加的工作区视为可信，不维护额外信任记录。
+未可信工作区不读取项目记忆及项目配置，也不允许项目更新。
+
+`memory_update` 通过 ToolBase、filesystem Action 与 Harness-local PermissionEngine，三档模式均只允许
+固定 scope 文件更新。拒绝记忆目录/文件符号链接、文件硬链接、敏感目录和 Git 元数据，执行前再次验证目标。
+此能力不向普通文件工具或 Bash sandbox 添加全局记忆目录授权。未注册策略继续 fail closed。
+Plan 模式只 recall，不注册记忆写工具；停用记忆不注入内容且不注册工具，执行时重新检查配置。
+
+每个 scope 默认 16 KiB，写入检查 UTF-8 字节数；超限拒绝，读取超限文件仅返回诊断而不注入内容。
+更新串行化到 canonical 文件路径，通过唯一临时文件、fsync/close 和 rename 原子替换。
+替换限指定章节的唯一精确文本，不存在或歧义时失败；不允许更新改变章节边界。
+
+设置页读取和原生打开 IPC 仅接受 scope 和项目 workspaceId；主进程查询已保存的工作区并解析固定路径，拒绝额外字段。
+设置页保存 IPC 额外接受 content 和 expectedContent（不存在的文件为 null），不接受任意路径。显式用户编辑通过 core 的固定路径校验、容量检查及原子写入保存；按目标路径串行校验旧内容，发生并发更新时拒绝覆盖。用户可编辑已停用的记忆，但非法配置会拒绝保存。
+读取和进入编辑模式不创建文件；点击保存才写入内容。原生打开接口仍只在明确打开时创建默认文件。
+本版不在 turn_end 提取记忆，不新增退出提取或 compact 长期记忆写入。
+
+记忆总开关 IPC 仅接受 enabled 布尔值，通过 core 校验全局固定 config.json 路径并原子保存，保留容量和未知配置字段。全局关闭不能被项目配置覆盖；新请求不注册 memory_update、不注入记忆。

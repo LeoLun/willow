@@ -89,6 +89,7 @@ export abstract class ToolBase<
         toolName: this.name,
         input: input as Record<string, unknown>,
         workspaceRoot: this.options.cwd,
+        projectTrusted: this.options.projectTrusted,
         action: context.approvalAction,
         sandboxPolicy: this.options.sandboxPolicy,
         agentDir: this.options.agentDir,

@@ -177,6 +177,7 @@ export class AgentService {
       credential?.type === "api_key" && credential.key?.trim() ? credential.key.trim() : undefined;
     const core = new AgentCore({
       ...options,
+      projectTrusted: true,
       mcp: await this.mcpManagerProvider?.(workspaceId),
       models: this.models,
       sessionRepo,

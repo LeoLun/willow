@@ -1,3 +1,4 @@
+export * from "./memory/index.js";
 export * from "./mcp/index.js";
 export { AgentCore } from "./core.js";
 export { resolvePlanDirectory } from "./utils/agent-paths.js";

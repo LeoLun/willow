@@ -6,6 +6,7 @@ import type { IFileSearchApi } from "./file-search.hook";
 import type { IGitReviewApi } from "./git-review.hook";
 import type { ILocalFileApi } from "./local-file.hook";
 import type { IMcpApi } from "./mcp.hook";
+import type { IMemoryApi } from "./memory.hook";
 import type { IMessageApi } from "./message.hook";
 import type { IPlanApi } from "./plan.hook";
 import type { ISessionApi } from "./session.hook";
@@ -16,6 +17,7 @@ import type { IWorkspaceApi } from "./workspace.hook";
 export interface IRenderHook
   extends
     IMcpApi,
+    IMemoryApi,
     IAppUpdateApi,
     IAutomationApi,
     IBoardApi,

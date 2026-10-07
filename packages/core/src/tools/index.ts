@@ -11,6 +11,7 @@ import { createLsTool } from "./ls.js";
 import { McpCallTool } from "./mcp-call.js";
 import { McpDescribeTool } from "./mcp-describe.js";
 import { McpSearchTool } from "./mcp-search.js";
+import { MemoryUpdateTool } from "./memory-update.js";
 import { createReadTool } from "./read.js";
 import { createTodoListTool } from "./todo-list.js";
 import type { ToolRuntimeOptions } from "./types.js";
@@ -53,6 +54,7 @@ export function createWillowTools(options: ToolRuntimeOptions): AgentTool[] {
     createTodoListTool(options),
     createWebFetchTool(options),
   ];
+  if (options.memoryEnabled) tools.push(new MemoryUpdateTool(options) as AgentTool<any>);
   if (options.tavilyApiKey?.trim()) tools.push(createWebSearchTool(options));
   tools.push(createAskUserTool(options));
   tools.push(createListAutomationsTool(options));
@@ -94,3 +96,5 @@ export * from "./webfetch.js";
 export * from "./websearch.js";
 export * from "./write.js";
 export * from "./write-plan.js";
+
+export * from "./memory-update.js";

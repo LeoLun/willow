@@ -26,6 +26,7 @@ import {
   CircleAlert,
   Cpu,
   DatabaseZap,
+  Brain,
   Info,
   Laptop,
   Globe2,
@@ -42,13 +43,14 @@ import { Button } from "@/components/ui/button";
 import { useDarkMode } from "@/composables/useDarkMode";
 import { electronAPI } from "@/lib/ipc";
 import appIconUrl from "../../../../../../assets/icons/trayTemplate.svg";
+import MemorySettings from "./MemorySettings.vue";
 import { getAvailableProviders, getConnectedProviders } from "./provider-display";
 import ProviderConnectDialog from "./ProviderConnectDialog.vue";
 import ProviderMark from "./ProviderMark.vue";
 import SearchSettings from "./SearchSettings.vue";
 import Statistics from "./Statistics.vue";
 
-type SettingTab = "general" | "providers" | "models" | "search" | "statistics" | "about";
+type SettingTab = "general" | "providers" | "models" | "search" | "memory" | "statistics" | "about";
 
 const props = withDefaults(
   defineProps<{
@@ -64,6 +66,7 @@ const tabs = [
   { id: "providers" as const, label: "提供商", icon: Cpu },
   { id: "models" as const, label: "模型", icon: DatabaseZap },
   { id: "search" as const, label: "搜索", icon: Globe2 },
+  { id: "memory" as const, label: "记忆", icon: Brain },
   { id: "statistics" as const, label: "统计", icon: ChartBar },
   { id: "about" as const, label: "关于", icon: Info },
 ];
@@ -297,7 +300,7 @@ onMounted(async () => {
   <div class="grid h-full min-h-0 grid-cols-[180px_minmax(0,1fr)] bg-background">
     <DialogTitle class="sr-only">设置</DialogTitle>
     <DialogDescription class="sr-only">
-      配置应用外观、启动行为、AI 提供商、模型、网络搜索、统计和应用信息。
+      配置应用外观、启动行为、AI 提供商、模型、网络搜索、记忆、统计和应用信息。
     </DialogDescription>
 
     <aside class="border-r bg-muted/35 p-3 pt-5">
@@ -321,6 +324,15 @@ onMounted(async () => {
     </aside>
 
     <main class="min-h-0 overflow-hidden p-8 pr-10">
+      <section
+        v-if="activeTab === 'memory'"
+        id="setting-panel-memory"
+        role="tabpanel"
+        aria-labelledby="setting-tab-memory"
+        class="h-full min-h-0"
+      >
+        <MemorySettings />
+      </section>
       <section
         v-show="activeTab === 'search'"
         id="setting-panel-search"

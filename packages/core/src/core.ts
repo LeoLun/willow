@@ -2,6 +2,8 @@ import { AgentHarness, type ExecutionEnv, type SessionRepo } from "@earendil-wor
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model, MutableModels } from "@earendil-works/pi-ai";
 import { AGENT_DIR } from "./constant";
+import { resolveMemoryConfig } from "./memory/config.js";
+import { getMemoryPrompt } from "./memory/prompt.js";
 import { getMcpPrompt } from "./prompt/mcp.js";
 import { getPlanModePrompt } from "./prompt/plan-mode.js";
 import { EscalationStore } from "./tools/escalation-store.js";
@@ -14,6 +16,7 @@ import { DefaultResourceLoader } from "./utils/resource-loader";
 
 // AgentCore 每个工作空间一个
 export class AgentCore {
+  private readonly projectTrusted: boolean;
   private readonly mcp?: AgentCoreOptions["mcp"];
   private models: MutableModels;
   private env: ExecutionEnv;
@@ -25,6 +28,7 @@ export class AgentCore {
   private tavilyApiKey?: string;
 
   constructor(options: AgentCoreOptions) {
+    this.projectTrusted = options.projectTrusted ?? false;
     this.mcp = options.mcp;
     this.cwd = options.cwd;
     this.agentDir = options.agentDir || AGENT_DIR;
@@ -91,6 +95,8 @@ export class AgentCore {
                 ],
         }
       : options.sandboxPolicy;
+    const memoryOptions = { cwd: this.cwd, projectTrusted: this.projectTrusted };
+    const memoryConfig = await resolveMemoryConfig(memoryOptions);
     const harness = new AgentHarness({
       models: this.models,
       env: this.env,
@@ -98,6 +104,8 @@ export class AgentCore {
       model: options.model,
       thinkingLevel: "high",
       tools: createWillowTools({
+        memoryEnabled: memoryConfig.enabled || memoryConfig.projectEnabled,
+        projectTrusted: this.projectTrusted,
         mcp: this.mcp,
         cwd: this.cwd,
         sessionId,
@@ -121,6 +129,11 @@ export class AgentCore {
       systemPrompt: systemPrompt,
       steeringMode: "all",
       followUpMode: "all",
+    });
+
+    harness.on("before_agent_start", async (event) => {
+      const memoryPrompt = await getMemoryPrompt(memoryOptions, agentMode !== "plan");
+      return { systemPrompt: [event.systemPrompt, memoryPrompt].filter(Boolean).join("\n\n") };
     });
 
     harness.on("tool_result", (event) => {

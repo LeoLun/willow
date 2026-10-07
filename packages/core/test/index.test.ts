@@ -4,6 +4,7 @@ import { createWillowTools, TOOL_NAMES } from "../src/index.js";
 describe("core exports", () => {
   it("exports every built-in Willow tool name", () => {
     expect(TOOL_NAMES).toEqual([
+      "memory_update",
       "bash",
       "read",
       "write",
@@ -39,6 +40,7 @@ describe("core exports", () => {
         TOOL_NAMES.filter(
           (name) =>
             name !== "websearch" &&
+            name !== "memory_update" &&
             name !== "writePlan" &&
             name !== "updatePlan" &&
             !name.startsWith("mcp"),
@@ -56,7 +58,11 @@ describe("core exports", () => {
 
     expect(tools.map((tool) => tool.name)).toEqual(
       TOOL_NAMES.filter(
-        (name) => name !== "writePlan" && name !== "updatePlan" && !name.startsWith("mcp"),
+        (name) =>
+          name !== "memory_update" &&
+          name !== "writePlan" &&
+          name !== "updatePlan" &&
+          !name.startsWith("mcp"),
       ),
     );
   });

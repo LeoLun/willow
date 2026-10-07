@@ -42,6 +42,10 @@ import { PersistClipboardImagesController } from "./controllers/local-file/persi
 import { SelectLocalFilesController } from "./controllers/local-file/select.local-file.controller";
 import { GetMcpController } from "./controllers/mcp/get.mcp.controller";
 import { ManageMcpController } from "./controllers/mcp/manage.mcp.controller";
+import { OpenMemoryController } from "./controllers/memory/open.memory.controller";
+import { ReadMemoryController } from "./controllers/memory/read.memory.controller";
+import { SaveMemoryController } from "./controllers/memory/save.memory.controller";
+import { SetMemoryEnabledController } from "./controllers/memory/set-enabled.memory.controller";
 import { GetMessageListController } from "./controllers/message/get-list.message.controller";
 import { ResolveToolApprovalController } from "./controllers/message/resolve-tool-approval.message.controller";
 import { ResolveUserQuestionController } from "./controllers/message/resolve-user-question.message.controller";
@@ -96,6 +100,7 @@ import { FileSearchService } from "./service/file-search.service";
 import { GitReviewService } from "./service/git-review.service";
 import { LocalFileService } from "./service/local-file.service";
 import { McpService } from "./service/mcp.service";
+import { MemoryService } from "./service/memory.service";
 import { MessageService } from "./service/message.service";
 import { PermissionModeService } from "./service/permission-mode.service";
 import { PlanFileService } from "./service/plan-file.service";
@@ -127,6 +132,7 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
   windows: [MainWindow],
   trays: process.platform === "darwin" ? [MacMenuBar] : [],
   providers: [
+    MemoryService,
     McpService,
     McpDao,
     DbService,
@@ -170,6 +176,10 @@ if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     WorkspaceService,
   ],
   controllers: [
+    SetMemoryEnabledController,
+    SaveMemoryController,
+    ReadMemoryController,
+    OpenMemoryController,
     GetMcpController,
     ManageMcpController,
     EventController,

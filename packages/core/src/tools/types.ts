@@ -8,6 +8,7 @@ import type { TodoItem, TodoListToolDetails } from "./todo-list.js";
 import type { UpdateAutomationHandler, UpdateAutomationToolDetails } from "./update-automation.js";
 
 export const TOOL_NAMES = [
+  "memory_update",
   "bash",
   "read",
   "write",
@@ -99,6 +100,7 @@ export type ToolPermissionContext = {
   toolName: ToolName;
   input: Record<string, unknown>;
   workspaceRoot: string;
+  projectTrusted?: boolean;
   action: ApprovalAction;
   sandboxPolicy?: SandboxPolicy;
   agentDir?: string;
@@ -326,6 +328,7 @@ export interface WebSearchToolDetails extends BaseDetails {
 }
 
 export type WillowToolDetails =
+  | import("./memory-update.js").MemoryUpdateToolDetails
   | BashToolDetails
   | ReadToolDetails
   | WriteToolDetails
@@ -357,6 +360,8 @@ export interface McpToolDetails extends BaseDetails {
 export type ToolRuntimeOptions = {
   mcp?: import("../mcp/types.js").McpRuntime;
   cwd: string;
+  memoryEnabled?: boolean;
+  projectTrusted?: boolean;
   sessionId?: string;
   agentDir?: string;
   agentMode?: AgentMode;
